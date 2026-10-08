@@ -1,0 +1,14 @@
+# Line endings are LF in the repository and in the working tree.
+#
+# Git for Windows sets core.autocrlf=true at system scope, so without this file
+# a Windows clone checks every text file out as CRLF. Anything that then writes
+# LF - an editor, a script, an agent with filesystem access - produces a
+# whitespace-only diff across the whole file, and real changes get lost in it.
+# Declaring the intent here makes it a property of the repository rather than
+# of whoever happens to have cloned it.
+* text=auto eol=lf
+
+# Never normalised.
+*.png binary
+*.jpg binary
+*.gz  binary

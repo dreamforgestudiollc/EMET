@@ -1,0 +1,34 @@
+# secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# dependencies
+node_modules/
+node_modules
+
+# backups & scratch - must not enter history
+*.backup_*
+*.sqlite_backup*
+*.deleted_*
+_smoke_*
+_*_test.mjs
+_*probe*.mjs
+_*canary*.mjs
+
+# logs & runtime
+*.log
+logs/
+tmp/
+
+# python artefacts
+__pycache__/
+*.pyc
+
+# os / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

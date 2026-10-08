@@ -1,0 +1,61 @@
+{
+  "name": "emet-mcp-server",
+  "version": "0.2.3",
+  "description": "EMET \u2014 Enduring Memory & Epistemic Tiers. A multi-agent, multi-access memory MCP server with layered memory, verified writes, and a verbatim transcript tier.",
+  "mcpName": "io.github.dreamforgestudiollc/emet",
+  "license": "MIT",
+  "author": "Dreamforge Studio LLC <kennklick@dreamforgestudiollc.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dreamforgestudiollc/EMET.git"
+  },
+  "homepage": "https://github.com/dreamforgestudiollc/EMET#readme",
+  "bugs": {
+    "url": "https://github.com/dreamforgestudiollc/EMET/issues"
+  },
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "emet": "src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "start:http": "node src/http-remote.js",
+    "test": "node tests/run-all-tests.js",
+    "coverage": "node scripts/coverage.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "mongodb": "^7.1.0",
+    "express": "^5.2.1"
+  },
+  "overrides": {
+    "proxy-addr": "^2.0.8"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "memory",
+    "agent-memory",
+    "mongodb",
+    "mcp-server",
+    "long-term-memory",
+    "provenance",
+    "verified-writes",
+    "transcripts",
+    "multi-agent"
+  ],
+  "files": [
+    "src/",
+    "scripts/",
+    "docs/",
+    "templates/",
+    "guides/",
+    "CHARTER.md",
+    "README.md",
+    "LICENSE"
+  ]
+}
