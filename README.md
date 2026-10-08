@@ -744,6 +744,14 @@ next is in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ---
 
+## Origin
+
+EMET was built by Dreamforge Studio LLC from a neurodivergent user’s own need for an AI assistant that remembers. The word coined for that is neurendipity: neurodivergent and serendipity.
+
+It is designed first for neurodivergent users, and it works for anyone.
+
+---
+
 ## License
 
 Authorship of the commit history, including a correction recorded as an addition

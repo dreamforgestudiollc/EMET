@@ -10,6 +10,7 @@ change before 1.0.
 ### Added
 
 - A static website in `site/`, for search, and a GitHub Actions workflow that publishes that folder to GitHub Pages on pushes to `main`.
+- The README records the origin in the same words as the site: EMET was built by Dreamforge Studio LLC from a neurodivergent user’s own need for an AI assistant that remembers. The word coined for that is neurendipity: neurodivergent and serendipity.
 
 ### Fixed
 
