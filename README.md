@@ -1,9 +1,40 @@
 # EMET
 
-**Enduring Memory & Epistemic Tiers** — a multi-agent, multi-access memory server for the
-Model Context Protocol.
+EMET is an MCP (Model Context Protocol) memory server, persistent shared memory for AI agents, bot teams and chats.
+
+<img src="site/assets/portrait-560.webp" width="120" height="120" alt="Close view of a sepia sculpture’s face and shoulders. The Hebrew word אמת is set across her headband.">
+
+אמת — Hebrew for truth. Also **Enduring Memory & Epistemic Tiers.**
 
 **Website:** <https://dreamforgestudiollc.github.io/EMET/>
+
+## What it does
+
+- **Layered memory.** Six layers — identity, semantic, episodic, procedural, meta, and working — hold curated claims, split by what kind of thing an entry is.
+- **Verified writes.** Every write is read back and compared before it is reported as saved.
+- **Word-for-word transcript tier.** A separate tier stores the conversation as it was written, so a summary cannot overwrite the record it came from.
+- **stdio and remote HTTP with OAuth.** The same server runs locally over stdio, and remotely over HTTP with OAuth. The transport changes. The store does not.
+- **MongoDB.** Atlas, or MongoDB you run yourself. A one-machine trial can use MongoDB 6 or newer. Only `semantic_recall` needs Atlas.
+- **MIT.** Version 0.2.3. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
+
+The store has one owner, and other people can join only through the optional Guest
+(read-only) and Member (read and write) access, both off by default.
+
+## 30-second start
+
+- **Guided setup:** [docs/GUIDED-SETUP.md](docs/GUIDED-SETUP.md) — never deployed anything. Your assistant installs, configures, deploys, and verifies. You sign in when asked and paste the connector URL.
+- **Setup:** [docs/SETUP.md](docs/SETUP.md) — the manual walkthrough: MongoDB, both transports, and the first-run interview.
+- **Deploy:** [docs/DEPLOY.md](docs/DEPLOY.md) — remote HTTP with OAuth, so a phone, a browser, or another vendor's agent reaches the same store.
+
+> **Status: 0.x. The stored document shapes are not frozen yet.** Breaking changes to the
+> schema may land before 1.0. Pin a version if you depend on it.
+
+> **Set `EMET_SOURCE_TAGS` before you let more than one host or bot write.** The source-tag
+> guards (unregistered tags refused on the main records, and on another bot's `bots/` folder)
+> are **off unless `EMET_SOURCE_TAGS` is set**. With it unset, any caller can write under any
+> tag. See `.env.example` and [docs/DEPLOY.md](docs/DEPLOY.md).
+
+## Shared memory across hosts
 
 EMET stores agent memory in MongoDB (Atlas or self-hosted) across six layers, keeps a separate word-for-word
 transcript tier, and verifies every write by reading it back. It runs as a local stdio server
@@ -20,17 +51,9 @@ passphrase you set (`EMET_OAUTH_PASSPHRASE`; see
 header or key will not work. Then put the instruction block from
 [docs/BOOTSTRAP.md](docs/BOOTSTRAP.md) in the project instructions: the chat reaches for that
 memory most reliably, unprompted from the first turn, with the block there, or, as a fallback
-where there is no such field, with it pasted as the first message. The
-store has one owner. Other people can join only if you turn on the optional doors: Guest is
-read-only, and Member is read and write. Both stay off until you turn them on.
-
-> **Status: 0.x. The stored document shapes are not frozen yet.** Breaking changes to the
-> schema may land before 1.0. Pin a version if you depend on it.
-
-> **Set `EMET_SOURCE_TAGS` before you let more than one host or bot write.** The source-tag
-> guards (unregistered tags refused on the main records, and on another bot's `bots/` folder)
-> are **off unless `EMET_SOURCE_TAGS` is set**. With it unset, any caller can write under any
-> tag. See `.env.example` and [docs/DEPLOY.md](docs/DEPLOY.md).
+where there is no such field, with it pasted as the first message. The store has one
+owner, and other people can join only through the optional Guest (read-only) and
+Member (read and write) access, both off by default.
 
 ---
 

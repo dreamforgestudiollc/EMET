@@ -12,6 +12,10 @@ change before 1.0.
 - A static website in `site/`, for search, and a GitHub Actions workflow that publishes that folder to GitHub Pages on pushes to `main`.
 - The README records the origin in the same words as the site: EMET was built by Dreamforge Studio LLC from a neurodivergent user’s own need for an AI assistant that remembers. The word coined for that is neurendipity: neurodivergent and serendipity.
 
+### Changed
+
+- The README now opens with the search line and a short account of what EMET does, in the same words as the website: an MCP (Model Context Protocol) memory server, persistent shared memory for AI agents, bot teams and chats. The previous opening paragraph, including how to connect a single-session chat, is kept below that.
+
 ### Fixed
 
 - A module file is opened from `fileURLToPath` and `path.resolve`. On Windows, `new URL(...).pathname` is `/C:/...`, and resolving that against a `C:` working directory produced `C:\C:\...` and the open failed.
