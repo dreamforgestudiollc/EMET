@@ -30,6 +30,7 @@ testGroup('the shipped tree is scrubbed', () => {
   test('the walk finds the tree (src, tests, docs, templates, scripts)', () => {
     for (const d of ['src/', 'tests/', 'docs/', 'templates/', 'scripts/']) assert.ok(files.some((f) => f.startsWith(d)), d);
     assert.ok(files.includes('README.md') && files.includes('CHARTER.md'));
+    assert.ok(files.includes('site/index.html') && files.includes('site/styles.css'));
   });
   test('no install-specific names in any file', () => {
     const bad = files.map((f) => [f, privateWordsIn(f === 'package.json' ? withoutApprovedAuthor(read(f)) : read(f))]).filter(([, w]) => w.length);

@@ -3,6 +3,8 @@
 **Enduring Memory & Epistemic Tiers** — a multi-agent, multi-access memory server for the
 Model Context Protocol.
 
+**Website:** <https://dreamforgestudiollc.github.io/EMET/>
+
 EMET stores agent memory in MongoDB (Atlas or self-hosted) across six layers, keeps a separate word-for-word
 transcript tier, and verifies every write by reading it back. It runs as a local stdio server
 and as a remote HTTP server from the same source, so it works as a bridge: AI models on several
@@ -739,6 +741,14 @@ next is in [docs/ROADMAP.md](docs/ROADMAP.md).
 - Dynamic Client Registration is still served beside Client ID Metadata Documents; the MCP
   specification's deprecation window closes around 2027-07. It is scheduled to come off on
   2027-06-01.
+
+---
+
+## Origin
+
+EMET was built by Dreamforge Studio LLC from a neurodivergent user’s own need for an AI assistant that remembers. The word coined for that is neurendipity: neurodivergent and serendipity.
+
+It is designed first for neurodivergent users, and it works for anyone.
 
 ---
 

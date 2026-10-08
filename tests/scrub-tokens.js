@@ -77,8 +77,11 @@ export function shippedTextFiles(root) {
   const walk = (dir) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) walk(path.join(dir, e.name)); continue; }
-      if (SKIP_FILES.has(e.name) || !TEXT.test(e.name)) continue;
-      out.push(path.relative(root, path.join(dir, e.name)));
+      const rel = path.relative(root, path.join(dir, e.name));
+      // The public site is shipped text too: a private word in the page must fail the same way.
+      const sitePage = rel.startsWith(`site${path.sep}`) && /\.(html|css)$/.test(e.name);
+      if (SKIP_FILES.has(e.name) || (!TEXT.test(e.name) && !sitePage)) continue;
+      out.push(rel);
     }
   };
   walk(root);
