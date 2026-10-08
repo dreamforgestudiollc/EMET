@@ -7,6 +7,10 @@ change before 1.0.
 
 ## Unreleased
 
+### Added
+
+- A static website in `site/`, for search, and a GitHub Actions workflow that publishes that folder to GitHub Pages on pushes to `main`.
+
 ### Fixed
 
 - A module file is opened from `fileURLToPath` and `path.resolve`. On Windows, `new URL(...).pathname` is `/C:/...`, and resolving that against a `C:` working directory produced `C:\C:\...` and the open failed.

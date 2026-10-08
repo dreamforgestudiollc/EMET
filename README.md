@@ -3,6 +3,8 @@
 **Enduring Memory & Epistemic Tiers** — a multi-agent, multi-access memory server for the
 Model Context Protocol.
 
+**Website:** <https://dreamforgestudiollc.github.io/EMET/>
+
 EMET stores agent memory in MongoDB (Atlas or self-hosted) across six layers, keeps a separate word-for-word
 transcript tier, and verifies every write by reading it back. It runs as a local stdio server
 and as a remote HTTP server from the same source, so it works as a bridge: AI models on several

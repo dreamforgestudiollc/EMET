@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EMET — MCP memory server</title>
+  <meta name="description" content="EMET is an MCP memory server: persistent shared memory for AI agents and chats, with layered memory, verified writes, and a word-for-word transcript.">
+  <link rel="canonical" href="https://dreamforgestudiollc.github.io/EMET/">
+  <meta name="robots" content="index, follow">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#161210" media="(prefers-color-scheme: dark)">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="EMET">
+  <meta property="og:title" content="EMET — MCP memory server">
+  <meta property="og:description" content="EMET is an MCP memory server: persistent shared memory for AI agents and chats, with layered memory, verified writes, and a word-for-word transcript.">
+  <meta property="og:url" content="https://dreamforgestudiollc.github.io/EMET/">
+  <meta property="og:image" content="https://dreamforgestudiollc.github.io/EMET/assets/og.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Close view of the EMET sculpture’s face and shoulders, with the Hebrew word אמת on her headband, beside the words EMET, MCP memory server.">
+  <meta property="og:locale" content="en_US">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="EMET — MCP memory server">
+  <meta name="twitter:description" content="EMET is an MCP memory server: persistent shared memory for AI agents and chats, with layered memory, verified writes, and a word-for-word transcript.">
+  <meta name="twitter:image" content="https://dreamforgestudiollc.github.io/EMET/assets/og.jpg">
+  <meta name="twitter:image:alt" content="Close view of the EMET sculpture’s face and shoulders, with the Hebrew word אמת on her headband, beside the words EMET, MCP memory server.">
+
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="assets/icon-48.png" type="image/png" sizes="48x48">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="stylesheet" href="styles.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    "name": "EMET",
+    "alternateName": "Enduring Memory & Epistemic Tiers",
+    "description": "EMET is an MCP memory server: persistent shared memory for AI agents and chats, with layered memory, verified writes, and a word-for-word transcript tier.",
+    "url": "https://dreamforgestudiollc.github.io/EMET/",
+    "codeRepository": "https://github.com/dreamforgestudiollc/EMET",
+    "license": "https://github.com/dreamforgestudiollc/EMET/blob/main/LICENSE",
+    "version": "0.2.3",
+    "programmingLanguage": "JavaScript",
+    "runtimePlatform": "Node.js",
+    "image": "https://dreamforgestudiollc.github.io/EMET/assets/og.jpg",
+    "author": {
+      "@type": "Organization",
+      "name": "Dreamforge Studio LLC"
+    }
+  }
+  </script>
+</head>
+<body>
+  <a class="skip" href="#content">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="#content">
+        <img src="assets/icon-48.png" width="40" height="40" alt="">
+        <span>EMET</span>
+      </a>
+      <nav aria-label="On this page">
+        <ul>
+          <li><a href="#what">What it is</a></li>
+          <li><a href="#hosts">Hosts</a></li>
+          <li><a href="#access">Access</a></li>
+          <li><a href="#record">Record</a></li>
+          <li><a href="#start">Start</a></li>
+          <li><a href="#origin">Origin</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="content">
+    <section class="hero" aria-labelledby="title">
+      <img
+        class="hero-photo"
+        src="assets/portrait-560.webp"
+        srcset="assets/portrait-560.webp 560w, assets/portrait.webp 928w"
+        sizes="(max-width: 720px) 100vw, 420px"
+        width="928"
+        height="1120"
+        alt="Close view of a sepia sculpture’s face and shoulders. The Hebrew word אמת is set across her headband."
+        fetchpriority="high"
+        decoding="async">
+      <div class="hero-copy">
+        <p class="eyebrow">Model Context Protocol</p>
+        <h1 id="title">EMET</h1>
+        <p class="lede">An MCP memory server for persistent shared memory.</p>
+        <p>AI agents and chats on several hosts read and write one store: desktop, command line, browser, phone, another vendor’s agent, bot teams, and single-session chats.</p>
+        <p class="name-line"><span lang="he">אמת</span> — Hebrew for truth. Also Enduring Memory &amp; Epistemic Tiers.</p>
+      </div>
+    </section>
+
+    <section class="block" id="what" aria-labelledby="what-title">
+      <div class="wrap">
+        <h2 id="what-title">What EMET is</h2>
+        <p class="prose">EMET is an MCP (Model Context Protocol) memory server. It keeps persistent shared memory for AI agents and chats, so the work one host leaves behind is there for the next.</p>
+        <dl class="facts">
+          <div>
+            <dt>Layered memory</dt>
+            <dd>Six layers — identity, semantic, episodic, procedural, meta, and working — hold curated claims, split by what kind of thing an entry is.</dd>
+          </div>
+          <div>
+            <dt>Verified writes</dt>
+            <dd>Every write is read back and compared before it is reported as saved.</dd>
+          </div>
+          <div>
+            <dt>Word-for-word transcript</dt>
+            <dd>A separate tier stores the conversation as it was written, so a summary cannot overwrite the record it came from.</dd>
+          </div>
+          <div>
+            <dt>stdio and remote HTTP</dt>
+            <dd>The same server runs locally over stdio, and remotely over HTTP with OAuth. The transport changes. The store does not.</dd>
+          </div>
+          <div>
+            <dt>MongoDB</dt>
+            <dd>Atlas, or MongoDB you run yourself. A one-machine trial can use MongoDB 6 or newer. Only the semantic_recall tool needs Atlas.</dd>
+          </div>
+          <div>
+            <dt>MIT license</dt>
+            <dd>Version 0.2.3. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.</dd>
+          </div>
+        </dl>
+
+        <figure class="scene">
+          <img
+            src="assets/scene-800.webp"
+            srcset="assets/scene-800.webp 800w, assets/scene.webp 1280w"
+            sizes="(max-width: 840px) 100vw, 720px"
+            width="1280"
+            height="1280"
+            alt="Sepia biomechanical sculpture of a woman seated in a Dreamforge Studio workshop, with tools and gears around her and the Hebrew word אמת on her headband."
+            loading="lazy"
+            decoding="async">
+          <figcaption>The full workshop scene. The portrait above is her face and shoulders, with the headband in frame.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="block" id="hosts" aria-labelledby="hosts-title">
+      <div class="wrap">
+        <h2 id="hosts-title">One memory, several hosts</h2>
+        <p class="prose">EMET is a bridge. Several AI hosts read and write one shared memory: desktop, command line, browser, phone, another vendor’s agent, bot teams, and single-session chats. Write a decision from one. Ask about it from another. It is there.</p>
+        <p class="prose">A local host is launched by the client. A remote host adds your server’s address as an MCP connector and signs in with OAuth. Both use the same memory.</p>
+      </div>
+    </section>
+
+    <section class="block" id="access" aria-labelledby="access-title">
+      <div class="wrap">
+        <h2 id="access-title">Who can join</h2>
+        <p class="prose access">The store has one owner, and other people can join only through the optional Guest (read-only) and Member (read and write) access, both off by default.</p>
+      </div>
+    </section>
+
+    <section class="block" id="record" aria-labelledby="record-title">
+      <div class="wrap">
+        <h2 id="record-title">What stays on the record</h2>
+        <p class="prose">A correction writes a new entry. The earlier entry gets an end date and stays visible, marked with what replaced it. Current entries are listed first. The earlier one is still there to read.</p>
+      </div>
+    </section>
+
+    <section class="block" id="start" aria-labelledby="start-title">
+      <div class="wrap">
+        <h2 id="start-title">Start here</h2>
+        <p class="prose">You need Node.js 20 or newer and a MongoDB connection. Copy the example environment file, set <code>MONGODB_URI</code> and <code>MONGODB_DB</code>, then start the local server. It waits for an MCP client.</p>
+        <pre><code>npm install
+cp .env.example .env
+npm start</code></pre>
+        <p class="prose">On the first run, say “initialize.” The assistant asks a short interview and records it. After that, the same word opens a session that already knows where things stood.</p>
+        <ul class="guides">
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/GUIDED-SETUP.md">Guided setup</a>
+            <span>Never deployed anything. Your assistant installs, configures, deploys, and verifies. You sign in when asked.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/SETUP.md">Setup</a>
+            <span>The manual walkthrough: MongoDB, both transports, and the first-run interview.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/DEPLOY.md">Deploy</a>
+            <span>Remote HTTP with OAuth, so a phone, a browser, or another vendor’s agent reaches the same store.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="block" id="origin" aria-labelledby="origin-title">
+      <div class="wrap">
+        <h2 id="origin-title">Where EMET came from</h2>
+        <p class="prose">EMET was built by Dreamforge Studio LLC from a neurodivergent user’s own need for an AI assistant that remembers. The word coined for that is neurendipity: neurodivergent and serendipity.</p>
+        <p class="prose">It is designed first for neurodivergent users, and it works for anyone.</p>
+      </div>
+    </section>
+
+    <section class="block" id="project" aria-labelledby="project-title">
+      <div class="wrap">
+        <h2 id="project-title">The project</h2>
+        <ul class="project-links">
+          <li><a href="https://github.com/dreamforgestudiollc/EMET">Repository</a></li>
+          <li><a href="https://github.com/dreamforgestudiollc/EMET/releases">Releases</a></li>
+          <li><a href="https://github.com/dreamforgestudiollc/EMET/issues">Issues</a></li>
+          <li><a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CHANGELOG.md">Changelog</a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>EMET 0.2.3 · <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/LICENSE">MIT License</a></p>
+      <p>Copyright Dreamforge Studio LLC and C.I.P.S. LLC.</p>
+      <ul class="project-links">
+        <li><a href="https://github.com/dreamforgestudiollc/EMET">Repository</a></li>
+        <li><a href="https://github.com/dreamforgestudiollc/EMET/releases">Releases</a></li>
+        <li><a href="https://github.com/dreamforgestudiollc/EMET/issues">Issues</a></li>
+        <li><a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CHANGELOG.md">Changelog</a></li>
+      </ul>
+    </div>
+  </footer>
+</body>
+</html>
