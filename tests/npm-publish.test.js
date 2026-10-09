@@ -78,6 +78,7 @@ function packedTree() {
   const parsed = JSON.parse(r.stdout.slice(start));
   assert.ok(Array.isArray(parsed) && parsed[0], 'npm pack --json did not return a pack result');
   const entry = parsed[0];
+  assert.strictEqual(entry.filename, 'dreamforgestudiollc-emet-0.2.4.tgz');
   const tgz = path.join(dir, entry.filename);
   const read = (rel) => {
     const ex = spawnSync('tar', ['-xOf', tgz, `package/${rel}`], { encoding: 'utf8' });
@@ -89,7 +90,7 @@ function packedTree() {
 
 testGroup('npm publish metadata', () => {
   test('the package name, version, and registry manifest agree', () => {
-    assert.strictEqual(pkg.name, 'emet');
+    assert.strictEqual(pkg.name, '@dreamforgestudiollc/emet');
     assert.strictEqual(pkg.version, '0.2.4');
     assert.strictEqual(pkg.mcpName, 'io.github.dreamforgestudiollc/emet');
     assert.strictEqual(server.name, pkg.mcpName);
@@ -106,7 +107,7 @@ testGroup('npm publish metadata', () => {
     assert.strictEqual(pkg.main, 'src/index.js');
     assert.strictEqual(pkg.bin.emet, 'src/index.js');
     assert.strictEqual(pkg.engines.node, '>=20');
-    assert.strictEqual(pkg.publishConfig, undefined);
+    assert.deepStrictEqual(pkg.publishConfig, { access: 'public' });
     assert.deepStrictEqual(pkg.files, FILES);
     for (const word of ['mcp', 'mcp-server', 'model-context-protocol', 'ai-memory', 'agent-memory', 'persistent-memory']) {
       assert.ok(pkg.keywords.includes(word), word);
