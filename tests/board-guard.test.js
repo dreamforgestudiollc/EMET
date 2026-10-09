@@ -638,7 +638,9 @@ test('a verified reopen that finds no unretired drops clears drops_unverified', 
     const opened = await sessionOpen({ slug: 'clear-me', load_id: load }, null, db, new Date('2026-10-04T12:00:00Z'));
     assert.deepStrictEqual(opened.drops_seen, []);
     await graphAfter('emet_session_open', {}, opened, db);
-    assert.strictEqual(db.row(opened.base).drops_unverified, undefined, JSON.stringify(db.row(opened.base)));
+    const kept = db.row(opened.base);
+    assert.strictEqual(kept.drops_unverified, undefined, JSON.stringify(kept));
+    assert.deepStrictEqual(kept.drops_seen, ['drops/gone.md']);
   });
 });
 test('session close does not prune a live session baseline, including the session being closed', async () => {

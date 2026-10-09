@@ -1,0 +1,39 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.dreamforgestudiollc/emet",
+  "title": "EMET",
+  "description": "Persistent shared memory for AI agents, with verified writes and a transcript tier.",
+  "version": "0.2.4",
+  "websiteUrl": "https://dreamforgestudiollc.github.io/EMET/",
+  "repository": {
+    "url": "https://github.com/dreamforgestudiollc/EMET",
+    "source": "github",
+    "id": "1402031262"
+  },
+  "icons": [
+    {
+      "src": "https://dreamforgestudiollc.github.io/EMET/assets/icon-48.png",
+      "mimeType": "image/png",
+      "sizes": ["48x48"]
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "emet",
+      "version": "0.2.4",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "MONGODB_URI",
+          "description": "MongoDB connection string for the memory store.",
+          "isRequired": true,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

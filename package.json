@@ -1,18 +1,29 @@
 {
-  "name": "emet-mcp-server",
-  "version": "0.2.3",
-  "description": "EMET \u2014 Enduring Memory & Epistemic Tiers. A multi-agent, multi-access memory MCP server with layered memory, verified writes, and a verbatim transcript tier.",
-  "mcpName": "io.github.dreamforgestudiollc/emet",
+  "name": "emet",
+  "version": "0.2.4",
+  "description": "EMET — Enduring Memory & Epistemic Tiers. An MCP memory server with persistent shared memory for AI agents, bot teams and chats: layered memory, verified writes, and a verbatim transcript tier.",
+  "keywords": [
+    "agent-memory",
+    "ai-agents",
+    "ai-memory",
+    "claude",
+    "grok",
+    "llm-memory",
+    "long-term-memory",
+    "mcp",
+    "mcp-server",
+    "memory-server",
+    "model-context-protocol",
+    "mongodb",
+    "multi-agent",
+    "neurodivergent",
+    "nodejs",
+    "oauth",
+    "persistent-memory",
+    "shared-memory"
+  ],
   "license": "MIT",
-  "author": "Dreamforge Studio LLC <kennklick@dreamforgestudiollc.com>",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/dreamforgestudiollc/EMET.git"
-  },
-  "homepage": "https://github.com/dreamforgestudiollc/EMET#readme",
-  "bugs": {
-    "url": "https://github.com/dreamforgestudiollc/EMET/issues"
-  },
+  "mcpName": "io.github.dreamforgestudiollc/emet",
   "type": "module",
   "main": "src/index.js",
   "bin": {
@@ -20,6 +31,26 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "files": [
+    "src/",
+    "templates/",
+    "guides/",
+    "docs/*.md",
+    "CHARTER.md",
+    "CHANGELOG.md",
+    "server.json",
+    ".env.example",
+    "README.md",
+    "LICENSE"
+  ],
+  "homepage": "https://dreamforgestudiollc.github.io/EMET/",
+  "bugs": {
+    "url": "https://github.com/dreamforgestudiollc/EMET/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dreamforgestudiollc/EMET.git"
   },
   "scripts": {
     "start": "node src/index.js",
@@ -34,28 +65,5 @@
   },
   "overrides": {
     "proxy-addr": "^2.0.8"
-  },
-  "keywords": [
-    "mcp",
-    "model-context-protocol",
-    "memory",
-    "agent-memory",
-    "mongodb",
-    "mcp-server",
-    "long-term-memory",
-    "provenance",
-    "verified-writes",
-    "transcripts",
-    "multi-agent"
-  ],
-  "files": [
-    "src/",
-    "scripts/",
-    "docs/",
-    "templates/",
-    "guides/",
-    "CHARTER.md",
-    "README.md",
-    "LICENSE"
-  ]
+  }
 }
