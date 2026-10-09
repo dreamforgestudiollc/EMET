@@ -2,6 +2,8 @@
 
 EMET is an MCP (Model Context Protocol) memory server, persistent shared memory for AI agents, bot teams and chats.
 
+[![M8ven Score](https://m8ven.ai/badge/mcp/dreamforgestudiollc-emet-z9o7e8?v=4d037e6ca2c2131c77968f135f4681da)](https://m8ven.ai/mcp/dreamforgestudiollc-emet-z9o7e8?s=readme)
+
 <img src="site/assets/portrait-560.webp" width="120" height="120" alt="Close view of a sepia sculpture’s face and shoulders. The Hebrew word אמת is set across her headband.">
 
 אמת — Hebrew for truth. Also **Enduring Memory & Epistemic Tiers.**
