@@ -55,6 +55,15 @@ function mongoRegexTest(input, pattern, flags) {
   return new RegExp(foldPatternLiterals(pattern), rest).test(mongoCaseFold(input));
 }
 
+/** The unhandled-drop scan: drops/ ids that are not retired. */
+function unhandledDropRead(q) {
+  const id = q && q.doc_id;
+  const src = id && typeof id === 'object' ? id.$regex : null;
+  const pattern = src instanceof RegExp ? src.source : src;
+  const retired = q && q.retired;
+  return pattern === '^drops/' && !!(retired && typeof retired === 'object' && retired.$ne === true);
+}
+
 function valueMatches(d, v) {
   if (v === null) return d == null;
   if (v instanceof RegExp) return typeof d === 'string' && v.test(d);
@@ -336,6 +345,10 @@ export function makeStore(opts = {}) {
       },
       find(q = {}) {
         if (opts.failRead === true) throw new Error('store down');
+        // The boot drop list is this query and no other. A suite flips
+        // failUnhandledDropRead so emet_session_open's load fails while
+        // initialize can still read retired drops.
+        if (opts.failUnhandledDropRead === true && unhandledDropRead(q)) throw new Error('unhandled drop list unavailable');
         let out = docs.filter((d) => matches(d, q));
         const cur = {
           sort(spec) { out = sortDocs(out, spec); return cur; },

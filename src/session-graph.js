@@ -922,11 +922,19 @@ export async function graphAfter(tool, args, data, dbManager, logger = null, now
       : {};
     // Merge, never overwrite: a reopen keeps drops already stamped.
     // An unverified boot is stored as a flag, never as an empty seen-list.
+    // A verified empty list is a loaded list. $addToSet cannot store [], so
+    // leaving the field unset made the board guard treat "no unhandled drops"
+    // as "the list never loaded". Stamp [] only when the field is still
+    // missing (a fresh open, or a same-day reopen of a row that never recorded
+    // one). A failed load still stores the flag and no list.
     const addDrops = tool === 'emet_session_open' && listed.length ? { $addToSet: { drops_seen: { $each: listed } } } : {};
     const unverified = tool === 'emet_session_open' && data && data.drops_unverified === true ? { drops_unverified: true } : {};
     const verifiedOpen = tool === 'emet_session_open' && data && data.drops_unverified !== true && Array.isArray(data.drops_seen);
     const clearUnverified = verifiedOpen ? { $unset: { drops_unverified: '' } } : {};
     await col.updateOne({ _id: base }, { $set: { ...set, ...unverified, updated_at: now }, $setOnInsert: { created_at: now, ...opened }, ...addDrops, ...clearUnverified }, { upsert: true });
+    if (verifiedOpen && listed.length === 0) {
+      await col.updateOne({ _id: base, drops_seen: { $exists: false } }, { $set: { drops_seen: [] } });
+    }
     return { recorded: true, base };
   } catch (e) {
     logger?.warn?.('session graph: step not recorded', { tool, error: e && e.message });
