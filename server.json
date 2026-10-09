@@ -21,7 +21,7 @@
     {
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
-      "identifier": "emet",
+      "identifier": "@dreamforgestudiollc/emet",
       "version": "0.2.4",
       "transport": {
         "type": "stdio"

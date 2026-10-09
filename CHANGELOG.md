@@ -5,43 +5,32 @@ All notable changes to EMET are listed here, newest first. The format follows
 [Semantic Versioning](https://semver.org/). EMET is still 0.x: the stored data shapes may
 change before 1.0.
 
-## Unreleased
-
-### Added
-
-- The public-scrub suite reads the Pages workflow's deploy job `if` and requires it to be exactly `github.repository == 'dreamforgestudiollc/EMET' && github.ref == 'refs/heads/main'`. A repository name that only contains that text, such as `dreamforgestudiollc/EMET-private`, does not pass.
-- The same suite requires `site/sitemap.xml`, `site/robots.txt`, `site/.nojekyll`, and every image the site HTML references to be present on the scrub and publish walk. Removing one of those files fails the suite.
-- `server.json` for the Official MCP Registry. Its name is `io.github.dreamforgestudiollc/emet`, the same value as `mcpName` in package.json. The npm package it names is the stdio server at version 0.2.4.
-- The pack test reads the text inside the tarball. On a scrubbed tree, an install-specific name in any packed file fails it. On this private tree that check waits, because the publish scrub has not rewritten those files yet.
-- The site image check fails a root-relative `/EMET/` image URL, a protocol-relative URL, a JSON-LD image in one of those forms, and a path that climbs out of the repository. A second Pages job with no `if` fails the deploy gate.
-
-### Fixed
-
-- The example environment that ships is the public one. It listens on `127.0.0.1`, registers the generic tags `laptop,phone,cli`, and leaves `EMET_OAUTH_PASSPHRASE` commented out, so HTTP authorization stays refused until someone sets a passphrase. The pack test fails if the packed example assigns a passphrase, binds `0.0.0.0`, or names this install's source tags.
-
-### Changed
-
-- package.json is prepared for a public npm release at version 0.2.4. The package name is now `emet`. It was `emet-mcp-server`. Rechecked after the npm account `dreamforgestudiollc` existed: the unscoped name `emet` is still not registered, so the package stays unscoped and `publishConfig` is not set. `@dreamforgestudiollc/emet` is the name to use only if `emet` is taken before publish, and that scoped package would need `"publishConfig": { "access": "public" }`. `@black-knight.dev/emet` is a different server that also installs a command named `emet`. Keywords match the public GitHub topics. `repository`, `homepage` (`https://dreamforgestudiollc.github.io/EMET/`), and `bugs` point at the public project. `bin` and `main` stay `src/index.js`. `engines` stays Node 20 or newer. The `files` list ships the server, the charter, templates, guides, top-level docs, the changelog, the registry manifest, and `.env.example`. It does not ship tests, scripts, `docs/status/`, backups, or `.env`.
-
 ## 0.2.4 - 2026-10-08
 
-A board fix and a public website. A session that boots with no unhandled drops can edit the board again. No data shapes or settings change; deploy over 0.2.3 as is.
+A board fix, a public website, and the first npm package, `@dreamforgestudiollc/emet`. A session that boots with no unhandled drops can edit the board again. No data shapes or settings change; deploy over 0.2.3 as is.
 
 ### Added
 
 - A static website in `site/`, for search, and a GitHub Actions workflow that publishes that folder to GitHub Pages on pushes to `main`.
 - `glama.json` at the repo root names `dreamforgestudiollc` as maintainer for the Glama directory listing.
 - The README records the origin in the same words as the site: EMET was built by Dreamforge Studio LLC from a neurodivergent user’s own need for an AI assistant that remembers. The word coined for that is neurendipity: neurodivergent and serendipity.
+- The public-scrub suite reads the Pages workflow's deploy job `if` and requires it to be exactly `github.repository == 'dreamforgestudiollc/EMET' && github.ref == 'refs/heads/main'`. A repository name that only contains that text, such as `dreamforgestudiollc/EMET-private`, does not pass.
+- The same suite requires `site/sitemap.xml`, `site/robots.txt`, `site/.nojekyll`, and every image the site HTML references to be present on the scrub and publish walk. Removing one of those files fails the suite.
+- `server.json` for the Official MCP Registry. Its name is `io.github.dreamforgestudiollc/emet`, the same value as `mcpName` in package.json. The npm package it names is the stdio server at version 0.2.4.
+- The pack test reads the text inside the tarball. On a scrubbed tree, an install-specific name in any packed file fails it. On this private tree that check waits, because the publish scrub has not rewritten those files yet.
+- The site image check fails a root-relative `/EMET/` image URL, a protocol-relative URL, a JSON-LD image in one of those forms, and a path that climbs out of the repository. A second Pages job with no `if` fails the deploy gate.
 
 ### Changed
 
 - The README now opens with the search line and a short account of what EMET does, in the same words as the website: an MCP (Model Context Protocol) memory server, persistent shared memory for AI agents, bot teams and chats. The previous opening paragraph, including how to connect a single-session chat, is kept below that.
+- package.json is prepared for a public npm release at version 0.2.4. The package name is now `@dreamforgestudiollc/emet`. It was `emet-mcp-server`. npm refused the unscoped name `emet` at publish as too similar to existing package names, so the package uses the documented scoped fallback with `"publishConfig": { "access": "public" }`. `server.json` names the same package. The command it installs is still `emet`. `@black-knight.dev/emet` is a different server that also installs a command named `emet`. Keywords match the public GitHub topics. `repository`, `homepage` (`https://dreamforgestudiollc.github.io/EMET/`), and `bugs` point at the public project. `bin` and `main` stay `src/index.js`. `engines` stays Node 20 or newer. The `files` list ships the server, the charter, templates, guides, top-level docs, the changelog, the registry manifest, and `.env.example`. It does not ship tests, scripts, `docs/status/`, backups, or `.env`.
 
 ### Fixed
 
 - A session that boots with no unhandled drops can edit or restore the board. The empty list was not saved, so the board guard treated it as a list that had failed to load. A list that really failed to load is still refused. Retired drops stay off that list.
 - A module file is opened from `fileURLToPath` and `path.resolve`. On Windows, `new URL(...).pathname` is `/C:/...`, and resolving that against a `C:` working directory produced `C:\C:\...` and the open failed.
 - `.env.example` no longer assigns `TRUST_PROXY`. The server trusts exactly one proxy hop (Railway's edge) and does not read that variable.
+- The example environment that ships is the public one. It listens on `127.0.0.1`, registers the generic tags `laptop,phone,cli`, and leaves `EMET_OAUTH_PASSPHRASE` commented out, so HTTP authorization stays refused until someone sets a passphrase. The pack test fails if the packed example assigns a passphrase, binds `0.0.0.0`, or names this install's source tags.
 
 ## 0.2.3 - 2026-10-07
 
