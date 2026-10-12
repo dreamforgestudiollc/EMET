@@ -22,6 +22,18 @@ EMET is an MCP (Model Context Protocol) memory server, persistent shared memory 
 The store has one owner, and other people can join only through the optional Guest
 (read-only) and Member (read and write) access, both off by default.
 
+## Document control (ISO 9001 7.5.3 / ISO 13485 4.2.5)
+
+EMET is built for document control in environments that work under ISO 9001 and ISO 13485. It supports that work; it holds no certification and claims no conformity. An organization that uses it stays responsible for its own quality system, including validating EMET for its intended use.
+
+- **No delete, on any store, by design.** No tool removes a memory entry, a document or a transcript. The database role EMET runs under is not granted remove on the record either.
+- **Corrections are made by adding.** A memory entry is superseded by a revision that stands alone. A document is revised or retired. A transcript part is revised. Events are never rewritten.
+- **Retired means obsolete, not gone.** `retire_doc` marks a document obsolete and keeps its id, content, version and digest. `read_doc` still returns it, flagged retired, with the reason.
+- **Prior versions are retained.** Every document write archives the copy it replaces, and `read_doc_history` reads any retained revision back, checked against its stored digest.
+- **Records are superseded whole, never patched.** The handoff and any other record document cannot be patched. A new revision is written in full and names the version it supersedes.
+- **Templates are controlled documents.** Base templates ship with the release, and the shipped copy governs. Every templated write is checked against its template, and a write that fails is kept and marked for review, never silently accepted or discarded.
+- **A test holds the line.** `write-path.test.js` fails if anything in `src/` removes from a layer, document or transcript collection, and `atlas-role.test.js` fails if the database role grants remove.
+
 ## 30-second start
 
 - **Guided setup:** [docs/GUIDED-SETUP.md](docs/GUIDED-SETUP.md) — never deployed anything. Your assistant installs, configures, deploys, and verifies. You sign in when asked and paste the connector URL.
