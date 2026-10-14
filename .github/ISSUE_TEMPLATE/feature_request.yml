@@ -1,0 +1,17 @@
+name: Feature request
+description: Propose a change. EMET asks four questions of every change it builds.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: failure
+    attributes: {label: What failure does it fix, and where is it on record?}
+    validations: {required: true}
+  - type: textarea
+    id: replaces
+    attributes: {label: What does it replace or retire?}
+  - type: textarea
+    id: measure
+    attributes: {label: How will we know it worked? (one measure)}
+  - type: textarea
+    id: holds
+    attributes: {label: What holds it once it works?}

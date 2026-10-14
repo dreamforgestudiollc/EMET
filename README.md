@@ -10,6 +10,8 @@ EMET is an MCP (Model Context Protocol) memory server, persistent shared memory 
 
 **Website:** <https://dreamforgestudiollc.github.io/EMET/>
 
+See also: [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md) · [SECURITY](SECURITY.md) · [Charter](CHARTER.md)
+
 ## What it does
 
 - **Layered memory.** Six layers — identity, semantic, episodic, procedural, meta, and working — hold curated claims, split by what kind of thing an entry is.
@@ -37,6 +39,10 @@ EMET is built for document control in environments that work under ISO 9001 and 
 
 ## 30-second start
 
+> **npm lags the repo.** `npx -y @dreamforgestudiollc/emet` installs 0.2.4 until 0.2.5 is
+> published. For 0.2.5, clone this repo and run `npm ci && npm start`, or deploy the
+> `Dockerfile`. See [docs/SETUP.md](docs/SETUP.md).
+
 - **Guided setup:** [docs/GUIDED-SETUP.md](docs/GUIDED-SETUP.md) — never deployed anything. Your assistant installs, configures, deploys, and verifies. You sign in when asked and paste the connector URL.
 - **Setup:** [docs/SETUP.md](docs/SETUP.md) — the manual walkthrough: MongoDB, both transports, and the first-run interview.
 - **Deploy:** [docs/DEPLOY.md](docs/DEPLOY.md) — remote HTTP with OAuth, so a phone, a browser, or another vendor's agent reaches the same store.
@@ -51,8 +57,8 @@ EMET is built for document control in environments that work under ISO 9001 and 
 
 ## Install as a Cursor / Grok Bot plugin
 
-EMET is listed as a plugin for Cursor and Grok Bot (from this repo's `.cursor-plugin/plugin.json`
-and `mcp.json`). The plugin does **not** host memory for you: it connects to **your own** EMET
+EMET ships a plugin for Cursor and Grok Bot (this repo's `.cursor-plugin/plugin.json` and
+`mcp.json`). The Cursor Marketplace listing is submitted and pending review. The plugin does **not** host memory for you: it connects to **your own** EMET
 server, so your records stay in your MongoDB.
 
 1. Deploy EMET remotely: [docs/DEPLOY.md](docs/DEPLOY.md). Set `PUBLIC_URL` and a strong
