@@ -15,7 +15,7 @@
       "EMET_URL": {
         "type": "string",
         "title": "Your EMET server URL",
-        "description": "Base URL of your own EMET deployment, for example https://your-app.up.railway.app (no trailing slash, no /mcp). See docs/DEPLOY.md."
+        "description": "Full MCP endpoint of your own EMET server. Paste the whole URL, for example https://their-host/mcp, not the bare host. See docs/DEPLOY.md."
       }
     },
     "required": ["EMET_URL"]

@@ -5,8 +5,7 @@ description: Use EMET as controlled, shared memory. Use at the start of a sessio
 
 # EMET memory
 
-EMET keeps records under document control (ISO 9001 / ISO 13485 style). Nothing is deleted:
-records are superseded, retired and retained, and every write is attributed to the client that made it.
+EMET is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent, shared memory for AI agents and bot teams. Nothing is deleted; records are superseded, retired and retained. Every write is attributed to the client that made it.
 
 ## Start of session
 

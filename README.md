@@ -57,11 +57,10 @@ server, so your records stay in your MongoDB.
 
 1. Deploy EMET remotely: [docs/DEPLOY.md](docs/DEPLOY.md). Set `PUBLIC_URL` and a strong
    `EMET_OAUTH_PASSPHRASE`. Check `https://<your-host>/health` returns `{"ok":true,...}`.
-2. Install the **EMET** plugin and set the variable `EMET_URL` to `https://<your-host>`
-   (no trailing slash, no `/mcp`; the plugin appends `/mcp`).
+2. Install the **EMET** plugin and set the variable `EMET_URL` to `https://<host>/mcp`.
 3. Connect. The OAuth sign-in opens EMET's passphrase page; enter your passphrase once per device.
-4. Verify: call `emet_status` with `{"probe": true}` (it writes, reads back and removes a test
-   document), then save with `save_to_layer` and `recall` it from another client.
+4. Verify: call `emet_status` with `{"probe": true}` (it writes, reads back and removes a row
+   from `_emet_verify` only), then save with `save_to_layer` and `recall` it from another client.
 
 The plugin also ships an `emet-memory` skill that tells the agent when to recall, save and close
 a session.
