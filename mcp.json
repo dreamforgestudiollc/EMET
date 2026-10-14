@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "emet": {
+      "type": "http",
+      "url": "${EMET_URL}"
+    }
+  }
+}
