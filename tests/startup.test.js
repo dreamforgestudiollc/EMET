@@ -283,7 +283,7 @@ testGroup('8. Close-order tool survives a 20k truncate', () => {
   });
   test('the short form carries the six steps a cut must not take', () => {
     const s = shortInstructions();
-    for (const must of ['emet_line', 'identity phrase', 'install_notes', 'emet_session_open', 'HANDOFF.md', 'STATE.md', 'parked', 'lessons_pending', 'question alone', 'emet_transcript_append', 'session_close_protocol', 'emet_session_close']) {
+    for (const must of ['emet_line', 'identity phrase', 'install_notes', 'emet_session_open', 'HANDOFF.md', 'STATE.md', 'parked', 'lessons_pending', 'GEMs installed: none.', 'question alone', 'emet_transcript_append', 'session_close_protocol', 'emet_session_close']) {
       assert(s.includes(must), `short instructions lack: ${must}`);
     }
     assert(s.length < 1400, `short form is ${s.length} chars - it is meant to be short`);

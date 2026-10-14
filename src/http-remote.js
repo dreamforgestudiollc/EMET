@@ -95,6 +95,7 @@ function buildServer() {
       scopes: (auth && auth.scopes) || [],
       transport: 'http',
       sourceTag: (auth && auth.extra && auth.extra.sourceTag) || null,
+      grantId: (auth && auth.extra && auth.extra.grantId) || null,
       authenticated: Boolean(auth)
     };
     const bucket = t.rateBucket(actor);
@@ -106,6 +107,22 @@ function buildServer() {
     const t0 = Date.now();
     // Parameter NAMES, never values (the owner, 2026-09-27, code audit 1.6).
     const paramNames = Object.keys(args || {}).sort();
+    try {
+      const att = await import('./attribution.js');
+      const { resolveTokenSubject } = await import('./persons.js');
+      actor.ownerId = await resolveTokenSubject(dbManager.db).catch(() => null);
+      await actorStore.run(actor, () => att.preflight({
+        db: dbManager.db, prefix: provider.prefix, ownerId: actor.ownerId, deps: t.approvalsDeps,
+        layerCollections: ['episodic', 'semantic', 'procedural', 'meta', 'identity', 'working'].map((l) => { try { return dbManager.collectionFor(l); } catch { return null; } }).filter(Boolean),
+        registry: t.sourceRegistry()
+      }, actor, args, name));
+    } catch (e) {
+      if (e && e.attributionRefusal) {
+        const { ValidationError } = await import('./validation.js');
+        return actorStore.run(actor, () => t.handleError(new ValidationError('source', e.message), name, logger));
+      }
+      throw e;
+    }
     const result = await actorStore.run(actor, () => callTool(name, args));
     logger.audit(AuditOperation.TOOL_CALL, { tool: name, success: result.isError !== true, durationMs: Date.now() - t0, params: paramNames });
     return result;

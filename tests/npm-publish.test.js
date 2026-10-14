@@ -19,6 +19,7 @@ const FILES = [
   'src/',
   'templates/',
   'guides/',
+  'gems/',
   'docs/*.md',
   'CHARTER.md',
   'CHANGELOG.md',
@@ -78,7 +79,7 @@ function packedTree() {
   const parsed = JSON.parse(r.stdout.slice(start));
   assert.ok(Array.isArray(parsed) && parsed[0], 'npm pack --json did not return a pack result');
   const entry = parsed[0];
-  assert.strictEqual(entry.filename, 'dreamforgestudiollc-emet-0.2.4.tgz');
+  assert.strictEqual(entry.filename, 'dreamforgestudiollc-emet-0.2.5.tgz');
   const tgz = path.join(dir, entry.filename);
   const read = (rel) => {
     const ex = spawnSync('tar', ['-xOf', tgz, `package/${rel}`], { encoding: 'utf8' });
@@ -91,7 +92,7 @@ function packedTree() {
 testGroup('npm publish metadata', () => {
   test('the package name, version, and registry manifest agree', () => {
     assert.strictEqual(pkg.name, '@dreamforgestudiollc/emet');
-    assert.strictEqual(pkg.version, '0.2.4');
+    assert.strictEqual(pkg.version, '0.2.5');
     assert.strictEqual(pkg.mcpName, 'io.github.dreamforgestudiollc/emet');
     assert.strictEqual(server.name, pkg.mcpName);
     assert.strictEqual(server.version, pkg.version);
@@ -117,9 +118,10 @@ testGroup('npm publish metadata', () => {
   test('npm pack --dry-run ships runtime files and docs, and leaves private paths out', () => {
     const packed = packDryRun();
     const paths = packed.files.map((f) => f.path);
-    for (const rel of ['package.json', 'src/index.js', 'src/http-remote.js', 'templates/BOARD.md', 'guides/NEURODIVERGENT_SUPPORT.md', 'CHARTER.md', 'CHANGELOG.md', 'server.json', 'docs/SETUP.md', 'docs/DEPLOY.md', '.env.example', 'README.md', 'LICENSE']) {
+    for (const rel of ['package.json', 'src/index.js', 'src/http-remote.js', 'templates/BOARD.md', 'gems/neurendipity/gem.json', 'gems/neurendipity/floor.json', 'gems/neurendipity/guides/NEURODIVERGENT_SUPPORT.md', 'guides/README.md', 'CHARTER.md', 'CHANGELOG.md', 'server.json', 'docs/SETUP.md', 'docs/DEPLOY.md', '.env.example', 'README.md', 'LICENSE']) {
       assert.ok(paths.includes(rel), rel);
     }
+    assert.ok(!paths.includes('guides/NEURODIVERGENT_SUPPORT.md'), 'the guide text is not packed twice');
     const bad = paths.filter(banned);
     assert.deepStrictEqual(bad, []);
     assert.ok(!paths.some((rel) => rel.startsWith('docs/status/')));

@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dreamforgestudiollc/EMET-GEMs/raw/main/gem.schema.json",
+  "title": "EMET GEM manifest",
+  "description": "gem.json for one Golem Expertise Module. Normative rules are in SPEC.md, revision 2026-10-11.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "spec",
+    "id",
+    "name",
+    "description",
+    "version",
+    "kind",
+    "requires",
+    "priority",
+    "defaultOn",
+    "overrides",
+    "distribution",
+    "floor",
+    "guides",
+    "runes",
+    "files",
+    "authors",
+    "license"
+  ],
+  "properties": {
+    "spec": {
+      "description": "GEM specification revision this manifest was written against.",
+      "const": "2026-10-11"
+    },
+    "id": {
+      "description": "Stable identifier. Unique among GEMs installed on one EMET.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,63}$"
+    },
+    "name": {
+      "description": "Label shown to people. Not an identifier.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "description": {
+      "description": "One short summary served on gems_available.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400
+    },
+    "version": {
+      "description": "MAJOR.MINOR.PATCH. This revision does not accept pre-release tags.",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$"
+    },
+    "kind": {
+      "enum": ["gem", "runed-gem"]
+    },
+    "requires": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["emet"],
+      "properties": {
+        "emet": {
+          "description": "Semver range this GEM can seat in. This revision accepts an exact version or one leading comparator: >=, ^, or ~.",
+          "type": "string",
+          "pattern": "^(?:>=|\\^|~)?(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$"
+        }
+      }
+    },
+    "priority": {
+      "description": "0 to 100. Higher wins. A tie breaks by id, ascending byte order.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "defaultOn": {
+      "description": "Whether a fresh install activates this GEM before the user asks. Neurendipity is false.",
+      "type": "boolean"
+    },
+    "overrides": {
+      "description": "Modifiable core paths this GEM changes. Empty means it only adds lines. Core protection paths are refused.",
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+      }
+    },
+    "distribution": {
+      "description": "bundled: shipped inside an EMET release. library: accepted through the submission gate.",
+      "enum": ["bundled", "library"]
+    },
+    "floor": {
+      "description": "Path of the floor document, relative to the GEM directory. Must also appear in files.",
+      "type": "string",
+      "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9./_-]*\\.json$"
+    },
+    "guides": {
+      "description": "On-demand markdown. Not served at startup.",
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(?!.*\\.\\.)guides/[A-Za-z0-9][A-Za-z0-9./_-]*\\.md$"
+      }
+    },
+    "runes": {
+      "type": "array",
+      "maxItems": 16,
+      "items": { "$ref": "#/$defs/rune" }
+    },
+    "files": {
+      "description": "Every content file, each once, with the digest and size of its raw bytes. gem.json itself is not listed.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": { "$ref": "#/$defs/file" }
+    },
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": { "type": "string", "minLength": 1, "maxLength": 120 }
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40
+    },
+    "signature": { "$ref": "#/$defs/signature" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "distribution": { "const": "library" } },
+        "required": ["distribution"]
+      },
+      "then": { "required": ["signature"] }
+    },
+    {
+      "if": {
+        "properties": { "kind": { "const": "gem" } },
+        "required": ["kind"]
+      },
+      "then": { "properties": { "runes": { "maxItems": 0 } } }
+    },
+    {
+      "if": {
+        "properties": { "kind": { "const": "runed-gem" } },
+        "required": ["kind"]
+      },
+      "then": { "properties": { "runes": { "minItems": 1 } } }
+    }
+  ],
+  "$defs": {
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "digest", "size"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9./_-]*$"
+        },
+        "digest": {
+          "description": "SHA-256 of the raw bytes, lowercase, prefixed with sha256:.",
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "size": {
+          "description": "Byte length of the same raw bytes.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["alg", "keyid", "value"],
+      "properties": {
+        "alg": { "const": "Ed25519" },
+        "keyid": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+        },
+        "value": {
+          "description": "Standard base64 of the 64-byte Ed25519 signature.",
+          "type": "string",
+          "pattern": "^[A-Za-z0-9+/]{86}==$"
+        }
+      }
+    },
+    "rune": {
+      "description": "A RUNED directive. Field names used by MCP tools keep MCP's names. reads, writes, and network are enforced by EMET.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "description", "inputSchema", "annotations", "reads", "writes", "network"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+        },
+        "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "inputSchema": {
+          "type": "object",
+          "required": ["type"],
+          "properties": { "type": { "const": "object" } }
+        },
+        "outputSchema": { "type": "object" },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"],
+          "properties": {
+            "title": { "type": "string", "maxLength": 80 },
+            "readOnlyHint": { "type": "boolean" },
+            "destructiveHint": { "const": false },
+            "idempotentHint": { "type": "boolean" },
+            "openWorldHint": { "const": false }
+          }
+        },
+        "reads": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/access" }
+        },
+        "writes": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/access" }
+        },
+        "network": { "const": "none" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "annotations": { "properties": { "readOnlyHint": { "const": true } }, "required": ["readOnlyHint"] }
+            },
+            "required": ["annotations"]
+          },
+          "then": { "properties": { "writes": { "maxItems": 0 } } }
+        }
+      ]
+    },
+    "access": {
+      "description": "A memory layer, or a document id prefix introduced by doc:.",
+      "type": "string",
+      "pattern": "^(identity|semantic|episodic|procedural|meta|working|doc:[A-Za-z0-9][A-Za-z0-9_./-]{0,80})$"
+    }
+  }
+}

@@ -97,7 +97,8 @@ testGroup('D: the layer charter dedupe removes importance_range and nothing else
       'instructions_short', 'session_close_protocol', 'operating_discipline', 'charter', 'identity', 'character',
       'character_doc_id', 'character_sha256', 'user', 'install_notes', 'install_notes_doc_id',
       'seeds', 'seeds_due', 'seeds_evaluated_on', 'threads', 'recent_context', 'layer_counts', 'layer_counts_last_30d',
-      'layer_charter', 'layer_health', 'record_gaps', 'named_items', 'lessons_pending', 'floor', 'floor_precedence', 'floor_reassertion', 'instructions'
+      'layer_charter', 'layer_health', 'record_gaps', 'named_items', 'lessons_pending', 'floor', 'floor_precedence', 'floor_reassertion', 'instructions',
+      'gems_available', 'gems_active'
     ]);
   });
 });
@@ -185,7 +186,8 @@ testGroup('A: the abridged form', () => {
 testGroup('S: the server decides the mode, and today every load is full', () => {
   test('emet_initialize takes recent_limit and the paging arguments only (no host-chosen abridging)', () => {
     const def = TOOLS.find((t) => t.name === 'emet_initialize');
-    assert.deepStrictEqual(Object.keys(def.inputSchema.properties), ['recent_limit', 'page', 'load_id']);
+    // 2026-10-12 (re-review): `source` lets a caller learn its own tag and approval state; it does not abridge.
+    assert.deepStrictEqual(Object.keys(def.inputSchema.properties), ['recent_limit', 'page', 'load_id', 'source']);
   });
   // Every page of a load, fetched the way a host does: page 1, then each `next`.
   const allPages = async (call) => {

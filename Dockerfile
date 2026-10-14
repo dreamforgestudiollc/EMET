@@ -21,6 +21,10 @@ COPY scripts ./scripts
 COPY CHARTER.md ./
 COPY templates ./templates
 COPY guides ./guides
+# Bundled GEMs (gems/<id>/) are read by the GEM socket from next to src/.
+COPY gems ./gems
+# The GEM checker reads gem.schema.json and keys.json from gem-library/; without it every GEM fails GC-02.
+COPY gem-library ./gem-library
 
 # Hosts inject PORT; the app honours it. 8080 is only the fallback.
 ENV PORT=8080

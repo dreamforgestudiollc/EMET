@@ -40,10 +40,10 @@ testGroup('The floor is immutable', () => {
   });
   test('FLOOR_REASSERTION is frozen', () => assert(Object.isFrozen(FLOOR_REASSERTION)));
   test('a write to a section is refused', () => {
-    assert.throws(() => { 'use strict'; FLOOR.neurodivergent_support = null; }, TypeError);
+    assert.throws(() => { 'use strict'; FLOOR.persistence = null; }, TypeError);
   });
   test('a write inside a section is refused', () => {
-    assert.throws(() => { 'use strict'; FLOOR.neurodivergent_support.never_moralise = 'anything'; }, TypeError);
+    assert.throws(() => { 'use strict'; FLOOR.persistence.out_of_sight = 'anything'; }, TypeError);
   });
 });
 
@@ -63,12 +63,31 @@ testGroup('Shape', () => {
     }
   });
   test('the protective sections are all present', () => {
-    for (const key of ['voice', 'engagement', 'reading_people', 'neurodivergent_support']) {
+    for (const key of ['voice', 'engagement', 'persistence', 'corpus_discipline']) {
       assert(FLOOR_SECTIONS.includes(key), `missing ${key}`);
     }
   });
-  test('PRECEDENCE states that modifiers may not remove anything', () => {
+  test('neurodivergent engagement is not a core section', () => {
+    assert(!FLOOR_SECTIONS.includes('reading_people'));
+    assert(!FLOOR_SECTIONS.includes('neurodivergent_support'));
+    assert(!/rejection sensitivity/i.test(FLOOR_TEXT));
+    assert(!/peer-reviewed/i.test(FLOOR_TEXT));
+    assert(!/burnout is not depression/i.test(FLOOR_TEXT));
+  });
+  test('persistence names items and does not frame it as a neurodivergent method', () => {
+    assert(/named_items/.test(FLOOR.persistence.out_of_sight));
+    assert(!/neurodivergent/i.test(FLOOR.persistence.out_of_sight));
+  });
+  test('general epistemic honesty stays, and the wellbeing corpus lines do not', () => {
+    assert(/established, emerging, or anecdote/i.test(FLOOR.voice.epistemic_honesty));
+    assert(FLOOR.corpus_discipline.judgment_gated);
+    assert(FLOOR.corpus_discipline.lived_data_wins);
+    assert(!('presence_first' in FLOOR.corpus_discipline));
+    assert(!('wellbeing_wins' in FLOOR.corpus_discipline));
+  });
+  test('PRECEDENCE states that modifiers may not remove anything, and a GEM ranks below', () => {
     assert(/no modifier removes anything/i.test(PRECEDENCE));
+    assert(/active GEM ranks below the floor and below the user's current word/i.test(PRECEDENCE));
   });
 });
 
@@ -84,47 +103,84 @@ testGroup('The compact form is genuinely compact', () => {
   });
   test('it carries the load-bearing protections, not just style', () => {
     const text = FLOOR_REASSERTION.join(' ').toLowerCase();
-    for (const needle of ['burnout', 'masking', 'validation before restructuring', 'presence before prescription']) {
+    for (const needle of ['answer the question asked', 'never extend a caution', 'no flattery', 'out of sight', 'established, emerging, or anecdote']) {
       assert(text.includes(needle), `compact form drops: ${needle}`);
     }
+    assert(!text.includes('burnout'));
+    assert(!text.includes('masking'));
   });
 });
 
 testGroup('readFloor', () => {
-  test('full form by default', () => {
-    const r = readFloor();
+  test('full form by default', async () => {
+    const r = await readFloor();
     assert.strictEqual(r.form, 'full');
     assert.deepStrictEqual(r.sections, FLOOR_SECTIONS);
     assert.strictEqual(r.floor, FLOOR);
     assert.strictEqual(r.precedence, PRECEDENCE);
   });
-  test('no arguments at all is the same as an empty object', () => {
-    assert.strictEqual(readFloor().form, readFloor({}).form);
+  test('no arguments at all is the same as an empty object', async () => {
+    assert.strictEqual((await readFloor()).form, (await readFloor({})).form);
   });
-  test('null argument does not throw', () => assert.strictEqual(readFloor(null).form, 'full'));
-  test('compact form returns the short list', () => {
-    const r = readFloor({ compact: true });
+  test('null argument does not throw', async () => assert.strictEqual((await readFloor(null)).form, 'full'));
+  test('compact form returns the short list', async () => {
+    const r = await readFloor({ compact: true });
     assert.strictEqual(r.form, 'compact');
     assert.strictEqual(r.floor, FLOOR_REASSERTION);
   });
-  test('compact form says what it is not', () => {
-    assert(/not a mechanism that enforces it/i.test(readFloor({ compact: true }).note));
+  test('compact form says what it is not', async () => {
+    assert(/not a mechanism that enforces it/i.test((await readFloor({ compact: true })).note));
   });
-  test('a named section returns only that section', () => {
-    const r = readFloor({ section: 'neurodivergent_support' });
+  test('a named section returns only that section', async () => {
+    const r = await readFloor({ section: 'persistence' });
     assert.strictEqual(r.form, 'section');
-    assert.strictEqual(r.floor, FLOOR.neurodivergent_support);
+    assert.strictEqual(r.floor, FLOOR.persistence);
   });
-  test('an unknown section reports the valid names rather than throwing', () => {
-    const r = readFloor({ section: 'nope' });
+  test('an unknown section reports the valid names rather than throwing', async () => {
+    const r = await readFloor({ section: 'nope' });
     assert(r.error);
     assert.deepStrictEqual(r.sections, FLOOR_SECTIONS);
   });
-  test('a prototype key is not treated as a section', () => {
-    assert(readFloor({ section: 'constructor' }).error, 'constructor was accepted as a section');
+  test('a prototype key is not treated as a section', async () => {
+    assert((await readFloor({ section: 'constructor' })).error, 'constructor was accepted as a section');
   });
-  test('read-only: calling it twice returns identical content', () => {
-    assert.deepStrictEqual(readFloor(), readFloor());
+  test('read-only: calling it twice returns identical content', async () => {
+    assert.deepStrictEqual(await readFloor(), await readFloor());
+  });
+  test('gem reads Neurendipity without turning it on', async () => {
+    const r = await readFloor({ gem: 'neurendipity' });
+    assert.strictEqual(r.form, 'gem');
+    assert.strictEqual(r.gem, 'neurendipity');
+    assert.strictEqual(r.active, false);
+    assert(/masking/i.test(r.floor.reading_people.lines.beliefs_show_in_action));
+    assert(/burnout is not depression/i.test(r.floor.neurodivergent_support.lines.burnout_is_not_depression));
+    assert(/rejection sensitivity/i.test(r.floor.neurodivergent_support.lines.rejection_sensitivity));
+    assert(/peer-reviewed/i.test(r.floor.neurodivergent_support.lines.epistemic_honesty));
+    assert(/does not repeat that procedure/i.test(r.floor.neurodivergent_support.lines.out_of_sight));
+    assert(!/named_items/.test(r.floor.neurodivergent_support.lines.out_of_sight));
+    assert(r.floor.corpus_wellbeing.lines.presence_first);
+    assert(r.floor.corpus_wellbeing.lines.wellbeing_wins);
+    assert(/guides\/NEURODIVERGENT_SUPPORT\.md/.test(r.floor.neurodivergent_support.lines.guide));
+    const again = await readFloor({ gem: 'neurendipity' });
+    assert.strictEqual(again.active, false);
+  });
+  test('gem compact returns the neurodivergent reassertion, not the core list', async () => {
+    const r = await readFloor({ gem: 'neurendipity', compact: true });
+    assert.strictEqual(r.active, false);
+    const text = r.floor.join(' ').toLowerCase();
+    assert(text.includes('burnout'));
+    assert(text.includes('masking'));
+    assert(text.includes('peer-reviewed'));
+    assert(!text.includes('answer the question asked'));
+  });
+  test('an unknown GEM is an error, not a throw', async () => {
+    const r = await readFloor({ gem: 'no-such-gem' });
+    assert(r.error);
+    assert.strictEqual(r.form, 'gem');
+  });
+  test('a GEM id that is not an id is refused', async () => {
+    assert((await readFloor({ gem: '../floor' })).error);
+    assert((await readFloor({ gem: 'Constructor' })).error);
   });
 });
 
@@ -136,9 +192,9 @@ testGroup('It reaches the host', () => {
     assert.strictEqual(TOOL_ANNOTATIONS.emet_floor.readOnlyHint, true);
     assert.strictEqual(TOOL_ANNOTATIONS.emet_floor.destructiveHint, false);
   });
-  test('emet_floor takes compact and section', () => {
+  test('emet_floor takes compact, section, and gem', () => {
     const props = tool.inputSchema.properties;
-    assert(props.compact && props.section);
+    assert(props.compact && props.section && props.gem);
     assert(!tool.inputSchema.required, 'no argument should be required');
   });
   test('the description does not promise compliance', () => {
@@ -187,15 +243,9 @@ testGroup('Borrowed vocabulary stays out (regression guard, 2026-09-07)', () => 
       assert(!FLOOR_TEXT.toLowerCase().includes(term), `"${term}" is back in the floor`);
     });
   }
-  test('reading people still carries the masking limit', () => {
-    assert(/masking/i.test(FLOOR.reading_people.beliefs_show_in_action));
-    assert(/basic survival/i.test(FLOOR.reading_people.beliefs_show_in_action));
-  });
-  test('neurodivergent support still refuses to moralise the flare', () => {
-    assert(/never moralise the flare/i.test(FLOOR.neurodivergent_support.never_moralise));
-  });
-  test('burnout is still distinguished from depression', () => {
-    assert(/burnout is not depression/i.test(FLOOR.neurodivergent_support.burnout_is_not_depression));
+  test('the core floor does not carry the moved neurodivergent lines', () => {
+    assert(!/basic survival/i.test(FLOOR_TEXT));
+    assert(!/never moralise the flare/i.test(FLOOR_TEXT));
   });
 });
 
@@ -206,8 +256,33 @@ testGroup('Honesty about what the floor does not do', () => {
     const tool = TOOLS.find(t => t.name === 'emet_floor');
     assert(/re-reading is not the same as being bound by it/i.test(tool.description));
   });
-  test('the compact form does not claim to enforce anything', () => {
-    assert(!/ensures|guarantees|enforces the/i.test(readFloor({ compact: true }).note));
+  test('the compact form does not claim to enforce anything', async () => {
+    assert(!/ensures|guarantees|enforces the/i.test((await readFloor({ compact: true })).note));
+  });
+});
+
+testGroup('Engagement: goal_check and no_rapport_mirroring (review of the floor change)', () => {
+  test('both keys exist under engagement', () => {
+    assert.strictEqual(typeof FLOOR.engagement.goal_check, 'string');
+    assert.strictEqual(typeof FLOOR.engagement.no_rapport_mirroring, 'string');
+  });
+  test('the floor text contains "earned by substance"', () => {
+    assert(FLOOR_TEXT.includes('earned by substance'));
+    assert(FLOOR.engagement.no_rapport_mirroring.includes('Agreement is earned by substance.'));
+    assert(FLOOR.engagement.acknowledge.includes('when it is earned by substance, stated as a specific reason, not as praise.'));
+  });
+  test('no_rapport_mirroring wording: manipulation named, accurate quoting allowed, praise scoped to effect', () => {
+    const t = FLOOR.engagement.no_rapport_mirroring;
+    assert(t.includes("Do not echo the person's words back, flatter, or agree as a way to build rapport or seem attuned; that is manipulation."));
+    assert(t.includes('Quoting them for accuracy is fine.'));
+    assert(t.includes('no emotional padding, no praise or rapport-building language used for effect'));
+  });
+  test('goal_check asks for the goal in your own words and defers to their_own_plan', () => {
+    const t = FLOOR.engagement.goal_check;
+    assert(/in your own words/.test(t) && /confirm/.test(t) && /their_own_plan/.test(t));
+  });
+  test('FLOOR_REASSERTION includes the no-mirroring line', () => {
+    assert(FLOOR_REASSERTION.includes('Do not mirror their words or agree to build rapport. Agreement is earned by substance.'));
   });
 });
 

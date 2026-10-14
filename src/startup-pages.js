@@ -41,9 +41,9 @@ export function pageBudget(raw = process.env.EMET_INIT_PAGE_BYTES) {
 
 /** Binding first: the order keys are paged in. Keys not listed follow, in payload order. */
 export const PAGE_ORDER = Object.freeze([
-  'state', 'database', 'source_tag', 'person_id', 'unhandled_drops', 'unhandled_drops_more', 'retired_drops', 'emet_line', 'emet_line_if_unanswered',
+  'state', 'database', 'source_tag', 'source_basis', 'source_login', 'source_remembered', 'approval_state', 'person_id', 'client_approvals', 'unhandled_drops', 'unhandled_drops_more', 'retired_drops', 'emet_line', 'emet_line_if_unanswered',
   'tools_in_force', 'instructions_short', 'session_close_protocol', 'operating_discipline', 'charter',
-  'floor', 'floor_precedence', 'floor_reassertion',
+  'floor', 'floor_precedence', 'floor_reassertion', 'gems_available', 'gems_active',
   'seeds_due', 'seeds_evaluated_on', 'install_notes_doc_id',
   'identity', 'character', 'character_doc_id', 'character_sha256', 'user',
   'record_gaps', 'named_items', 'lessons_pending', 'layer_health',
@@ -54,7 +54,8 @@ export const PAGE_ORDER = Object.freeze([
 /** Keys that bind the session (the startup rules): never optional, never dropped. */
 export const BINDING_KEYS = Object.freeze([
   'tools_in_force', 'instructions_short', 'session_close_protocol',
-  'floor', 'floor_precedence', 'floor_reassertion', 'identity', 'character', 'user'
+  'floor', 'floor_precedence', 'floor_reassertion', 'gems_available', 'gems_active',
+  'identity', 'character', 'user'
 ]);
 
 /** Page fields that are never payload keys. */
@@ -72,6 +73,16 @@ const bytes = (s) => Buffer.byteLength(s, 'utf8');
 const entryBytes = (key, value) => bytes(JSON.stringify({ [key]: value })) - 1; // `"key":value` plus a comma
 
 /**
+ * GEM lists travel with the floor. They are never split into chunks and never
+ * replaced by a pointer (startup-payload.js keeps them too). A list that does
+ * not fit the bytes left on the current page moves whole onto the next page.
+ * A list that cannot fit even an empty page is still one entry: this packer
+ * does not slice it. The caps in the socket keep a real list small enough to fit.
+ */
+const WHOLE_KEYS = new Set(['gems_available', 'gems_active']);
+export { WHOLE_KEYS };
+
+/**
  * Pack the payload into pages of entries. budgets(k) = content bytes allowed
  * on page k (0-based). An entry is {key, value} or {key, value, chunk, of, json}.
  */
@@ -82,6 +93,12 @@ function pack(full, budgets) {
   for (const key of orderedKeys(full)) {
     const value = full[key];
     const size = entryBytes(key, value);
+    if (WHOLE_KEYS.has(key)) {
+      if (size > room() && pages[pages.length - 1].length) newPage();
+      pages[pages.length - 1].push({ key, value });
+      used[pages.length - 1] += size;
+      continue;
+    }
     if (size <= room()) { pages[pages.length - 1].push({ key, value }); used[pages.length - 1] += size; continue; }
     if (size <= budgets(pages.length)) { newPage(); pages[pages.length - 1].push({ key, value }); used[pages.length - 1] += size; continue; }
     // Too big for any one page: chunk it. Strings split as text; anything else

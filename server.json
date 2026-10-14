@@ -3,7 +3,7 @@
   "name": "io.github.dreamforgestudiollc/emet",
   "title": "EMET",
   "description": "Persistent shared memory for AI agents, with verified writes and a transcript tier.",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "websiteUrl": "https://dreamforgestudiollc.github.io/EMET/",
   "repository": {
     "url": "https://github.com/dreamforgestudiollc/EMET",
@@ -22,7 +22,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@dreamforgestudiollc/emet",
-      "version": "0.2.4",
+      "version": "0.2.5",
       "transport": {
         "type": "stdio"
       },

@@ -1,0 +1,30 @@
+{
+  "spec": "2026-10-11",
+  "id": "neurendipity",
+  "name": "Neurendipity",
+  "description": "Example manifest for the Neurendipity GEM. Shows the file shape. Full lines move from the server floor when GEP-0001 is implemented. Bundled, and off unless the user asks for it.",
+  "version": "1.0.0",
+  "kind": "gem",
+  "requires": { "emet": ">=0.3.0" },
+  "priority": 50,
+  "defaultOn": false,
+  "overrides": [],
+  "distribution": "bundled",
+  "floor": "floor.json",
+  "guides": ["guides/NEURODIVERGENT_SUPPORT.md"],
+  "runes": [],
+  "files": [
+    {
+      "path": "floor.json",
+      "digest": "sha256:61f9ac4c0977054d1f04509faaa64f73c167423f85b6f698d601859d93dc3e53",
+      "size": 953
+    },
+    {
+      "path": "guides/NEURODIVERGENT_SUPPORT.md",
+      "digest": "sha256:dff3fba954f2fcb0adc8a59ef0dfd769c1af3845b82f3a5eead438de1f9d1f26",
+      "size": 396
+    }
+  ],
+  "authors": ["Dreamforge Studio LLC"],
+  "license": "MIT"
+}

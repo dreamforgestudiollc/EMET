@@ -63,6 +63,20 @@ export function boundSourceTag() {
   return tag || null;
 }
 
+/** The raw per-request actor (HTTP object), or null. Read only. */
+export function rawActor() {
+  const s = actorStore.getStore();
+  return s && typeof s === 'object' ? s : null;
+}
+
+/** Per-request attribution set by attribution.preflight (HTTP only). */
+export function declaredAttribution() {
+  const s = actorStore.getStore();
+  if (!s || typeof s !== 'object' || s.transport !== 'http') return null;
+  const login = typeof s.sourceTag === 'string' && s.sourceTag.trim() ? s.sourceTag.trim() : null;
+  return { declared: s.declaredTag || null, basis: s.sourceBasis || null, login, effective: s.effectiveTag || null, clientId: s.clientId || null, approval: s.approvalState || null, rememberedTags: Array.isArray(s.rememberedTags) ? s.rememberedTags : [] };
+}
+
 export function displayNameFromUserDoc(text) {
   const heading = String(text || '').match(/^#\s+User Profile\s+[\u2014\u2013-]\s+(.+)$/im);
   if (heading) return heading[1].trim();

@@ -5,6 +5,38 @@ All notable changes to EMET are listed here, newest first. The format follows
 [Semantic Versioning](https://semver.org/). EMET is still 0.x: the stored data shapes may
 change before 1.0.
 
+## Unreleased
+
+## 0.2.5 - 2026-10-14
+
+Per-session attribution with client approval, the GEM socket with the bundled Neurendipity GEM (off unless the user asks), and two new core floor lines: `goal_check` and `no_rapport_mirroring`. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged. No stored data shapes change; deploy over 0.2.4.
+
+### Fixed
+
+- Neurendipity 1.2.3 (a non-blocking review nit). `NEURODIVERGENT_SUPPORT.md` §8 prose now reads "A meta-analysis (2026, online 2025)" to match the Vann-Adibe tag. In-text tags for Bougoure et al. and Pagán et al. now carry "(online 2025)" in both guides, matching their Sources entries. gem.json digests updated. Guides only; floor unchanged.
+
+- Review fixes for #38 and #39. Floor: `no_rapport_mirroring` now reads "agree as a way to build rapport or seem attuned", allows quoting the person for accuracy, and limits the no-praise rule to "praise or rapport-building language used for effect"; `acknowledge` now acknowledges good thinking "when it is earned by substance, stated as a specific reason, not as praise", which removes the conflict between the two lines. New tests cover the protected and modifiable override paths, the wording, and the reassertion line. Neurendipity 1.2.2: the 'poor at telling current from past burnout' finding is now attributed to the prepublication AASPIRE measure, not the ABSI (AUTISTIC_BURNOUT.md); the year convention is applied to Cai 2026 (online 2025, *Autism Research* 19(2)), Vann-Adibe 2026 (online 2025, *Appl Psychophysiol Biofeedback* 51(3)), and Bougoure (online 2025); Pagán values now "were associated with" camouflaging; Ferrie comma fixed. ISO 9001 / ISO 13485 document-control wording is unchanged.
+
+### Added
+
+- Core floor, engagement: `goal_check` (before multi-step work, on an ambiguous request, or when the conversation turns, state the person's goal and underlying problem in one sentence in your own words, marked as your read, and confirm; distinct from `their_own_plan`, it checks the goal underneath and never re-narrates a stated plan) and `no_rapport_mirroring` (no echoing, flattery, or agreement to build rapport or seem attuned; that is manipulation; agreement is earned by substance; state the obvious only when it adds information; default register is plain facts, with no emotional padding, praise, or rapport-building language). One matching reassertion line. `no_rapport_mirroring` is a protected override path; `goal_check` joins the modifiable list (a GEM or modifier may tune when it fires, never remove the anti-mirroring line). Targets the next public release, which must update the repo, website, README, npm package, MCP Registry entry, and description together.
+- Neurendipity 1.2.1 (accuracy fixes from review, under the owner's 2026-10-12 approval). Guides only; floor unchanged. Bougoure line in `NEURODIVERGENT_SUPPORT.md` rewritten (AUC 0.92 vs PHQ-9 0.78; correlates with depression and anxiety, so it does not on its own tell burnout from depression). Arnold 2023 sample limits; Osborne described as 14 studies with qualitative data synthesised; Pagán 'was associated with' and therapy-programme recruitment; van Asselt scope and no intervention studies; Vann-Adibe effect label, heterogeneity and moderator scope; Comerford UK-only and 'a sense of community'; Ferrie & Hafetz sample limits, service line tagged as a suggestion; Clarey author initials. One year convention stated (issue year, online year in brackets); Pagán cited as 2026 (online 2025).
+- Neurendipity 1.2.0 (the owner's approval 2026-10-12). Guides only; floor unchanged. `AUTISTIC_BURNOUT.md`: measurement (Arnold 2023 ABSI, Bougoure 2026), shame and dual masking (Clarey 2026), camouflaging as energy cost and unmasking as a balancing act (Osborne 2026), culture (Pagán 2025). `NEURODIVERGENT_SUPPORT.md`: RSD scoping review findings (van Asselt 2026) and self-compassion validity (Cai 2025) in §3; Osborne and Pagán in §6; interoception meta-analysis (Klein 2025) and remote HRV biofeedback meta-analysis (Vann-Adibe 2025) in §8; Comerford 2026 and Ferrie & Hafetz 2026 in §9. Support only, not counseling or treatment.
+- Attribution per session, v2 (replaces the reverted #32). Agents sharing one OAuth login are stamped with the tag they declare (`source_basis: declared`, `source_login` kept), but a declared tag never gains rights beyond the login's tag: every guard runs for both. Every write naming a session is checked against the tag that owns the session, rebuilt after a restart from the session's stored rows. New clients: the first write by an unknown tag is refused and queued in `emet/CLIENT_APPROVALS.md` with who connected, the declared name, client_id and what it tried to write, routed to the chief-of-staff bot (`EMET_COS_TAG`) or, with none set, to the owner. A first, solo client on a fresh store is approved at once as the owner's primary. New tool `emet_client_approve`. `emet_initialize` and `emet_status` report the caller's real tag and, to the owner or COS, the pending clients.
+
+- The GEM socket (`src/socket.js`) and `gem-check` (`src/gem-check.js`). This release seats bundled prompt GEMs only. A refused GEM is listed with its check id and does not stop startup. An empty mount logs nothing. A seating summary is logged only when a GEM is installed. RUNE execution is not implemented and is refused. No new runtime dependency.
+- Neurendipity, the bundled GEM at `gems/neurendipity` (reading people, the neurodivergent engagement lines, the wellbeing corpus lines, the matching reassertion lines, and the guide). It is off unless the install sets `EMET_ACTIVE_GEMS=neurendipity`. `emet_floor` takes a `gem` argument to read an installed GEM's floor without turning it on. The guide id `guides/NEURODIVERGENT_SUPPORT.md` still resolves to that GEM's copy for one release.
+
+### Changed
+
+- The core floor keeps persistence (named items, including what was set aside on purpose), a general epistemic-honesty line (established, emerging, or anecdote), the epistemic corpus lines, and the honesty protections. An active GEM ranks below the floor and below the user's current word. Neurodivergent engagement is no longer on every install.
+
+### Docs
+
+- README and website: version 0.2.5; a GEM socket fact; the website gains a Document control (ISO 9001 7.5.3 / ISO 13485 4.2.5) fact in the README's words; the tool count is 30 with `emet_client_approve` (docs/PERMISSIONS.md lists it with the tools that can replace or hand out access).
+- GEM standard, Draft revision 2026-10-11, in `gem-library/` (canonical home: the private repository EMET-GEMs). The charter's extension socket, commitment 8, and the core-floor row are revised: EMET is a memory resource, core floor protections stay non-removable, and neurodivergent engagement is the bundled Neurendipity GEM, off unless the user asks.
+- Registering a bot (`docs/BOTS.md` §4, with a pointer in `docs/DEPLOY.md`): every bot writes under its own source tag, `<prefix>-<bot>`. When a bot joins the roster, append its tag to the end of `EMET_SOURCE_TAGS`, keep every existing tag in order, and add `bots/<tag>/HANDOFF.md` to `EMET_RECORD_DOCS` before its first write. Setting either variable redeploys the server; afterwards, check `/health` and `emet_status`.
+
 ## 0.2.4 - 2026-10-08
 
 A board fix, a public website, and the first npm package, `@dreamforgestudiollc/emet`. A session that boots with no unhandled drops can edit the board again. No data shapes or settings change; deploy over 0.2.3 as is.

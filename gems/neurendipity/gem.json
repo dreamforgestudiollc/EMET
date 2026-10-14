@@ -1,0 +1,42 @@
+{
+  "spec": "2026-10-11",
+  "id": "neurendipity",
+  "name": "Neurendipity",
+  "description": "Neurodiversity support. Neurodivergent engagement and autistic burnout support (support only, not counseling or treatment). Off unless the user asks for it.",
+  "version": "1.2.3",
+  "kind": "gem",
+  "requires": {
+    "emet": ">=0.2.4"
+  },
+  "priority": 50,
+  "defaultOn": false,
+  "overrides": [],
+  "distribution": "bundled",
+  "floor": "floor.json",
+  "guides": [
+    "guides/NEURODIVERGENT_SUPPORT.md",
+    "guides/AUTISTIC_BURNOUT.md"
+  ],
+  "runes": [],
+  "files": [
+    {
+      "path": "floor.json",
+      "digest": "sha256:484dd159ccfec5d4fd85a764aea6db687b9c2355e1b7a11532f044fc350eca01",
+      "size": 7033
+    },
+    {
+      "path": "guides/NEURODIVERGENT_SUPPORT.md",
+      "digest": "sha256:aa64c1f125960da7822970a87926bd042fcb4f8ba6d84e392a29dfb12321c809",
+      "size": 31717
+    },
+    {
+      "path": "guides/AUTISTIC_BURNOUT.md",
+      "digest": "sha256:657810094cdde539648c7d06767072e71b8c712aee73a60e7e8040ac83df40e2",
+      "size": 10074
+    }
+  ],
+  "authors": [
+    "Dreamforge Studio LLC"
+  ],
+  "license": "MIT"
+}

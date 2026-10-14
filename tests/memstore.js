@@ -381,6 +381,9 @@ export function makeStore(opts = {}) {
           if (!upOpts.upsert) return { matchedCount: 0, modifiedCount: 0 };
           d = { _id: `${name}-${++seq}` }; for (const [k, v] of Object.entries(q)) if (!k.startsWith('$') && (v === null || typeof v !== 'object')) d[k] = v;
           Object.assign(d, u.$setOnInsert || {}); docs.push(d);
+          note(name, 'update'); applyUpdate(d, u);
+          // Mirrors MongoDB: an upsert that inserts reports upsertedCount, not a match.
+          return { matchedCount: 0, modifiedCount: 0, upsertedCount: 1, upsertedId: d._id, acknowledged: true };
         }
         note(name, 'update'); applyUpdate(d, u);
         return { matchedCount: 1, modifiedCount: 1, acknowledged: true };

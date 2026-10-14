@@ -22,10 +22,13 @@ import path from 'path';
 import crypto from 'crypto';
 import { resolveModulePath } from './module-path.js';
 import { setting } from './env.js';
+import { approvedTags, cachedApprovals, approvalsView, rememberedView } from './attribution.js';
+import { declaredAttribution, rawActor } from './persons.js';
 import { MONGODB_URI, MONGODB_DB, COLLECTION_PREFIX, DatabaseError, EmetDatabase } from './database.js';
 import { VALID_LAYERS, ValidationError } from './validation.js';
 import { DISCIPLINE_SUMMARY } from './disciplines.js';
 import { FLOOR, FLOOR_REASSERTION, PRECEDENCE as FLOOR_PRECEDENCE } from './floor.js';
+import { seatGems } from './socket.js';
 import { LAYER_SUMMARY, assessLayerHealth } from './layers.js';
 import { CLOSE_PROTOCOL, handoffDoc, stateDoc } from './session.js';
 import { currentActor } from './persons.js';
@@ -176,7 +179,7 @@ async function resolveCharacterDoc(docs, override) {
  * items are named in a section of their own, with what brings each one back, and
  * nothing is asked of them. Visible is not owed.
  */
-export function startupListInstructions() {
+export function startupListInstructions(available) {
   return (
     'Then, before any question, read `' + handoffDoc() + '` and `' + stateDoc() + '` ' +
     '(read_doc) if this store has them, and name the user\'s items for them: ' +
@@ -194,6 +197,7 @@ export function startupListInstructions() {
     'times it has landed; ask nothing of them. Each is settled by a new meta entry carrying the ' +
     'family tags and metadata.lesson_disposition {kind: check|document|uncheckable, ref}. ' +
     seedsAndThreadsInstructions() + ' ' +
+    gemStartupLine(available) + ' ' +
     'Never open with a question alone. If this store has neither document, say so once ' +
     'rather than inventing a list.'
   );
@@ -239,7 +243,16 @@ function retirementFields(row) {
 
 /** The registered source tags (EMET_SOURCE_TAGS), as a list. */
 export function registeredSourceTags() {
-  return String(setting('SOURCE_TAGS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const env = String(setting('SOURCE_TAGS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  return env.length ? [...new Set([...env, ...approvedTags()])] : env;
+}
+
+/** Attribution v2: the caller's real tag, not the server-wide default (the owner 2026-10-12 (c)). */
+export function callerAttribution() {
+  const d = declaredAttribution();
+  if (!d) return { source_tag: setting('SOURCE_TAG') || null };
+  const tag = d.effective || d.login || null;
+  return { source_tag: tag, source_basis: d.basis || (tag ? 'login' : 'none'), ...(d.login && d.login !== tag ? { source_login: d.login } : {}), approval_state: d.approval || (d.basis === 'login' ? 'login' : 'unknown'), ...((() => { const v = rememberedView({ rememberedTags: d.rememberedTags, declaredTag: d.declared || d.effective }); return v ? { source_remembered: v } : {}; })()) };
 }
 
 export function hostSetupInstructions() {
@@ -363,7 +376,26 @@ export const EMET_LINE_UNANSWERED = 'MET — the aleph is missing. Memory not co
  * the rest. This is the subset that must survive a cut; the long form still
  * follows at the end and governs wording where the two differ.
  */
-export function shortInstructions() {
+/** The sentence an empty GEM list prints. Tests strip this exact text, trailing space included. */
+export const GEMS_NONE_LINE = 'GEMs installed: none.';
+
+/**
+ * One line per installed GEM: id, name, and on or off. A refused GEM adds the
+ * reason code and nothing else. An empty list still names itself.
+ */
+export function gemStartupLine(available) {
+  const list = Array.isArray(available) ? available : [];
+  if (list.length === 0) return GEMS_NONE_LINE;
+  return list.map((gem) => {
+    const id = gem && typeof gem.id === 'string' ? gem.id : 'unknown';
+    const name = gem && typeof gem.name === 'string' && gem.name ? gem.name : id;
+    const flag = gem && gem.active === true ? 'on' : 'off';
+    const why = gem && gem.loadable === false && typeof gem.reason === 'string' ? ` ${gem.reason}` : '';
+    return `${id}, ${name}, ${flag}${why}`;
+  }).join('\n');
+}
+
+export function shortInstructions(available) {
   return (
     'Read in this order if the payload is cut short. (1) Say `emet_line` exactly, alone; then ' +
     'the identity phrase from `identity` exactly, if one is set. (2) `identity`, `character`, ' +
@@ -372,7 +404,7 @@ export function shortInstructions() {
     'host\'s source tag. (4) After every startup page, call emet_session_open with its load_id, then say every name in ' +
     '`named_items` (half-state, dated within seven days, open, undecided, then parked under its own heading, never pressed). ' +
     'Read HANDOFF.md and STATE.md when a section is marked unread. Then `lessons_pending`. A count is the check, never the list. ' +
-    'Never open with a question alone. (5) Append every exchange with ' +
+    gemStartupLine(available) + ' Never open with a question alone. (5) Append every exchange with ' +
     'emet_transcript_append; pass session_id and exchange on every write; follow ' +
     '`session_graph.next`. (6) Close per ' +
     '`session_close_protocol`; handoff last; saved only ' +
@@ -407,7 +439,7 @@ export function startupIndicatorInstructions() {
  * stand alone, because on its own it reads as "say nothing" and the user's
  * items drop out of sight with it.
  */
-export function readyInstructions(hasCharacter) {
+export function readyInstructions(hasCharacter, available) {
   const core =
     'Before answering anything that may have prior context, search memory first ' +
     'rather than assuming. `layer_charter` says what belongs in each of the six layers - use ' +
@@ -439,7 +471,7 @@ export function readyInstructions(hasCharacter) {
       'where things stood; do not recite this payload back, list the layer counts, or announce ' +
       'that you loaded memory; if nothing in recent_context bears on what they ask first, leave ' +
       'recent_context out of the greeting. ' + hostSetupInstructions() + ' ' +
-      startupListInstructions() + ' ' + core
+      startupListInstructions(available) + ' ' + core
     );
   }
 
@@ -454,7 +486,7 @@ export function readyInstructions(hasCharacter) {
     'Open with a short greeting that shows you know where things stood - do not recite ' +
     'this payload back, do not list the layer counts, and do not announce that you loaded ' +
     'memory. If nothing in recent_context is relevant to what they ask next, say nothing ' +
-    'about it. ' + hostSetupInstructions() + ' ' + startupListInstructions() + ' ' + core
+    'about it. ' + hostSetupInstructions() + ' ' + startupListInstructions(available) + ' ' + core
   );
 }
 
@@ -749,8 +781,23 @@ export async function initialize(options = {}, hooks = {}) {
 let startupBuildForTests = null;
 export function setStartupBuildForTests(fn) { startupBuildForTests = typeof fn === 'function' ? fn : null; }
 
+/** Seat GEMs for this startup. A throw here still returns empty lists. */
+async function loadSeatedGems() {
+  try {
+    return await seatGems();
+  } catch {
+    // SR-07: the session is never what fails. One line, no stack in the payload.
+    console.error('emet: GEM socket failed closed');
+    return { gems_available: [], gems_active: [] };
+  }
+}
+
 /** The full startup payload, in one object: what initialize returned before paging. */
 async function buildStartup(options = {}) {
+  const seated = await loadSeatedGems();
+  const gems_available = seated.gems_available;
+  const gems_active = seated.gems_active;
+  const gemLine = gemStartupLine(gems_available);
   const status = await setupStatus();
 
   if (!status.reachable) {
@@ -769,7 +816,9 @@ async function buildStartup(options = {}) {
         'the user plainly that the memory store cannot be reached, and what the ' +
         'problem is. Do not proceed as though memory is available, and do not invent ' +
         'continuity you do not have. `charter` is still present: it ships with the release, not ' +
-        'the store, so it is readable even now. docs/SETUP.md has a failure table.'
+        'the store, so it is readable even now. docs/SETUP.md has a failure table. ' + gemLine,
+      gems_available,
+      gems_active
     };
   }
 
@@ -793,7 +842,9 @@ async function buildStartup(options = {}) {
         'Do NOT run the setup interview and do NOT offer to create an identity. This store already ' +
         'holds memory that this server is not configured to see. Tell the user plainly what was ' +
         'found and what to change, and stop. Creating a second identity here would leave two ' +
-        'disconnected memories in one database.'
+        'disconnected memories in one database. ' + gemLine,
+      gems_available,
+      gems_active
     };
   }
 
@@ -824,8 +875,10 @@ async function buildStartup(options = {}) {
         'This memory store is new. Do not report a list of questions back to the user. ' +
         'Explain in a sentence that you have no memory of them yet and would like to set that ' +
         'up, then ask these questions conversationally, one at a time, in your own words. ' +
-        'Never invent or assume an answer. When you have them, call emet_setup_complete.',
-      questions: begin.questions
+        'Never invent or assume an answer. When you have them, call emet_setup_complete. ' + gemLine,
+      questions: begin.questions,
+      gems_available,
+      gems_active
     };
   }
 
@@ -934,8 +987,9 @@ async function buildStartup(options = {}) {
     return {
       state: 'ready',
       database: status.database,
-      source_tag: setting('SOURCE_TAG') || null,
+      ...callerAttribution(),
       person_id: personId,
+      ...((() => { const v = approvalsView(cachedApprovals(), rawActor() || { transport: 'stdio' }, null); return v ? { client_approvals: v } : {}; })()),
       unhandled_drops: shown.map((d) => d.doc_id),
       unhandled_drops_more: Math.max(0, openDrops.length - shown.length),
       retired_drops: retiredDrops.map((d) => ({ doc_id: d.doc_id, ...retirementFields(d) })),
@@ -962,7 +1016,7 @@ async function buildStartup(options = {}) {
       },
       // Code audit 2026-09-27 (2.1): the short instructions ride up front with
       // tools_in_force, for the same reason - a 20K cut must not take them.
-      instructions_short: shortInstructions(),
+      instructions_short: shortInstructions(gems_available),
       session_close_protocol: CLOSE_PROTOCOL,
       operating_discipline: DISCIPLINE_SUMMARY,
       charter: charterPayload(charterStore ? charterStore.content : null),
@@ -1025,7 +1079,9 @@ async function buildStartup(options = {}) {
       floor: FLOOR,
       floor_precedence: FLOOR_PRECEDENCE,
       floor_reassertion: FLOOR_REASSERTION,
-      instructions: readyInstructions(Boolean(character))
+      instructions: readyInstructions(Boolean(character), gems_available),
+      gems_available,
+      gems_active
     };
   } finally {
     if (client) await client.close();
