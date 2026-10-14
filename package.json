@@ -1,6 +1,6 @@
 {
   "name": "@dreamforgestudiollc/emet",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "EMET — Enduring Memory & Epistemic Tiers. An MCP memory server with persistent shared memory for AI agents, bot teams and chats: layered memory, verified writes, and a verbatim transcript tier.",
   "keywords": [
     "agent-memory",
@@ -39,6 +39,7 @@
     "src/",
     "templates/",
     "guides/",
+    "gems/",
     "docs/*.md",
     "CHARTER.md",
     "CHANGELOG.md",

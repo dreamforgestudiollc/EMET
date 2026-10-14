@@ -17,7 +17,8 @@ EMET is an MCP (Model Context Protocol) memory server, persistent shared memory 
 - **Word-for-word transcript tier.** A separate tier stores the conversation as it was written, so a summary cannot overwrite the record it came from.
 - **stdio and remote HTTP with OAuth.** The same server runs locally over stdio, and remotely over HTTP with OAuth. The transport changes. The store does not.
 - **MongoDB.** Atlas, or MongoDB you run yourself. A one-machine trial can use MongoDB 6 or newer. Only `semantic_recall` needs Atlas.
-- **MIT.** Version 0.2.3. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
+- **GEM socket.** Add-on behavior ships as GEMs (Golem Expertise Modules), seated at startup and checked by `gem-check` against the GEM standard in `gem-library/`. A GEM ranks below the core floor and below the user's current word, and cannot remove a protected floor line. The bundled Neurendipity GEM (neurodivergent engagement and autistic burnout support; support only, not counseling or treatment) is off unless `EMET_ACTIVE_GEMS=neurendipity`.
+- **MIT.** Version 0.2.5. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
 
 The store has one owner, and other people can join only through the optional Guest
 (read-only) and Member (read and write) access, both off by default.
@@ -623,12 +624,13 @@ are in [`docs/GUARDRAILS-AND-MONORAILS.md`](docs/GUARDRAILS-AND-MONORAILS.md).
 
 ## Tools
 
-Twenty-nine tools. `recall` · `semantic_recall` · `query_layer` · `save_to_layer` · `revise_memory` ·
+Thirty tools. `recall` · `semantic_recall` · `query_layer` · `save_to_layer` · `revise_memory` ·
 `read_doc` · `read_doc_history` · `write_doc` · `list_docs` · `patch_doc` ·
 `retire_doc` · `rename_doc` · `restore_doc` · `save_transcript` · `revise_transcript` · `query_transcripts` ·
 `corpus_recall` · `emet_gaps` · `emet_floor` · `validate_doc` · `accept_nonconformance` ·
 `emet_initialize` · `emet_status` · `emet_setup_complete` · `emet_session_open` ·
-`emet_transcript_append` · `emet_session_close` · `emet_invite_create` · `emet_member_access_create`
+`emet_transcript_append` · `emet_session_close` · `emet_invite_create` · `emet_member_access_create` ·
+`emet_client_approve`
 
 **Retained revisions** — every document write archives the prior copy; `read_doc_history` lists
 what is retained for a document and returns any retained revision in full, re-hashed against its
@@ -674,7 +676,7 @@ at session *start*, which is the only moment early enough to matter.
 
 Every tool declares MCP annotations — `readOnlyHint`, `destructiveHint`, `idempotentHint`,
 `openWorldHint` — in one table in `src/annotations.js`, which is also the complete statement of
-what EMET does to a store. **11 of the 29 tools cannot modify anything**; four can replace the
+what EMET does to a store. **11 of the 30 tools cannot modify anything**; four can replace the
 visible content of a document; `openWorldHint` is false everywhere. The tools reach this
 server's own database and nothing else: no filesystem and no shell. The sign-in server fetches
 a client's metadata document, and only from a public address it has already checked.

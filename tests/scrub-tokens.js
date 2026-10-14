@@ -39,7 +39,7 @@ export const APPROVAL_TIME = /\b\d{1,2}:\d{2} ?(?:AM|PM) ET\b/;
 export const NAMED_SERVICE = /--service [a-z0-9]/i;
 // A short commit-like hex id in prose. Public upstream ids and fixture digests are allowed.
 export const SHORT_HEX = /(?<![0-9a-zA-Z_./-])(?=[0-9a-f]*[a-f])(?=[0-9a-f]*[0-9])[0-9a-f]{7,12}(?![0-9a-zA-Z_-])/g;
-export const ALLOWED_HEX = new Set(['acdb5c8c', 'feb7628ae8a0', '15a3c529bee0', 'abcd1234']);
+export const ALLOWED_HEX = new Set(['ed25519', 'acdb5c8c', 'feb7628ae8a0', '15a3c529bee0', 'abcd1234']);
 
 // A board item id cited from the owner's board (B- and three digits). B-001 to
 // B-009 are the generic format examples the templates use.

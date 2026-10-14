@@ -27,6 +27,8 @@ If one agent talks to you on behalf of the others — relays their reports up an
 
 Do these in order. Each step names what to read back. Steps 2 and 3 are **one change**: set `EMET_SOURCE_TAGS` and `EMET_RECORD_DOCS` together, in one deployment. A tag registered as a source but not yet listed as a bot is treated as a host in between.
 
+**Standing rule.** Every bot on the roster writes under its own source tag, `<prefix>-<bot>` (e.g. `bot-reviewer`). When a new bot joins the roster, register its tag in `EMET_SOURCE_TAGS` at the same time, before its first write. Append it to the end of the comma-separated list and keep every existing tag in order. Also add `bots/<tag>/HANDOFF.md` to `EMET_RECORD_DOCS` so the server treats it as a bot. Setting either variable redeploys the server; afterwards, check `/health` and `emet_status`.
+
 1. **Roster row.** Add the bot to `bots/ROSTER.md`, filled from `templates/ROSTER.md`: tag, name, role, host, machine, handoff doc, tool profile, owner, status. The hub keeps the roster. Read back: `read_doc bots/ROSTER.md`.
 2. **Register the tag as a source.** Append the tag to `EMET_SOURCE_TAGS` (comma list) on the deployment. Without it, the bot's transcript appends are refused (`src/dispatch.js` `requireRegisteredSource`). The operator reads the variable back from the deployment (a bot cannot read deployment settings from a session).
 3. **Make the tag a bot tag.** Append `bots/<tag>/HANDOFF.md` to `EMET_RECORD_DOCS` (comma list). This one id is the only switch: nothing else — not the tag's prefix, not `EMET_SOURCE_TAGS`, not the roster — tells the server a tag is a bot (`src/session-graph.js` `isBotTag`; `docs/DEPLOY.md`).

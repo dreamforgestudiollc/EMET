@@ -37,7 +37,7 @@ Every tool carries MCP annotations, declared in one table in `src/annotations.js
 | `idempotentHint` | Calling it again with the same arguments changes nothing further. |
 | `openWorldHint` | It reaches systems outside this server's own store. |
 
-Of the 29 tools:
+Of the 30 tools:
 
 - **11 are read-only.** `emet_gaps`, `emet_floor`, `recall`, `semantic_recall`,
   `corpus_recall`, `query_layer`, `query_transcripts`, `read_doc`, `read_doc_history`, `list_docs`,
@@ -47,8 +47,8 @@ Of the 29 tools:
   records blocked attempts), `rename_doc`, `accept_nonconformance`. They add; they do not remove or replace.
   `emet_session_open` still needs the `emet.write` scope, because it stamps the drop list a board edit trusts.
   `emet_initialize` stays a read.
-- **6 can replace what is already there, or hand out access.** `write_doc`, `patch_doc`, `restore_doc`, `emet_setup_complete`,
-  `emet_invite_create`, `emet_member_access_create`. Prior versions of a document are archived to the history
+- **7 can replace what is already there, or hand out access.** `write_doc`, `patch_doc`, `restore_doc`, `emet_setup_complete`,
+  `emet_invite_create`, `emet_member_access_create`, `emet_client_approve` (it admits or refuses a new client). Prior versions of a document are archived to the history
   collection first, but the visible content a person may be relying on is replaced. A code that grants access
   is marked the same way: it is not a harmless add.
 - **1 marks a document obsolete.** `retire_doc`. Neither a removal nor a replacement: the

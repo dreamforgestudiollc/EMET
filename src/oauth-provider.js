@@ -824,7 +824,7 @@ export class MongoOAuthProvider {
       clientId: doc.client_id,
       scopes: doc.scopes || [],
       expiresAt: doc.expiresAt,
-      extra: { subject: doc.subject || 'owner', sourceTag: doc.source_tag || null },
+      extra: { subject: doc.subject || 'owner', sourceTag: doc.source_tag || null, grantId: doc.family || null },
     };
   }
 

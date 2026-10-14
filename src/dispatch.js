@@ -228,7 +228,19 @@ export async function dispatchTool(name, args, ctx) {
       case 'emet_setup_complete':    return ok(await setupComplete(args.answers || {}, logger, { reissue: args.reissue === true, source: sourceOf(args) }));
       case 'emet_session_close':     return await ok(await sessionClose(args));
       case 'emet_gaps':              return ok(await findGaps(args));
-      case 'emet_floor':             return ok(readFloor(args));
+      case 'emet_client_approve': {
+        const att = await import('./attribution.js');
+        const { rawActor, resolveTokenSubject } = await import('./persons.js');
+        const { approvalsDeps, sourceRegistry } = await import('./tools.js');
+        const ownerId = await resolveTokenSubject(dbManager.db).catch(() => null);
+        try {
+          return ok(await att.clientApprove(approvalsDeps, rawActor(), ownerId, args, sourceRegistry()));
+        } catch (e) {
+          if (e && e.attributionRefusal) throw new ValidationError('tag', e.message);
+          throw e;
+        }
+      }
+      case 'emet_floor':             return ok(await readFloor(args));
       case 'recall':                 return ok(await recallMemories(dbManager, args.query, args.layer || null, args.limit || 10, logger, AuditOperation, { history: args.history === true, order: args.order }));
       case 'query_layer':            return ok(await queryLayer(dbManager, args.layer, args.options || {}, logger, AuditOperation));
       case 'emet_status': {
@@ -241,6 +253,14 @@ export async function dispatchTool(name, args, ctx) {
           status.layers = layers.layers; status.total_memories = layers.total_memories; status.health = layers.health;
         }
         if (args.probe === true) status.probe = await verifyConnection();
+        {
+          const att = await import('./attribution.js');
+          const { rawActor } = await import('./persons.js');
+          const { callerAttribution } = await import('./setup.js');
+          Object.assign(status, callerAttribution());
+          const v = att.approvalsView(att.cachedApprovals(), rawActor() || { transport: 'stdio' }, null);
+          if (v) status.client_approvals = v;
+        }
         return ok(status);
       }
       case 'save_to_layer':          return ok(await saveMemory(dbManager, args.content, args.layer, args.metadata || {}, logger, AuditOperation, { session_id: args.session_id }));

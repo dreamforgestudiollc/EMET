@@ -92,8 +92,10 @@ testGroup('O: order - binding first, page 1 carries the plan', () => {
     for (const k of ['emet_line', 'tools_in_force', 'instructions_short', 'session_close_protocol', 'operating_discipline', 'charter', 'floor', 'floor_precedence', 'floor_reassertion', 'seeds_due'])
       assert.strictEqual(J(p1[k]), J(full[k]), k);
   });
-  test('identity, character and user are on the next page, together, whole', () => {
-    for (const k of ['identity', 'character', 'user']) assert.strictEqual(pages[1][k], full[k], k);
+  test('identity fits on page 1, whole, and character and user stay together on the next page', () => {
+    assert.strictEqual(p1.identity, full.identity);
+    assert.ok(!('identity' in pages[1]));
+    for (const k of ['character', 'user']) assert.strictEqual(pages[1][k], full[k], k);
   });
   test('keys run in the fixed order across pages (source tags and seeds_due before identity; indexes last)', () => {
     const seen = pages.flatMap(payloadKeys);
@@ -159,11 +161,12 @@ testGroup('N: notices', () => {
     for (const p of pages.slice(0, -1)) assert.ok(p.page_notice.includes(line), p.page_notice);
     assert.ok(pages[0].page_notice.includes(line));
   });
-  test('the fetch-all line did not move binding text: identity, character and user stay together on page 2', () => {
-    assert.deepStrictEqual(['identity', 'character', 'user'].filter((k) => k in pages[1]), ['identity', 'character', 'user']);
+  test('the fetch-all line did not split binding text: character and user stay together on page 2', () => {
+    assert.deepStrictEqual(['identity', 'character', 'user'].filter((k) => k in pages[1]), ['character', 'user']);
+    assert.ok(!('identity' in (pages[1].startup_page.chunks || {})));
   });
   test('page 1 names the binding text still to come', () => {
-    assert.match(pages[0].page_notice, /binding text is still to come \(page 2: identity, character, user\)/);
+    assert.match(pages[0].page_notice, /binding text is still to come \(page 2: character, user\)/);
   });
   test('the last page names the load_id to pass to emet_session_open', () => {
     const last = pages[pages.length - 1];
@@ -219,7 +222,7 @@ testGroup('B: backward compatibility', () => {
     assert.strictEqual(whole.startup_page.load_id, pages[0].startup_page.load_id, 'the same load_id the pages carry');
     for (const k of pg.PAGE_FIELDS) assert.ok(!(k in full), k);
     assert.deepStrictEqual(Object.keys(full).slice(0, 4), ['state', 'database', 'source_tag', 'person_id']);
-    assert.strictEqual(Object.keys(full)[Object.keys(full).length - 1], 'instructions');
+    assert.strictEqual(Object.keys(full)[Object.keys(full).length - 1], 'gems_active');
   });
   test('even a brand-new store\'s startup is paged (the shipped floor, charter and instructions alone pass one page); page "all" is the same payload in one result', async () => {
     const s = makeStore();
@@ -246,6 +249,19 @@ testGroup('B: backward compatibility', () => {
     const got = await fetchAll(store, { recent_limit: 2 });
     assert.match(got[0].data.startup_page.next, /"recent_limit":2/);
     assert.strictEqual(pg.assemblePages(got.map((f) => f.data)).recent_context.length, 2);
+  });
+});
+
+testGroup('attribution on page 1 (2026-10-12)', () => {
+  test('approval_state rides on page 1 with source_tag, even behind a large payload', () => {
+    const big = { ...full, source_tag: 'hub-bot', source_basis: 'login', approval_state: 'login' };
+    // Put approval_state last in payload order, as the live server produced it.
+    const { approval_state, ...rest } = big; const late = { ...rest, approval_state };
+    const { pages: ps } = pg.paginate(late);
+    assert.ok(ps.length > 1);
+    assert.strictEqual(ps[0].approval_state, 'login');
+    assert.strictEqual(ps[0].source_tag, 'hub-bot');
+    assert.ok(pg.PAGE_ORDER.indexOf('approval_state') < pg.PAGE_ORDER.indexOf('tools_in_force'));
   });
 });
 

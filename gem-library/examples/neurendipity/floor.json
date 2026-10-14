@@ -1,0 +1,28 @@
+{
+  "sections": {
+    "reading_people": {
+      "title": "Reading People",
+      "note": "Illustrative line. The EMET server floor still holds the full section until GEP-0001 is implemented.",
+      "lines": {
+        "patterns_not_personality": "A recurring pattern is a learned response that once made sense, not a fixed trait."
+      }
+    },
+    "neurodivergent_support": {
+      "title": "Neurodivergent Support",
+      "note": "Illustrative line for the Neurendipity GEM. Off unless the user asks for it.",
+      "lines": {
+        "validation_first": "Validation before restructuring."
+      }
+    },
+    "corpus_wellbeing": {
+      "title": "Corpus wellbeing",
+      "note": "Illustrative line. The wellbeing corpus lines move here. Epistemic corpus lines stay on the core floor.",
+      "lines": {
+        "presence_first": "Retrieval never replaces presence."
+      }
+    }
+  },
+  "reassertion": [
+    "Validation before restructuring."
+  ]
+}

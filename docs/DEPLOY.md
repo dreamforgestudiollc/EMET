@@ -33,6 +33,7 @@ passphrase; both are required.
 Read this before you deploy the release that follows 0.2.2. It does not change a version number. It is the list of settings and client habits that will start failing if you leave them as they were.
 
 - **`EMET_SOURCE_TAGS` must list every real host tag**, as an exact member. Tags named in this repository's example env, docs, and live-tag checks are: `cli`, `mobile`, `desktop-host`, `cloud-host`, `project-host`, `hub-bot` (the hub; do not also list it in `EMET_RECORD_DOCS`), `reviewer-bot`, `tester-bot`, `memory-bot`, `intake-bot`, and `research-bot`. Your install may use a shorter list. A tag that is not an exact member is refused, and the refusal does not print the list.
+- When a new bot joins the roster, append its tag to the end of `EMET_SOURCE_TAGS` and keep every existing tag in order, before its first write. The standing rule, including `EMET_RECORD_DOCS` and the `/health` and `emet_status` check after the redeploy, is [BOTS.md](BOTS.md) §4.
 - **A scheduled job that still sends a `cloud-scheduled-` prefix must switch to an exact registered tag.** `cloud-scheduled-intake` was retired on 2026-10-02. A prefix is not a tag. The weekly intake runs under `intake-bot`.
 - **An HTTP client whose stored token has no source tag must sign in again.** Refresh of that token is refused. The new consent binds a registered tag. An empty registry has no members.
 - **Caps already in force.** A client that used to send more is refused, and nothing is written:
@@ -160,7 +161,7 @@ the legacy `CASCADE_...` name as a deprecated fallback (the `EMET_` name wins wh
 `EMET_SOURCE_TAG`, `EMET_SOURCE_TAGS`, `EMET_OAUTH_PASSPHRASE`, `EMET_AUDIT_LOG`, `EMET_HANDOFF_DOC`,
 `EMET_STATE_DOC`, `EMET_INSTALL_DOC`, `EMET_CHARACTER_DOC`, `EMET_TEMPLATE_MAP`, `EMET_RECORD_DOCS`,
 `EMET_READ_DOC_PAGE`, `EMET_SIGNING_KEY`, `EMET_GAP_BASELINE`, `EMET_CIMD`, `EMET_INVITES`,
-`EMET_TIMEZONE` and `EMET_CLOSE_GRACE_MINUTES`. These read `process.env` directly, so **only the
+`EMET_TIMEZONE`, `EMET_CLOSE_GRACE_MINUTES` and `EMET_ACTIVE_GEMS`. These read `process.env` directly, so **only the
 `EMET_` name works** and a `CASCADE_` name is ignored: `EMET_COLLECTION_PREFIX`,
 `EMET_VECTOR_INDEX`, `EMET_CORPUS_INDEX`, `EMET_CORPORA`, `EMET_CORPUS_COLLECTION`,
 `EMET_REQUEST_LOG` and `EMET_CRASH_LOG`. (`MONGODB_URI`, `MONGODB_DB`, `PUBLIC_URL`, `PORT`, `HOST`,

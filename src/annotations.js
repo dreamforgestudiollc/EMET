@@ -75,6 +75,7 @@ export const TOOL_ANNOTATIONS = Object.freeze({
   // blocked-close cap: it records each blocked attempt in
   // close_attempts, so a read-only hint would be untrue (code audit, 1.3).
   emet_session_close:     { title: 'Check session is saved', ...ADD },
+  emet_client_approve:    { title: 'Approve a new client', ...REPLACE },
   emet_invite_create:     { title: 'EMET Guest Access', ...REPLACE },
   emet_member_access_create: { title: 'EMET Member Access', ...REPLACE },
   save_to_layer:          { title: 'Save to a memory layer', ...ADD },

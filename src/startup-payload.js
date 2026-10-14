@@ -63,7 +63,8 @@ export const ABRIDGED_KEEP = Object.freeze([
   'install_notes_doc_id',
   'seeds_due', 'seeds_evaluated_on',
   'record_gaps', 'named_items', 'lessons_pending',
-  'floor', 'floor_precedence', 'floor_reassertion'
+  'floor', 'floor_precedence', 'floor_reassertion',
+  'gems_available', 'gems_active'
 ]);
 
 /** Keys that become hash-pinned pointers: text the host already echoed at a full load, unchanged. */

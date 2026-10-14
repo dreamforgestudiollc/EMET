@@ -14,7 +14,19 @@
 import { connectMongo } from './mongo-connect.js';
 import { resolveModulePath } from './module-path.js';
 import { replacedByOf } from './setup.js';
-import { currentActor, writerStamp, boundSourceTag, LOCAL_SUBJECT } from './persons.js';
+import { currentActor, writerStamp, boundSourceTag, declaredAttribution, LOCAL_SUBJECT } from './persons.js';
+import { approvedTags, APPROVALS_DOC } from './attribution.js';
+
+/** Approvals record io for attribution.js (server-kept doc, written as emet-server). */
+export const approvalsDeps = {
+  readDoc: (id) => readDoc(id),
+  // Compare-and-set on the stored version (review 3). mutateApprovals serializes
+  // writers in this process; this check catches a writer elsewhere.
+  writeDoc: async (id, content, expectedVersion) => {
+    // Atomic across processes: writeDoc filters the update on { doc_id, version: expected }.
+    return writeDoc(id, content, 'emet-server', null, null, { serverProvision: true, approvalsRecord: true, expectedVersion: expectedVersion ?? null });
+  }
+};
 import {
   ValidationError,
   VALID_LAYERS,
@@ -530,6 +542,10 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       }
     } else {
       validatedMetadata.source = sourceDecision.tag;
+      if (sourceDecision.from === 'declared' || sourceDecision.from === 'auto') {
+        validatedMetadata.source_basis = sourceDecision.from;
+        if (sourceDecision.login) validatedMetadata.source_login = sourceDecision.login;
+      }
       delete validatedMetadata.source_defaulted;
       if (sourceDecision.tag) delete validatedMetadata.source_missing;
       else validatedMetadata.source_missing = true;
@@ -2630,7 +2646,20 @@ function _refuseRecordAmendment(doc_id, tool) {
  *     Hosts (the hub) keep writing anywhere under bots/.
  */
 export function sourceRegistry() {
-  return String(setting('SOURCE_TAGS') ?? '').split(',').map((s) => s.trim()).filter((s) => s !== '');
+  const env = String(setting('SOURCE_TAGS') ?? '').split(',').map((s) => s.trim()).filter((s) => s !== '');
+  // Attribution v2: tags approved in emet/CLIENT_APPROVALS.md count as
+  // registered once a registry exists (a fresh install with no registry stays open).
+  return env.length ? [...new Set([...env, ...approvedTags()])] : env;
+}
+
+/**
+ * Attribution v2 (review A3): a declared tag never gains rights beyond the login's
+ * tag. A guard is run for every tag returned here and the write must pass all.
+ */
+export function rightsTags(tag) {
+  const d = declaredAttribution();
+  if (d && d.declared && tag === d.declared && d.login && d.login !== tag) return [tag, d.login];
+  return [tag];
 }
 
 /**
@@ -2645,9 +2674,15 @@ export function sourceRegistry() {
 export function resolvedSourceTag(caller) {
   const bound = boundSourceTag();
   const tag = typeof caller === 'string' ? caller.trim() : '';
-  if (typeof bound === 'string' && bound) return { tag: bound, from: 'bound' };
   if (bound === undefined) return { tag: tag || null, from: 'caller' };
+  // Attribution v2: the per-request tag decided by attribution.preflight is the
+  // stamp (declared, or generated for a login with none). Rights stay the
+  // login's: see rightsTags().
+  const d = declaredAttribution();
+  if (d && d.declared && d.basis === 'declared' && tag === d.declared) return { tag, from: 'declared', login: bound || null };
+  if (typeof bound === 'string' && bound) return { tag: bound, from: 'bound' };
   if (tag && sourceRegistry().includes(tag)) return { tag, from: 'legacy' };
+  if (d && d.basis === 'auto' && d.declared) return { tag: d.declared, from: 'auto' };
   return { tag: null, from: 'legacy' };
 }
 
@@ -2715,7 +2750,27 @@ function mayCleanUpLookalike(tag) {
 }
 
 export function refuseBotMainRecord(doc_id, updated_by, tool, options = {}) {
+  for (const t of rightsTags(updated_by)) refuseBotMainRecordOne(doc_id, t, tool, options);
+}
+function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
   const tag = updated_by || setting('SOURCE_TAG') || null;
+  // The client-approvals record is server-only (review 4): no host writes,
+  // patches, retires, renames, restores or accepts it.
+  if (typeof doc_id === 'string' && FOLD(doc_id.normalize('NFKC')) === FOLD(APPROVALS_DOC) && !(options && options.approvalsRecord === true)) {
+    throw new ValidationError(`${tool}: ${doc_id} is kept by the server (client approvals). Decide clients with emet_client_approve. Nothing was written.`);
+  }
+  // A3 without a registry (re-review): a declared or generated tag writes
+  // under bots/ only inside bots/<its own tag>/ and only once approved.
+  {
+    const d = declaredAttribution();
+    if (d && d.declared && tag === d.declared && (d.basis === 'declared' || d.basis === 'auto') &&
+        typeof doc_id === 'string' && doc_id.startsWith('bots/')) {
+      const approved = approvedTags().includes(tag) || sourceRegistry().includes(tag);
+      if (!doc_id.startsWith(botRecordDir(tag)) || !approved) {
+        throw new ValidationError(`${tool}: ${doc_id} is a bot record and "${tag}" is a ${approved ? 'declared tag outside its own folder' : 'declared tag not yet approved'} - a declared tag writes only bots/${tag}/ once approved. Nothing was written.`);
+      }
+    }
+  }
   if (!(options.cleanup === true && mayCleanUpLookalike(tag))) refuseLookalikeDocId(doc_id, tool);
   const bot = !!tag && isBotTag(tag);
   if (bot && typeof doc_id === 'string' && doc_id.startsWith('bots/') && !doc_id.startsWith(botRecordDir(tag))) {
@@ -2770,6 +2825,9 @@ export function refuseBotMainRecord(doc_id, updated_by, tool, options = {}) {
  * written when refused.
  */
 export function refuseBotRetireRename(tag, tool) {
+  for (const t of rightsTags(tag)) refuseBotRetireRenameOne(t, tool);
+}
+function refuseBotRetireRenameOne(tag, tool) {
   const t = tag || setting('SOURCE_TAG') || null;
   if (!t || !isBotTag(t)) return;
   throw new ValidationError(
@@ -2786,7 +2844,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
   try {
     if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string');
     // write_doc, patch_doc (which lands here) and rename_doc's copy (reissued_from).
-    refuseBotMainRecord(doc_id, updated_by, options && options.reissued_from ? 'rename_doc' : 'write_doc', options && options.serverProvision === true ? { serverProvision: true } : {});
+    refuseBotMainRecord(doc_id, updated_by, options && options.reissued_from ? 'rename_doc' : 'write_doc', options && options.serverProvision === true ? { serverProvision: true, ...(options.approvalsRecord === true ? { approvalsRecord: true } : {}) } : {});
     if (typeof rawContent !== 'string' || rawContent.length === 0) throw new ValidationError('content must be a non-empty string');
     if (rawContent.length > 2000000) throw new ValidationError('content exceeds 2MB limit');
     // patch_doc lands here too, so one
@@ -2800,6 +2858,11 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
     try {
       const prev = await col.findOne({ doc_id });
       const version = (prev && prev.version ? prev.version : 0) + 1;
+      // Compare-and-set for the client-approvals record (review round 3): checked
+      // here before anything is archived, and again atomically in the update filter.
+      const casOn = options && options.approvalsRecord === true && Object.prototype.hasOwnProperty.call(options, 'expectedVersion');
+      const casConflict = () => { const e = new ValidationError(`${doc_id} changed under this write (compare-and-set). Nothing was written.`); e.versionConflict = true; return e; };
+      if (casOn && ((prev ? prev.version : null) ?? null) !== (options.expectedVersion ?? null)) throw casConflict();
       // A record in force is superseded only by a revision that names it.
       // Checked before anything is archived, so a refused write leaves no trace.
       if (prev && isRecordDoc(doc_id) && options && options.restore_of && (options.supersedes === undefined || options.supersedes === null)) {
@@ -2827,11 +2890,10 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         }
       }
       const registry = sourceRegistry();
-      const tag = updated_by || '';
-      const registered = registry.length === 0 || registry.includes(tag);
-      const ownBotFolder = isBotTag(updated_by) && doc_id.startsWith(`bots/${updated_by}/`);
       const serverProvision = options && options.serverProvision === true;
-      if (!registered && !ownBotFolder && !serverProvision && !(isDropDoc(doc_id) && !prev)) {
+      // Attribution v2 (A3): the declared tag and the login's tag must both pass.
+      const passes = (t) => registry.length === 0 || registry.includes(t || '') || (isBotTag(t) && doc_id.startsWith(`bots/${t}/`));
+      if (!rightsTags(updated_by).every(passes) && !serverProvision && !(isDropDoc(doc_id) && !prev)) {
         throw new ValidationError(`write_doc: ${updated_by || 'no source'} is not a registered source. This session may read, and may write a new drop only. Nothing was written.`);
       }
       if (isDropDoc(doc_id) && !prev) {
@@ -2843,7 +2905,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         options = { ...options, drop_bucket: bucket };
       }
       const floorExempt = options && options.provision;
-      const internal = options && (options.provision || options.edited || options.setupReissue || options.restore_of);
+      const internal = options && (options.provision || options.edited || options.setupReissue || options.restore_of || (options.approvalsRecord === true && options.serverProvision === true && doc_id === APPROVALS_DOC));
       if (options && options.provision && prev && doc_id === stateDoc()) {
         throw new ValidationError('The board already exists. Provision does not replace it. Nothing was written.');
       }
@@ -2962,6 +3024,21 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         if (ins && ins.upsertedCount === 0) {
           throw new ValidationError('The board already exists. Provision does not replace it. Nothing was written.');
         }
+      } else if (casOn) {
+        let res;
+        try {
+          res = options.expectedVersion == null
+            // review delta M1: documents.doc_id has no unique index, so the first
+            // create keys on a deterministic _id; _id is always unique, so a
+            // second racing insert matches it (or hits a duplicate key) and loses.
+            ? await col.updateOne({ _id: `${APPROVALS_DOC}#current` }, { $setOnInsert: writtenRow }, { upsert: true })
+            : await col.updateOne({ doc_id, version: options.expectedVersion }, { $set: writtenRow }, { upsert: false });
+        } catch (e) {
+          if (e && (e.code === 11000 || /duplicate key/i.test(String(e.message)))) throw casConflict();
+          throw e;
+        }
+        const won = options.expectedVersion == null ? (res && res.upsertedCount === 1) : (res && res.matchedCount === 1);
+        if (!won) throw casConflict();
       } else {
         await col.updateOne({ doc_id }, { $set: writtenRow }, { upsert: true });
       }
@@ -2974,6 +3051,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
                redacted: redaction.hits, conformance };
     } finally { await client.close(); }
   } catch (error) {
+    if (error && error.versionConflict) throw error;
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
     throw new DatabaseError(`Failed to write document: ${error.message}`, 'write_doc');
   }
@@ -3682,7 +3760,8 @@ const TOOL_DEFINITIONS = [
       properties: {
         recent_limit: { type: "number", description: "How many recent context entries to return (default 5)." },
         page: { description: "The startup is served in pages when it is larger than one result (each page fits under 20,000 bytes). Omit for page 1; every page but the last says which page to ask for next - call again with that page, before replying, until a page says it is the last. \"all\" returns the whole startup in one result, for a host with no size limit." },
-        load_id: { type: "string", description: "The load_id your startup returned in `startup_page.load_id`: every emet_initialize result carries one (each page of a paged startup, the whole startup with page \"all\" or when it fits one result, and a store that is not set up yet). Pass it with every later page so all pages come from the same startup, and pass the same load_id to emet_session_open so its startup page check runs on this startup." }
+        load_id: { type: "string", description: "The load_id your startup returned in `startup_page.load_id`: every emet_initialize result carries one (each page of a paged startup, the whole startup with page \"all\" or when it fits one result, and a store that is not set up yet). Pass it with every later page so all pages come from the same startup, and pass the same load_id to emet_session_open so its startup page check runs on this startup." },
+        source: { type: "string", description: "Your own source tag (the bot or host you are). The startup then reports the tag your writes will carry and its approval state." }
       }
     }
   },
@@ -3692,7 +3771,8 @@ const TOOL_DEFINITIONS = [
     inputSchema: {
       type: "object",
       properties: {
-        probe: { type: "boolean", description: "Also write and read back a probe document (default false). Use after a deploy or a configuration change." }
+        probe: { type: "boolean", description: "Also write and read back a probe document (default false). Use after a deploy or a configuration change." },
+        source: { type: "string", description: "Your own source tag. The status then reports the tag your writes will carry and its approval state." }
       }
     }
   },
@@ -4146,13 +4226,29 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_floor",
-    description: "Read the floor: the standing description of how this assistant engages with the person using it. It ships in the server code, so setup cannot overwrite it and no install can lose it - the character document holds the user's modifiers on top of it. emet_initialize already returns the whole floor at session start; call this to read it again without re-running initialize. Use `compact: true` for the short form partway through a long session, when the start of the conversation is far behind. Read-only, and re-reading is not the same as being bound by it.",
+    description: "Read the floor: the standing description of how this assistant engages with the person using it. It ships in the server code, so setup cannot overwrite it and no install can lose it - the character document holds the user's modifiers on top of it. emet_initialize already returns the whole floor at session start; call this to read it again without re-running initialize. Use `compact: true` for the short form partway through a long session, when the start of the conversation is far behind. Pass `gem` to read one installed GEM's floor; reading does not turn that GEM on. Read-only, and re-reading is not the same as being bound by it.",
     inputSchema: {
       type: "object",
       properties: {
         compact: { type: "boolean", description: "Return the short re-assertion form instead of the whole floor." },
-        section: { type: "string", description: "Return one section only, e.g. 'neurodivergent_support'. Call with no arguments to see the section names." }
+        section: { type: "string", description: "Return one section only, e.g. 'voice'. Call with no arguments to see the section names." },
+        gem: { type: "string", description: "Read one installed GEM's floor by id, for example 'neurendipity'. Reading does not turn the GEM on. Omit it to read the core floor." }
       }
+    }
+  },
+  {
+    name: "emet_client_approve",
+    description: "Approve or deny a new client (a bot, or a single-instance AI such as Claude or ChatGPT) that EMET flagged on its first write. A new client is read-limited until approved. Only the owner, or the chief-of-staff bot named by EMET_COS_TAG, may decide. Pending clients are listed in emet_initialize and emet_status as client_approvals.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tag: { type: "string", description: "The pending client's tag, as listed in client_approvals.pending" },
+        decision: { type: "string", enum: ["approve", "deny"] },
+        reason: { type: "string", description: "Optional note kept with the decision" },
+        as: { type: "string", enum: ["rename", "add"], description: "Required when the client_id already has approved tags: add keeps them all (several bots on one shared client); rename retires one" },
+        from: { type: "string", description: "With as=rename on a client that has several approved tags: the tag being replaced" }
+      },
+      required: ["tag", "decision"]
     }
   },
   {
