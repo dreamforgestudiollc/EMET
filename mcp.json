@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "emet": {
+      "url": "${EMET_URL}/mcp"
+    }
+  }
+}

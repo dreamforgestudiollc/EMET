@@ -49,6 +49,23 @@ EMET is built for document control in environments that work under ISO 9001 and 
 > are **off unless `EMET_SOURCE_TAGS` is set**. With it unset, any caller can write under any
 > tag. See `.env.example` and [docs/DEPLOY.md](docs/DEPLOY.md).
 
+## Install as a Cursor / Grok Bot plugin
+
+EMET is listed as a plugin for Cursor and Grok Bot (from this repo's `.cursor-plugin/plugin.json`
+and `mcp.json`). The plugin does **not** host memory for you: it connects to **your own** EMET
+server, so your records stay in your MongoDB.
+
+1. Deploy EMET remotely: [docs/DEPLOY.md](docs/DEPLOY.md). Set `PUBLIC_URL` and a strong
+   `EMET_OAUTH_PASSPHRASE`. Check `https://<your-host>/health` returns `{"ok":true,...}`.
+2. Install the **EMET** plugin and set the variable `EMET_URL` to `https://<your-host>`
+   (no trailing slash, no `/mcp`; the plugin appends `/mcp`).
+3. Connect. The OAuth sign-in opens EMET's passphrase page; enter your passphrase once per device.
+4. Verify: call `emet_status` with `{"probe": true}` (it writes, reads back and removes a test
+   document), then save with `save_to_layer` and `recall` it from another client.
+
+The plugin also ships an `emet-memory` skill that tells the agent when to recall, save and close
+a session.
+
 ## Shared memory across hosts
 
 EMET stores agent memory in MongoDB (Atlas or self-hosted) across six layers, keeps a separate word-for-word
