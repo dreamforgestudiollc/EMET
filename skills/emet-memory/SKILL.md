@@ -5,11 +5,11 @@ description: Use EMET as controlled, shared memory. Use at the start of a sessio
 
 # EMET memory
 
-EMET is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent, shared memory for AI agents and bot teams. Nothing is deleted; records are superseded, retired and retained. Every write is attributed to the client that made it.
+EMET is an MCP memory server built for document control (ISO 9001 7.5.3 / ISO 13485 4.2.5): persistent, shared memory for AI agents and bot teams. It holds no certification and claims no conformity. Nothing is deleted; records are superseded, retired and retained. Every write is attributed to the client that made it.
 
 ## Start of session
 
-1. Call `emet_status` once. On a new deployment, call it with `{"probe": true}` to prove the write path.
+1. Call `emet_status` once. On a new deployment, call it with `{"probe": true}` to prove the write path (it writes, reads back and removes a row from `_emet_verify` only).
 2. If setup has not been completed, follow `emet_initialize`.
 3. Read the standing rules with `emet_floor` and follow them.
 4. Before writing, open a session with `emet_session_open`.
