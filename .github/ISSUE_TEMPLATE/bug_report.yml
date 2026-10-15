@@ -1,0 +1,19 @@
+name: Bug report
+description: Something in EMET does not work as documented.
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes: {label: EMET version, description: "From emet_status or package.json, e.g. 0.2.5"}
+    validations: {required: true}
+  - type: dropdown
+    id: transport
+    attributes: {label: Transport, options: [stdio, remote HTTP with OAuth]}
+    validations: {required: true}
+  - type: input
+    id: host
+    attributes: {label: Host or client, description: "Cursor, Grok Bot, Claude, other"}
+  - type: textarea
+    id: what
+    attributes: {label: What happened, description: "Steps, expected result, actual result. Do not paste passphrases, tokens, connection strings or memory content."}
+    validations: {required: true}
