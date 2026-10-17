@@ -1,0 +1,12 @@
+{
+  "sha256:c9f58a0ef18f7468b9618d0f1e96ddd8c50845243e098e84480908ca8cb0a528": {
+    "gem": "fieldnote",
+    "rune": "fieldnote",
+    "version": "1.0.0"
+  },
+  "sha256:cfb62b669f67c69f53989ed2621a40bfbfa60a744f1b4040e5b8496755598a35": {
+    "gem": "fieldnote",
+    "rune": "fieldnote",
+    "version": "1.0.1"
+  }
+}

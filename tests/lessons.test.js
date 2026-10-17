@@ -5,7 +5,7 @@
  * Hanako "Loops and Graphs" reading: the machine line on the first transcript
  * append, a cap of three blocked closes, and repeated corrections named at
  * startup. Each is a pure function here so the rule is assertable without a
- * database.
+ * database. staging/emet-lessons-to-checks.md holds the decisions.
  */
 
 import { test, testGroup, summary } from './harness.js';
@@ -24,8 +24,8 @@ const INSTALL = `# INSTALL
 
 | Name | Model | What it is |
 |---|---|---|
-| DESKTOP-A | MS-0000 | Desktop, office |
-| LAPTOP-B | Example Laptop | Laptop, travel |
+| STUDIO | MS-7924 | Desktop, downstairs |
+| DREAMFORGE | Microsoft Surface Pro, 11th Edition | Surface Pro, upstairs |
 
 - Never take the machine from PROCESSOR_ARCHITECTURE.
 
@@ -36,31 +36,31 @@ const INSTALL = `# INSTALL
 
 testGroup('Build 1 - known machines from the install notes', () => {
   test('reads the Name column of the machine table only', () =>
-    assert.deepStrictEqual(knownMachinesFromInstallNotes(INSTALL), ['DESKTOP-A', 'LAPTOP-B']));
+    assert.deepStrictEqual(knownMachinesFromInstallNotes(INSTALL), ['STUDIO', 'DREAMFORGE']));
   test('a document with no machine table yields []', () =>
     assert.deepStrictEqual(knownMachinesFromInstallNotes('# notes\n\nno tables here'), []));
   test('null content yields []', () => assert.deepStrictEqual(knownMachinesFromInstallNotes(null), []));
 });
 
 testGroup('Build 1 - the first-append check', () => {
-  const names = ['DESKTOP-A', 'LAPTOP-B'];
+  const names = ['STUDIO', 'DREAMFORGE'];
   test('measured line with a known name and a clock passes', () => {
-    const r = machineLineCheck('[machine check: "Sunday, September 27, 2026 3:29:32 PM / DESKTOP-A / MS-0000"]\n\nTruth stands.', names);
-    assert.strictEqual(r.ok, true); assert.strictEqual(r.enforced, true); assert.strictEqual(r.matched, 'DESKTOP-A');
+    const r = machineLineCheck('[machine check: "Sunday, September 27, 2026 3:29:32 PM / STUDIO / MS-7924"]\n\nTruth stands.', names);
+    assert.strictEqual(r.ok, true); assert.strictEqual(r.enforced, true); assert.strictEqual(r.matched, 'STUDIO');
   });
   test('ISO date counts as a clock', () =>
-    assert.strictEqual(machineLineCheck('LAPTOP-B 2026-09-27 15:29', names).ok, true));
+    assert.strictEqual(machineLineCheck('DREAMFORGE 2026-09-27 15:29', names).ok, true));
   test('the no-shell phrase passes on its own, any case', () =>
     assert.strictEqual(machineLineCheck('Truth stands. NO LOCAL SHELL mcp this session.', names).ok, true));
   test('a known name without a clock is refused and names the clock', () => {
-    const r = machineLineCheck('Running on DESKTOP-A.', names);
+    const r = machineLineCheck('Running on STUDIO.', names);
     assert.strictEqual(r.ok, false);
     assert.ok(r.missing.some((m) => /date or time/.test(m)));
   });
   test('a clock without a known name is refused and names the machines', () => {
     const r = machineLineCheck('It is 2026-09-27 15:29 on my laptop.', names);
     assert.strictEqual(r.ok, false);
-    assert.ok(r.missing.some((m) => m.includes('DESKTOP-A')));
+    assert.ok(r.missing.some((m) => m.includes('STUDIO')));
   });
   test('an unrelated opening is refused with the phrase to use', () => {
     const r = machineLineCheck('Truth stands. Memory connected.', names);
@@ -170,7 +170,7 @@ testGroup('Build 3 - pending lessons (explicit key is authoritative)', () => {
   });
 });
 
-testGroup('Build 3 - the shadow detector is gone (a decision record)', () => {
+testGroup('Build 3 - the shadow detector is gone (procedural ref 397)', () => {
   const fam = [meta(1, ['codes', 'plain-words', 'startup']), meta(2, ['codes', 'plain-words', 'board']), meta(3, ['codes', 'plain-words'])];
   test('tag-sharing entries without a key are not a lesson', () => assert.strictEqual(pendingLessons(fam).pending.length, 0));
   test('there is no shadow block in the output', () => assert.strictEqual('shadow' in pendingLessons(fam), false));

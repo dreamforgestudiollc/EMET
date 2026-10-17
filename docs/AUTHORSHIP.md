@@ -1,11 +1,11 @@
 # Authorship
 
-Early commits in this project's private development history recorded the
-user's git identity in the author field. Those changes were machine-authored — written by assistant
+Commits in this repository through `commit-40d8d2d` record the user's git identity in
+the author field. Those changes were machine-authored — written by assistant
 instances under the user's direction. No git user was configured in any scope,
 so that identity was supplied per command.
 
-Later commits in that history name the assistant in the author field, and an `Approved-by` trailer
+From `commit-e3cad45` the author field names the assistant and an `Approved-by` trailer
 names the user, so what made a change and who accepted it are two separate
 recorded facts rather than one conflated one.
 

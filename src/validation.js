@@ -107,6 +107,17 @@ export const VALID_METADATA_FIELDS = Object.freeze([
   'importance_degree',        // low|mid|high — only when degree inside the bucket matters
   'provenance_missing',       // boolean: no derived_from on a layer whose charter wants one
   'assertion_origin_missing', // boolean: assertion_origin was not supplied at all
+  // Kept RUNE results (GEP-0003). The server sets these on a real seal.
+  // `version` alone is an ordinary key. `rune_attested` marks a server seal.
+  'gem',
+  'version',
+  'rune',
+  'served_sha256',
+  'client_sha256',
+  'input_sha256',
+  'input_ref',
+  'principal',
+  'rune_attested',
   'custom'  // Allow a 'custom' object for extensibility
 ]);
 
@@ -139,7 +150,7 @@ export const CONTENT_ORIGINS = Object.freeze(['self', 'assistant', 'external']);
  */
 export class ValidationError extends Error {
   constructor(field, message, value = undefined) {
-    // One-argument calls pass the whole message as `field` (the second reader's fix (b), 2026-10-02): that used to
+    // One-argument calls pass the whole message as `field` (the reviewer's fix (b), 2026-10-02): that used to
     // render "Validation failed for '<message>': undefined".
     if (message === undefined) { message = field; field = null; }
     super(field === null ? message : `Validation failed for '${field}': ${message}`);
@@ -603,6 +614,7 @@ export function validateMetadata(metadata) {
       case 'importance_defaulted':
       case 'provenance_missing':
       case 'assertion_origin_missing':
+      case 'rune_attested':
         if (typeof value !== 'boolean') {
           throw new ValidationError(key, 'Value must be a boolean', typeof value);
         }
@@ -620,6 +632,18 @@ export function validateMetadata(metadata) {
         } else {
           sanitized.assertion_origin = value;
         }
+        break;
+
+      case 'gem':
+      case 'version':
+      case 'rune':
+      case 'served_sha256':
+      case 'client_sha256':
+      case 'input_sha256':
+      case 'input_ref':
+      case 'principal':
+        if (typeof value !== 'string') throw new ValidationError(key, 'Value must be a string', typeof value);
+        sanitized[key] = value;
         break;
 
       case 'custom':
@@ -808,7 +832,7 @@ export function validateStringField(value, fieldName) {
  * object is discarded silently by design - the validator is a whitelist - so a
  * caller who passes an unrecognised key gets a full UNFILTERED page back and no
  * error, which is indistinguishable from "the filter did not work". That
- * symptom cost a bug hunt on 2026-09-08 (a recorded lesson). The list is exported
+ * symptom cost a bug hunt on 2026-09-08 (semantic ref 259). The list is exported
  * so callers can NAME the dropped keys instead of swallowing them.
  */
 export const RECOGNISED_FILTER_KEYS = Object.freeze([

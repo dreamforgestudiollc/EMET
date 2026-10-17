@@ -82,7 +82,9 @@ function buildServer() {
     const { scopesAllow } = await import('./scopes.js');
     const auth = extra && extra.authInfo;
     const scopes = (auth && auth.scopes) || [];
-    return { tools: t.TOOLS.filter((tool) => scopesAllow(scopes, tool.name, { http: true, authenticated: Boolean(auth), args: null })) };
+    const { runeToolList } = await import('./rune-registry.js');
+    const tools = [...t.TOOLS, ...runeToolList()];
+    return { tools: tools.filter((tool) => scopesAllow(scopes, tool.name, { http: true, authenticated: Boolean(auth), args: null })) };
   });
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const { name, arguments: args = {} } = request.params;
@@ -105,7 +107,7 @@ function buildServer() {
     // Every tool call leaves one audit entry (H6). callTool never throws: it
     // returns either a success response or handleError's isError response.
     const t0 = Date.now();
-    // Parameter NAMES, never values (the owner, 2026-09-27, code audit 1.6).
+    // Parameter NAMES, never values (Alex, 2026-09-27, code audit 1.6).
     const paramNames = Object.keys(args || {}).sort();
     try {
       const att = await import('./attribution.js');
@@ -152,6 +154,20 @@ app.use(securityHeaders);
 app.use(requestLogger({ enabled: process.env.EMET_REQUEST_LOG !== '0' }));
 
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'emet', tools: t.TOOLS.length, cimd: provider.cimdEnabled }));
+
+// Pending sub-keys. Same passphrase and the same per-address failure throttle
+// as /oauth/approve. The routes are not mounted unless EMET_SUBKEYS=1, so a
+// flag-off process answers these paths the way it answers any other unknown path.
+if (setting('SUBKEYS') === '1') {
+  const { mountOwnerApprovals } = await import('./owner-approvals.js');
+  const { resolveTokenSubject } = await import('./persons.js');
+  mountOwnerApprovals(app, {
+    checkPassphrase: (input) => provider.checkPassphrase(input),
+    throttle: approveThrottle,
+    deps: t.approvalsDeps,
+    ownerId: () => resolveTokenSubject(dbManager.db)
+  });
+}
 
 // OAuth 2.1 authorization server + protected-resource metadata:
 //   /.well-known/oauth-authorization-server, /.well-known/oauth-protected-resource/mcp,
@@ -282,5 +298,16 @@ app.post('/mcp', requireBearerAuth({ verifier: provider, resourceMetadataUrl: PR
   if (!PASSPHRASE) console.error('[emet] WARNING: EMET_OAUTH_PASSPHRASE unset — all authorization attempts will be rejected.');
   try { await dbManager.ensureClient(); console.error('[emet] Mongo connected'); }
   catch (e) { console.error('[emet] Mongo connect FAILED:', e.message); }
+  try {
+    const { seatGems } = await import('./socket.js');
+    const seated = await seatGems({ log: logger });
+    // The structured line keeps the id in the middle of a JSON object. This
+    // line ends with the id so the image boot can anchor it.
+    for (const row of seated.gems_available || []) {
+      if (row.loadable) console.error(`GEM seated: ${row.id}`);
+    }
+  }
+  catch (e) { console.error('[emet] GEM socket failed closed'); }
   app.listen(PORT, HOST, () => console.error(`[emet] listening ${PUBLIC_URL} (bind ${HOST}:${PORT}); /mcp OAuth-protected; PRM ${PRM_URL}`));
+  import('./subkeys.js').then((m) => m.startFlagOffSweep((msg) => console.error(`[emet] ${msg}`))).catch(() => console.error('[emet] sub-key flag-off sweep failed'));
 })();

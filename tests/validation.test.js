@@ -810,7 +810,7 @@ testGroup('Query Options Validators', () => {
 
   // The whitelist in validateFilters drops unrecognised keys silently, which
   // leaves the query unfiltered and looks to the caller like a broken filter
-  // rather than a rejected argument (a recorded lesson). The names must survive.
+  // rather than a rejected argument (semantic ref 259). The names must survive.
   test('validateQueryOptions reports unrecognised filter keys', () => {
     const result = validateQueryOptions({ filters: { memory_id: 65, id: 65 } });
     assert.deepStrictEqual(result._unknown_filter_keys, ['memory_id']);

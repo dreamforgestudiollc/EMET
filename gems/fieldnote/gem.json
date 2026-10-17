@@ -1,0 +1,70 @@
+{
+  "spec": "2026-10-12",
+  "id": "fieldnote",
+  "name": "Fieldnote",
+  "description": "A reference RUNED directive. Counts rows the caller passes in. Off unless the install asks for it.",
+  "version": "1.0.1",
+  "kind": "runed-gem",
+  "requires": {
+    "emet": ">=0.2.4"
+  },
+  "priority": 40,
+  "defaultOn": false,
+  "overrides": [],
+  "distribution": "bundled",
+  "floor": "floor.json",
+  "guides": [],
+  "runes": [
+    {
+      "name": "fieldnote",
+      "description": "Count the rows the caller passes in. A call returns this code and does not run it.",
+      "execution": "client",
+      "artifact": "runes/fieldnote.js",
+      "sha256": "sha256:cfb62b669f67c69f53989ed2621a40bfbfa60a744f1b4040e5b8496755598a35",
+      "version": "1.0.1",
+      "runtime": "node",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "rows": {
+            "type": "array",
+            "description": "Working-layer rows the caller already read."
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer"
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "reads": [],
+      "writes": [],
+      "network": "none"
+    }
+  ],
+  "files": [
+    {
+      "path": "floor.json",
+      "digest": "sha256:11af3724b165beb3e9a49a681f1f07cb742bcb4535206f714a0dc689067f32d6",
+      "size": 403
+    },
+    {
+      "path": "runes/fieldnote.js",
+      "digest": "sha256:cfb62b669f67c69f53989ed2621a40bfbfa60a744f1b4040e5b8496755598a35",
+      "size": 147
+    }
+  ],
+  "authors": [
+    "Dreamforge Studio LLC"
+  ],
+  "license": "MIT"
+}

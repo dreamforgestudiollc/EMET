@@ -79,7 +79,7 @@ The architecture needs flexibility of flow: at some points a session should go o
 - **Like a transistor (an IGBT).** A switch conducts only when its gate condition is met, and it is tripped by that condition, nothing else. The condition is read from what EMET already holds: the session's state, the call being made, and what the record says. The branch it selects is where the session goes next.
 - **Small and local.** A switch is a few lines of logic in the server's code. No hosted model, no outside API, no model call. It gives the same answer for the same inputs, every time, so it can be tested like any other gate. This is the role a fast external decision model (such as JEV) plays in other designs, done here by the track itself.
 - **Designed per junction.** Each switch's design follows the function it serves and how information and tasking flow through that junction. There is no general-purpose router: a junction gets a switch only when a real fork exists, and the switch knows only what that fork needs (commitment 6: over-engineering is a defect).
-- **Bounded on every branch.** Each branch leads to a guardrail space, for example a GEM once the socket exists, or a work instruction for a kind of task. The four gates still apply on every branch, so a switch can change where the session works, never whether its steps are recorded.
+- **Bounded on every branch.** Each branch leads to a guardrail space, for example a GEM (Golem Expertise Module) once the socket exists, or a work instruction for a kind of task. The four gates still apply on every branch, so a switch can change where the session works, never whether its steps are recorded.
 - **Recorded.** Each time a switch trips, the lab results record which way it went and why, so its conditions can be checked against real sessions before anything depends on them.
 
 ### Lab results
@@ -105,3 +105,4 @@ The server sees tool calls, never the reply text. It can confirm that exchange 8
 - `src/tools.js`: `session_id` and `exchange` added to every governed schema from the graph's own tool list.
 - `src/setup.js`: `tools_in_force` and the short instructions tell every host to pass both fields and follow `session_graph.next`.
 - `tests/session-graph.test.js`: the gates, the next stop, and the fail-closed door when a named session cannot be read.
+- Design record: `staging/emet-session-graph.md` in the EMET store. The framing is in semantic memory entry 297, and the decision on switches in procedural ref 402.

@@ -328,6 +328,20 @@ function applyUpdate(doc, u) {
 }
 const clone = (d) => (d == null ? d : structuredClone(d));
 
+function assertPartialUnique(docs, doc, indexes) {
+  for (const idx of indexes || []) {
+    if (!idx.unique || !idx.partial) continue;
+    if (!matches(doc, idx.partial)) continue;
+    const keys = Object.keys(idx.spec || {});
+    const clash = docs.find((r) => r !== doc && matches(r, idx.partial) && keys.every((k) => doc[k] !== undefined && r[k] === doc[k]));
+    if (clash) {
+      const err = new Error(`E11000 duplicate key error index: ${idx.name}`);
+      err.code = 11000;
+      throw err;
+    }
+  }
+}
+
 export function makeStore(opts = {}) {
   const cols = new Map();
   const writes = [];
@@ -335,7 +349,7 @@ export function makeStore(opts = {}) {
   const failState = { failCloseWrites: opts.failCloseWrites || 0, closeWriteAttempts: 0 };
   function collection(name) {
     if (cols.has(name)) return cols.get(name);
-    const docs = []; let seq = 0;
+    const docs = []; const indexes = []; let seq = 0;
     const c = {
       docs,
       async findOne(q = {}) {
@@ -367,7 +381,16 @@ export function makeStore(opts = {}) {
       },
       async insertOne(doc) {
         if (opts.failTranscriptWrite && name === 'transcripts') throw new Error('write failed');
-        note(name, 'insert'); const _id = doc._id ?? `${name}-${++seq}`; docs.push({ ...clone(doc), _id }); return { insertedId: _id, acknowledged: true };
+        note(name, 'insert'); const _id = doc._id ?? `${name}-${++seq}`;
+        if (docs.some((d) => d._id === _id)) {
+          const err = new Error('E11000 duplicate key');
+          err.code = 11000;
+          throw err;
+        }
+        const row = { ...clone(doc), _id };
+        assertPartialUnique(docs, row, indexes);
+        docs.push(row);
+        return { insertedId: _id, acknowledged: true };
       },
       async insertMany(arr) { for (const d of arr) await c.insertOne(d); return { insertedCount: arr.length }; },
       async updateOne(q, u, upOpts = {}) {
@@ -401,7 +424,19 @@ export function makeStore(opts = {}) {
       async countDocuments(q = {}) { return docs.filter((d) => matches(d, q)).length; },
       async estimatedDocumentCount() { return docs.length; },
       async distinct(k, q = {}) { return [...new Set(docs.filter((d) => matches(d, q)).map((d) => get(d, k)))]; },
-      async createIndex() { return 'ok'; },
+      async createIndex(spec, indexOpts = {}) {
+        const indexName = (indexOpts && indexOpts.name) || Object.keys(spec || {}).join('_');
+        const entry = {
+          spec: spec || {},
+          unique: !!(indexOpts && indexOpts.unique),
+          partial: (indexOpts && indexOpts.partialFilterExpression) || null,
+          name: indexName
+        };
+        const prior = indexes.find((i) => i.name === indexName);
+        if (prior) Object.assign(prior, entry);
+        else indexes.push(entry);
+        return indexName;
+      },
       async indexes() { return []; },
       listSearchIndexes() { return { async toArray() { throw new Error('not queryable on this tier'); } }; },
       async drop() { cols.delete(name); return true; }

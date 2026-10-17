@@ -32,7 +32,7 @@
  *
  * Source of the three-attempt rule and the scope line: Hanako, "Loops and
  * Graphs" (2026-08-23), read in full 2026-09-27; the user's decisions are in
- * the owner's store.
+ * staging/emet-lessons-to-checks.md.
  */
 
 // ---------------------------------------------------------------------------
@@ -244,7 +244,7 @@ function familyEntry(members, key) {
  * One detector, the explicit key (2026-09-29). Rows carrying metadata.lesson
  * are grouped by that key - the writer says "same lesson" at save time and
  * nothing is inferred. The tag-family heuristic that ran beside it in shadow
- * from 2026-09-27 was DROPPED on the owner's ruling: "that's
+ * from 2026-09-27 was DROPPED on the owner's ruling (procedural ref 397): "that's
  * just another instance of forking... I would rather the original be more
  * heavily, better enforced, than having a backup that can rot or fork." The
  * enforcement moved to the write: checkLessonFields below refuses a malformed
@@ -292,7 +292,7 @@ export function pendingLessons(rows, { threshold = LESSON_REPEAT_THRESHOLD } = {
 }
 
 // ---------------------------------------------------------------------------
-// 4. The lesson fields are checked at the door (2026-09-29, a decision record)
+// 4. The lesson fields are checked at the door (2026-09-29, procedural ref 397)
 // ---------------------------------------------------------------------------
 
 /** A lesson key is a lowercase slug: letters and digits in hyphen-joined

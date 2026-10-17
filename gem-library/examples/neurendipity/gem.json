@@ -1,5 +1,5 @@
 {
-  "spec": "2026-10-11",
+  "spec": "2026-10-12",
   "id": "neurendipity",
   "name": "Neurendipity",
   "description": "Example manifest for the Neurendipity GEM. Shows the file shape. Full lines move from the server floor when GEP-0001 is implemented. Bundled, and off unless the user asks for it.",

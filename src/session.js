@@ -322,7 +322,7 @@ export async function corroborateCoverage(db, baseId) {
       // correction makes the check permanently worse, and the flag can never
       // clear because superseded entries cannot be edited. Found live at the
       // 2026-09-11 close: nine entries superseded with correct spans, and the
-      // check still read the old record's 31-33 against a 27-exchange session.
+      // check still read the old ref 314's 31-33 against a 27-exchange session.
       // Every other read in EMET hides superseded entries by default; this one
       // now does too - and says how many it set aside, because dropping
       // evidence silently is the other half of the same mistake.
@@ -354,7 +354,7 @@ export async function corroborateCoverage(db, baseId) {
  * The store check above answers "do the artifacts exist". It could not answer
  * "did the host actually do each step", and a host that skipped a step, or
  * never read the transcript back, could still walk away with `complete`
- * because the store happened to look fine. The owner's requirement (a decision record,
+ * because the store happened to look fine. the owner's requirement (procedural ref 388,
  * 389, 391): the wrap steps HAVE TO BE FOLLOWED, whichever model is hosting,
  * and a skipped step blocks the close the same way a skipped opening is caught
  * at initialize.
@@ -387,7 +387,7 @@ export const RECEIPT_FIELDS = Object.freeze({
 });
 
 /**
- * A bot session's receipts (C1, 2026-10-01).
+ * A bot session's receipts (C1, 2026-10-01; review note section 3.3).
  * Seven: no board is required - a bot that keeps one lists it under
  * bots/<tag>/ as board_doc (checked when given) or as a working document - and
  * handoff_doc names the bot's own handoff. Host receipts stay at the eight
@@ -403,7 +403,7 @@ export const BOT_RECEIPT_FIELDS = Object.freeze({
   handoff_version: RECEIPT_FIELDS.handoff_version
 });
 
-/** The message every bot-records refusal carries. */
+/** The message every bot-records refusal carries (review note section 3.5). */
 export function hubRecordsMessage(tag) {
   return `a bot session closes against ${botRecordDir(tag)} records; the main handoff and board are the hub's`;
 }
@@ -429,7 +429,7 @@ export function sessionTagOf(rows = []) {
  * Hosts do not all pass an object argument the same way. A client working from
  * a cached tool list that predates `receipts` - or a host that serialises every
  * nested argument - sends the receipts as JSON TEXT. Found live at the first
- * close under the new rule (2026-09-26, cloud-host): every artifact present,
+ * close under the new rule (2026-09-26, cowork-cloud): every artifact present,
  * receipts sent, and the server saw none. Consistent execution across hosts
  * means accepting both forms. Text that does not parse is treated as absent,
  * so it still blocks - it is never guessed at.
@@ -485,7 +485,7 @@ export function checkReceipts(receipts, observed) {
 
   const docs = new Map((observed.documents || []).map((d) => [d.doc_id, d]));
 
-  // A bot session never names the main records: any
+  // A bot session never names the main records (review note section 3.5): any
   // receipt that does is refused here, and those ids get no other check.
   const mainIds = bot ? (bot.main_records || []) : [];
   const isMain = (id) => mainIds.includes(id);
@@ -852,7 +852,7 @@ export async function sessionClose(options = {}) {
       if (row && ms !== null && ms >= startMs) {
         receiptEpisodicSource = parseMetadata(row.metadata).source || null;
         if (bot) {
-          // A bot's session record is its own and cites this session.
+          // A bot's session record is its own and cites this session (review note 3.2).
           const cited = typeof row.source_session_id === 'string' && row.source_session_id ? row.source_session_id : null;
           if (receiptEpisodicSource !== bot.tag) {
             episodicRejected = `its metadata.source is ${receiptEpisodicSource || '(none)'}, not ${bot.tag}`;
@@ -968,8 +968,8 @@ export async function sessionClose(options = {}) {
     }
 
     // Store-level gaps make the session incomplete. Receipt problems, and a
-    // transcript nothing independently corroborates, BLOCK it (the owner 2026-09-26,
-    // A decision record: receipts required from the first deploy; the former
+    // transcript nothing independently corroborates, BLOCK it (Alex 2026-09-26,
+    // procedural ref 391: receipts required from the first deploy; the former
     // `unconfirmed` state is blocked, not passed).
     const storeMissing = [...missing];
     const receiptCheck = checkReceipts(receipts, {

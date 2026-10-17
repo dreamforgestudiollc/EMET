@@ -1,5 +1,5 @@
 /**
- * EMET - write-path invariant (THE DOOR, a decision record; work list E1).
+ * EMET - write-path invariant (THE DOOR, procedural ref 280; work list E1).
  *
  * The guarantee EMET makes - every write attested, attributed, redacted, and
  * every absence visible - holds only if there is exactly one way to write each
@@ -38,7 +38,7 @@ const SANCTIONED = {
   ]),
   'tools.js': new Set([
     'reviseMemory',                // supersession: marks the parent; the child goes through saveMemory
-    // ADDED 2026-10-02 with the option A correction back-pointer (the owner's approval, the owner's decision record item 4).
+    // ADDED 2026-10-02 with the option A correction back-pointer (the owner's approval, procedural ref 405 item 4).
     // Same grounds as reviseMemory and retireDoc: a MARK on an existing row, not a content write and not a
     // removal. It appends the correcting entry's id to the parent's corrected_by, leaves content, digest
     // and is_live untouched, re-attests the parent's metadata digest in the same write, and reads back.
@@ -84,7 +84,7 @@ const SANCTIONED = {
   'oauth-provider.js': '*',        // OAuth clients / codes / tokens - its own collections
   'persons.js': '*',               // persons table - not a memory layer
   'invites.js': '*',               // invite codes - not a memory layer
-  // ADDED 2026-09-29 with the session graph. Its one write is the
+  // ADDED 2026-09-29 with the session graph (board 120). Its one write is the
   // session's state in `<prefix>sessions` (opened, board, episodic, handoff,
   // closed) - the server's own bookkeeping of where a session stands, read
   // before every governed write. Never a layer, a document or a transcript.
@@ -94,7 +94,17 @@ const SANCTIONED = {
   // when the claimed append failed, unsets) the grace marker on the session's
   // own row in `<prefix>sessions` - an atomic claim so two racing appends
   // cannot both be the closing exchange. Same collection, same grounds.
-  'session-graph.js': new Set(['graphAfter', 'labRecord', 'markCloseGrace'])
+  'session-graph.js': new Set(['graphAfter', 'labRecord', 'markCloseGrace']),
+  // ADDED 2026-10-15 with delegated client sub-keys (EMET-0001). mongoStore
+  // writes `<prefix>subkeys` and `<prefix>subkeys_history` only: the server's
+  // own bookkeeping of keys and session opens, not a layer, a document, or a
+  // transcript. It cannot go through writeDoc. That door is what made the
+  // records readable by any read token. History is insert-only. A key or
+  // session row is updated in place; nothing is deleted. casUpdate and
+  // revertUpdate are that store's compare-and-set, same collection.
+  'subkey-store.js': new Set(['mongoStore', 'casUpdate', 'revertUpdate']),
+  // ADDED 2026-10-16 with the serve log. This release creates the new collection `<prefix>gem_serves` (`SERVE_COLLECTION`). Alex approved it as an append-only write site on the write-path allow-list. appendServeStore inserts one document per serve and never updates or removes one. The file keeps the latest SERVE_CAP rows per principal. The collection keeps every row. Nothing is deleted. It is the server's own bookkeeping of what it served, read back when a kept result is sealed. It cannot go through saveMemory: that door consults this log, so the write would wait on itself. It cannot go through writeDoc: a read token would then be able to read it.
+  'rune-dispatch.js': new Set(['appendServeStore'])
 };
 
 // Doors that must scrub before they hash. The test checks the identifier
@@ -282,6 +292,13 @@ testGroup('The layer insert is reachable only through saveMemory', () => {
     assert.ok(!/collection\(\s*['"`](?:transcripts|documents|documents_history)['"`]/.test(src));
     assert.ok(!/COLLECTION_PREFIX\s*\+\s*['"`](?:episodic|semantic|procedural|meta|identity|working)/.test(src));
     assert.ok(!/\$\{COLLECTION_PREFIX\}(?:episodic|semantic|procedural|meta|identity|working)/.test(src));
+  });
+  test('subkey-store.js never touches a layer, documents, or transcripts collection', () => {
+    const src = all['subkey-store.js'];
+    assert.ok(!/collection\(\s*['"`](?:transcripts|documents|documents_history)['"`]/.test(src));
+    assert.ok(!/COLLECTION_PREFIX\s*\+\s*['"`](?:episodic|semantic|procedural|meta|identity|working)/.test(src));
+    assert.ok(!/\$\{COLLECTION_PREFIX\}(?:episodic|semantic|procedural|meta|identity|working|transcripts|documents)/.test(src));
+    assert.ok(!/deleteOne|deleteMany|\bdrop\(/.test(src), 'the sub-key store must not remove a record');
   });
 });
 

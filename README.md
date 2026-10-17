@@ -19,7 +19,10 @@ See also: [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md) · [SECUR
 - **Word-for-word transcript tier.** A separate tier stores the conversation as it was written, so a summary cannot overwrite the record it came from.
 - **stdio and remote HTTP with OAuth.** The same server runs locally over stdio, and remotely over HTTP with OAuth. The transport changes. The store does not.
 - **MongoDB.** Atlas, or MongoDB you run yourself. A one-machine trial can use MongoDB 6 or newer. Only `semantic_recall` needs Atlas.
-- **GEM socket.** Add-on behavior ships as GEMs (Golem Expertise Modules), seated at startup and checked by `gem-check` against the GEM standard in `gem-library/`. A GEM ranks below the core floor and below the user's current word, and cannot remove a protected floor line. The bundled Neurendipity GEM (neurodivergent engagement and autistic burnout support; support only, not counseling or treatment) is off unless `EMET_ACTIVE_GEMS=neurendipity`.
+- **Golem Expertise Module (GEM) socket.** Add-on behavior ships as GEMs, seated at startup and checked by `gem-check` against the GEM standard in `gem-library/`. A GEM ranks below the core floor and below the user's current word, and cannot remove a protected floor line. The bundled Neurendipity GEM (neurodivergent engagement and autistic burnout support; support only, not counseling or treatment) is off unless `EMET_ACTIVE_GEMS=neurendipity`.
+- **Client-side GEM execution.** A GEM may declare a tool. EMET does not run that computation. EMET verifies the record, not the computation. The client runs the tool, and what is written back is checked the same way as any other write.
+- **Released flag.** A GEM is seated only when its released flag is the boolean true. Any other value is refused. A missing flag is refused except for a legacy manifest pinned by id, version, and file digests.
+- **Per-client attribution and approvals.** Every write is attributed to the client that made it. A new client is read-limited until it is approved. The approval is recorded.
 - **MIT.** Version 0.2.5. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
 
 The store has one owner, and other people can join only through the optional Guest
@@ -340,19 +343,26 @@ Desktop gets one from an MCP server such as Desktop Commander (one command, in t
 first-run interview. **Deploying remotely: [docs/DEPLOY.md](docs/DEPLOY.md)**.
 **Making your assistant actually use it: [docs/BOOTSTRAP.md](docs/BOOTSTRAP.md)**.
 **Running bots alongside your assistant** — registering their tags, their own handoffs, the
-session loop: [docs/BOTS.md](docs/BOTS.md).
+session loop: [docs/BOTS.md](docs/BOTS.md). For designing a bot team, see
+[docs/SUBKEYS.md](docs/SUBKEYS.md).
+
+**Continuous chats.** A bot in a long-running chat saves its transcripts to EMET
+word for word at least nightly (a checkpoint), under the open session or a daily
+`YYYY-MM-DD_chat-daily` session. Prefer event triggers over time-based polling.
+When polling is unavoidable, use the longest interval the job allows. Never
+reconstruct turns. Mark gaps as gaps. Session close cites those saved parts.
+Context compression erases older turns, so a close days later cannot invent the
+transcript.
 
 Short version:
 
 ```
 npm install
 cp .env.example .env      # fill in MONGODB_URI and MONGODB_DB
-npm start                 # then waits for an MCP client on stdin; Ctrl-C to stop
+npm start
 ```
 
-Requires Node 20+ and a MongoDB connection: Atlas, or a local MongoDB 6+ for a one-machine
-trial (only `semantic_recall` needs Atlas). `.env` is gitignored — never commit it. List each
-host's source tag in `EMET_SOURCE_TAGS` before its first write (see the note at the top).
+Requires Node 22+ and a MongoDB connection. `.env` is gitignored — never commit it.
 
 **Local (stdio)** — as an MCP server entry:
 
@@ -379,8 +389,9 @@ Say **"initialize"**. That is the whole interface.
 
 `emet_initialize` is the front door and the only thing anyone needs to know about. On a new
 store it returns a short interview — what the assistant should be called, how it should carry
-itself, your name, what you are using this for — which your assistant runs conversationally,
-then records with `emet_setup_complete`, which also creates the owner person. On an established store the same call returns the
+itself, your name, what you are using this for, and whether more than one bot or AI will use
+this memory — which your assistant runs conversationally,
+then records with `emet_setup_complete`, which also creates the owner person. Whether more than one bot or AI will use this memory is optional; leaving it out leaves delegated client sub-keys off. A yes writes them only when this server reads `.env`, and they take effect on restart. A hosted server refuses and tells you the three variables to set, then redeploy. See [docs/SUBKEYS.md](docs/SUBKEYS.md). On an established store the same call returns the
 assistant's identity, your profile, and where things were left, so the session opens already
 knowing you. A read-scoped `emet_initialize` writes nothing; a write-scoped one may provision a missing board. First-time setup is the owner's:
 `emet_setup_complete` is refused under a bot tag, and on a store that is already set up it is
@@ -542,8 +553,8 @@ parent is refused before anything is written), and the parent is marked: its `co
 gains the new id, its content, digest and liveness are untouched, and its metadata digest is
 re-attested in the same write. Reads return `corrected_by`, so a reader of the parent sees that a
 correction exists. `corrected_by` is a door marker; a caller cannot set it. Entries corrected
-before this existed (e.g. an incident record correcting an earlier one) carry no link; the fix is a new correction
-entry naming the earlier entry in corrects, not an edit or a backfill.
+before this existed (e.g. episodic ref 604 correcting ref 603) carry no link; the fix is a new correction
+entry naming corrects: 603, not an edit or a backfill.
 
 **Verified writes - `src/aleph.js`.** Every write is read back and compared before it is
 reported as saved. Document writes archive the prior version, then confirm both the sha256 and
@@ -581,7 +592,7 @@ removed a second document door in `setup.js`.
 Inside the door, in order:
 
 - **Secrets are masked before anything is stored or hashed** (`src/redact.js`): the literal
-  values of secret-bearing environment variables, credentials inside URIs, bearer tokens, JWTs,
+  values of secret-bearing environment variables (including `EMET_SUBKEY_PEPPER`), credentials inside URIs, bearer tokens, JWTs,
   and `key: value` pairs whose key names a secret become `*****`. The mask is visible on
   purpose, the receipt's `redacted` reports the number of spans **this write changed** (text
   already carrying the mask is left alone and not counted, so a read-modify-write of a document
@@ -646,7 +657,7 @@ are in [`docs/GUARDRAILS-AND-MONORAILS.md`](docs/GUARDRAILS-AND-MONORAILS.md).
 
 ## Tools
 
-Thirty tools. `recall` · `semantic_recall` · `query_layer` · `save_to_layer` · `revise_memory` ·
+Thirty tools. With `EMET_SUBKEYS=1`, four more (`emet_subkey_request`, `emet_subkey_claim`, `emet_subkey_revoke`, `emet_subkey_end_session`) and the `subkey` and `session_handle` arguments. `recall` · `semantic_recall` · `query_layer` · `save_to_layer` · `revise_memory` ·
 `read_doc` · `read_doc_history` · `write_doc` · `list_docs` · `patch_doc` ·
 `retire_doc` · `rename_doc` · `restore_doc` · `save_transcript` · `revise_transcript` · `query_transcripts` ·
 `corpus_recall` · `emet_gaps` · `emet_floor` · `validate_doc` · `accept_nonconformance` ·
@@ -768,8 +779,7 @@ alone — run it before and after any change to `src/redact.js`.
 
 ## Known gaps
 
-Honest list, because the point of this project is that it behaves predictably. What is planned
-next is in [docs/ROADMAP.md](docs/ROADMAP.md).
+Honest list, because the point of this project is that it behaves predictably:
 
 - Rows written before 2026-09-05 carry no content digest and rows written before 2026-09-07
   carry no metadata digest; reads report them as `'unattested'`, and they are not backfilled —
@@ -802,6 +812,7 @@ next is in [docs/ROADMAP.md](docs/ROADMAP.md).
 - Dynamic Client Registration is still served beside Client ID Metadata Documents; the MCP
   specification's deprecation window closes around 2027-07. It is scheduled to come off on
   2027-06-01.
+- Delegated client sub-keys stay off unless setup is told that more than one bot or AI will use the memory. A hosted server does not write a pepper into its container. A stamp shows that an approved key was presented, not which program held it. See [docs/SUBKEYS.md](docs/SUBKEYS.md).
 
 ---
 

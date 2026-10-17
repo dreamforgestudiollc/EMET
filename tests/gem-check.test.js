@@ -1,5 +1,5 @@
 /**
- * gem-check, revision 2026-10-11. Every GC id has a passing case or a
+ * gem-check, revision 2026-10-12. Every GC id has a passing case or a
  * specified skip, and a failing case. The example manifest is valid and
  * is not installed by these tests.
  */
@@ -10,14 +10,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tempGem, rune, floorDocument, sha256 } from './gem-fixture.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const EXAMPLE = path.join(ROOT, 'gem-library/examples/neurendipity');
 const CLI = path.join(ROOT, 'src/gem-check.js');
 
-const { checkGem, parseStrictJson, PROTECTED_OVERRIDES, MODIFIABLE_OVERRIDES, satisfiesEmetRange, scanModuleSource, CHECK_IDS, SPEC_REVISION } = await import('../src/gem-check.js');
+const { checkGem, parseStrictJson, PROTECTED_OVERRIDES, MODIFIABLE_OVERRIDES, satisfiesEmetRange, scanModuleSource, resolvedUnderRunes, CHECK_IDS, SPEC_REVISION } = await import('../src/gem-check.js');
+const { runeSpecifierReason } = await import('../src/host-reach.js');
 
 console.log('\n=== gem-check (GC-01 through GC-22) ===');
 
@@ -125,6 +126,130 @@ testGroup('GC-01 JSON', () => {
       assertFail(await checkGem(gem.dir), 'GC-01');
     } finally { await gem.cleanup(); }
   });
+  test('a symlinked GEM directory fails GC-01', async () => {
+    const gem = await tempGem();
+    const link = path.join(gem.root, 'link');
+    try {
+      await fs.promises.symlink(gem.dir, link);
+      const result = await checkGem(link);
+      assertFail(result, 'GC-01');
+      assert.strictEqual(line(result, 'GC-01').reason, 'symlink');
+    } finally { await gem.cleanup(); }
+  });
+  test('a cached pass on the real directory does not seat its symlink', async () => {
+    const gem = await tempGem();
+    const link = path.join(gem.root, 'link');
+    const mutants = path.join(ROOT, 'tests/.mutants');
+    try {
+      await fs.promises.symlink(gem.dir, link);
+      const real = await checkGem(gem.dir);
+      assert.strictEqual(real.ok, true, real.lines.filter((row) => row.includes('fail')).join('; '));
+      const viaLink = await checkGem(link);
+      assert.strictEqual(line(viaLink, 'GC-01').status, 'fail');
+      assert.strictEqual(line(viaLink, 'GC-01').reason, 'symlink');
+
+      const src = fs.readFileSync(path.join(ROOT, 'src/gem-check.js'), 'utf8');
+      const from = 'if (st.isSymbolicLink() || !st.isDirectory()) return null;';
+      const to = 'if (!st.isDirectory() && !st.isSymbolicLink()) return null;';
+      assert.strictEqual(src.split(from).length - 1, 1);
+      let mutated = src.replace(from, to);
+      mutated = mutated.replaceAll("from './", "from '../../src/");
+      mutated = mutated.replaceAll("['..', 'gem-library'", "['..', '..', 'gem-library'");
+      await fs.promises.rm(mutants, { recursive: true, force: true });
+      await fs.promises.mkdir(mutants, { recursive: true });
+      const file = path.join(mutants, 'cache-symlink.mjs');
+      await fs.promises.writeFile(file, mutated);
+      const mod = await import(pathToFileURL(file).href);
+      const cached = await mod.checkGem(gem.dir);
+      assert.strictEqual(cached.ok, true, cached.lines.filter((row) => row.includes('fail')).join('; '));
+      const inherited = await mod.checkGem(link);
+      assert.strictEqual(inherited.ok, true, 'cache mutant still refused the symlink');
+      assert.strictEqual(line(inherited, 'GC-01').status, 'pass');
+    } finally {
+      await fs.promises.rm(mutants, { recursive: true, force: true });
+      await gem.cleanup();
+    }
+  });
+  test('the resolved real path is the backstop when a rune symlink points outside runes/', async () => {
+    const gem = await tempGem();
+    const outside = path.join(gem.root, 'escape.js');
+    try {
+      await fs.promises.mkdir(path.join(gem.dir, 'runes'));
+      await fs.promises.writeFile(path.join(gem.dir, 'lib-h.js'), 'export const h = globalThis;\n');
+      await fs.promises.writeFile(outside, 'export const h = globalThis;\n');
+      await fs.promises.symlink(path.join(gem.dir, 'lib-h.js'), path.join(gem.dir, 'runes/inside.js'));
+      await fs.promises.symlink(outside, path.join(gem.dir, 'runes/outside.js'));
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/helper.js'), 'export const a = 1;\n');
+      const rootReal = await fs.promises.realpath(gem.dir);
+      const resolved = await resolvedUnderRunes(rootReal, 'runes/calc.js', ['./inside.js', './outside.js', './helper.js']);
+      assert.strictEqual(resolved['runes/inside.js'], 'lib-h.js');
+      assert.strictEqual(resolved['runes/outside.js'], '');
+      assert.strictEqual(resolved['runes/helper.js'], 'runes/helper.js');
+      const listed = ['runes/calc.js', 'runes/inside.js', 'runes/outside.js', 'runes/helper.js'];
+      assert.strictEqual(runeSpecifierReason('./inside.js', 'runes/calc.js', listed, 'gc16', resolved), 'specifier not allowed');
+      assert.strictEqual(runeSpecifierReason('./outside.js', 'runes/calc.js', listed, 'gc16', resolved), 'specifier not allowed');
+      assert.strictEqual(runeSpecifierReason('./helper.js', 'runes/calc.js', listed, 'gc16', resolved), null);
+    } finally {
+      await fs.promises.rm(outside, { force: true });
+      await gem.cleanup();
+    }
+  });
+  test('checkGem refuses a rune whose real path leaves runes/, and dropping that hand-off lets it pass', async () => {
+    const gem = await tempGem();
+    const mutants = path.join(ROOT, 'tests/.mutants');
+    try {
+      await fs.promises.mkdir(path.join(gem.dir, 'runes'));
+      await fs.promises.mkdir(path.join(gem.dir, 'notes'));
+      await fs.promises.writeFile(path.join(gem.dir, 'notes/h.txt'), 'export const h = 1;\n');
+      await fs.promises.symlink(path.join(gem.dir, 'notes/h.txt'), path.join(gem.dir, 'runes/h.js'));
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/calc.js'), "import { h } from './h.js';\nexport const y = h;\n");
+      gem.manifest.kind = 'runed-gem';
+      gem.manifest.requires = { emet: '>=0.2.4' };
+      gem.manifest.runes = [rune('calc')];
+      gem.manifest.files.push(
+        { path: 'notes/h.txt', digest: 'x', size: 1 },
+        { path: 'runes/h.js', digest: 'x', size: 1 },
+        { path: 'runes/calc.js', digest: 'x', size: 1 }
+      );
+      await gem.save();
+      const real = await checkGem(gem.dir);
+      assert.strictEqual(line(real, 'GC-04').status, 'fail', real.lines.filter((row) => row.includes('fail')).join('; '));
+      assert.strictEqual(line(real, 'GC-04').reason, 'symlink');
+
+      const src = fs.readFileSync(path.join(ROOT, 'src/gem-check.js'), 'utf8');
+      const walk = [
+        "        if (rel === 'runes' || rel.startsWith('runes/')) {",
+        "          const err = new Error('symlink');",
+        "          err.code = 'SYMLINK';",
+        "          err.rel = rel;",
+        "          throw err;",
+        "        }",
+        ""
+      ].join('\n');
+      const hand = "if (!specifierAllowed(spec, rel, ctx.files, resolved)) return fail('GC-16', 'specifier not allowed');";
+      const dropped = "if (!specifierAllowed(spec, rel, ctx.files)) return fail('GC-16', 'specifier not allowed');";
+      assert.strictEqual(src.split(walk).length - 1, 1);
+      assert.strictEqual(src.split(hand).length - 1, 1);
+      const rewrite = (text) => text.replaceAll("from './", "from '../../src/").replaceAll("['..', 'gem-library'", "['..', '..', 'gem-library'");
+      await fs.promises.rm(mutants, { recursive: true, force: true });
+      await fs.promises.mkdir(mutants, { recursive: true });
+      const keptPath = path.join(mutants, 'handoff-kept.mjs');
+      const lostPath = path.join(mutants, 'handoff-dropped.mjs');
+      await fs.promises.writeFile(keptPath, rewrite(src.replace(walk, '')));
+      await fs.promises.writeFile(lostPath, rewrite(src.replace(walk, '').replace(hand, dropped)));
+      const kept = await import(pathToFileURL(keptPath).href);
+      const lost = await import(pathToFileURL(lostPath).href);
+      const viaKept = await kept.checkGem(gem.dir);
+      assert.strictEqual(line(viaKept, 'GC-04').status, 'pass', line(viaKept, 'GC-04').reason);
+      assert.strictEqual(line(viaKept, 'GC-16').status, 'fail', viaKept.lines.filter((row) => row.includes('fail')).join('; '));
+      assert.strictEqual(line(viaKept, 'GC-16').reason, 'specifier not allowed');
+      const viaLost = await lost.checkGem(gem.dir);
+      assert.strictEqual(viaLost.ok, true, 'dropping the real-path hand-off still refused\n' + viaLost.lines.filter((row) => row.includes('fail')).join('; '));
+    } finally {
+      await fs.promises.rm(mutants, { recursive: true, force: true });
+      await gem.cleanup();
+    }
+  });
 });
 
 testGroup('GC-02 schema and GC-03 revision', () => {
@@ -153,8 +278,58 @@ testGroup('GC-02 schema and GC-03 revision', () => {
       assertFail(result, 'GC-03');
     } finally { await gem.cleanup(); }
   });
-  test('only 2026-10-11 is the supported revision', () => {
-    assert.strictEqual(SPEC_REVISION, '2026-10-11');
+  test('only 2026-10-12 is the supported revision', () => {
+    assert.strictEqual(SPEC_REVISION, '2026-10-12');
+  });
+  test('2026-10-11 fails GC-03, and a changelog note passes GC-02', async () => {
+    const old = await checked((gem) => { gem.manifest.spec = '2026-10-11'; });
+    assert.strictEqual(line(old, 'GC-03').status, 'fail');
+    assert.match(line(old, 'GC-03').reason, /2026-10-12/);
+    const noted = await checked((gem) => { gem.manifest.changelog = 'Initial release.'; });
+    assert.strictEqual(line(noted, 'GC-02').status, 'pass', line(noted, 'GC-02').reason);
+    assert.strictEqual(line(noted, 'GC-03').status, 'pass');
+    const listed = await checked((gem) => { gem.manifest.changelog = ['Initial release.']; });
+    assert.strictEqual(line(listed, 'GC-02').status, 'pass', line(listed, 'GC-02').reason);
+    const notes = await checked((gem) => { gem.manifest.changelog = { '1.0.0': 'Initial release.' }; });
+    assert.strictEqual(line(notes, 'GC-02').status, 'pass', line(notes, 'GC-02').reason);
+  });
+  test('an update block shaped like Lean Six Sigma 1.0.0 passes GC-02', async () => {
+    const result = await checked((gem) => {
+      gem.manifest.id = 'lean-six-sigma';
+      gem.manifest.name = 'Lean Six Sigma';
+      gem.manifest.version = '1.0.0';
+      gem.manifest.description = 'Lean Six Sigma 1.0.0, a runed-gem of class initial. Five pure-function calculators.';
+      gem.manifest.changelog = 'Initial release 1.0.0, a runed-gem of class initial.';
+      gem.manifest.update = { class: 'initial', notes: 'Initial release 1.0.0, a runed-gem of class initial.' };
+    });
+    assert.strictEqual(line(result, 'GC-02').status, 'pass', line(result, 'GC-02').reason);
+    assert.strictEqual(line(result, 'GC-03').status, 'pass', line(result, 'GC-03').reason);
+  });
+  test('a knowledge block passes GC-02 as a string, a list, or an object', async () => {
+    for (const knowledge of ['DMAIC notes.', ['define', 'measure'], { documents: [{ id: 'dmaic', body: 'Define, measure, analyze, improve, control.' }] }]) {
+      const result = await checked((gem) => { gem.manifest.knowledge = knowledge; });
+      assert.strictEqual(line(result, 'GC-02').status, 'pass', line(result, 'GC-02').reason);
+    }
+  });
+  test('a coverage block shaped like Lean Six Sigma passes GC-02', async () => {
+    for (const coverage of [
+      ['DMAIC', 'control charts'],
+      'Which formulas this GEM covers.',
+      { formulas: ['capability', 'control limits'] }
+    ]) {
+      const result = await checked((gem) => { gem.manifest.coverage = coverage; });
+      assert.strictEqual(line(result, 'GC-02').status, 'pass', line(result, 'GC-02').reason);
+    }
+  });
+  test('a coverage list of 90 entries passes GC-02, and 257 fails', async () => {
+    const ninety = Array.from({ length: 90 }, (_, i) => 'coverage ' + i);
+    const atCap = await checked((gem) => { gem.manifest.coverage = ninety; });
+    assert.strictEqual(line(atCap, 'GC-02').status, 'pass', line(atCap, 'GC-02').reason);
+    const full = await checked((gem) => { gem.manifest.coverage = Array.from({ length: 256 }, (_, i) => 'coverage ' + i); });
+    assert.strictEqual(line(full, 'GC-02').status, 'pass', line(full, 'GC-02').reason);
+    const over = await checked((gem) => { gem.manifest.coverage = Array.from({ length: 257 }, (_, i) => 'coverage ' + i); });
+    assertFail(over, 'GC-02');
+    assert.match(line(over, 'GC-02').reason, /coverage/);
   });
 });
 
@@ -178,6 +353,27 @@ testGroup('GC-04 paths and GC-05 digests', () => {
     });
     assertFail(result, 'GC-04');
     assert.match(line(result, 'GC-04').reason, /unlisted/);
+  });
+  test('a symlinked rune file fails GC-04 and is not followed', async () => {
+    const gem = await tempGem();
+    try {
+      await fs.promises.mkdir(path.join(gem.dir, 'lib'));
+      await fs.promises.mkdir(path.join(gem.dir, 'runes'));
+      await fs.promises.writeFile(path.join(gem.dir, 'lib/h.js'), 'export const h = globalThis;\n');
+      await fs.promises.symlink(path.join(gem.dir, 'lib/h.js'), path.join(gem.dir, 'runes/h.js'));
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/look.js'), 'export const x = 1;\n');
+      gem.manifest.kind = 'runed-gem';
+      gem.manifest.runes = [rune('look')];
+      gem.manifest.files.push(
+        { path: 'lib/h.js', digest: 'x', size: 1 },
+        { path: 'runes/h.js', digest: 'x', size: 1 },
+        { path: 'runes/look.js', digest: 'x', size: 1 }
+      );
+      await gem.save();
+      const result = await checkGem(gem.dir);
+      assertFail(result, 'GC-04');
+      assert.strictEqual(line(result, 'GC-04').reason, 'symlink');
+    } finally { await gem.cleanup(); }
   });
   test('a symlink that leaves the directory fails', async () => {
     const gem = await tempGem();
@@ -292,7 +488,7 @@ testGroup('GC-10 kind, GC-12 overrides, GC-13 lint, GC-14 secrets, GC-15 depende
     const allowed = await checked((gem) => { gem.manifest.overrides = ['voice.composure']; });
     assert.strictEqual(line(allowed, 'GC-12').status, 'pass', line(allowed, 'GC-12').reason);
   });
-  test('engagement.no_rapport_mirroring is protected: overriding it fails GC-12 (review of the floor change)', async () => {
+  test('engagement.no_rapport_mirroring is protected: overriding it fails GC-12 (the reviewer review of #39)', async () => {
     assert.ok(PROTECTED_OVERRIDES.includes('engagement.no_rapport_mirroring'), 'no_rapport_mirroring missing from PROTECTED_OVERRIDES');
     assert.ok(!MODIFIABLE_OVERRIDES.includes('engagement.no_rapport_mirroring'), 'no_rapport_mirroring must not be modifiable');
     const blocked = await checked((gem) => { gem.manifest.overrides = ['engagement.no_rapport_mirroring']; });
@@ -300,7 +496,7 @@ testGroup('GC-10 kind, GC-12 overrides, GC-13 lint, GC-14 secrets, GC-15 depende
     const child = await checked((gem) => { gem.manifest.overrides = ['engagement.no_rapport_mirroring.register']; });
     assertFail(child, 'GC-12');
   });
-  test('engagement.goal_check is modifiable: overriding it passes GC-12 (review of the floor change)', async () => {
+  test('engagement.goal_check is modifiable: overriding it passes GC-12 (the reviewer review of #39)', async () => {
     assert.ok(MODIFIABLE_OVERRIDES.includes('engagement.goal_check'), 'goal_check missing from MODIFIABLE_OVERRIDES');
     assert.ok(!PROTECTED_OVERRIDES.includes('engagement.goal_check'), 'goal_check must not be protected');
     const allowed = await checked((gem) => { gem.manifest.overrides = ['engagement.goal_check']; });
@@ -438,7 +634,7 @@ testGroup('GC-11 signatures', () => {
   });
 });
 
-testGroup('GC-16 static analysis, GC-17 permissions, GC-18 database, GC-19 sandbox', () => {
+testGroup('GC-16 static analysis, GC-17 permissions, GC-18 database, GC-19 hash and load gate', () => {
   async function runed(source, extraRune = {}) {
     return checked(async (gem) => {
       await fs.promises.mkdir(path.join(gem.dir, 'runes'), { recursive: true });
@@ -448,11 +644,27 @@ testGroup('GC-16 static analysis, GC-17 permissions, GC-18 database, GC-19 sandb
       gem.manifest.files.push({ path: 'runes/look.js', digest: 'x', size: 1 });
     });
   }
-  test('a declarative file with no forbidden call passes GC-16 and fails GC-19 closed', async () => {
+  test('a pure literal lookup table passes GC-16, and a write to it fails', async () => {
+    const source = [
+      'const FACTORS = Object.freeze({ __proto__: null, a2: 1.88, d3: 0, nested: Object.freeze({ __proto__: null, x: 1 }), flags: Object.freeze([true, false, null]) });',
+      'const CHARTS = Object.freeze({ __proto__: null, n: Object.freeze([2, 3, 4]) });',
+      'export function read(name) {',
+      '  const i = 0;',
+      '  return { a: FACTORS.a2, x: FACTORS.nested.x, flag: FACTORS.flags[i], n: CHARTS.n[i] };',
+      '}',
+      ''
+    ].join('\n');
+    const ok = await runed(source);
+    assert.strictEqual(line(ok, 'GC-16').status, 'pass', line(ok, 'GC-16').reason);
+    assert.strictEqual(line(ok, 'GC-19').status, 'pass', line(ok, 'GC-19').reason);
+    const written = await runed(source + 'FACTORS.a2 = 0;\n');
+    assert.strictEqual(line(written, 'GC-16').status, 'fail');
+    assert.match(line(written, 'GC-16').reason, /module state/);
+  });
+  test('a declarative file with no forbidden call passes GC-16 and GC-19', async () => {
     const result = await runed('export const x = 1;\n');
     assert.strictEqual(line(result, 'GC-16').status, 'pass', line(result, 'GC-16').reason);
-    assertFail(result, 'GC-19');
-    assert.match(line(result, 'GC-19').reason, /sandbox not implemented/);
+    assert.strictEqual(line(result, 'GC-19').status, 'pass', line(result, 'GC-19').reason);
   });
   test('the checker does not execute the file', async () => {
     const marker = `GEM_RAN_${process.pid}`;
@@ -476,11 +688,63 @@ testGroup('GC-16 static analysis, GC-17 permissions, GC-18 database, GC-19 sandb
       assert.match(line(result, 'GC-16').reason, reason, source);
     }
   });
-  test('a comment url is not a string literal, and emet/rune is allowed', async () => {
+  test('a comment url is not a string literal, and emet/rune fails GC-19', async () => {
     const comment = await runed('// https://example.com\nexport const x = 1;\n');
     assert.strictEqual(line(comment, 'GC-16').status, 'pass', line(comment, 'GC-16').reason);
-    const allowed = await runed("import { read } from 'emet/rune';\nexport const x = read;\n");
-    assert.strictEqual(line(allowed, 'GC-16').status, 'pass', line(allowed, 'GC-16').reason);
+    assert.strictEqual(line(comment, 'GC-19').status, 'pass', line(comment, 'GC-19').reason);
+    const store = await runed("import { read } from 'emet/rune';\nexport const x = read;\n");
+    assert.strictEqual(line(store, 'GC-16').status, 'pass', line(store, 'GC-16').reason);
+    assert.strictEqual(line(store, 'GC-19').status, 'fail');
+    assert.strictEqual(line(store, 'GC-19').reason, 'emet/rune');
+  });
+  test('a digest mismatch, a dynamic import, and fetch fail GC-19', async () => {
+    const gem = await tempGem();
+    try {
+      await fs.promises.mkdir(path.join(gem.dir, 'runes'));
+      const source = 'export const x = 1;\n';
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/look.js'), source);
+      gem.manifest.kind = 'runed-gem';
+      gem.manifest.runes = [rune('look')];
+      gem.manifest.files.push({ path: 'runes/look.js', digest: 'x', size: 1 });
+      await gem.save(true);
+      gem.manifest.runes[0].sha256 = 'sha256:' + 'ab'.repeat(32);
+      await fs.promises.writeFile(path.join(gem.dir, 'gem.json'), JSON.stringify(gem.manifest, null, 2) + '\n');
+      const mismatch = await checkGem(gem.dir);
+      assert.strictEqual(line(mismatch, 'GC-16').status, 'pass', line(mismatch, 'GC-16').reason);
+      assert.strictEqual(line(mismatch, 'GC-19').status, 'fail');
+      assert.strictEqual(line(mismatch, 'GC-19').reason, 'digest');
+    } finally { await gem.cleanup(); }
+    const fetched = await runed('export function load() { return fetch; }\n');
+    assert.strictEqual(line(fetched, 'GC-16').status, 'pass', line(fetched, 'GC-16').reason);
+    assert.strictEqual(line(fetched, 'GC-19').reason, 'network');
+    const dynamic = await runed("export async function load() { return import('./look.js'); }\n");
+    assert.strictEqual(line(dynamic, 'GC-16').status, 'fail', line(dynamic, 'GC-16').reason);
+    assert.strictEqual(line(dynamic, 'GC-16').reason, 'syntax');
+    assert.strictEqual(line(dynamic, 'GC-19').reason, 'static analysis failed');
+  });
+  test('vm, new Function, and a computed import path fail the load gate', async () => {
+    assert.throws(() => scanModuleSource("import vm from 'node:vm';\n"), (e) => e.reason === 'vm');
+    assert.throws(() => scanModuleSource('const f = new\nFunction /*c*/ ("return 1");\n'), (e) => e.reason === 'Function');
+    assert.throws(() => scanModuleSource('export async function load(p) { return import(p); }\n'), (e) => e.reason === 'computed import');
+    assert.throws(() => scanModuleSource('export async function load() { return import("./" + "look.js"); }\n'), (e) => e.reason === 'computed import');
+    assert.throws(() => scanModuleSource('export async function load(name) { return import(`./${name}.js`); }\n'), (e) => e.reason === 'computed import');
+    const cases = [
+      ["import { createContext } from 'vm';\nexport const x = 1;\n", 'vm'],
+      ['const f = new Function\n("return 1");\nexport const x = f;\n', 'Function'],
+      ['export async function load(p) { return import(p); }\n', 'computed import']
+    ];
+    for (const [source, reason] of cases) {
+      const result = await runed(source);
+      assert.strictEqual(line(result, 'GC-16').status, 'fail', source);
+      assert.strictEqual(line(result, 'GC-16').reason, reason, source);
+      assert.strictEqual(line(result, 'GC-19').status, 'fail', source);
+      assert.strictEqual(line(result, 'GC-19').reason, 'static analysis failed', source);
+    }
+  });
+  test('GC-19 fails when GC-16 failed', async () => {
+    const result = await runed('eval("1");\n');
+    assert.strictEqual(line(result, 'GC-16').status, 'fail');
+    assert.strictEqual(line(result, 'GC-19').reason, 'static analysis failed');
   });
   test('a syntax error fails', async () => {
     const result = await runed('export function (\n');
@@ -491,6 +755,14 @@ testGroup('GC-16 static analysis, GC-17 permissions, GC-18 database, GC-19 sandb
     const result = await runed('// MongoClient is not allowed\nexport const x = 1;\n');
     assert.strictEqual(line(result, 'GC-18').status, 'fail');
     assert.match(line(result, 'GC-18').reason, /raw database/);
+  });
+  test('non-empty reads or writes fail GC-19', async () => {
+    const reads = await runed('export const x = 1;\n', { reads: ['working'] });
+    assert.strictEqual(line(reads, 'GC-19').status, 'fail');
+    assert.strictEqual(line(reads, 'GC-19').reason, 'reads and writes empty');
+    const writes = await runed('export const x = 1;\n', { writes: ['working'] });
+    assert.strictEqual(line(writes, 'GC-19').status, 'fail');
+    assert.strictEqual(line(writes, 'GC-19').reason, 'reads and writes empty');
   });
   test('readOnlyHint with writes fails, and openWorldHint true fails', async () => {
     const writes = await runed('export const x = 1;\n', { writes: ['semantic'], annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } });
@@ -508,6 +780,211 @@ testGroup('GC-16 static analysis, GC-17 permissions, GC-18 database, GC-19 sandb
     const scanned = scanModuleSource("import { a } from './helper.js';\nexport const x = a;\n");
     assert.deepStrictEqual(scanned.specifiers, ['./helper.js']);
     assert.throws(() => scanModuleSource('eval(1)\n'), /eval/);
+  });
+  test('a listed file outside runes/ imported from a rune fails GC-16', async () => {
+    const result = await checked(async (gem) => {
+      await fs.promises.mkdir(path.join(gem.dir, 'lib'));
+      await fs.promises.mkdir(path.join(gem.dir, 'runes'));
+      await fs.promises.writeFile(path.join(gem.dir, 'lib/h.js'), 'export const h = globalThis;\n');
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/calc.js'), "import { h } from '../lib/h.js';\nexport const y = h;\n");
+      gem.manifest.kind = 'runed-gem';
+      gem.manifest.runes = [rune('calc')];
+      gem.manifest.files.push(
+        { path: 'lib/h.js', digest: 'x', size: 1 },
+        { path: 'runes/calc.js', digest: 'x', size: 1 }
+      );
+    });
+    assert.strictEqual(line(result, 'GC-16').status, 'fail', line(result, 'GC-16').reason);
+    assert.strictEqual(line(result, 'GC-16').reason, 'specifier not allowed');
+    assert.strictEqual(line(result, 'GC-19').reason, 'static analysis failed');
+  });
+  test('a .JS file under runes/ is scanned', async () => {
+    const clean = await checked(async (gem) => {
+      await fs.promises.mkdir(path.join(gem.dir, 'runes'));
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/helper.JS'), 'export const a = 1;\n');
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/look.js'), "import { a } from './helper.JS';\nexport const x = a;\n");
+      gem.manifest.kind = 'runed-gem';
+      gem.manifest.runes = [rune('look')];
+      gem.manifest.files.push(
+        { path: 'runes/helper.JS', digest: 'x', size: 1 },
+        { path: 'runes/look.js', digest: 'x', size: 1 }
+      );
+    });
+    assert.strictEqual(line(clean, 'GC-16').status, 'pass', line(clean, 'GC-16').reason);
+    assert.strictEqual(line(clean, 'GC-19').status, 'pass', line(clean, 'GC-19').reason);
+    const reach = await checked(async (gem) => {
+      await fs.promises.mkdir(path.join(gem.dir, 'runes'));
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/helper.JS'), 'export const h = globalThis;\n');
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/look.js'), 'export const x = 1;\n');
+      gem.manifest.kind = 'runed-gem';
+      gem.manifest.runes = [rune('look')];
+      gem.manifest.files.push(
+        { path: 'runes/helper.JS', digest: 'x', size: 1 },
+        { path: 'runes/look.js', digest: 'x', size: 1 }
+      );
+    });
+    assert.strictEqual(line(reach, 'GC-16').status, 'fail', line(reach, 'GC-16').reason);
+    assert.strictEqual(line(reach, 'GC-16').reason, 'global');
+  });
+  test('a .cjs file under runes/ is not a JavaScript rune', async () => {
+    const src = fs.readFileSync(path.join(ROOT, 'src/gem-check.js'), 'utf8');
+    const listed = src.match(/const JS_EXT = Object\.freeze\(\[([^\]]*)\]\)/);
+    assert.ok(listed);
+    assert.doesNotMatch(listed[1], /cjs/);
+    assert.match(src, /const CODE_EXT = Object\.freeze\(\[[^\]]*'\.cjs'/);
+    const result = await checked(async (gem) => {
+      await fs.promises.mkdir(path.join(gem.dir, 'runes'));
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/calc.cjs'), 'export const x = 1;\n');
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/look.js'), 'export const x = 1;\n');
+      gem.manifest.kind = 'runed-gem';
+      gem.manifest.runes = [rune('look')];
+      gem.manifest.files.push(
+        { path: 'runes/calc.cjs', digest: 'x', size: 1 },
+        { path: 'runes/look.js', digest: 'x', size: 1 }
+      );
+    });
+    assert.strictEqual(line(result, 'GC-16').status, 'fail', line(result, 'GC-16').reason);
+    assert.strictEqual(line(result, 'GC-16').reason, 'rune extension');
+  });
+  test('a sibling import that stays under runes/ passes', async () => {
+    const result = await checked(async (gem) => {
+      await fs.promises.mkdir(path.join(gem.dir, 'runes/sub'), { recursive: true });
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/helper.js'), 'export const a = 1;\n');
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/sub/calc.js'), "import { a } from '../helper.js';\nexport const y = a;\n");
+      gem.manifest.kind = 'runed-gem';
+      gem.manifest.runes = [rune('calc', { artifact: 'runes/sub/calc.js' })];
+      gem.manifest.files.push(
+        { path: 'runes/helper.js', digest: 'x', size: 1 },
+        { path: 'runes/sub/calc.js', digest: 'x', size: 1 }
+      );
+    });
+    assert.strictEqual(line(result, 'GC-16').status, 'pass', line(result, 'GC-16').reason);
+    assert.strictEqual(line(result, 'GC-19').status, 'pass', line(result, 'GC-19').reason);
+  });
+  test('a listed relative import passes, and an unlisted one is a specifier', async () => {
+    const listed = await checked(async (gem) => {
+      await fs.promises.mkdir(path.join(gem.dir, 'runes'), { recursive: true });
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/helper.js'), 'export const a = 1;\n');
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/look.js'), "import { a } from './helper.js';\nexport const x = a;\n");
+      gem.manifest.kind = 'runed-gem';
+      gem.manifest.runes = [rune('look')];
+      gem.manifest.files.push(
+        { path: 'runes/helper.js', digest: 'x', size: 1 },
+        { path: 'runes/look.js', digest: 'x', size: 1 }
+      );
+    });
+    assert.strictEqual(line(listed, 'GC-16').status, 'pass', line(listed, 'GC-16').reason);
+    assert.strictEqual(line(listed, 'GC-19').status, 'pass', line(listed, 'GC-19').reason);
+    const missing = await runed("import { a } from './helper.js';\nexport const x = a;\n");
+    assert.strictEqual(line(missing, 'GC-16').status, 'fail');
+    assert.strictEqual(line(missing, 'GC-16').reason, 'specifier not allowed');
+  });
+  test('a .txt file under runes/ is refused instead of skipped', async () => {
+    const result = await checked(async (gem) => {
+      await fs.promises.mkdir(path.join(gem.dir, 'runes'), { recursive: true });
+      const source = 'export const hit = (() => {}).constructor("return this");\n';
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/calc.txt'), source);
+      await fs.promises.writeFile(path.join(gem.dir, 'runes/look.js'), 'export const x = 1;\n');
+      gem.manifest.kind = 'runed-gem';
+      gem.manifest.runes = [rune('look')];
+      gem.manifest.files.push(
+        { path: 'runes/calc.txt', digest: 'x', size: 1 },
+        { path: 'runes/look.js', digest: 'x', size: 1 }
+      );
+    });
+    assert.strictEqual(line(result, 'GC-16').status, 'fail', line(result, 'GC-16').reason);
+    assert.strictEqual(line(result, 'GC-16').reason, 'rune extension');
+    assert.strictEqual(line(result, 'GC-19').reason, 'static analysis failed');
+  });
+  test('Math.round, Math.sqrt, a shadowed name, a numeric index, and a process: label are not a reach', async () => {
+    const source = [
+      '// new Date()',
+      'export function f(values, Date) {',
+      '  let sum = 0;',
+      '  process: for (let i = 0; i < values.length; i++) {',
+      '    if (i < 0) break process;',
+      '  }',
+      '  for (const value of values) sum += value;',
+      '  const index = 0;',
+      '  const processDate = sum + values[index];',
+      '  return Math.round(Math.sqrt(processDate)) + Date;',
+      '}',
+      'export const label = "performance.now() crypto.randomUUID()";',
+      ''
+    ].join('\n');
+    const result = await runed(source);
+    assert.strictEqual(line(result, 'GC-16').status, 'pass', line(result, 'GC-16').reason);
+    assert.strictEqual(line(result, 'GC-19').status, 'pass', line(result, 'GC-19').reason);
+  });
+  async function refuses(source, reason) {
+    const result = await runed(source.endsWith('\n') ? source : source + '\n');
+    assert.strictEqual(line(result, 'GC-16').status, 'fail', source);
+    assert.strictEqual(line(result, 'GC-16').reason, reason, source);
+    assert.strictEqual(line(result, 'GC-19').status, 'fail', source);
+    assert.strictEqual(line(result, 'GC-19').reason, 'static analysis failed', source);
+  }
+  test('the Function constructor via .constructor("return this") is refused', async () => {
+    await refuses('export const hit = (() => {}).constructor("return this");', 'Function');
+  });
+  test('the Function constructor via .constructor("return 1") is refused', async () => {
+    await refuses("export const hit = (() => {}).constructor('return 1');", 'Function');
+  });
+  test('new Date() is refused', async () => {
+    await refuses('export const hit = new Date();', 'clock');
+  });
+  test('Date.now() is refused', async () => {
+    await refuses('export const hit = Date.now();', 'clock');
+  });
+  test("Date['now']() is refused", async () => {
+    await refuses("export const hit = Date['now']();", 'clock');
+  });
+  test('performance.now() is refused', async () => {
+    await refuses('export const hit = performance.now();', 'clock');
+  });
+  test('crypto.randomUUID() is refused', async () => {
+    await refuses('export const hit = crypto.randomUUID();', 'random');
+  });
+  test('Math.random() is refused', async () => {
+    await refuses('export const hit = Math.random();', 'random');
+  });
+  test("Math['random']() is refused", async () => {
+    await refuses("export const hit = Math['random']();", 'random');
+  });
+  test('an alias of Math.random() is refused', async () => {
+    await refuses('const M = Math;\nexport const hit = M.random();', 'random');
+  });
+  test('global.process is refused', async () => {
+    await refuses('export const hit = global.process;', 'global');
+  });
+  test('globalThis["pro"+"cess"] is refused', async () => {
+    await refuses('export const hit = globalThis["pro" + "cess"];', 'global');
+  });
+  test('self is refused', async () => {
+    await refuses('export const hit = self;', 'global');
+  });
+  test('process.argv is refused', async () => {
+    await refuses('export const hit = process.argv;', 'env');
+  });
+  test('process.env is refused', async () => {
+    await refuses('export const hit = process.env;', 'env');
+  });
+  test("process['env'] is refused", async () => {
+    await refuses("export const hit = process['env'];", 'env');
+  });
+  test('setTimeout is refused', async () => {
+    await refuses('export const hit = setTimeout;', 'timer');
+  });
+  test('a top-level let is refused as module state', async () => {
+    await refuses('let calls = 0;\nexport function f() { return ++calls; }', 'module state');
+  });
+  test('require is refused', async () => {
+    await refuses('export const hit = require("./look.js");', 'require');
+  });
+  test('a lazy fetch inside a function is still a network reach', async () => {
+    const result = await runed('export function load(input) { return fetch(input); }\n');
+    assert.strictEqual(line(result, 'GC-16').status, 'pass', line(result, 'GC-16').reason);
+    assert.strictEqual(line(result, 'GC-19').status, 'fail');
+    assert.strictEqual(line(result, 'GC-19').reason, 'network');
   });
 });
 

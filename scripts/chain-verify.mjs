@@ -7,7 +7,7 @@
  * can verify the record without trusting the server's own answer. Both call
  * the one function, walkChain in src/aleph.js, so the two cannot drift.
  *
- * Run from the repo root with Railway env:
+ * Run from C:\\the client\\EMET\\repo with Railway env:
  *   railway run --service <service> node scripts/chain-verify.mjs
  */
 import '../src/env.js';
@@ -25,7 +25,7 @@ if (!URI) {
 }
 
 // Through the shared helper, so a resolver that refuses SRV queries
-// falls back to public DNS instead of failing.
+// (STUDIO's does) falls back to public DNS instead of failing.
 const client = await connectMongo(URI, { serverSelectionTimeoutMS: 15000 }, {
   onFallback: (msg) => console.error(`(${msg})`)
 });

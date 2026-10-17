@@ -2,11 +2,11 @@
 
 **Status:** Accepted
 **Date:** 2026-10-11
-**Approver:** The owner
-**Sponsor:** none (a bot the owner designates may sponsor a later revision; a sponsor does not approve)
+**Approver:** Alex
+**Sponsor:** none (a bot Alex designates may sponsor a later revision; a sponsor does not approve)
 **Spec revision:** 2026-10-11
 
-Accepted means the decisions below are the ones to build. It is not Final. Final waits on the floor move, the conformance checks, and a pilot measurement. The owner can revise any row in this file before it is Final.
+Accepted means the decisions below are the ones to build. It is not Final. Final waits on the floor move, the conformance checks, and a pilot measurement. Alex can revise any row in this file before it is Final.
 
 ## Summary
 
@@ -23,7 +23,7 @@ These are the owner's decisions of 2026-10-11. They replace the earlier recommen
 3. Neurendipity is bundled and **off** unless the user requests it. EMET without that request is a general memory server.
 4. `emet_initialize` lists every installed GEM, active or not. The bot-facing startup text names the same list.
 5. The security and trust model in [SPEC.md](../SPEC.md) is in force now. Bundled prompt GEMs are the only ones a release may load before the matching checks exist. Every other class of GEM already has the rules it must pass.
-6. The owner is the sole approver of the standard, the schema, and the socket rules. The owner's bots may sponsor. Other people may author GEMs and may not change the standard.
+6. Alex is the sole approver of the standard, the schema, and the socket rules. His bots may sponsor. Other people may author GEMs and may not change the standard.
 7. The standard lives in the private repository EMET-GEMs. A public repository for submissions comes later. Its name is not chosen.
 8. Named-item behavior stays on the core floor as a persistence rule. Only the neurodivergent framing moves.
 9. A general epistemic-honesty line stays on the core floor. The neurodivergent evidence tags (peer-reviewed, emerging, anecdotal) move with the GEM.

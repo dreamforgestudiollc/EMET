@@ -1,6 +1,6 @@
 /**
  * EMET - the least-privilege MongoDB Atlas role for the server's own login
- * (2026-09-29; security audit question 9).
+ * (2026-09-29; security audit question 9, staging/emet-security-audit.md).
  *
  * The record is retained, never deleted (the owner's rule, 2026-09-08). Until
  * this role existed that rule lived only in the code: the server's login held

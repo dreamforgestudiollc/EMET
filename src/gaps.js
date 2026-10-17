@@ -7,8 +7,8 @@
  * emet_gaps - the record's honesty about its own holes, as a query (work list E4).
  *
  * Everything the door writes as a visible marker (E3), every digest it stores
- * (C1), every pointer it keeps (provenance), and every supersession
- * link exists so that ABSENCE can be counted. This module counts it. It
+ * (EMET ref 12, C1), every pointer it keeps (provenance), and every supersession
+ * link (ref 240) exists so that ABSENCE can be counted. This module counts it. It
  * identifies and never fills: a gap that is honestly recorded and honestly
  * left is a stronger record than a backfilled one, and the discipline for
  * closing a gap (revise_memory with a real pointer, on a revisable layer, when
@@ -35,10 +35,11 @@ const TRANSCRIPTS = 'transcripts';
 const DOCUMENTS = 'documents';
 
 /** The gap classes, in the order they are reported. Names are the contract. */
-export const GAP_CLASSES = Object.freeze({
+const GAP_CLASS_TABLE = {
   unsourced_assertions:      'semantic/procedural entries with no provenance pointer (no session span, no consolidated-from ids)',
   unattributed_inferences:   'semantic/procedural entries whose assertion_origin is assistant or unknown AND that carry no provenance pointer - an inference the record merely holds',
   ambiguous_attribution:     'entries whose source tag was defaulted, is missing, or is not in the registered list (EMET_SOURCE_TAGS) - grouped by tag and by session',
+  declared_attribution:      'entries whose source_basis is declared: a tag the caller named, including a registered one - grouped by tag and by session, and counted rather than treated as ambiguous',
   uncertain_routing:         'entries the door routed itself (routing.method other than explicit) - no instance chose the layer',
   unattestable:              'entries written before the content digest existed (2026-09-05) - a dated boundary, not a defect',
   digest_mismatch:           'entries whose stored content or metadata digest disagrees with the row - the alarm; expected zero',
@@ -53,6 +54,27 @@ export const GAP_CLASSES = Object.freeze({
   redacted_spans:            'entries and transcripts stored with secret spans masked - which host keeps pasting secrets',
   nonconforming_documents:   'controlled documents carrying an OPEN nonconformance marker - form or continuity failed against the template in force, and it has not been corrected by a later revision or accepted in writing',
   accepted_nonconformances:  'nonconformance markers dispositioned in writing for the revision they name - counted separately because an acceptance is a disposition, not a disappearance (STANDARD 9a L6)'
+};
+
+/** `declared_attribution` exists only while EMET_SUBKEYS=1. Flag off matches the class list from before sub-keys. */
+function declaredAttributionOn() { return setting('SUBKEYS') === '1'; }
+
+export const GAP_CLASSES = new Proxy(GAP_CLASS_TABLE, {
+  get(target, prop, receiver) {
+    if (prop === 'declared_attribution' && !declaredAttributionOn()) return undefined;
+    return Reflect.get(target, prop, receiver);
+  },
+  has(target, prop) {
+    if (prop === 'declared_attribution' && !declaredAttributionOn()) return false;
+    return Reflect.has(target, prop);
+  },
+  ownKeys(target) {
+    return Reflect.ownKeys(target).filter((k) => k !== 'declared_attribution' || declaredAttributionOn());
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    if (prop === 'declared_attribution' && !declaredAttributionOn()) return undefined;
+    return Reflect.getOwnPropertyDescriptor(target, prop);
+  }
 });
 
 const ASSERTING = new Set(['semantic', 'procedural']);
@@ -139,6 +161,7 @@ export function classifyRow(layer, row, { registry = [], nowSec = Date.now() / 1
       md.source_unregistered === true || (registry.length > 0 && typeof source === 'string' && !registry.includes(source))) {
     gaps.push('ambiguous_attribution');
   }
+  if (declaredAttributionOn() && md.source_basis === 'declared') gaps.push('declared_attribution');
 
   if (md.routing && typeof md.routing === 'object' && md.routing.method && md.routing.method !== 'explicit') {
     gaps.push('uncertain_routing');
@@ -200,7 +223,7 @@ async function connect() {
  * `limit` per class) plus the groupings that make a count actionable.
  */
 /**
- * broken_correction, both directions (option A, 2026-10-02). Pure apart
+ * broken_correction, both directions (ref 603 option A, 2026-10-02). Pure apart
  * from the row lookup, so the suite can drive it with a layer-honouring fake.
  *   corrected:   [{ ref, layer, id, child }]  - a parent's corrected_by entries:
  *                the child must exist in the SAME layer and name the parent in
@@ -238,11 +261,11 @@ export async function findGaps({ layer = null, since = null, limit = 50 } = {}) 
 
   const classes = {};
   for (const name of Object.keys(GAP_CLASSES)) classes[name] = { count: 0, ids: [] };
-  const byTag = {}, bySession = {}, redactedBySource = {};
+  const byTag = {}, bySession = {}, declaredByTag = {}, declaredBySession = {}, redactedBySource = {};
   const push = (name, ref) => { const c = classes[name]; c.count++; if (c.ids.length < cap) c.ids.push(ref); };
 
   // Declared outside the try: the return below reads it (live-caught 2026-09-29,
-  // "chain is not defined", in a live deploy).
+  // "chain is not defined", deploy commit-9968716c).
   const chain = {};
   let graphLab = null;
   const { client, db } = await connect();
@@ -278,6 +301,12 @@ export async function findGaps({ layer = null, since = null, limit = 50 } = {}) 
           byTag[tag] = (byTag[tag] || 0) + 1;
           const s = row.source_session_id || '(no session)';
           bySession[s] = (bySession[s] || 0) + 1;
+        }
+        if (declaredAttributionOn() && rowGaps.includes('declared_attribution')) {
+          const tag = md.source === undefined || md.source === null || md.source === '' ? '(none)' : String(md.source);
+          declaredByTag[tag] = (declaredByTag[tag] || 0) + 1;
+          const s = row.source_session_id || '(no session)';
+          declaredBySession[s] = (declaredBySession[s] || 0) + 1;
         }
         if (typeof md.redacted_spans === 'number' && md.redacted_spans > 0) {
           const s = md.source || '(none)'; redactedBySource[s] = (redactedBySource[s] || 0) + md.redacted_spans;
@@ -427,6 +456,10 @@ export async function findGaps({ layer = null, since = null, limit = 50 } = {}) 
     graph_lab: graphLab,
     ambiguous_attribution_by_tag: byTag,
     ambiguous_attribution_by_session: bySession,
+    ...(declaredAttributionOn() ? {
+      declared_attribution_by_tag: declaredByTag,
+      declared_attribution_by_session: declaredBySession
+    } : {}),
     redacted_spans_by_source: redactedBySource,
     discipline:
       'Identify, never fill. Where the true source is knowable (the writer is still in session; the span is unambiguous) ' +

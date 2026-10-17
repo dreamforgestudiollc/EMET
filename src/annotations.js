@@ -53,7 +53,11 @@ const READ = { readOnlyHint: true, destructiveHint: false, idempotentHint: true,
 const ADD = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 const REPLACE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false };
 
-export const TOOL_ANNOTATIONS = Object.freeze({
+const SUBKEY_ANNOTATION_NAMES = new Set([
+  'emet_subkey_request', 'emet_subkey_claim', 'emet_subkey_revoke', 'emet_subkey_end_session'
+]);
+
+const ANNOTATION_TABLE = {
   // --- Reads. Nothing in this group can change the store. -------------------
   emet_initialize:        { title: 'Start session', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   recall:                 { title: 'Search memory', ...READ },
@@ -72,10 +76,14 @@ export const TOOL_ANNOTATIONS = Object.freeze({
 
   // --- Additive writes. These add; they do not remove or replace. -----------
   // Was READ until 2026-09-27: "it does not write anything itself". Since the
-  // blocked-close cap: it records each blocked attempt in
+  // blocked-close cap (commit-82bb76c) it records each blocked attempt in
   // close_attempts, so a read-only hint would be untrue (code audit, 1.3).
   emet_session_close:     { title: 'Check session is saved', ...ADD },
   emet_client_approve:    { title: 'Approve a new client', ...REPLACE },
+  emet_subkey_request:    { title: 'Request a client sub-key', ...ADD },
+  emet_subkey_claim:      { title: 'Claim a client sub-key', ...ADD },
+  emet_subkey_revoke:     { title: 'Revoke a client sub-key', ...REPLACE },
+  emet_subkey_end_session: { title: 'End a sub-key session', ...ADD },
   emet_invite_create:     { title: 'EMET Guest Access', ...REPLACE },
   emet_member_access_create: { title: 'EMET Member Access', ...REPLACE },
   save_to_layer:          { title: 'Save to a memory layer', ...ADD },
@@ -110,8 +118,34 @@ export const TOOL_ANNOTATIONS = Object.freeze({
   //     probe document and removes it again, so it is not declared read-only -
   //     a health check that only reads cannot detect a broken write path.
   //     Replaced emet_setup_status, get_status and emet_verify_connection on
-  //     2026-09-27 (the owner: consolidate overlapping tools). -----------------------
+  //     2026-09-27 (Alex: consolidate overlapping tools). -----------------------
   emet_status:            { title: 'Store status and write-path probe', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+};
+
+function subkeyAnnotationsHidden() {
+  return process.env.EMET_SUBKEYS !== '1' && process.env.CASCADE_SUBKEYS !== '1';
+}
+
+/**
+ * The four sub-key annotations are visible only when EMET_SUBKEYS=1, so a
+ * flag-off process has the same annotation set as before those tools existed.
+ */
+export const TOOL_ANNOTATIONS = new Proxy(ANNOTATION_TABLE, {
+  get(target, prop, receiver) {
+    if (typeof prop === 'string' && SUBKEY_ANNOTATION_NAMES.has(prop) && subkeyAnnotationsHidden()) return undefined;
+    return Reflect.get(target, prop, receiver);
+  },
+  has(target, prop) {
+    if (typeof prop === 'string' && SUBKEY_ANNOTATION_NAMES.has(prop) && subkeyAnnotationsHidden()) return false;
+    return Reflect.has(target, prop);
+  },
+  ownKeys(target) {
+    return Reflect.ownKeys(target).filter((k) => !(typeof k === 'string' && SUBKEY_ANNOTATION_NAMES.has(k) && subkeyAnnotationsHidden()));
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    if (typeof prop === 'string' && SUBKEY_ANNOTATION_NAMES.has(prop) && subkeyAnnotationsHidden()) return undefined;
+    return Reflect.getOwnPropertyDescriptor(target, prop);
+  }
 });
 
 /**

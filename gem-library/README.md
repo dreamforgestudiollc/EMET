@@ -10,19 +10,21 @@ EMET is a memory server. A GEM (Golem Expertise Module) is optional guidance tha
 
 | File | Role |
 |---|---|
-| [SPEC.md](SPEC.md) | The standard. Draft, revision 2026-10-11. |
+| [SPEC.md](SPEC.md) | The standard. Draft, revision 2026-10-12. |
 | [gem.schema.json](gem.schema.json) | JSON Schema for `gem.json`. |
 | [AUTHORING.md](AUTHORING.md) | How to make a GEM or a RUNED GEM. |
 | [CONFORMANCE.md](CONFORMANCE.md) | The `gem-check` checks and the security checklist. |
 | [proposals/GEP-0001-core-floor-and-neurendipity-gem.md](proposals/GEP-0001-core-floor-and-neurendipity-gem.md) | Accepted proposal for the first move. |
+| [proposals/GEP-0002-runed-sandbox-contract.md](proposals/GEP-0002-runed-sandbox-contract.md) | Superseded record of the sandbox contract. Kept, not deleted. |
+| [proposals/GEP-0003-client-side-execution.md](proposals/GEP-0003-client-side-execution.md) | Accepted. The socket serves RUNED code and does not run it. |
 | [examples/neurendipity/](examples/neurendipity/gem.json) | A manifest that validates. Illustrative lines, not the floor text to ship. |
 
 ## Two repositories, on purpose
 
-- **EMET-GEMs (this standard).** Private working copy. The owner and the owner's bots change the spec, the schema, and the socket rules here. Reference and bundled GEM sources are kept here too, then copied into an EMET release to load.
-- **A public submission repository, not created yet.** Outside authors will open a pull request there to submit a GEM or a RUNED GEM. Its name and the day it opens are the owner's decision. Nothing from that repository loads until `gem-check` passes and the owner accepts it.
+- **EMET-GEMs (this standard).** Private working copy. Alex and his bots change the spec, the schema, and the socket rules here. Reference and bundled GEM sources are kept here too, then copied into an EMET release to load.
+- **A public submission repository, not created yet.** Outside authors will open a pull request there to submit a GEM or a RUNED GEM. Its name and the day it opens are the owner's decision. Nothing from that repository loads until `gem-check` passes and Alex accepts it.
 
-A submission pull request cannot change `SPEC.md`, `gem.schema.json`, or the socket rules. Those change only by a GEP the owner accepts.
+A submission pull request cannot change `SPEC.md`, `gem.schema.json`, or the socket rules. Those change only by a GEP Alex accepts.
 
 ## What EMET loads
 

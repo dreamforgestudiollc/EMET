@@ -1,0 +1,14 @@
+{
+  "sections": {
+    "field_notes": {
+      "title": "Field notes",
+      "note": "A count of the working layer is a note about what is already stored. It does not add a store.",
+      "lines": {
+        "count_only": "Report the count. The count is not a list, and it is not a new record."
+      }
+    }
+  },
+  "reassertion": [
+    "The working layer is memory, and a count is not a new store."
+  ]
+}

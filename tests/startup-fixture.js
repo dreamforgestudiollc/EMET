@@ -45,7 +45,7 @@ export const DOC_SIZES = { 'bootstrap/IDENTITY.md': 1018, 'bootstrap/SOUL.md': 6
 export async function liveSizedStore() {
   const { setupComplete } = await import('../src/setup.js');
   const s = makeStore();
-  await withStore(s, () => setupComplete({ assistant_name: 'Ada', assistant_character: 'Plain and careful.', user_name: 'Sam Example', user_context: 'Testing.', source_tag: 'example-host' }));
+  await withStore(s, () => setupComplete({ assistant_name: 'Ada', assistant_character: 'Plain and careful.', user_name: 'Sam Example', user_context: 'Testing.', source_tag: 'example-host', more_than_one_bot: 'no' }));
   const docs = s.collection('documents');
   const now = new Date('2026-10-02T12:00:00Z');
   // The live store keeps its character document as bootstrap/SOUL.md; setup

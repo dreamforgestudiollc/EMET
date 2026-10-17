@@ -14,13 +14,14 @@
 import { connectMongo } from './mongo-connect.js';
 import { resolveModulePath } from './module-path.js';
 import { replacedByOf } from './setup.js';
-import { currentActor, writerStamp, boundSourceTag, declaredAttribution, LOCAL_SUBJECT } from './persons.js';
+import { currentActor, rawActor, writerStamp, boundSourceTag, declaredAttribution, LOCAL_SUBJECT } from './persons.js';
 import { approvedTags, APPROVALS_DOC } from './attribution.js';
+import { sealAttestation, frozenAttestation } from './rune-dispatch.js';
 
 /** Approvals record io for attribution.js (server-kept doc, written as emet-server). */
 export const approvalsDeps = {
   readDoc: (id) => readDoc(id),
-  // Compare-and-set on the stored version (review 3). mutateApprovals serializes
+  // Compare-and-set on the stored version (the reviewer 3). mutateApprovals serializes
   // writers in this process; this check catches a writer elsewhere.
   writeDoc: async (id, content, expectedVersion) => {
     // Atomic across processes: writeDoc filters the update on { doc_id, version: expected }.
@@ -461,7 +462,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     // The tier-1 -> tier-2 pointer is pulled out BEFORE metadata validation and
     // stored as top-level columns, not inside metadata. When this was written
     // metadata was a JSON string the store could not filter into; it is a
-    // subdocument now, but the pointer stays top-level because it is
+    // subdocument now (EMET ref 6), but the pointer stays top-level because it is
     // indexed there and the reverse lookup depends on that index.
     const { derived_from: rawProvenance, ...restMetadata } = metadata || {};
     let provenance = validateProvenance(rawProvenance);
@@ -507,7 +508,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     const keywordLayer = determineLayer(validatedContent, validatedMetadata);
     const targetLayer = validatedLayer || FALLBACK_LAYER;
     // Lesson fields are refused at the door when the reader would never count
-    // them (2026-09-29, a decision record): a malformed key, a key off the meta
+    // them (2026-09-29, procedural ref 397): a malformed key, a key off the meta
     // layer, or a disposition that settles nothing. Checked on the caller's
     // metadata as sent, before anything is written.
     {
@@ -542,9 +543,10 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       }
     } else {
       validatedMetadata.source = sourceDecision.tag;
-      if (sourceDecision.from === 'declared' || sourceDecision.from === 'auto') {
+      if (sourceDecision.from === 'declared' || sourceDecision.from === 'auto' || sourceDecision.from === 'subkey') {
         validatedMetadata.source_basis = sourceDecision.from;
         if (sourceDecision.login) validatedMetadata.source_login = sourceDecision.login;
+        if (sourceDecision.from === 'subkey' && sourceDecision.key_id) validatedMetadata.key_id = sourceDecision.key_id;
       }
       delete validatedMetadata.source_defaulted;
       if (sourceDecision.tag) delete validatedMetadata.source_missing;
@@ -571,6 +573,12 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       }
       validatedMetadata.client_id = stamp.client_id;
     }
+    await sealAttestation(validatedMetadata, {
+      session_id: options && options.session_id,
+      inherited: options && options.inheritedAttestation === true,
+      db: dbManager && dbManager.db,
+      dbManager
+    });
 
     // A4: importance is a named bucket. The float is the bucket midpoint
     // unless the caller named a degree (low/mid/high) or still sent a number.
@@ -588,7 +596,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     }
 
     // A5: the charter says whether this layer wants a provenance pointer.
-    // 2026-09-29 (a decision record): the pointer is STAMPED when the caller names
+    // 2026-09-29 (procedural ref 398): the pointer is STAMPED when the caller names
     // its transcript session, and a layer whose charter REQUIRES provenance
     // (semantic, procedural) REFUSES a write that has no source at all. The
     // transport is stateless, so the server never guesses which host's session
@@ -693,7 +701,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     const importance = validatedMetadata.importance;
 
     const columns = provenanceColumns(provenance);
-    // 2026-09-05: the digest is computed BEFORE the write and stored
+    // EMET ref 12 (2026-09-05): the digest is computed BEFORE the write and stored
     // as a column, not only compared in the read-back receipt. Without it the
     // aleph claim held for exactly one instant - verified at write, never again.
     const contentSha256 = digest(validatedContent);
@@ -721,7 +729,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       context: validatedMetadata.context || '',
       emotional_intensity: emotionalIntensity,
       importance,
-      // 2026-09-05: stored as a real subdocument, not a JSON string.
+      // EMET ref 6 (2026-09-05): stored as a real subdocument, not a JSON string.
       // The promoted columns below stay because they are indexed and the vector
       // filter reads them.
       metadata: validatedMetadata,
@@ -746,7 +754,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       chain_sha256: chainSha256
     };
 
-    // Option A correction back-pointer (the owner, 2026-10-02, the owner's decision record item 4): a new entry may name the
+    // Option A correction back-pointer (Alex, 2026-10-02, procedural ref 405 item 4): a new entry may name the
     // entry it partly corrects. The parent must exist in the same layer, and is checked BEFORE the insert so a
     // refused correction writes nothing.
     if (validatedMetadata.corrects !== undefined && validatedMetadata.corrects !== null) {
@@ -769,7 +777,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     const correction = (validatedMetadata.corrects !== undefined && validatedMetadata.corrects !== null)
       ? await markCorrectedBy(dbManager, targetLayer, validatedMetadata.corrects, memoryId)
       : null;
-    // the second reader N4: a correction whose parent could not be marked is still saved,
+    // the reviewer N4: a correction whose parent could not be marked is still saved,
     // but the caller is told in words, not only by a boolean.
     if (correction && correction.marked !== true) {
       warnings.push(`corrects: ${correction.parent_id} - the parent entry was not marked corrected_by (missing in ${targetLayer}, or the mark did not hold); the correction is saved, the link is one-sided until the parent is marked`);
@@ -962,8 +970,8 @@ export async function resolveSupersessionChain(read, entry, maxHops = 50) {
 }
 
 /**
- * Option A correction back-pointer (the owner, 2026-10-02, a decision record item 4; the reviewer's sketch in his
- * second read of an episodic record). Episodic entries are immutable events, so a PARTIAL correction cannot
+ * Option A correction back-pointer (Alex, 2026-10-02, procedural ref 405 item 4; the tester's sketch in his
+ * second read of episodic ref 604). Episodic entries are immutable events, so a PARTIAL correction cannot
  * supersede its parent: supersession would put an end date on the whole parent and present every item
  * in it as replaced. Instead the new entry carries metadata.corrects = <parent id>, and the parent is MARKED:
  * its corrected_by array gains the new id. The parent's content, digest and is_live are untouched; its
@@ -976,7 +984,7 @@ export async function resolveSupersessionChain(read, entry, maxHops = 50) {
  * corrected_by mark): the new metadata digest and, when a signing key is set
  * and the row's existing signature verifies against its metadata before the
  * marks (aleph.js signatureCoversPriorMetadata), a fresh signature over the
- * same content digest and the new metadata digest (2026-10-02, the reviewer's
+ * same content digest and the new metadata digest (2026-10-02, the tester's
  * finding: the marks left signed:false behind). With no key, or a signature
  * that does not verify, the signature is left exactly as it is: never re-signed
  * blindly, so a row changed outside the sanctioned path keeps reading
@@ -996,7 +1004,7 @@ export async function markCorrectedBy(dbManager, layer, parentId, childId) {
   const parent = await col.findOne({ id: parentId });
   if (!parent) return { parent_id: parentId, marked: false };
   const cid = Number(childId);
-  // Race-safe (the second reader N3 / the reviewer, 2026-10-02): the id is ADDED atomically
+  // Race-safe (the reviewer N3 / the tester, 2026-10-02): the id is ADDED atomically
   // ($addToSet on the column and on the metadata copy), never written back
   // from a stale read, so two simultaneous corrections of one parent both
   // land. A legacy string-metadata row falls back to read-modify-write.
@@ -1012,7 +1020,7 @@ export async function markCorrectedBy(dbManager, layer, parentId, childId) {
   // Re-attest from what is actually stored. The digest is set only if the
   // stored metadata is still exactly the metadata it was computed from: the
   // compare-and-set filter is the WHOLE metadata value, not only corrected_by
-  // (the reviewer, 2026-10-02), so a concurrent change to any metadata field in
+  // (the tester, 2026-10-02), so a concurrent change to any metadata field in
   // between (another mark, a superseded_by, anything) makes the filter miss,
   // and the loop re-reads and re-digests. The last re-attest therefore always
   // covers what is stored. The value compared is the one just read back, so
@@ -1059,15 +1067,6 @@ export async function reviseMemory(dbManager, layer, target_id, content, metadat
     if (metadata !== null && metadata !== undefined && !isPlainObject(metadata)) {
       throw new ValidationError('metadata', 'Metadata must be an object', typeof metadata);
     }
-    // 2026-09-29 (a decision record): a revision with no source of its own cites
-    // the entry it revises, so revising a semantic or procedural entry is never
-    // refused for want of a pointer. A caller-supplied derived_from wins.
-    const revisionMetadata = {
-      ...(metadata || {}),
-      supersedes: targetId,
-      ...((metadata && metadata.derived_from) ? {} : { derived_from: { entries: [targetId] } })
-    };
-
     await dbManager.getConnection(validatedLayer);
     const col = dbManager.collectionFor(validatedLayer);
 
@@ -1079,15 +1078,29 @@ export async function reviseMemory(dbManager, layer, target_id, content, metadat
     if (isMemorySuperseded(targetMd)) {
       throw new ValidationError('target_id', `Entry ${targetId} is already superseded by ${targetMd.superseded_by} - revise the CURRENT entry, not the archived one`);
     }
+    // 2026-09-29 (procedural ref 398): a revision with no source of its own cites
+    // the entry it revises, so revising a semantic or procedural entry is never
+    // refused for want of a pointer. A caller-supplied derived_from wins.
+    // Attestation copied from the parent wins over a caller value. A different
+    // value was already refused.
+    const priorAttestation = frozenAttestation(targetMd, metadata);
+    const revisionMetadata = {
+      ...(metadata || {}),
+      ...(priorAttestation || {}),
+      supersedes: targetId,
+      ...((metadata && metadata.derived_from) ? {} : { derived_from: { entries: [targetId] } })
+    };
 
-    const saved = await saveMemory(dbManager, validatedContent, validatedLayer, revisionMetadata, logger, null);
+    const saved = await saveMemory(dbManager, validatedContent, validatedLayer, revisionMetadata, logger, null, {
+      inheritedAttestation: Boolean(priorAttestation)
+    });
 
     targetMd.superseded_by = saved.id;
     targetMd.superseded_at = saved.timestamp;
     // Write BOTH the metadata copy and the promoted top-level column. The
     // top-level one is what a reader follows (indexed); the metadata copy
     // stays for audit. Always written as a subdocument - a parent still
-    // carrying the legacy string shape is converted by this touch.
+    // carrying the legacy string shape is converted by this touch (EMET ref 6).
     // is_live is left as it was. Supersession is the end date and the link
     // to the new entry, not a flag that hides the old one.
     await col.updateOne({ id: targetId }, { $set: {
@@ -1642,7 +1655,7 @@ export async function queryLayer(dbManager, layer, options = {}, logger = null, 
     // there is not even one to read - that transport's logger discards warn().
     // So the ignored keys ride back in the response envelope, where the person
     // who wrote the bad filter will actually see them. This is the surface that
-    // would have caught the 2026-09-08 phantom defect as it happened.
+    // would have caught the 2026-09-08 phantom defect as it happened (ref 259).
     if (validatedOptions._unknown_filter_keys) {
       attachWarnings(results, [
         `Ignored unrecognised filter key(s): ${validatedOptions._unknown_filter_keys.join(', ')}. `
@@ -2069,6 +2082,7 @@ export async function sessionOpen({ slug, load_id } = {}, logger = null, dbManag
         : 'Nothing was merged into another session.')
     : null;
   logger?.info?.('transcript session open', { session_id, ...(suffixed ? { requested } : {}) });
+  const session_handle = await subkeyHandleForOpen(rawActor(), base, now);
   // Startup page completion (2026-10-03). Through dispatch, an open with no
   // load_id or with pages missing is refused before this runs (the
   // startup_pages gate); a direct call is told what was checked.
@@ -2093,6 +2107,7 @@ export async function sessionOpen({ slug, load_id } = {}, logger = null, dbManag
   return {
     session_id,
     base,
+    ...(session_handle ? { session_handle } : {}),
     drops_seen,
     ...(drops_unverified ? { drops_unverified: true } : {}),
     next_exchange_index: 1,
@@ -2146,6 +2161,19 @@ export function startupPagesCheck(loadId, logger = null, sessionId = null, now =
   return { load_id: c.load_id, checked: true, complete: false, of: c.of, served: c.served, missing: c.missing, notice };
 }
 
+/** The one-time session handle for a sub-key open. Null when this open did not present a key. Never logged. */
+async function subkeyHandleForOpen(actor, base, now) {
+  if (!actor || setting('SUBKEYS') !== '1') return null;
+  const { takeOpenToken, commitLiveSession } = await import('./subkeys.js');
+  if (!takeOpenToken(actor)) return null;
+  try {
+    return await commitLiveSession(approvalsDeps, actor, base, now);
+  } catch (e) {
+    if (e && e.attributionRefusal) throw new ValidationError('subkey', e.message);
+    throw e;
+  }
+}
+
 export async function transcriptAppend(args = {}, logger = null) {
   const session_id = args.session_id;
   const user_message = args.user_message;
@@ -2197,6 +2225,11 @@ export async function transcriptAppend(args = {}, logger = null) {
       person_id: stamp.person_id,
       client_id: stamp.client_id
     };
+    const attr = declaredAttribution();
+    if (attr && attr.basis === 'subkey' && attr.keyId) {
+      row.key_id = attr.keyId;
+      row.source_basis = 'subkey';
+    }
 
     // Build 1 (2026-09-27): the first append of a session must carry the
     // measured machine line, or say there is no local shell. The rule lived in
@@ -2513,6 +2546,8 @@ export async function readDoc(doc_id, logger = null, opts = {}) {
       return { doc_id: doc.doc_id, content, sha256: doc.sha256, version: doc.version,
                updated_at: doc.updated_at, updated_by: doc.updated_by || null,
                client_id: doc.client_id || null, session_id: doc.session_id || null,
+               ...(doc.key_id ? { key_id: doc.key_id } : {}),
+               ...(doc.source_basis ? { source_basis: doc.source_basis } : {}),
                path_hint: doc.path_hint || null, size: doc.content.length,
                size_unit: 'characters', size_bytes: Buffer.byteLength(doc.content, 'utf8'),
                ...(page ? { page } : {}),
@@ -2555,6 +2590,8 @@ export async function readDocHistory(doc_id, version = null, logger = null) {
         const retained = await hist.find({ doc_id }, { projection: { content: 0 } }).sort({ version: 1 }).toArray();
         const rows = retained.map(r => ({ version: r.version, sha256: r.sha256 || null, size: r.size ?? null,
           updated_at: r.updated_at || null, updated_by: r.updated_by || null, client_id: r.client_id || null, session_id: r.session_id || null, archived_at: r.archived_at || null,
+          ...(r.key_id ? { key_id: r.key_id } : {}),
+          ...(r.source_basis ? { source_basis: r.source_basis } : {}),
           conformance: r.conformance ? r.conformance.verdict : null }));
         return { doc_id, current_version: current ? current.version : null, retained_count: rows.length, retained: rows,
                  note: current ? null : 'No current document by this id; only retained revisions, if any.' };
@@ -2563,6 +2600,8 @@ export async function readDocHistory(doc_id, version = null, logger = null) {
         return { doc_id, version, is_current: true, content: current.content, sha256: current.sha256, size: current.content.length,
                  updated_at: current.updated_at, updated_by: current.updated_by || null,
                  client_id: current.client_id || null, session_id: current.session_id || null,
+                 ...(current.key_id ? { key_id: current.key_id } : {}),
+                 ...(current.source_basis ? { source_basis: current.source_basis } : {}),
                  conformance: current.conformance || null };
       }
       // More than one archived row can carry a version when a write was retried;
@@ -2573,6 +2612,8 @@ export async function readDocHistory(doc_id, version = null, logger = null) {
       return { doc_id, version, is_current: false, content: row.content, sha256: row.sha256 || null, size: row.content.length,
                updated_at: row.updated_at || null, updated_by: row.updated_by || null, archived_at: row.archived_at || null,
                client_id: row.client_id || null, session_id: row.session_id || null,
+               ...(row.key_id ? { key_id: row.key_id } : {}),
+               ...(row.source_basis ? { source_basis: row.source_basis } : {}),
                conformance: row.conformance || null,
                // Re-hashed on read, as a layer row is: a retained revision that
                // does not match its own digest is returned and flagged, never hidden.
@@ -2585,7 +2626,7 @@ export async function readDocHistory(doc_id, version = null, logger = null) {
 }
 
 /**
- * Records are superseded, never amended (2026-09-26, the owner: "enforce
+ * Records are superseded, never amended (2026-09-26, Alex: "enforce
  * supersession ISO practices"). ISO 9001 7.5.3 / ISO 13485 4.2.5 separate
  * DOCUMENTS, which are revised under control, from RECORDS, which are evidence
  * of what happened and are not altered. The handoff is a record: it attests to
@@ -2622,17 +2663,18 @@ function _refuseRecordAmendment(doc_id, tool) {
 }
 
 /**
- * The main records are the hub's (C1, 2026-10-01). write_doc and patch_doc refuse the main HANDOFF.md or STATE.md when the
+ * The main records are the hub's (C1, 2026-10-01; review note section
+ * 3.5). write_doc and patch_doc refuse the main HANDOFF.md or STATE.md when the
  * write's source is a bot tag (bots/<tag>/HANDOFF.md listed in
  * EMET_RECORD_DOCS), and nothing is written. So do the other doors that can
- * change a main record (the reviewer's F1 in review): retire_doc, rename_doc (from
+ * change a main record (the tester's F1 on PR 2): retire_doc, rename_doc (from
  * or onto one) and accept_nonconformance - retire and rename set retired_by,
  * not updated_by, so the close alone could not see them. The source is the one the door
  * stamps as updated_by: the caller's, else EMET_SOURCE_TAG. A records rule like
  * the record-amendment refusal above, so it applies in every graph mode.
  *
- * Two further guards on the same doors (2026-10-01, the owner's approval to
- * make the bot tags fully functional; the reviewer's review of the bot tags):
+ * Two further guards on the same doors (2026-10-01, the owner's 4:17 PM approval to
+ * make the bot tags fully functional; the tester's review of PR 3):
  *   - REGISTERED HOSTS ONLY on the main records. With a source registry
  *     configured (EMET_SOURCE_TAGS, parsed as save_to_layer parses it), the
  *     main handoff and board take writes only from a registered tag. An
@@ -2653,11 +2695,12 @@ export function sourceRegistry() {
 }
 
 /**
- * Attribution v2 (review A3): a declared tag never gains rights beyond the login's
+ * Attribution v2 (the reviewer A3): a declared tag never gains rights beyond the login's
  * tag. A guard is run for every tag returned here and the write must pass all.
  */
 export function rightsTags(tag) {
   const d = declaredAttribution();
+  if (d && d.basis === 'subkey' && d.effective && tag === d.effective && d.login && d.login !== tag) return [tag, d.login];
   if (d && d.declared && tag === d.declared && d.login && d.login !== tag) return [tag, d.login];
   return [tag];
 }
@@ -2679,6 +2722,7 @@ export function resolvedSourceTag(caller) {
   // stamp (declared, or generated for a login with none). Rights stay the
   // login's: see rightsTags().
   const d = declaredAttribution();
+  if (d && d.basis === 'subkey' && d.effective) return { tag: d.effective, from: 'subkey', login: bound || null, key_id: d.keyId || null };
   if (d && d.declared && d.basis === 'declared' && tag === d.declared) return { tag, from: 'declared', login: bound || null };
   if (typeof bound === 'string' && bound) return { tag: bound, from: 'bound' };
   if (tag && sourceRegistry().includes(tag)) return { tag, from: 'legacy' };
@@ -2686,14 +2730,14 @@ export function resolvedSourceTag(caller) {
   return { tag: null, from: 'legacy' };
 }
 
-// Look-alike doc ids (the second reader's recheck d1-d5, 2026-10-02): a `.` or `..` segment,
+// Look-alike doc ids (the reviewer's recheck d1-d5, 2026-10-02): a `.` or `..` segment,
 // a leading `/`, or a `bots/` prefix in the wrong case would let a write pass
 // the prefix checks below while naming a record they are meant to fence (d1:
-// bots/tester-bot/../intake-bot/HANDOFF.md passed the own-dir check). Doc
+// bots/reviewer-bot/../intake-bot/HANDOFF.md passed the own-dir check). Doc
 // ids are flat strings, never resolved as paths, so these shapes are refused
 // outright, before any guard, on every door that calls this.
 //
-// Hardening (the reviewer's scope on the doc-id fix, 2026-10-02): also refused are
+// Hardening (the tester's scope on the doc-id fix, 2026-10-02): also refused are
 // control and invisible-format characters (\p{Cc}, \p{Cf}) anywhere; leading or
 // trailing whitespace on the id or on any segment; a backslash; the `/`, `.`/`..`
 // and `bots/` checks run on the NFKC form too (so full-width dots and slashes,
@@ -2740,7 +2784,7 @@ export function refuseLookalikeDocId(doc_id, tool) {
   }
 }
 
-// Cleanup path (the reviewer's scope): a look-alike id may already exist in a store
+// Cleanup path (the tester's scope): a look-alike id may already exist in a store
 // written before these checks. retire_doc, and rename_doc FROM such an id, are let
 // through for a registered host tag only: EMET_SOURCE_TAGS set, the tag listed,
 // and not a bot tag. Never for a write, a patch, a rename onto it, or a bot.
@@ -2754,12 +2798,12 @@ export function refuseBotMainRecord(doc_id, updated_by, tool, options = {}) {
 }
 function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
   const tag = updated_by || setting('SOURCE_TAG') || null;
-  // The client-approvals record is server-only (review 4): no host writes,
+  // The client-approvals record is server-only (the reviewer 4): no host writes,
   // patches, retires, renames, restores or accepts it.
   if (typeof doc_id === 'string' && FOLD(doc_id.normalize('NFKC')) === FOLD(APPROVALS_DOC) && !(options && options.approvalsRecord === true)) {
     throw new ValidationError(`${tool}: ${doc_id} is kept by the server (client approvals). Decide clients with emet_client_approve. Nothing was written.`);
   }
-  // A3 without a registry (re-review): a declared or generated tag writes
+  // A3 without a registry (the reviewer re-review): a declared or generated tag writes
   // under bots/ only inside bots/<its own tag>/ and only once approved.
   {
     const d = declaredAttribution();
@@ -2780,7 +2824,7 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
       `Hand it to the hub instead. Nothing was written.`
     );
   }
-  // Registry guard on bots/ too (the reviewer's review of the bot guards; the second reader's fix (a), 2026-10-02): with EMET_SOURCE_TAGS
+  // Registry guard on bots/ too (the tester's PR 5 review; the reviewer's fix (a), 2026-10-02): with EMET_SOURCE_TAGS
   // set, a non-bot write under bots/ is refused unless its tag is registered; a missing source counts as
   // unregistered. Without this, a misspelled or unregistered tag is not a bot tag, so the cross-bot guard
   // above never fires and it can write any bot's records or the roster. A listed bot is already fenced to
@@ -2811,14 +2855,14 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
 }
 
 /**
- * retire_doc and rename_doc are not bot tools at all (the owner, 2026-10-01,
- * decision 1, as relayed: "retire_doc isn't needed for bots: keep it
- * the owner/hub only and out of every bot profile"; the owner's decision record; stage 1 of the
- * host-aware startup amendment, admitted by the reviewer 2026-10-02). A profile is not a
+ * retire_doc and rename_doc are not bot tools at all (Alex, 2026-10-01 4:27 PM
+ * ET, decision 1, as relayed: "retire_doc isn't needed for bots: keep it
+ * owner/hub only and out of every bot profile"; procedural ref 407; stage 1 of the
+ * ref 358 startup amendment, admitted by the tester 2026-10-02). A profile is not a
  * security boundary, so the door refuses them under ANY bot tag, for every
- * doc_id - not only the main records refuseBotMainRecord covers. The owner's decision record (item 1)
- * covers retire_doc only; rename_doc stays owner-only under a later decision record
- * (owner-confirmed 2026-10-02: every other owner-only tool is
+ * doc_id - not only the main records refuseBotMainRecord covers. ref 407(1)
+ * covers retire_doc only; rename_doc stays owner-only under procedural ref 409
+ * (owner-confirmed 2026-10-02 the recorded time: every other owner-only tool is
  * unchanged), and it retires its old id internally, so it is refused too. The tag is the
  * one the door would stamp: the caller's, else EMET_SOURCE_TAG. Hosts and the
  * hub have no bots/<tag>/HANDOFF.md record and are unaffected. Nothing is
@@ -2834,8 +2878,8 @@ function refuseBotRetireRenameOne(tag, tool) {
     'source',
     `${tool} is not a bot tool: ${t} is a bot tag, and ` +
     (tool === 'retire_doc'
-      ? `retiring documents is the owner's and the hub's (decision 1, the owner's decision record item 1)`
-      : `renaming documents stays owner-only (the owner's decision record)`) +
+      ? `retiring documents is the owner's and the hub's (decision 1, procedural ref 407 item 1)`
+      : `renaming documents stays owner-only (procedural ref 409)`) +
     `. Ask the hub. Nothing was changed.`
   );
 }
@@ -2858,7 +2902,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
     try {
       const prev = await col.findOne({ doc_id });
       const version = (prev && prev.version ? prev.version : 0) + 1;
-      // Compare-and-set for the client-approvals record (review round 3): checked
+      // Compare-and-set for the client-approvals record (the reviewer round 3): checked
       // here before anything is archived, and again atomically in the update filter.
       const casOn = options && options.approvalsRecord === true && Object.prototype.hasOwnProperty.call(options, 'expectedVersion');
       const casConflict = () => { const e = new ValidationError(`${doc_id} changed under this write (compare-and-set). Nothing was written.`); e.versionConflict = true; return e; };
@@ -2978,7 +3022,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       const now = new Date();
       // Validation runs HERE: after redaction, on the exact text that will be
       // stored, with the previous revision already in hand for the
-      // carry-forward comparison. It marks and never rejects, so its
+      // carry-forward comparison. It marks and never rejects (ref 304), so its
       // result is a field on the row rather than a branch in this function.
       // Writing the field whole also enforces L6 - the fresh object carries no
       // acceptance, so an acceptance covers the one revision it was given to.
@@ -3019,6 +3063,11 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         retired: false,
         size_note: 'baseline is the size when this session first touched the document'
       };
+      const attr = declaredAttribution();
+      if (attr && attr.basis === 'subkey' && attr.keyId) {
+        writtenRow.key_id = attr.keyId;
+        writtenRow.source_basis = 'subkey';
+      }
       if (options && options.provision && doc_id === stateDoc()) {
         const ins = await col.updateOne({ doc_id }, { $setOnInsert: writtenRow }, { upsert: true });
         if (ins && ins.upsertedCount === 0) {
@@ -3028,7 +3077,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         let res;
         try {
           res = options.expectedVersion == null
-            // review delta M1: documents.doc_id has no unique index, so the first
+            // the reviewer delta M1: documents.doc_id has no unique index, so the first
             // create keys on a deterministic _id; _id is always unique, so a
             // second racing insert matches it (or hits a duplicate key) and loses.
             ? await col.updateOne({ _id: `${APPROVALS_DOC}#current` }, { $setOnInsert: writtenRow }, { upsert: true })
@@ -3499,7 +3548,7 @@ export async function patchDoc(doc_id, old_str, new_str, updated_by = null, expe
   }
 }
 
-// Restored 2026-09-19: both constants were dropped in an earlier commit while the function
+// Restored 2026-09-19: both constants were dropped in commit-685d822 while the function
 // kept referencing them, which made every semantic_recall call throw
 // "SEMANTIC_RECALL_LAYERS is not defined".
 const SEMANTIC_RECALL_LAYERS = ['episodic', 'semantic', 'procedural', 'meta', 'identity', 'working'];
@@ -3778,7 +3827,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_setup_complete",
-    description: "First-time setup, the owner's only: record the user's interview answers as bootstrap/IDENTITY.md, bootstrap/CHARACTER.md and bootstrap/USER.md and as an identity-layer entry, and create the owner person. Every write is read-back verified. Refused under a bot tag. On a store that is already set up it is refused unless reissue is true (the owner's explicit word): a re-run writes new versions of the user's identity documents; prior versions are archived, never destroyed.",
+    description: "First-time setup, the owner's only: record the user's interview answers as bootstrap/IDENTITY.md, bootstrap/CHARACTER.md and bootstrap/USER.md and as an identity-layer entry, and create the owner person. Every write is read-back verified. Refused under a bot tag. On a store that is already set up it is refused unless reissue is true (the owner's explicit word): a re-run writes new versions of the user's identity documents; prior versions are archived, never destroyed. answers.more_than_one_bot is optional. Absent or no leaves sub-keys off. yes writes EMET_SUBKEYS=1, a generated pepper and EMET_SUBKEY_PEPPER_VERSION=1 into .env only when that file is the config source, after the store writes succeed, and does not turn the flag on in this process. A hosted server refuses yes and returns the three variables to set, then redeploy. See docs/SUBKEYS.md.",
     inputSchema: {
       type: "object",
       properties: {
@@ -3791,7 +3840,8 @@ const TOOL_DEFINITIONS = [
             user_name: { type: "string" },
             user_context: { type: "string" },
             user_preferences: { type: "string" },
-            source_tag: { type: "string" }
+            source_tag: { type: "string" },
+            more_than_one_bot: { type: "string", description: "Optional. yes or no, in the user's words. Absent or no leaves sub-keys off. yes turns them on only when this server reads .env. Do not invent this answer." }
           },
           required: ["assistant_name", "assistant_character", "user_name", "user_context"]
         },
@@ -4308,6 +4358,43 @@ const TOOL_DEFINITIONS = [
   }
 ];
 
+/** Registered only when EMET_SUBKEYS=1. Flag off, a host's tool list does not include them. */
+const SUBKEY_TOOL_DEFINITIONS = [
+  {
+    name: "emet_subkey_request",
+    description: "Request a delegated client sub-key for one registered source tag. Only an authenticated HTTP login of the owner may call it, and only when EMET_SUBKEYS=1. The result carries a one-time claim nonce. The server stores only its HMAC. Approve or deny the request with emet_client_approve from the owner's own login.",
+    inputSchema: { type: "object", properties: {
+      tag: { type: "string", description: "The source tag this key will stamp. An exact member of EMET_SOURCE_TAGS when a registry is set." }
+    }, required: ["tag"] }
+  },
+  {
+    name: "emet_subkey_claim",
+    description: "Claim an approved sub-key with the key_id and the one-time nonce from emet_subkey_request. The result carries the emk_ key once. A second claim, a wrong nonce, or a missing pepper is refused. The bot keeps the key as a local secret; it is never written into EMET content.",
+    inputSchema: { type: "object", properties: {
+      key_id: { type: "string", description: "The key_id from emet_subkey_request." },
+      nonce: { type: "string", description: "The one-time emn_ nonce from emet_subkey_request." }
+    }, required: ["key_id", "nonce"] }
+  },
+  {
+    name: "emet_subkey_revoke",
+    description: "Revoke a client sub-key by tag or key_id. The owner's own login can always revoke. The key record is kept. A later write with its session handle is refused, and earlier writes stay as written.",
+    inputSchema: { type: "object", properties: {
+      tag: { type: "string", description: "Revoke the live key for this tag. Pass tag or key_id." },
+      key_id: { type: "string", description: "Revoke this key. Pass tag or key_id." },
+      reason: { type: "string", description: "Why it was revoked. Kept on the record." }
+    } }
+  },
+  {
+    name: "emet_subkey_end_session",
+    description: "End a sub-key's live session without revoking the key. Owner only. Use it when the single live session is stuck and the key should stay usable. The old session handle stops working; the bot opens a new session with the same key.",
+    inputSchema: { type: "object", properties: {
+      tag: { type: "string", description: "The tag whose live session to end. Pass tag or key_id." },
+      key_id: { type: "string", description: "The key whose live session to end. Pass tag or key_id." },
+      reason: { type: "string", description: "Why the session was ended. Kept on the record." }
+    } }
+  }
+];
+
 /**
  * The tool list as hosts receive it, with MCP annotations attached.
  *
@@ -4316,7 +4403,7 @@ const TOOL_DEFINITIONS = [
  * acting, exactly as risky as an arbitrary shell command.
  */
 /**
- * The session graph's two inputs on every write tool (2026-09-29):
+ * The session graph's two inputs on every write tool (2026-09-29, board 120):
  * `session_id` names the session the write belongs to, `exchange` the turn.
  * Added here, once, rather than hand-copied into each schema; a schema that
  * already declares one keeps its own description.
@@ -4332,8 +4419,61 @@ for (const t of TOOL_DEFINITIONS) {
   t.inputSchema.properties = t.inputSchema.properties || {};
   for (const [k, v] of Object.entries(GRAPH_INPUTS)) if (!t.inputSchema.properties[k]) t.inputSchema.properties[k] = v;
 }
+const SESSION_HANDLE_INPUT = {
+  type: 'string',
+  description: 'Required on every write in a session opened with a sub-key. The session_handle emet_session_open returned once. It is not repeated in receipts, logs, or session_graph.'
+};
+const SUBKEY_OPEN_INPUT = {
+  type: 'string',
+  description: 'The bot\'s emk_ sub-key. Presented once here. The result\'s session_handle is what later writes in this session pass.'
+};
+const SUBKEY_CLOSE_INPUT = {
+  type: 'string',
+  description: 'The emk_ sub-key that opened this session. A close releases that sub-key session only when this and session_handle are the ones that opened it. The handle is checked against receipts.transcript_session_id.'
+};
 
-export const TOOLS = annotate(TOOL_DEFINITIONS);
+function cloneTool(t) {
+  const schema = t.inputSchema ? {
+    ...t.inputSchema,
+    properties: { ...(t.inputSchema.properties || {}) },
+    ...(Array.isArray(t.inputSchema.required) ? { required: [...t.inputSchema.required] } : {})
+  } : t.inputSchema;
+  return { ...t, inputSchema: schema };
+}
+
+let toolCache = { flag: null, tools: null };
+
+/** The tool list a host receives. The four sub-key tools and their schema fields exist only when EMET_SUBKEYS=1. */
+export function hostTools() {
+  const on = setting('SUBKEYS') === '1';
+  if (toolCache.tools && toolCache.flag === on) return toolCache.tools;
+  const defs = TOOL_DEFINITIONS.map(cloneTool);
+  if (on) {
+    const open = defs.find((t) => t.name === 'emet_session_open');
+    if (open && open.inputSchema) open.inputSchema.properties.subkey = SUBKEY_OPEN_INPUT;
+    const close = defs.find((t) => t.name === 'emet_session_close');
+    if (close && close.inputSchema) close.inputSchema.properties.subkey = SUBKEY_CLOSE_INPUT;
+    for (const t of defs) {
+      const props = t.inputSchema && t.inputSchema.properties;
+      if (!props || !props.session_id || props.session_handle) continue;
+      props.session_handle = SESSION_HANDLE_INPUT;
+    }
+    defs.push(...SUBKEY_TOOL_DEFINITIONS.map(cloneTool));
+  }
+  const tools = annotate(defs);
+  toolCache = { flag: on, tools };
+  return tools;
+}
+
+/** Live view of hostTools(), so a test that flips EMET_SUBKEYS sees the list for that flag. */
+export const TOOLS = new Proxy([], {
+  get(_target, prop) {
+    const list = hostTools();
+    if (prop === Symbol.iterator) return list[Symbol.iterator].bind(list);
+    const value = list[prop];
+    return typeof value === 'function' ? value.bind(list) : value;
+  }
+});
 
 
 // ============================================

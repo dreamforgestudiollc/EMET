@@ -1,7 +1,7 @@
 /**
- * Stage 1 of the host-aware startup amendment (2026-10-02; admitted by
- * the reviewer's design review, conditions S1-S2; the owner's decisions 1 and 2 as
- * relayed 2026-10-01, the owner's decision record, and answer 5).
+ * Stage 1 of the ref 358 host-aware startup amendment (2026-10-02; admitted by
+ * the tester's design review, conditions S1-S2; the owner's decisions 1 and 2 as
+ * relayed 2026-10-01 the recorded time, procedural ref 407, and answer 5, ref 405 item 8).
  *
  *   S2a  a new store: initialize says setup_required and writes nothing;
  *        setupComplete writes the three documents AND the owner person;
@@ -11,7 +11,7 @@
  *   R    setupComplete on a set-up store is refused unless reissue: true;
  *        nothing is written when refused; a reissue keeps the one owner
  *   B    setupComplete under a configured bot tag is refused (S1: inert until a
- *        caller declares a bot tag the owner has configured); nothing is written
+ *        caller declares a bot tag Alex has configured); nothing is written
  *   D1   retire_doc and rename_doc are refused under any bot tag for any doc_id,
  *        and stay allowed for a host tag
  * Everything runs against an in-memory store through the real code (initialize,
@@ -28,7 +28,7 @@ for (const k of ['EMET_SOURCE_TAG', 'EMET_SOURCE_TAGS', 'EMET_TEMPLATE_MAP', 'EM
 const BOT = 'example-bot';
 const HOST = 'example-host';
 
-console.log('\n=== setup-owner (stage 1 of the host-aware startup amendment) ===');
+console.log('\n=== setup-owner (stage 1 of the ref 358 amendment) ===');
 
 const { initialize, setupComplete } = await import('../src/setup.js');
 const { dispatchTool } = await import('../src/dispatch.js');
@@ -40,7 +40,7 @@ const GRAPH_SID = seedOpenSession((n) => graphStore.collection(n), undefined, { 
 const GRAPH_DB = { async ensureClient() { return new graphStore.Client().db(); }, async transcriptPosition() { return { highest: 1 }; } };
 const CTX = { dbManager: GRAPH_DB, logger: null };
 const go = (s, tool, args) => withStore(s, () => dispatchTool(tool, inSession(tool, (tool === 'patch_doc' || tool === 'write_doc' || tool === 'rename_doc' || tool === 'retire_doc') && !args.reason ? { ...args, reason: 'fixture reason for the edit' } : args, GRAPH_SID), CTX));
-const ANSWERS = { assistant_name: 'Ada', assistant_character: 'Plain and careful.', user_name: 'Sam Example', user_context: 'Testing a new store.' };
+const ANSWERS = { assistant_name: 'Ada', assistant_character: 'Plain and careful.', user_name: 'Sam Example', user_context: 'Testing a new store.', more_than_one_bot: 'no' };
 const persons = (s) => (s.cols.get('persons') ? s.cols.get('persons').docs : []);
 const docOf = (s, id) => (s.cols.get('documents') ? s.cols.get('documents').docs.find((d) => d.doc_id === id) : null);
 async function setUpStore() {
@@ -180,7 +180,7 @@ testGroup('B: setup under a configured bot tag is refused (S1: inert until a bot
     assert.ok(r.isError && /is a bot tag/.test(r.content[0].text), r.content[0].text.slice(0, 200));
     assert.deepStrictEqual(s.writes, []);
   }));
-  test('the same tag before the owner configures it is not a bot tag: setup proceeds (the gating is inert until stage 3)', async () => {
+  test('the same tag before Alex configures it is not a bot tag: setup proceeds (the gating is inert until stage 3)', async () => {
     const s = makeStore();
     const r = await withStore(s, () => setupComplete({ ...ANSWERS }, null, { source: BOT }));
     assert.strictEqual(r.ok, true);
@@ -220,9 +220,9 @@ testGroup('D1: retire_doc and rename_doc are refused under any bot tag (decision
     assert.doesNotThrow(() => refuseBotRetireRename(BOT, 'retire_doc'));
     withEnv(env, () => assert.throws(() => refuseBotRetireRename(BOT, 'retire_doc'), /retire_doc is not a bot tool/));
     withEnv({ ...env, EMET_SOURCE_TAG: BOT }, () => assert.throws(() => refuseBotRetireRename(null, 'rename_doc'), /rename_doc is not a bot tool/));
-    // Citations: The first decision record covers retire only; rename stays owner-only under a later one.
-    withEnv(env, () => assert.throws(() => refuseBotRetireRename(BOT, 'retire_doc'), (e) => /the owner's decision record item 1/.test(e.message) && !/#\d{3}/.test(e.message)));
-    withEnv(env, () => assert.throws(() => refuseBotRetireRename(BOT, 'rename_doc'), (e) => /owner-only \(the owner's decision record\)/.test(e.message) && !/#\d{3}/.test(e.message)));
+    // Citations: ref 407(1) covers retire only; rename stays owner-only under ref 409.
+    withEnv(env, () => assert.throws(() => refuseBotRetireRename(BOT, 'retire_doc'), (e) => /procedural ref 407 item 1/.test(e.message) && !/ref 409/.test(e.message)));
+    withEnv(env, () => assert.throws(() => refuseBotRetireRename(BOT, 'rename_doc'), (e) => /owner-only \(procedural ref 409\)/.test(e.message) && !/ref 407/.test(e.message)));
   });
 });
 

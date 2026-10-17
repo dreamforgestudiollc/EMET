@@ -1,5 +1,5 @@
 /**
- * EMET - metadata shape tests (2026-09-05).
+ * EMET - metadata shape tests (EMET ref 6, 2026-09-05).
  *
  * No database. parseMetadata is the one place that knows the field has had two
  * shapes; if it is wrong, every reader is wrong. isMetadataPath decides what the

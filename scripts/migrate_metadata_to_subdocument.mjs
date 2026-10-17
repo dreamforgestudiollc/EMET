@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * EMET - metadata migration: JSON string -> subdocument (2026-09-05)
+ * EMET - metadata migration: JSON string -> subdocument (EMET ref 6, 2026-09-05)
  *
  * Every layer entry written before 2026-09-05 stores `metadata` as a JSON
  * string. This rewrites each such entry so `metadata` is a real subdocument.

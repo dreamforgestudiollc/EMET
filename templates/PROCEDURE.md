@@ -1,6 +1,6 @@
 # TEMPLATE — PROCEDURE
 
-**Template control:** id `templates/PROCEDURE.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · a decision record · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
+**Template control:** id `templates/PROCEDURE.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · procedural ref 311 (board 011) · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
 **Fills:** `procedures/<name>.md` — reference procedures and work instructions: how to do one specific thing on one specific system (Tier 3). **Every `procedures/*` document is validated against this template by its id** (`templates/STANDARD.md` §9 map); leaving out the control block does not exempt it (§9a L4). Work instructions that exist outside the store come in when they are next rewritten, not before.
 **Failure it prevents:** recorded paths and commands that went stale unverified and failed silently when followed — an interpreter path that no longer existed carried in two bootstrap documents for months; a deploy command naming the project instead of the service (reference install, August–September 2026).
 **Completion rules:** `templates/STANDARD.md` §5, unmodified.

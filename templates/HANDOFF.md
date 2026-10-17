@@ -1,6 +1,6 @@
 # TEMPLATE — HANDOFF
 
-**Template control:** id `templates/HANDOFF.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · a decision record · owner: EMET (base) · built to `templates/STANDARD.md` · decision record: the owner's
+**Template control:** id `templates/HANDOFF.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · procedural ref 311 · owner: EMET (base) · built to `templates/STANDARD.md` · decision record: procedural ref 304
 **Fills:** `HANDOFF.md` — the session narrative, written at every close. Replaced at each close; the prior revision is archived automatically.
 **Failure it prevents:** a handoff's "nothing pending", true for one session, relayed at the next startup as true for the whole board (reference install, September 2026); a handoff written from memory rather than from the documents, carrying stale priorities (reference install, April 2026); a handoff whose first action was "open by asking the user", so the next startup put nothing in the user's sight (reference install, 2026-09-10).
 **Completion rules:** `templates/STANDARD.md` §5, unmodified.

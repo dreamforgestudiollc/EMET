@@ -57,6 +57,8 @@ import {
 } from './database.js';
 
 import { dispatchTool } from './dispatch.js';
+import { seatGems } from './socket.js';
+import { runeToolList } from './rune-registry.js';
 // Import tools module (the per-tool handlers are reached through dispatch.js)
 import {
   TOOLS,
@@ -124,7 +126,7 @@ const server = new Server(
  * List available tools
  */
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return { tools: TOOLS };
+  return { tools: [...TOOLS, ...runeToolList()] };
 });
 
 /**
@@ -169,7 +171,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   // Every tool call leaves one audit entry (H6, 2026-09-19). callTool never
   // throws: it returns either a success response or handleError's response.
   const t0 = Date.now();
-  // Parameter NAMES, never values (the owner, 2026-09-27, code audit 1.6): the next
+  // Parameter NAMES, never values (Alex, 2026-09-27, code audit 1.6): the next
   // audit can measure which parameters hosts use; nothing a host sent is stored.
   const paramNames = Object.keys(args || {}).sort();
   const result = await actorStore.run(actor, () => callTool(name, args));
@@ -255,6 +257,11 @@ async function main() {
       });
     }
   }
+
+  try { await seatGems({ log: logger }); }
+  catch (e) { logger.error('GEM socket failed closed', { error: e && e.message }); }
+
+  import('./subkeys.js').then((m) => m.startFlagOffSweep((msg) => logger.error(msg))).catch((e) => logger.error('sub-key flag-off sweep failed', { error: e && e.message }));
 
   const startupDurationMs = Date.now() - startTime;
 

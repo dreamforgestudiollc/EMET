@@ -2,5 +2,6 @@
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "maintainers": [
     "dreamforgestudiollc"
-  ]
+  ],
+  "description": "EMET 0.2.5 is an MCP memory server: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true."
 }
