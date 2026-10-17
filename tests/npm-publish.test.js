@@ -17,6 +17,7 @@ const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'))
 const server = JSON.parse(fs.readFileSync(path.join(ROOT, 'server.json'), 'utf8'));
 const FILES = [
   'src/',
+  'verification/',
   'templates/',
   'guides/',
   'gems/',
@@ -107,7 +108,7 @@ testGroup('npm publish metadata', () => {
     assert.strictEqual(pkg.repository.url, 'git+https://github.com/dreamforgestudiollc/EMET.git');
     assert.strictEqual(pkg.main, 'src/index.js');
     assert.strictEqual(pkg.bin.emet, 'src/index.js');
-    assert.strictEqual(pkg.engines.node, '>=20');
+    assert.strictEqual(pkg.engines.node, '>=22');
     assert.deepStrictEqual(pkg.publishConfig, { access: 'public' });
     assert.deepStrictEqual(pkg.files, FILES);
     for (const word of ['mcp', 'mcp-server', 'model-context-protocol', 'ai-memory', 'agent-memory', 'persistent-memory']) {
@@ -118,7 +119,7 @@ testGroup('npm publish metadata', () => {
   test('npm pack --dry-run ships runtime files and docs, and leaves private paths out', () => {
     const packed = packDryRun();
     const paths = packed.files.map((f) => f.path);
-    for (const rel of ['package.json', 'src/index.js', 'src/http-remote.js', 'templates/BOARD.md', 'gems/neurendipity/gem.json', 'gems/neurendipity/floor.json', 'gems/neurendipity/guides/NEURODIVERGENT_SUPPORT.md', 'guides/README.md', 'CHARTER.md', 'CHANGELOG.md', 'server.json', 'docs/SETUP.md', 'docs/DEPLOY.md', '.env.example', 'README.md', 'LICENSE']) {
+    for (const rel of ['package.json', 'src/index.js', 'src/host-reach.js', 'verification/load-gate/load-gate.mjs', 'verification/load-gate/corpus.json', 'src/http-remote.js', 'templates/BOARD.md', 'gems/neurendipity/gem.json', 'gems/neurendipity/floor.json', 'gems/neurendipity/guides/NEURODIVERGENT_SUPPORT.md', 'guides/README.md', 'CHARTER.md', 'CHANGELOG.md', 'server.json', 'docs/SETUP.md', 'docs/DEPLOY.md', '.env.example', 'README.md', 'LICENSE']) {
       assert.ok(paths.includes(rel), rel);
     }
     assert.ok(!paths.includes('guides/NEURODIVERGENT_SUPPORT.md'), 'the guide text is not packed twice');

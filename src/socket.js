@@ -4,21 +4,24 @@
  *
  * Licensed under the MIT License - see LICENSE
  *
- * The GEM socket. It seats bundled prompt GEMs from the release gems/
- * directory and nothing else. gems/neurendipity ships with this release
- * and is off unless the install lists its id in EMET_ACTIVE_GEMS.
+ * The GEM socket. It seats bundled GEMs from the release gems/ directory
+ * and nothing else. gems/neurendipity and gems/fieldnote ship with this
+ * release and are off unless the install lists the id in EMET_ACTIVE_GEMS.
  *
  * gem-library/examples/neurendipity is a shape, not an installed GEM.
  * It is not on this path and it is not loaded.
  *
- * RUNE code is not imported, not executed, and not given a database handle.
- * A refused GEM is one warning. It does not throw, and it does not stop
- * emet_initialize. An empty list logs nothing.
+ * The socket does not run RUNE code. While a GEM is active, each RUNE is
+ * one read-only tool that serves the code. A refused GEM is one warning.
+ * It does not throw, and it does not stop emet_initialize. An empty list
+ * logs nothing.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { checkGem, satisfiesEmetRange } from './gem-check.js';
+import { bindRunes, runeToolName } from './rune-registry.js';
+import { noteArtifact } from './rune-dispatch.js';
 import { resolveModulePath } from './module-path.js';
 import { setting } from './env.js';
 import { EMET_VERSION } from './version.js';
@@ -90,6 +93,21 @@ function field(manifest, key, fallback) {
   return value === undefined ? fallback : value;
 }
 
+/** What gems_available and emet_status show. A checker failure stays the check id. */
+export function refusalText(result) {
+  if (!result || !result.firstFailure) return 'GC-01';
+  return result.firstFailure;
+}
+
+function schemaList(schema) {
+  const props = schema && schema.properties;
+  if (props && typeof props === 'object') {
+    const keys = Object.keys(props);
+    if (keys.length) return keys.join(',');
+  }
+  return 'object';
+}
+
 function toCandidate(dirName, dirReal, result, used) {
   const manifest = result && result.manifest;
   const id = manifest && typeof manifest.id === 'string' && ID_RE.test(manifest.id)
@@ -110,14 +128,14 @@ function toCandidate(dirName, dirReal, result, used) {
     distribution: manifest && manifest.distribution === 'library' ? 'library' : 'bundled',
     defaultOn: field(manifest, 'defaultOn', false),
     gcOk: Boolean(result && result.ok),
-    gcReason: result && result.firstFailure ? result.firstFailure : 'GC-01',
+    gcReason: refusalText(result),
     floor: result && result.floor,
     floorBytes: result && result.floorTrusted ? result.floorBytes : 0,
     floorTrusted: Boolean(result && result.floorTrusted),
     floorDigest: result && result.floorDigest,
     loadable: false,
     active: false,
-    reason: result && result.firstFailure ? result.firstFailure : 'GC-01'
+    reason: refusalText(result)
   };
 }
 
@@ -156,6 +174,75 @@ function satisfies(version, range) {
 }
 
 /**
+ * A missing `released` field is allowed only for these ids, at this version,
+ * with every pinned file present at its digest. A shorter file list does not
+ * match. The pin is the id, the version, and the file digests. It does not
+ * cover every other manifest field, including defaultOn, priority, requires,
+ * description, name, authors, license, rune description, schemas, the guides
+ * list, distribution, coverage, and rune metadata other than the version.
+ * overrides still needs SR-05 consent. A rune execution of server and
+ * distribution library are refused by GC-02. gem.json is not hashed: anyone
+ * who can edit it can already add released: true, so hashing it would grant
+ * nothing extra. The list is fixed in source. Nothing is read to decide
+ * whether SR-08 runs, so a missing or corrupt manifest cannot turn the check off.
+ */
+export const RELEASED_LEGACY = Object.freeze([
+  Object.freeze({
+    id: 'neurendipity',
+    version: '1.2.3',
+    digests: Object.freeze({
+      'floor.json': 'sha256:484dd159ccfec5d4fd85a764aea6db687b9c2355e1b7a11532f044fc350eca01',
+      'guides/NEURODIVERGENT_SUPPORT.md': 'sha256:aa64c1f125960da7822970a87926bd042fcb4f8ba6d84e392a29dfb12321c809',
+      'guides/AUTISTIC_BURNOUT.md': 'sha256:657810094cdde539648c7d06767072e71b8c712aee73a60e7e8040ac83df40e2'
+    })
+  }),
+  Object.freeze({
+    id: 'fieldnote',
+    version: '1.0.1',
+    digests: Object.freeze({
+      'floor.json': 'sha256:11af3724b165beb3e9a49a681f1f07cb742bcb4535206f714a0dc689067f32d6',
+      'runes/fieldnote.js': 'sha256:cfb62b669f67c69f53989ed2621a40bfbfa60a744f1b4040e5b8496755598a35'
+    })
+  })
+]);
+
+function legacyDigests(manifest, pin) {
+  const files = Array.isArray(manifest.files) ? manifest.files : [];
+  const keys = Object.keys(pin.digests);
+  if (files.length !== keys.length) return false;
+  for (const file of files) {
+    if (!file || pin.digests[file.path] !== file.digest) return false;
+  }
+  return true;
+}
+
+function legacyReleased(manifest) {
+  if (!manifest || typeof manifest !== 'object') return false;
+  const pin = RELEASED_LEGACY.find((row) => row.id === manifest.id);
+  if (!pin || manifest.version !== pin.version || !legacyDigests(manifest, pin)) return false; // legacy-pin
+  return true;
+}
+
+/** Null when the manifest may seat. Otherwise the log line that says why. */
+export function releasedReason(manifest) {
+  if (manifest && manifest.released === true) return null;
+  const missing = !manifest || typeof manifest !== 'object' || !Object.prototype.hasOwnProperty.call(manifest, 'released');
+  if (missing) {
+    if (legacyReleased(manifest)) return null;
+    const base = 'released is missing; boolean true is required';
+    // Exact and case-sensitive. neurendipity-x, xneurendipity, and Fieldnote are not pins.
+    const id = manifest && typeof manifest.id === 'string' ? manifest.id : '';
+    const pinned = RELEASED_LEGACY.some((row) => row.id === id);
+    return pinned ? `${base} (legacy pin mismatch: version/digests)` : base;
+  }
+  const value = manifest.released;
+  if (typeof value === 'string') return `released must be boolean true, got string ${JSON.stringify(value)}`;
+  if (typeof value === 'number') return `released must be boolean true, got number ${value}`;
+  if (typeof value === 'boolean') return `released must be boolean true, got boolean ${value}`;
+  return `released must be boolean true, got ${value === null ? 'null' : typeof value}`;
+}
+
+/**
  * GEM ids the install asked to turn on. EMET_ACTIVE_GEMS is a comma-separated
  * list. Unset means only a GEM with defaultOn true is active. options.asked,
  * when passed, replaces the setting for that call. This is not consent: a GEM
@@ -188,6 +275,15 @@ function publicAvailable(candidate) {
     bytes: candidate.floorTrusted ? candidate.floorBytes : 0
   };
   if (!row.loadable) row.reason = candidate.reason;
+  if (row.active && candidate.manifest && Array.isArray(candidate.manifest.runes) && candidate.manifest.runes.length) {
+    row.runes = candidate.manifest.runes.map((rune) => ({
+      name: rune.name,
+      runtime: rune.runtime,
+      inputs: schemaList(rune.inputSchema),
+      outputs: schemaList(rune.outputSchema),
+      sha256: rune.sha256
+    }));
+  }
   return row;
 }
 
@@ -254,7 +350,14 @@ export async function seatGems(options = {}) {
     const abs = path.join(root, ent.name);
     try {
       const st = await fs.promises.stat(abs);
-      if (!st.isDirectory()) continue;
+      if (!st.isDirectory()) {
+        if (!ent.isSymbolicLink()) continue;
+        const row = toCandidate(ent.name, abs, { ok: false, firstFailure: 'GC-01', manifest: null }, used);
+        row.gcOk = false;
+        row.reason = 'GC-01';
+        candidates.push(row);
+        continue;
+      }
       const dirReal = await fs.promises.realpath(abs);
       if (!inside(rootReal, dirReal)) {
         const row = toCandidate(ent.name, dirReal, { ok: false, firstFailure: 'GC-04', manifest: null }, used);
@@ -284,16 +387,18 @@ export async function seatGems(options = {}) {
       candidate.reason = 'SR-03';
       return;
     }
-    // This release does not execute RUNEs. A runed-gem that somehow passed
-    // the checker is still refused. GC-19 is that refusal.
-    if (candidate.kind === 'runed-gem' && candidate.gcOk) {
-      candidate.gcOk = false;
-      candidate.gcReason = 'GC-19';
-    }
     if (!candidate.gcOk) {
       candidate.loadable = false;
       candidate.active = false;
       candidate.reason = candidate.gcReason || 'GC-01';
+      return;
+    }
+    const why = releasedReason(candidate.manifest); // sr-08-always
+    if (why) {
+      candidate.loadable = false;
+      candidate.active = false;
+      candidate.reason = 'SR-08';
+      candidate.releasedWhy = why;
       return;
     }
     const sr = serverRefusal(candidate, ctx);
@@ -334,19 +439,57 @@ export async function seatGems(options = {}) {
   }
 
   const gems_available = candidates.map(publicAvailable);
+  const refusals = gems_available.filter((row) => row.loadable === false);
   const gems_active = candidates.filter((c) => c.active).map(publicActive)
     .sort((a, b) => (b.priority - a.priority) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const refusals = gems_available.filter((row) => row.loadable === false);
-
-  for (const row of refusals) {
-    emit(log, 'warn', `GEM refused: ${row.id} ${row.reason}`, { id: row.id, reason: row.reason });
+  for (const candidate of candidates) {
+    if (candidate.loadable) continue;
+    const why = candidate.reason === 'SR-08' ? candidate.releasedWhy : null;
+    const message = why
+      ? `GEM refused: ${candidate.id} ${candidate.reason}: ${why}`
+      : `GEM refused: ${candidate.id} ${candidate.reason}`;
+    emit(log, 'warn', message, { id: candidate.id, reason: candidate.reason, ...(why ? { detail: why } : {}) });
   }
-  // Empty mount stays silent. A seating summary is logged only when a GEM is installed.
+  // Empty mount stays silent. Each seated GEM is named, then the summary.
+  // A refused GEM is not a seat line.
   if (gems_available.length > 0) {
+    for (const row of gems_available) {
+      if (!row.loadable) continue;
+      emit(log, 'info', `GEM seated: ${row.id}`, { id: row.id });
+    }
     emit(log, 'info', `GEMs seated: ${gems_available.length} installed, ${gems_active.length} active`, {
       installed: gems_available.length,
       active: gems_active.length
     });
+  }
+  const production = options.root === undefined && options.releaseRoot === undefined;
+  if (production || options.bindRunes === true) {
+    const bound = [];
+    for (const candidate of candidates) {
+      if (!candidate.active || !candidate.manifest || !Array.isArray(candidate.manifest.runes)) continue;
+      for (const rune of candidate.manifest.runes) {
+        noteArtifact({ sha256: rune.sha256, gem: candidate.id, rune: rune.name, version: rune.version });
+        bound.push({
+          name: rune.name,
+          description: rune.description,
+          inputSchema: rune.inputSchema,
+          outputSchema: rune.outputSchema,
+          runtime: rune.runtime,
+          sha256: rune.sha256,
+          artifact: rune.artifact,
+          version: rune.version,
+          annotations: rune.annotations,
+          reads: rune.reads,
+          writes: rune.writes,
+          network: rune.network,
+          gemId: candidate.id,
+          gemVersion: candidate.version,
+          gemDir: candidate.dirReal,
+          tool: runeToolName(candidate.id, rune.name)
+        });
+      }
+    }
+    bindRunes(bound);
   }
   const result = { gems_available, gems_active, refusals };
   if (options.floors) {
@@ -361,4 +504,42 @@ export async function seatGems(options = {}) {
     result.floors = floors;
   }
   return result;
+}
+
+/**
+ * Socket PR 4 (docs/ROADMAP.md): each GEM's byte cost, for emet_status.
+ * Read-only: built from a seatGems() result, never from the store. The caps
+ * are the ones seatGems already enforces; this only makes them visible, so an
+ * install can see what a GEM costs its startup before it asks for one.
+ * Bytes are the trusted floor bytes the socket counts toward
+ * MAX_ACTIVE_FLOOR_BYTES (0 for a GEM whose floor was not trusted).
+ */
+export function gemCost(seated) {
+  const available = seated && Array.isArray(seated.gems_available) ? seated.gems_available : [];
+  const perGem = available.map((row) => {
+    const out = {
+      id: row.id,
+      version: row.version,
+      kind: row.kind,
+      active: row.active === true,
+      loadable: row.loadable === true,
+      bytes: Number.isFinite(row.bytes) ? row.bytes : 0
+    };
+    if (!out.loadable && row.reason) out.reason = row.reason;
+    return out;
+  });
+  const active = perGem.filter((g) => g.active);
+  const activeBytes = active.reduce((sum, g) => sum + g.bytes, 0);
+  return {
+    installed: perGem.length,
+    active: active.length,
+    active_floor_bytes: activeBytes,
+    headroom_bytes: Math.max(0, MAX_ACTIVE_FLOOR_BYTES - activeBytes),
+    caps: {
+      max_installed: MAX_INSTALLED,
+      max_active: MAX_ACTIVE,
+      max_active_floor_bytes: MAX_ACTIVE_FLOOR_BYTES
+    },
+    per_gem: perGem
+  };
 }

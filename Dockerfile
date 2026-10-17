@@ -25,6 +25,9 @@ COPY guides ./guides
 COPY gems ./gems
 # The GEM checker reads gem.schema.json and keys.json from gem-library/; without it every GEM fails GC-02.
 COPY gem-library ./gem-library
+# src/host-reach.js imports the RUNE load gate. Leaving this directory out
+# crashes startup: ERR_MODULE_NOT_FOUND .../verification/load-gate/load-gate.mjs
+COPY verification ./verification
 
 # Hosts inject PORT; the app honours it. 8080 is only the fallback.
 ENV PORT=8080

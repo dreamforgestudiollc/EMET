@@ -74,7 +74,13 @@ export function declaredAttribution() {
   const s = actorStore.getStore();
   if (!s || typeof s !== 'object' || s.transport !== 'http') return null;
   const login = typeof s.sourceTag === 'string' && s.sourceTag.trim() ? s.sourceTag.trim() : null;
-  return { declared: s.declaredTag || null, basis: s.sourceBasis || null, login, effective: s.effectiveTag || null, clientId: s.clientId || null, approval: s.approvalState || null, rememberedTags: Array.isArray(s.rememberedTags) ? s.rememberedTags : [] };
+  return {
+    declared: s.declaredTag || null, basis: s.sourceBasis || null, login,
+    effective: s.effectiveTag || null, clientId: s.clientId || null,
+    approval: s.approvalState || null,
+    rememberedTags: Array.isArray(s.rememberedTags) ? s.rememberedTags : [],
+    ...(s.subkeyId ? { keyId: s.subkeyId } : {})
+  };
 }
 
 export function displayNameFromUserDoc(text) {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * EMET - code coverage, as an input to review (2026-09-29, a decision record).
+ * EMET - code coverage, as an input to review (2026-09-29, procedural ref 398).
  *
  * Owner's ruling: "if it's a metric that an auditor is expected to see, then
  * we need to do something about that" - published as an INPUT TO REVIEW, not a
@@ -143,13 +143,25 @@ const summaryLines = [
 ];
 console.log('\n' + '='.repeat(60) + '\nCOVERAGE (input to review, not a gate)\n' + '='.repeat(60));
 summaryLines.forEach((l) => console.log(l));
+if ((run.status ?? 1) !== 0) {
+  console.log('\nFailed checks:');
+  const lines = runOut.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    if (/^\s*FAIL: /.test(lines[i])) {
+      console.log(lines[i]);
+      if (lines[i + 1] && /^\s{6,}\S/.test(lines[i + 1])) console.log(lines[i + 1]);
+    } else if (/^failed:$/.test(lines[i]) || /^\s+- .+\.test\.js$/.test(lines[i])) {
+      console.log(lines[i]);
+    }
+  }
+}
 
 const md = [
   '# Code coverage',
   '',
   `Measured ${when} at commit \`${commit}\`${dirty ? ' (with uncommitted changes under src/ or tests/)' : ''}, Node ${process.version}. Regenerate with \`npm run coverage\`.`,
   '',
-  '**An input to review, not a gate** (owner\'s ruling 2026-09-29, a decision record). No threshold fails the build; the number is here so a reviewer or auditor can see what the suite exercises and what it does not.',
+  '**An input to review, not a gate** (owner\'s ruling 2026-09-29, procedural ref 398). No threshold fails the build; the number is here so a reviewer or auditor can see what the suite exercises and what it does not.',
   '',
   '## Totals',
   '',

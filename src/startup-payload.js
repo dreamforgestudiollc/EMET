@@ -1,6 +1,8 @@
 /**
- * The startup payload's size and its abridged form (the host-aware startup
- * design, conservative variant chosen by the owner 2026-10-02).
+ * The startup payload's size and its abridged form (ref 358 amendment, the
+ * host-aware startup; design: research paper emet-startup-amendment rev 3,
+ * sections 4a-4c, conservative variant chosen by Alex 2026-10-02, procedural
+ * ref 405 item 8 and ref 407).
  *
  * WHAT THIS FILE DOES AND DOES NOT DO (2026-10-03):
  *   - payloadForLayerCharter: the layer charter as the payload serves it, with
@@ -13,13 +15,13 @@
  *     selects it: the amendment says the server decides the mode and the model
  *     does not, and a host can never ask for less than the server allows. The
  *     server can only prove a returning host with the startup receipts of
- *     stage 2 of the design, which do not exist yet, so emet_initialize serves
+ *     stage 2 (review note 3b, 5), which do not exist yet, so emet_initialize serves
  *     the full payload to every caller. This function is the tested builder
  *     stage 2's mode check will call, and the measure of what abridging saves.
  *   - resultSize: the size of a payload as the host receives it, in characters
  *     and UTF-8 bytes (the connector gateway cuts at 20,000 bytes).
  *
- * FIDELITY RULE (the owner's startup rules): the floor, identity, character, user, the close
+ * FIDELITY RULE (Alex, ref 358): the floor, identity, character, user, the close
  * protocol and tools in force are never pointers and never shortened here.
  * Only install notes, the layer charter and the long instructions become
  * hash-pinned pointers in the abridged form, and the seed and thread indexes
@@ -54,7 +56,7 @@ export function keySizes(payload) {
     .sort((a, b) => b.chars - a.chars);
 }
 
-/** The keys every abridged load embeds exactly as the full load has them (the design's keep set; never dropped). */
+/** The keys every abridged load embeds exactly as the full load has them (review note 4b; never dropped). */
 export const ABRIDGED_KEEP = Object.freeze([
   'state', 'database', 'source_tag', 'person_id', 'unhandled_drops', 'unhandled_drops_more', 'retired_drops',
   'emet_line', 'emet_line_if_unanswered',

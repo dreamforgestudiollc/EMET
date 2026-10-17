@@ -140,7 +140,7 @@ testGroup('a store that is not set up yet: load_id returned, and the setup flow 
     // emet_setup_complete is not a governed write: the interview's answers are
     // recorded with or without a session, so a host mid-setup is never refused.
     assert.ok(!sg.GRAPH_WRITE_TOOLS.has('emet_setup_complete'));
-    const done = dataOf(await call(store, 'emet_setup_complete', { answers: { assistant_name: 'Ada', assistant_character: 'Plain and careful.', user_name: 'Sam Example', user_context: 'Testing a new store.' }, source: 'example-host' }));
+    const done = dataOf(await call(store, 'emet_setup_complete', { answers: { assistant_name: 'Ada', assistant_character: 'Plain and careful.', user_name: 'Sam Example', user_context: 'Testing a new store.', more_than_one_bot: 'no' }, source: 'example-host' }));
     assert.strictEqual(done.ok, true);
     const a2 = dataOf(await call(store, 'emet_transcript_append', { session_id: sid, user_message: 'thanks', assistant_message: 'Set up.', source: 'example-host' }));
     assert.strictEqual(a2.exchange_index, 2);

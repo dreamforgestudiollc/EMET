@@ -9,7 +9,7 @@
  * Until 2026-09-27 index.js (stdio) and http-remote.js (HTTP) each carried a
  * full switch mapping tool name to handler. dispatch.test.js compared the two
  * by case NAME and caught one class of drift (the session_id alias divergence,
- * an earlier fix); it could not see argument drift, and the code audit of
+ * commit-9e580d5); it could not see argument drift, and the code audit of
  * 2026-09-27 found one - setupComplete received the logger on stdio and not on
  * HTTP. A rule stated twice drifts; this file is the one statement.
  *
@@ -29,8 +29,12 @@ import {
   queryTranscripts, reviseTranscript, saveTranscript, sessionOpen, transcriptAppend,
   readDoc, READ_DOC_PAGE_DEFAULT, readDocHistory, writeDoc, validateDoc, acceptNonconformance,
   listDocs, retireDoc, renameDoc, restoreDoc, patchDoc, inviteCreate, memberAccessCreate,
-  resolvedSourceTag
+  resolvedSourceTag,
+  TOOLS
 } from './tools.js';
+import { reserveToolNames } from './rune-registry.js';
+
+reserveToolNames([...TOOLS.map((tool) => tool.name), 'emet_subkey_request', 'emet_subkey_claim', 'emet_subkey_revoke', 'emet_subkey_end_session']);
 
 /**
  * Route one tool call. `ctx` carries what the transport owns: dbManager, logger,
@@ -38,7 +42,7 @@ import {
  * isError envelope, so the transport's audit line always has an outcome.
  */
 /**
- * The source tag under one name. `source` is the name on every write (the owner,
+ * The source tag under one name. `source` is the name on every write (Alex,
  * 2026-09-27, code audit 1.5c); the older per-tool names - updated_by,
  * retired_by, accepted_by on documents, channel on transcripts - are read as
  * aliases for one release and then dropped. metadata.source on the layers is
@@ -54,7 +58,7 @@ export function sourceOf(args) {
 }
 
 /**
- * A transcript write names a registered host or is refused (the owner, 2026-09-27,
+ * A transcript write names a registered host or is refused (Alex, 2026-09-27,
  * code audit 1.5d: nine spellings for five hosts in the store). Registered =
  * EMET_SOURCE_TAGS, exact membership only. With no registry configured, any
  * non-empty tag passes. A refusal does not publish the registry.
@@ -96,6 +100,14 @@ export function requireRegisteredSource(tag, tool, allowNull = false) {
   return tag;
 }
 
+const SILENT_GEM_LOG = Object.freeze({ warn() {}, info() {}, error() {} });
+/**
+ * Test seam: the suites swap in a seatGems stand-in to drive emet_status's
+ * fail-closed branch. Never set outside tests; pass null to restore.
+ */
+let statusSeatForTests = null;
+export function setStatusSeatForTests(fn) { statusSeatForTests = typeof fn === 'function' ? fn : null; }
+
 export async function dispatchTool(name, args, ctx) {
   const { dbManager, logger, AuditOperation } = ctx;
   args = args || {};
@@ -110,14 +122,14 @@ export async function dispatchTool(name, args, ctx) {
     if (!scopesAllow(scopes, name, { http: actor.transport === 'http', authenticated: actor.authenticated === true, args })) {
       throw new EmetError(deniedMessage(name, scopes, args), ErrorCodes.VALIDATION_ERROR, StatusCodes.BAD_REQUEST);
     }
-    // The session graph (2026-09-29): the monorail (docs/GUARDRAILS-AND-MONORAILS.md). State is read BEFORE a
+    // The session graph (2026-09-29, board 120): the monorail (docs/GUARDRAILS-AND-MONORAILS.md). State is read BEFORE a
     // governed write; the write's result carries `session_graph` with the next
     // step; the step is recorded after it succeeds. Enforce only (2026-10-03):
     // a skipped step is refused before anything is written. A governed write
     // that names a session fails closed when the graph cannot be read.
     const sg = await import('./session-graph.js');
     // The exchange number, normalized ONCE, before the graph, the closed-session
-    // guard and the tool all read it (2026-10-01, the second reader's blocker on an earlier draft: the
+    // guard and the tool all read it (2026-10-01, the reviewer's blocker on commit-2a361fd: the
     // guard read "4" as 4, the tool did not, so a text "4" was a retry to one and
     // a new exchange to the other). A whole number, or its text, or absent.
     if (name === 'emet_transcript_append') {
@@ -171,7 +183,7 @@ export async function dispatchTool(name, args, ctx) {
     // A correction of a closed session: the exchanges with their numbers normalized.
     if (grace && grace.revise) { args = { ...args, exchanges: grace.exchanges }; grace = null; }
     // A retry of the saved closing exchange is answered here; the tool is NOT
-    // called, so nothing can be written (the second reader's blocker on an earlier draft).
+    // called, so nothing can be written (the reviewer's blocker on commit-2a361fd).
     if (grace && grace.retry) {
       const block = sg.graphBlock(graph);
       return createSuccessResponse({
@@ -181,6 +193,13 @@ export async function dispatchTool(name, args, ctx) {
       }, name);
     }
     const ok = (data) => {
+      // A sub-key, claim nonce, or session handle is delivered once by the tool
+      // that minted it. Later receipts do not repeat it.
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        if (name !== 'emet_subkey_claim') delete data.subkey;
+        if (name !== 'emet_subkey_request') delete data.nonce;
+        if (name !== 'emet_session_open') delete data.session_handle;
+      }
       const block = sg.graphBlock(graph);
       if (block && data && typeof data === 'object' && !Array.isArray(data)) data.session_graph = block;
       if (name === sg.STARTUP_PAGES_TOOL && graph) sg.labRecord(name, args, graph, dbManager, logger); // the open succeeded
@@ -200,11 +219,11 @@ export async function dispatchTool(name, args, ctx) {
       }
       return createSuccessResponse(data, name);
     };
-    // The close's state write is awaited (the second reader's nit 6), so an append sent after
+    // The close's state write is awaited (the reviewer's nit 6), so an append sent after
     // the close returns already finds the session closed - when the write
     // succeeds. A failed write is retried once; if it still fails the reply
     // says so (closed_recorded: false, with a warning) instead of reading as a
-    // locked session (2026-10-01, the second reader's nit 2 on an earlier draft, the reviewer's
+    // locked session (2026-10-01, the reviewer's nit 2 on commit-df21117, the tester's
     // condition 2). Every other step is recorded without holding up the reply.
     const recordClose = async (data) => {
       let rec = await sg.graphAfter(name, args, data, dbManager, logger, now);
@@ -226,7 +245,27 @@ export async function dispatchTool(name, args, ctx) {
     switch (name) {
       case 'emet_initialize':        return ok(await initialize(args, { onLate: (late) => sg.recordLatePages(late, dbManager, logger) }));
       case 'emet_setup_complete':    return ok(await setupComplete(args.answers || {}, logger, { reissue: args.reissue === true, source: sourceOf(args) }));
-      case 'emet_session_close':     return await ok(await sessionClose(args));
+      case 'emet_session_close': {
+        const data = await sessionClose(args);
+        try {
+          const { setting } = await import('./env.js');
+          if (data && data.state === 'complete' && setting('SUBKEYS') === '1') {
+            const sk = await import('./subkeys.js');
+            const { approvalsDeps } = await import('./tools.js');
+            const named = sk.sessionIdForClose(args);
+            if (named.mismatch) {
+              logger?.warn?.('sub-key session not released: session_id and receipts.transcript_session_id name different sessions');
+            } else {
+              await sk.releaseClosedSession(approvalsDeps, named.base, now, {
+                handle: args.session_handle, subkey: args.subkey
+              });
+            }
+          }
+        } catch (e) {
+          logger?.warn?.('sub-key session not released on close', { error: e && e.message });
+        }
+        return await ok(data);
+      }
       case 'emet_gaps':              return ok(await findGaps(args));
       case 'emet_client_approve': {
         const att = await import('./attribution.js');
@@ -244,7 +283,7 @@ export async function dispatchTool(name, args, ctx) {
       case 'recall':                 return ok(await recallMemories(dbManager, args.query, args.layer || null, args.limit || 10, logger, AuditOperation, { history: args.history === true, order: args.order }));
       case 'query_layer':            return ok(await queryLayer(dbManager, args.layer, args.options || {}, logger, AuditOperation));
       case 'emet_status': {
-        // One diagnostic (2026-09-27, the owner: one tool with several functions over
+        // One diagnostic (2026-09-27, Alex: one tool with several functions over
         // several overlapping ones). setupStatus + the per-layer counts, and the
         // write-path probe on request.
         const status = await setupStatus();
@@ -254,12 +293,33 @@ export async function dispatchTool(name, args, ctx) {
         }
         if (args.probe === true) status.probe = await verifyConnection();
         {
+          // Socket PR 4: each GEM's byte cost against the caps the socket enforces.
+          // Read-only; a socket failure is reported here and never fails the status.
+          try {
+            const { seatGems, gemCost } = await import('./socket.js');
+            const seat = statusSeatForTests || seatGems;
+            // Silent logger, as floor.js does: a status read must not write
+            // seating or refusal lines to stderr on every call.
+            status.gems = gemCost(await seat({ log: SILENT_GEM_LOG }));
+          } catch {
+            status.gems = { error: 'GEM socket failed closed' };
+          }
+        }
+        {
           const att = await import('./attribution.js');
           const { rawActor } = await import('./persons.js');
           const { callerAttribution } = await import('./setup.js');
+          const { setting } = await import('./env.js');
           Object.assign(status, callerAttribution());
           const v = att.approvalsView(att.cachedApprovals(), rawActor() || { transport: 'stdio' }, null);
           if (v) status.client_approvals = v;
+          if (setting('SUBKEYS') === '1') {
+            const sk = await import('./subkeys.js');
+            const { approvalsDeps } = await import('./tools.js');
+            const records = await sk.loadSubkeyRecords(approvalsDeps);
+            const keys = sk.subkeysView(records, rawActor() || { transport: 'stdio' }, null);
+            if (keys) status.subkeys = keys;
+          }
         }
         return ok(status);
       }
@@ -284,8 +344,31 @@ export async function dispatchTool(name, args, ctx) {
       case 'semantic_recall':        return ok(await semanticRecall(args.query, args.layer || null, args.limit || 10, logger, { history: args.history === true }, dbManager));
       case 'emet_invite_create':     return ok(await inviteCreate(dbManager, args, logger));
       case 'emet_member_access_create': return ok(await memberAccessCreate(dbManager, args, logger));
-      default:
+      default: {
+        // The four sub-key tools are not case labels. A case label would put
+        // them in the dispatch table while EMET_SUBKEYS is off, and the host
+        // list would no longer match that table. They dispatch from here only
+        // while the flag is on; off, the name is an unknown tool.
+        const { setting } = await import('./env.js');
+        if (setting('SUBKEYS') === '1') {
+          const sk = await import('./subkeys.js');
+          if (sk.SUBKEY_TOOLS.includes(name)) {
+            const { rawActor, resolveTokenSubject } = await import('./persons.js');
+            const { approvalsDeps, sourceRegistry } = await import('./tools.js');
+            const ownerId = dbManager && dbManager.db ? await resolveTokenSubject(dbManager.db).catch(() => null) : null;
+            try {
+              return ok(await sk.dispatchSubkey(name, approvalsDeps, rawActor(), ownerId, args, sourceRegistry(), now));
+            } catch (e) {
+              if (e && e.attributionRefusal) throw new ValidationError('subkey', e.message);
+              throw e;
+            }
+          }
+        }
+        const { serveRune } = await import('./rune-dispatch.js');
+        const ran = await serveRune(name, args, { logger, AuditOperation, dbManager });
+        if (ran) return ran;
         throw new EmetError(`Unknown tool: ${name}`, ErrorCodes.UNKNOWN_TOOL, StatusCodes.BAD_REQUEST);
+      }
     }
   } catch (error) {
     if (grace && grace.grace) { // the claimed closing exchange was not written: give the window back

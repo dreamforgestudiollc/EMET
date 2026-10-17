@@ -63,7 +63,7 @@ testGroup('readyInstructions - with a character document', () => {
  * THE INSTRUCTIONS ARE TESTED BY WHAT THEY MUST CONTAIN AND IN WHAT ORDER - not
  * by their sentences. Until 2026-09-27 this group pinned three clauses verbatim
  * (opening, greeting guidance, core) and measured every addition against them;
- * it broke on the 9/26-27 builds and would break on every rewording after. The owner
+ * it broke on the 9/26-27 builds and would break on every rewording after. Alex
  * ruled (code audit 4.2, 9/27 evening): assert contents and order, stop pinning
  * prose. Each marker below is a step a startup must not lose; a rewrite that
  * drops or reorders one is a regression, a rewrite that rewords one is not.
@@ -133,7 +133,7 @@ testGroup('The startup list - user items named before any question', () => {
   ]) {
     test(`names ${label}`, () => assert.match(list, re));
   }
-  // 2026-09-23 (a decision record): parked items were excluded until this date.
+  // 2026-09-23 (procedural ref 355): parked items were excluded until this date.
   // For a neurodivergent user, excluded is forgotten; the exclusion must not come back.
   test('parked items are no longer left out', () => {
     assert.doesNotMatch(list, /[Ll]eave out items the user has parked/);
@@ -170,7 +170,7 @@ testGroup('The startup list - user items named before any question', () => {
 });
 
 /**
- * THE TWO INDICATORS (2026-09-11, a decision record; charter section 6).
+ * THE TWO INDICATORS (2026-09-11, procedural ref 305; charter section 6).
  *
  * EMET's line claims exactly two things - the record stands, and it is
  * connected - and never a third. The user's identity phrase comes second

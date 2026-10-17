@@ -1,6 +1,6 @@
 /**
- * Paged startup (the host-aware startup design, paging; approved by the owner
- * 2026-10-03). The connector gateway cuts a tool result at 20,000 UTF-8
+ * Paged startup (ref 358 amendment, paging; Alex approved 2026-10-03, design
+ * paper question 1). The connector gateway cuts a tool result at 20,000 UTF-8
  * bytes, and the full startup is about 64K, so on those hosts the floor,
  * install notes, source tags, seeds_due, record gaps and lessons never
  * arrived. Paging delivers the SAME full payload in pages, binding text first.
@@ -51,7 +51,7 @@ export const PAGE_ORDER = Object.freeze([
   'seeds', 'threads', 'recent_context', 'layer_counts', 'layer_counts_last_30d'
 ]);
 
-/** Keys that bind the session (the startup rules): never optional, never dropped. */
+/** Keys that bind the session (ref 358): never optional, never dropped. */
 export const BINDING_KEYS = Object.freeze([
   'tools_in_force', 'instructions_short', 'session_close_protocol',
   'floor', 'floor_precedence', 'floor_reassertion', 'gems_available', 'gems_active',

@@ -35,16 +35,24 @@ testGroup('Registered literal secrets', () => {
     const out = redactText('the password is S3cretP4ss');
     assert.ok(!out.includes('S3cretP4ss'));
   });
+  test('EMET_SUBKEY_PEPPER is masked as a server secret', () => {
+    _clearRegisteredSecrets();
+    const pepper = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+    const n = registerSecretsFromEnv({ EMET_SUBKEY_PEPPER: pepper, EMET_SOURCE_TAG: 'laptop' });
+    assert.strictEqual(n, 1);
+    assert.ok(!redactText(`kept ${pepper} here`).includes(pepper));
+    assert.strictEqual(redactText('tag laptop'), 'tag laptop');
+  });
   test('registerSecretsFromEnv picks up secret-bearing names only', () => {
     _clearRegisteredSecrets();
     const n = registerSecretsFromEnv({
       EMET_OAUTH_PASSPHRASE: 'p4ssPhr4se!', MONGODB_URI: 'mongodb://u:pw123456@h/db',
-      EMET_SOURCE_TAG: 'cloud-host', PORT: '8080', SHORT_TOKEN: 'ab'
+      EMET_SOURCE_TAG: 'cowork-cloud', PORT: '8080', SHORT_TOKEN: 'ab'
     });
     assert.strictEqual(n, 2);
     assert.ok(registeredSecretCount() >= 3); // passphrase, uri, uri password
     assert.ok(!redactText('tag p4ssPhr4se! pw123456').includes('p4ssPhr4se!'));
-    assert.strictEqual(redactText('tag cloud-host'), 'tag cloud-host');
+    assert.strictEqual(redactText('tag cowork-cloud'), 'tag cowork-cloud');
   });
   test('the longest literal wins when one contains another', () => {
     _clearRegisteredSecrets();
@@ -77,7 +85,7 @@ testGroup('Pattern rules', () => {
     assert.strictEqual(redactText(`token ${jwt} end`), `token ${MASK} end`);
   });
   test('key: value masks the value and keeps the key', () => {
-    assert.strictEqual(redactText('passphrase: example-Passphrase-123!'), `passphrase: ${MASK}`);
+    assert.strictEqual(redactText('passphrase: 454f3Pl4c34MYfutur3!'), `passphrase: ${MASK}`);
     assert.strictEqual(redactText('EMET_OAUTH_PASSPHRASE=hunter22'), `EMET_OAUTH_PASSPHRASE=${MASK}`);
     assert.strictEqual(redactText('"client_secret": "abcd1234"'), `"client_secret": "${MASK}"`);
     assert.strictEqual(redactText('api_key = sk-live-0000'), `api_key = ${MASK}`);
@@ -88,7 +96,7 @@ testGroup('Pattern rules', () => {
   });
 });
 
-// G4 / G5 (2026-09-07): the receipt's `redacted` misled four times in
+// G4 / G5 (2026-09-07, meta ref 83): the receipt's `redacted` misled four times in
 // one day. Every document touch re-reported the masks the document already held,
 // and a hyphenated English prefix turned "re-authorization:" into a key.
 testGroup('G4: a hit is a change - already-masked text is left alone and not counted', () => {
@@ -146,7 +154,7 @@ testGroup('G5: a hyphenated English prefix does not make a key', () => {
   });
   test('G6: a value with an interior period is still masked whole', () => {
     assert.strictEqual(redactText('secret: ab.cd.ef99'), `secret: ${MASK}`);
-    assert.strictEqual(redactText('passphrase: example-Passphrase-123!'), `passphrase: ${MASK}`);
+    assert.strictEqual(redactText('passphrase: 454f3Pl4c34MYfutur3!'), `passphrase: ${MASK}`);
   });
   test('the accepted cost stands: a bare "Passphrase: Word" in prose still masks the word', () => {
     // Documented in the module header. Masking a word costs a word; missing a secret costs the secret.
@@ -164,7 +172,7 @@ testGroup('What must survive', () => {
     assert.strictEqual(redactText(p), p);
   });
   test('ids, timestamps and urls survive', () => {
-    const s = 'an incident record at 1788796792 via https://claude.ai/oauth/mcp-oauth-client-metadata';
+    const s = 'episodic ref 486 at 1788796792 via https://claude.ai/oauth/mcp-oauth-client-metadata';
     assert.strictEqual(redactText(s), s);
   });
   test('non-strings pass through with zero hits', () => {

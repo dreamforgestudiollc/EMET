@@ -59,7 +59,7 @@ async function withEnv(vars, fn) {
   }
 }
 
-// 2026-09-29 (a decision record): semantic and procedural writes are refused with
+// 2026-09-29 (procedural ref 398): semantic and procedural writes are refused with
 // no source. Tests here that are not ABOUT provenance get a fixture pointer on
 // those two layers; the provenance tests pass their own metadata and say so.
 const FIXTURE_POINTER = { session_id: '2026-09-29_receipt-fixture', exchange_start: 1, exchange_end: 1 };
@@ -127,7 +127,7 @@ testGroup('A3: source decided in one place', () => {
     assert.strictEqual(written.source_missing, true);
   });
   test('registry set and source not in it: source_unregistered', async () => {
-    const { receipt, written } = await save('working', { source: 'stranger' }, 'x', { EMET_SOURCE_TAGS: 'cli, mobile ,cloud-host' });
+    const { receipt, written } = await save('working', { source: 'stranger' }, 'x', { EMET_SOURCE_TAGS: 'cli, mobile ,cowork-cloud' });
     assert.strictEqual(receipt.source, 'stranger');
     assert.strictEqual(receipt.source_unregistered, true);
     assert.strictEqual(written.source_unregistered, true);
@@ -191,7 +191,7 @@ testGroup('A4: importance from the charter band', () => {
 // ===========================================================================
 testGroup('A5: provenance policy from the charter', () => {
   const pointer = { session_id: '2026-09-07_receipt-test', exchange_start: 1, exchange_end: 2 };
-  // 2026-09-29 (a decision record): these two were "provenance_missing + warning";
+  // 2026-09-29 (procedural ref 398): these two were "provenance_missing + warning";
   // the ruling made them refusals. Called directly - save() would add a pointer.
   test('semantic without derived_from: REFUSED, nothing written', async () => {
     const db = fakeDb();

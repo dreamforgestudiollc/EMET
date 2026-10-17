@@ -23,7 +23,7 @@
  */
 
 import './env.js';
-import { connectMongo } from './mongo-connect.js';
+import { connectMongo, bindSharedClient } from './mongo-connect.js';
 import path from 'path';
 
 import {
@@ -111,7 +111,7 @@ const REDACTION_RULES = Object.freeze([
   { token: '[credentialed-uri]', match: /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'@/]+:[^\s"'@/]+@[^\s"']+/gi },
   { token: '[db-uri]', match: /\bmongodb(?:\+srv)?:\/\/[^\s"']+/gi },
   { token: '[env-var]', match: /\bprocess\.env(?:\.[A-Za-z_$][\w$]*|\[[^\]]*\])/g },
-  { token: '[stack-frame]', match: /\bat\s+\S+\s+\([^)]*\)/gi },
+  { token: '[stack-frame]', match: /\reviewer\s+\S+\s+\([^)]*\)/gi },
   { token: '[home-dir]', match: /\b[A-Za-z]:[\\/]Users[\\/][^\s"']*/g },
   { token: '[home-dir]', match: /\/(?:home|Users|root)\/[^\s"']*/g },
   { token: '[path]', match: /\b[A-Za-z]:[\\/][^\s"']*/g },
@@ -230,7 +230,7 @@ const FIELD_SET = new Set([
   'id', 'timestamp', 'content', 'context', 'emotional_intensity', 'importance', 'metadata',
   'superseded_by', 'valid_until', 'is_live',
   'source_session_id', 'source_exchange_start', 'source_exchange_end', 'derived_from_ids',
-  // sha256 of content, written at save time (2026-09-05). Before this the
+  // sha256 of content, written at save time (EMET ref 12, 2026-09-05). Before this the
   // digest was computed for the read-back receipt and then discarded, so no layer
   // entry could ever be re-verified after the moment it was written.
   'sha256',
@@ -258,7 +258,7 @@ const FIELD_SET = new Set([
 // `metadata.superseded_by` matched ZERO documents. Confirmed by probe 2026-08-24.
 // The fix therefore PROMOTED the two fields to real top-level columns, which are
 // queryable and indexable, and filters on those. Since 2026-09-05 metadata is a
-// real subdocument and its copy IS visible to Mongo - but the promoted
+// real subdocument (EMET ref 6) and its copy IS visible to Mongo - but the promoted
 // columns remain the fields the liveness predicate reads: they are indexed, and
 // the vector-search filter can only see top-level booleans. The JS-level checks
 // in tools.js remain as a second line of defence.
@@ -379,6 +379,7 @@ export class EmetDatabase {
       }
       this.client = client;
       this.db = client.db(MONGODB_DB);
+      bindSharedClient(client);
       this.log('info', `Connected to MongoDB database '${MONGODB_DB}'`);
     })();
 
@@ -437,7 +438,7 @@ export class EmetDatabase {
   }
 
   /**
-   * THE layer insert, native (2026-09-27, code audit 1.7 stage 1 - the owner: "if SQL
+   * THE layer insert, native (2026-09-27, code audit 1.7 stage 1 - Alex: "if SQL
    * is the old and needs to be updated then update it"). Takes the document as
    * a document. Every key must be a known layer field; the id is allocated
    * here. The INSERT-string shim it replaced went with the SQL translator in
@@ -468,7 +469,7 @@ export class EmetDatabase {
 
   /**
    * Where a transcript session stands, for the provenance auto-stamp
-   * (2026-09-29, a decision record). Read-only. Resolves a base id or any part id
+   * (2026-09-29, procedural ref 398). Read-only. Resolves a base id or any part id
    * to its base and the highest exchange index stored across every live part;
    * 0 when nothing is stored yet (a session opened but not yet appended).
    */

@@ -66,8 +66,8 @@ testGroup('1-2. Host setup - install notes, session ids, source tags', () => {
   test('the install document follows EMET_INSTALL_DOC', () =>
     withEnv({ EMET_INSTALL_DOC: 'notes/HOSTS.md' }, () => assert.strictEqual(installDoc(), 'notes/HOSTS.md')));
   test('registered tags parse from EMET_SOURCE_TAGS, blanks dropped', () =>
-    withEnv({ EMET_SOURCE_TAGS: ' mobile, cloud-host,,cli ' }, () =>
-      assert.deepStrictEqual(registeredSourceTags(), ['mobile', 'cloud-host', 'cli'])));
+    withEnv({ EMET_SOURCE_TAGS: ' mobile, cowork-cloud,,cli ' }, () =>
+      assert.deepStrictEqual(registeredSourceTags(), ['mobile', 'cowork-cloud', 'cli'])));
   test('no registry is an empty list, not an error', () =>
     withEnv({ EMET_SOURCE_TAGS: undefined, CASCADE_SOURCE_TAGS: undefined }, () =>
       assert.deepStrictEqual(registeredSourceTags(), [])));
@@ -91,7 +91,7 @@ const SEED_REV11 = [
   'template: templates/SEED.md rev 11',
   'trigger:',
   '  - kind: SIGNAL',
-  '    test: a session starts on DESKTOP-A - checked at startup',
+  '    test: a session starts on STUDIO - checked at startup',
   '  - kind: DATE',
   '    test: 2026-11-01 - backstop before the due date',
   'status: DORMANT',
@@ -109,7 +109,7 @@ testGroup('4. Seeds indexed for the startup scan; threads listed', () => {
   test('both triggers are read, kind and test', () => {
     assert.strictEqual(before.triggers.length, 2);
     assert.strictEqual(before.triggers[0].kind, 'SIGNAL');
-    assert.match(before.triggers[0].test, /DESKTOP-A/);
+    assert.match(before.triggers[0].test, /STUDIO/);
   });
   test('a DATE trigger not yet reached is not due', () => {
     assert.strictEqual(before.triggers[1].date, '2026-11-01');
@@ -268,13 +268,13 @@ testGroup('8. Close-order tool survives a 20k truncate', () => {
     assert(ready.indexOf('tools_in_force') < i && i < ready.indexOf('session_close_protocol:'), 'instructions_short must sit between tools_in_force and session_close_protocol');
     assert(i < ready.indexOf('identity:'));
   });
-  // Code audit 2026-09-27 (2.3, the owner): seeds are served one line each.
+  // Code audit 2026-09-27 (2.3, Alex): seeds are served one line each.
   test('seedLine folds a seed to one line with title, status, dated cues and clipped topic cues', () => {
-    const s = summarizeSeed('seeds/x.md', '---\nstatus: DORMANT\ntrigger:\n  - kind: DATE\n    test: "2026-01-01 fires on or after"\n  - kind: TOPIC\n    test: "' + 'the owner raises the thing '.repeat(20) + '"\n---\n# SEED — Example seed\n', '2026-09-27');
+    const s = summarizeSeed('seeds/x.md', '---\nstatus: DORMANT\ntrigger:\n  - kind: DATE\n    test: "2026-01-01 fires on or after"\n  - kind: TOPIC\n    test: "' + 'Alex raises the thing '.repeat(20) + '"\n---\n# SEED — Example seed\n', '2026-09-27');
     const l = seedLine(s);
     assert.strictEqual(l.doc_id, 'seeds/x.md');
     assert.strictEqual(l.due, true);
-    assert.match(l.line, /^Example seed — DORMANT — DATE 2026-01-01 DUE · TOPIC: the owner raises the thing/);
+    assert.match(l.line, /^Example seed — DORMANT — DATE 2026-01-01 DUE · TOPIC: Alex raises the thing/);
     assert.ok(l.line.length < 220, `line is ${l.line.length} chars`);
     assert.ok(!('triggers' in l), 'the full trigger list must not ride along');
   });

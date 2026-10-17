@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/dreamforgestudiollc/EMET-GEMs/raw/main/gem.schema.json",
   "title": "EMET GEM manifest",
-  "description": "gem.json for one Golem Expertise Module. Normative rules are in SPEC.md, revision 2026-10-11.",
+  "description": "gem.json for one Golem Expertise Module. Normative rules are in SPEC.md, revision 2026-10-12.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -27,7 +27,7 @@
   "properties": {
     "spec": {
       "description": "GEM specification revision this manifest was written against.",
-      "const": "2026-10-11"
+      "const": "2026-10-12"
     },
     "id": {
       "description": "Stable identifier. Unique among GEMs installed on one EMET.",
@@ -75,6 +75,9 @@
     "defaultOn": {
       "description": "Whether a fresh install activates this GEM before the user asks. Neurendipity is false.",
       "type": "boolean"
+    },
+    "released": {
+      "description": "The socket seats this GEM only when the value is the boolean true. false, the string \"true\", 1, and null are refused. A missing field is allowed only for neurendipity 1.2.3 and fieldnote 1.0.1 when the id, the version, and every file digest match the pin in the socket. A shorter file list does not match. The pin covers the id, the version, and the file digests. It does not cover every other manifest field, including defaultOn, priority, requires, description, name, authors, license, rune description, schemas, the guides list, distribution, coverage, and rune metadata other than the version. overrides still needs SR-05 consent. A rune execution of server and distribution library are refused by GC-02. gem.json is not hashed: anyone who can edit it can already add released: true, so hashing it would grant nothing extra. Any other GEM missing the field is refused. The check runs on every boot. A read error refuses and does not turn the check off."
     },
     "overrides": {
       "description": "Modifiable core paths this GEM changes. Empty means it only adds lines. Core protection paths are refused.",
@@ -127,6 +130,47 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 40
+    },
+    "changelog": {
+      "description": "What changed in this GEM version. Optional. A string, a list, or an object of notes. The socket does not read it.",
+      "anyOf": [
+        { "type": "string", "maxLength": 65536 },
+        { "type": "array", "maxItems": 64 },
+        { "type": "object" }
+      ]
+    },
+    "knowledge": {
+      "description": "Optional notes or a corpus shipped with the GEM. A string, a list, or an object. The socket does not read it.",
+      "anyOf": [
+        { "type": "string", "maxLength": 65536 },
+        { "type": "array", "maxItems": 64 },
+        { "type": "object" }
+      ]
+    },
+    "coverage": {
+      "description": "Optional coverage notes shipped with the GEM. A string, a list of up to 256 entries, or an object. The socket does not read it. Lean Six Sigma ships this as a list of 90 entries.",
+      "anyOf": [
+        { "type": "string", "maxLength": 65536 },
+        { "type": "array", "maxItems": 256 },
+        { "type": "object" }
+      ]
+    },
+    "update": {
+      "description": "How this version relates to the previous release of the same GEM. Optional. The socket does not read it. class initial is the first release.",
+      "type": "object",
+      "properties": {
+        "class": {
+          "description": "initial for the first release of this GEM.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "from": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$"
+        },
+        "notes": { "type": "string", "maxLength": 4000 }
+      }
     },
     "signature": { "$ref": "#/$defs/signature" }
   },
@@ -194,10 +238,10 @@
       }
     },
     "rune": {
-      "description": "A RUNED directive. Field names used by MCP tools keep MCP's names. reads, writes, and network are enforced by EMET.",
+      "description": "A client-executed RUNED directive. The socket serves it and does not run it. reads and writes are empty.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "description", "inputSchema", "annotations", "reads", "writes", "network"],
+      "required": ["name", "description", "execution", "artifact", "sha256", "version", "runtime", "inputSchema", "outputSchema", "annotations", "reads", "writes", "network"],
       "properties": {
         "name": {
           "type": "string",
@@ -205,6 +249,27 @@
         },
         "title": { "type": "string", "minLength": 1, "maxLength": 80 },
         "description": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "execution": { "const": "client" },
+        "artifact": {
+          "description": "Path of the code file, under runes/, and listed in files.",
+          "type": "string",
+          "pattern": "^runes/[A-Za-z0-9][A-Za-z0-9./_-]*\\.js$"
+        },
+        "sha256": {
+          "description": "SHA-256 of the artifact's raw bytes, lowercase, prefixed with sha256:.",
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "version": {
+          "description": "The GEM semver.",
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$"
+        },
+        "runtime": {
+          "description": "Runtime the client needs to run the code.",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9.+-]{0,31}$"
+        },
         "inputSchema": {
           "type": "object",
           "required": ["type"],
@@ -217,7 +282,7 @@
           "required": ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"],
           "properties": {
             "title": { "type": "string", "maxLength": 80 },
-            "readOnlyHint": { "type": "boolean" },
+            "readOnlyHint": { "const": true },
             "destructiveHint": { "const": false },
             "idempotentHint": { "type": "boolean" },
             "openWorldHint": { "const": false }
@@ -225,29 +290,16 @@
         },
         "reads": {
           "type": "array",
-          "maxItems": 32,
-          "uniqueItems": true,
+          "maxItems": 0,
           "items": { "$ref": "#/$defs/access" }
         },
         "writes": {
           "type": "array",
-          "maxItems": 32,
-          "uniqueItems": true,
+          "maxItems": 0,
           "items": { "$ref": "#/$defs/access" }
         },
         "network": { "const": "none" }
-      },
-      "allOf": [
-        {
-          "if": {
-            "properties": {
-              "annotations": { "properties": { "readOnlyHint": { "const": true } }, "required": ["readOnlyHint"] }
-            },
-            "required": ["annotations"]
-          },
-          "then": { "properties": { "writes": { "maxItems": 0 } } }
-        }
-      ]
+      }
     },
     "access": {
       "description": "A memory layer, or a document id prefix introduced by doc:.",

@@ -1,8 +1,8 @@
 # Code coverage
 
-Measured 2026-10-07 22:44 UTC at a pre-release commit, Node v22.14.0. Regenerate with `npm run coverage`.
+Measured 2026-10-07 22:44 UTC at commit `commit-08aba62`, Node v22.14.0. Regenerate with `npm run coverage`.
 
-**An input to review, not a gate** (owner's ruling 2026-09-29). No threshold fails the build; the number is here so a reviewer or auditor can see what the suite exercises and what it does not.
+**An input to review, not a gate** (owner's ruling 2026-09-29, procedural ref 398). No threshold fails the build; the number is here so a reviewer or auditor can see what the suite exercises and what it does not.
 
 ## Totals
 

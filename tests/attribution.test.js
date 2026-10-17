@@ -1,7 +1,7 @@
 /**
- * Attribution per session v2 (2026-10-12). Regression for a project host (grok-project)
+ * Attribution per session v2 (2026-10-12). Regression for the client (grok-project)
  * and the intake bot (intake-bot) stamped hub-bot on the shared Grok
- * client shared-client-0001, for review findings A1-A4 of an earlier version,
+ * client 8xm-7ILLKEDFc3-QRxqlgw, for the reviewer's review findings A1-A4 of PR 32,
  * and for the owner's new-client requirements (COS flag, owner fallback, solo
  * auto-approve, ties across restarts, real tag at startup).
  */
@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { test, testGroup, summary } from './harness.js';
 
 console.log('\n=== attribution v2 ===');
-const CLIENT = 'shared-client-0001';
+const CLIENT = '8xm-7ILLKEDFc3-QRxqlgw';
 
 function fakeDb({ tokens = [], transcripts = [], documents = [], layer = [] } = {}) {
   const data = { oauth_tokens: tokens, transcripts, documents };
@@ -40,13 +40,13 @@ function memDeps(initial = null) {
   };
 }
 // The owner acting as the owner: the owner's own host login (not a bot tag).
-const ownerHost = (extra = {}) => ({ personId: 'owner1', ownerId: 'owner1', clientId: 'claude-host', transport: 'http', authenticated: true, sourceTag: 'cowork-cloud', sourceBasis: 'login', scopes: [], ...extra });
-const actorFor = (extra = {}) => ({ personId: 'owner1', ownerId: 'owner1', clientId: CLIENT, transport: 'http', authenticated: true, sourceTag: 'hub-bot', scopes: [], ...extra });
+const ownerHost = (extra = {}) => ({ personId: 'alex', ownerId: 'alex', clientId: 'claude-host', transport: 'http', authenticated: true, sourceTag: 'cowork-cloud', sourceBasis: 'login', scopes: [], ...extra });
+const actorFor = (extra = {}) => ({ personId: 'alex', ownerId: 'alex', clientId: CLIENT, transport: 'http', authenticated: true, sourceTag: 'hub-bot', scopes: [], ...extra });
 async function fresh() { const a = await import('../src/attribution.js'); a._resetForTests(); return a; }
-const ctx = (over = {}) => ({ db: fakeDb(), prefix: 'emet_', ownerId: 'owner1', deps: memDeps(), registry: ['hub-bot', 'intake-bot', 'grok-project', 'cowork-cloud'], ...over });
+const ctx = (over = {}) => ({ db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps: memDeps(), registry: ['hub-bot', 'intake-bot', 'grok-project', 'cowork-cloud'], ...over });
 
 testGroup('stamp', () => {
-  test('the intake bot declared on the hub bot login is stamped intake-bot, login kept', async () => {
+  test('the intake bot declared on the hub login is stamped intake-bot, login kept', async () => {
     const att = await fresh();
     const { resolvedSourceTag } = await import('../src/tools.js');
     const { actorStore } = await import('../src/persons.js');
@@ -83,16 +83,16 @@ testGroup('A1 session tie on every write', () => {
 });
 
 testGroup('A2 owner tokens', () => {
-  test("the owner's tokens with subject owner1, owner or none do not lock the owner out", async () => {
+  test("the owner's tokens with subject alex, owner or none do not lock the owner out", async () => {
     const att = await fresh();
-    const db = fakeDb({ tokens: [{ source_tag: 'intake-bot', subject: 'owner1' }, { source_tag: 'intake-bot', subject: 'owner' }, { source_tag: 'intake-bot' }] });
+    const db = fakeDb({ tokens: [{ source_tag: 'intake-bot', subject: 'alex' }, { source_tag: 'intake-bot', subject: 'owner' }, { source_tag: 'intake-bot' }] });
     const a = actorFor();
     await att.preflight(ctx({ db }), a, { source: 'intake-bot' }, 'save_to_layer');
     assert.strictEqual(a.declaredTag, 'intake-bot');
   });
   test("a member may not claim the owner's tag; the owner may not claim a member's", async () => {
     const att = await fresh();
-    const db = fakeDb({ tokens: [{ source_tag: 'intake-bot', subject: 'owner1' }, { source_tag: 'ana-bot', subject: 'ana' }] });
+    const db = fakeDb({ tokens: [{ source_tag: 'intake-bot', subject: 'alex' }, { source_tag: 'ana-bot', subject: 'ana' }] });
     await assert.rejects(() => att.preflight(ctx({ db }), actorFor({ personId: 'ana', sourceTag: 'ana-bot' }), { source: 'intake-bot' }, 'save_to_layer'), /another person's login/);
     await assert.rejects(() => att.preflight(ctx({ db }), actorFor(), { source: 'ana-bot' }, 'save_to_layer'), /another person's login/);
   });
@@ -103,28 +103,28 @@ testGroup('A2 owner status needs the owner acting as the owner', () => {
     const att = await fresh();
     process.env.EMET_RECORD_DOCS = 'bots/hub-bot/HANDOFF.md,bots/intake-bot/HANDOFF.md';
     const mb = actorFor(); mb.sourceBasis = 'login';
-    assert.strictEqual(att.actorIsOwner(mb, 'owner1'), false);
+    assert.strictEqual(att.actorIsOwner(mb, 'alex'), false);
     const decl = ownerHost(); decl.declaredTag = 'intake-bot'; decl.sourceBasis = 'declared';
-    assert.strictEqual(att.actorIsOwner(decl, 'owner1'), false);
-    assert.strictEqual(att.actorIsOwner(ownerHost(), 'owner1'), true);
-    assert.strictEqual(att.actorIsOwner(ownerHost({ personId: 'ana' }), 'owner1'), false);
+    assert.strictEqual(att.actorIsOwner(decl, 'alex'), false);
+    assert.strictEqual(att.actorIsOwner(ownerHost(), 'alex'), true);
+    assert.strictEqual(att.actorIsOwner(ownerHost({ personId: 'ana' }), 'alex'), false);
     delete process.env.EMET_RECORD_DOCS;
   });
 });
 
 testGroup('A3 no rights beyond the login tag', () => {
-  test('an intake-bound login declaring grok-project cannot write HANDOFF.md, STATE.md or another bot dir', async () => {
+  test('a intake-bound login declaring grok-project cannot write HANDOFF.md, STATE.md or another bot dir', async () => {
     const att = await fresh();
     const { refuseBotMainRecord, refuseBotRetireRename } = await import('../src/tools.js');
     const { actorStore } = await import('../src/persons.js');
-    process.env.EMET_RECORD_DOCS = 'bots/intake-bot/HANDOFF.md,bots/tester-bot/HANDOFF.md';
+    process.env.EMET_RECORD_DOCS = 'bots/intake-bot/HANDOFF.md,bots/reviewer-bot/HANDOFF.md';
     process.env.EMET_SOURCE_TAGS = 'hub-bot,intake-bot,grok-project';
     const a = actorFor({ sourceTag: 'intake-bot' });
     await att.preflight(ctx(), a, { source: 'grok-project' }, 'write_doc');
     actorStore.run(a, () => {
       assert.throws(() => refuseBotMainRecord('HANDOFF.md', 'grok-project', 'write_doc'), /bot tag/);
       assert.throws(() => refuseBotMainRecord('STATE.md', 'grok-project', 'patch_doc'), /bot tag/);
-      assert.throws(() => refuseBotMainRecord('bots/tester-bot/HANDOFF.md', 'grok-project', 'write_doc'), /outside/);
+      assert.throws(() => refuseBotMainRecord('bots/reviewer-bot/HANDOFF.md', 'grok-project', 'write_doc'), /outside/);
       assert.throws(() => refuseBotRetireRename('grok-project', 'retire_doc'), /not a bot tool/);
     });
     delete process.env.EMET_RECORD_DOCS; delete process.env.EMET_SOURCE_TAGS;
@@ -215,7 +215,7 @@ testGroup('(a) new clients: COS configured', () => {
     assert.strictEqual(att.approvalsView(att.cachedApprovals(), ownerHost()).pending_count, 1);
     const member = actorFor({ personId: 'ana', sourceTag: 'ana-bot' }); member.sourceBasis = 'login';
     assert.strictEqual(att.approvalsView(att.cachedApprovals(), member), null);
-    await att.clientApprove(c.deps, cos, 'owner1', { tag: 'claude-desktop', decision: 'approve' });
+    await att.clientApprove(c.deps, cos, 'alex', { tag: 'claude-desktop', decision: 'approve' });
     await att.preflight(c, newcomer(), { source: 'claude-desktop', layer: 'semantic', content: 'hello' }, 'save_to_layer');
     delete process.env.EMET_COS_TAG;
   });
@@ -224,7 +224,7 @@ testGroup('(a) new clients: COS configured', () => {
     process.env.EMET_COS_TAG = 'hub-bot';
     const fake = actorFor({ sourceTag: 'intake-bot' }); fake.declaredTag = 'hub-bot'; fake.sourceBasis = 'declared'; fake.effectiveTag = 'hub-bot';
     assert.strictEqual(att.actorIsCos(fake), false);
-    await assert.rejects(() => att.clientApprove(memDeps(), fake, 'owner1', { tag: 'x', decision: 'approve' }), /only the owner or the chief of staff/);
+    await assert.rejects(() => att.clientApprove(memDeps(), fake, 'alex', { tag: 'x', decision: 'approve' }), /only the owner or the chief of staff/);
     delete process.env.EMET_COS_TAG;
   });
 });
@@ -234,9 +234,9 @@ testGroup('(a) approvals: no self-approval, idempotent, compare-and-set, fail cl
     const att = await fresh();
     process.env.EMET_RECORD_DOCS = 'bots/hub-bot/HANDOFF.md';
     const self = ownerHost({ sourceTag: 'chatgpt' }); self.effectiveTag = 'chatgpt';
-    await assert.rejects(() => att.clientApprove(memDeps(), self, 'owner1', { tag: 'chatgpt', decision: 'approve' }), /its own approval/);
+    await assert.rejects(() => att.clientApprove(memDeps(), self, 'alex', { tag: 'chatgpt', decision: 'approve' }), /its own approval/);
     const mb = actorFor(); mb.sourceBasis = 'login'; mb.effectiveTag = 'hub-bot';
-    await assert.rejects(() => att.clientApprove(memDeps(), mb, 'owner1', { tag: 'chatgpt', decision: 'approve' }), /only the owner/);
+    await assert.rejects(() => att.clientApprove(memDeps(), mb, 'alex', { tag: 'chatgpt', decision: 'approve' }), /only the owner/);
     delete process.env.EMET_RECORD_DOCS;
   });
   test('emet_client_approve and emet_session_open are write tools', async () => {
@@ -244,7 +244,7 @@ testGroup('(a) approvals: no self-approval, idempotent, compare-and-set, fail cl
     assert.ok(att.WRITE_TOOLS.has('emet_client_approve'));
     assert.ok(att.WRITE_TOOLS.has('emet_session_open'));
   });
-  test('review r3: a pending newbot on the owner login that omits source cannot approve itself', async () => {
+  test('the reviewer r3: a pending newbot on the owner login that omits source cannot approve itself', async () => {
     const att = await fresh();
     const c = ctx();
     // newbot connects on the owner's shared host login, declares itself, gets queued.
@@ -253,22 +253,22 @@ testGroup('(a) approvals: no self-approval, idempotent, compare-and-set, fail cl
     // Same connection, no source: it now looks exactly like the owner.
     const a = ownerHost({ sourceBasis: undefined, grantId: 'g-host' });
     await att.preflight(c, a, { tag: 'newbot', decision: 'approve' }, 'emet_client_approve');
-    await assert.rejects(() => att.clientApprove(c.deps, a, 'owner1', { tag: 'newbot', decision: 'approve' }), /queued the request/);
+    await assert.rejects(() => att.clientApprove(c.deps, a, 'alex', { tag: 'newbot', decision: 'approve' }), /queued the request/);
     // Same grant on a different client id is refused too.
-    await assert.rejects(() => att.clientApprove(c.deps, ownerHost({ clientId: 'other', grantId: 'g-host' }), 'owner1', { tag: 'newbot', decision: 'approve' }), /queued the request/);
+    await assert.rejects(() => att.clientApprove(c.deps, ownerHost({ clientId: 'other', grantId: 'g-host' }), 'alex', { tag: 'newbot', decision: 'approve' }), /queued the request/);
     assert.ok(att.parseApprovals(c.deps.store.content).pending.newbot, 'still pending');
     assert.ok(!att.parseApprovals(c.deps.store.content).approved.newbot);
     // The owner on another connection can decide it.
-    await att.clientApprove(c.deps, ownerHost({ clientId: 'claude-phone', grantId: 'g-phone' }), 'owner1', { tag: 'newbot', decision: 'approve' });
+    await att.clientApprove(c.deps, ownerHost({ clientId: 'claude-phone', grantId: 'g-phone' }), 'alex', { tag: 'newbot', decision: 'approve' });
     assert.ok(att.parseApprovals(c.deps.store.content).approved.newbot);
   });
   test('approving twice writes once and keeps the first at and request', async () => {
     const att = await fresh();
     const c = ctx();
     await assert.rejects(() => att.preflight(c, actorFor({ sourceTag: null, clientId: 'gpt' }), { source: 'chatgpt', content: 'x' }, 'write_doc'));
-    const first = await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'chatgpt', decision: 'approve' }, [], new Date('2026-10-12T12:00:00Z'));
+    const first = await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'chatgpt', decision: 'approve' }, [], new Date('2026-10-12T12:00:00Z'));
     const writes = c.deps.store.writes;
-    const again = await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'chatgpt', decision: 'approve' }, [], new Date('2026-10-12T13:00:00Z'));
+    const again = await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'chatgpt', decision: 'approve' }, [], new Date('2026-10-12T13:00:00Z'));
     assert.strictEqual(c.deps.store.writes, writes);
     assert.strictEqual(again.unchanged, true);
     assert.strictEqual(again.at, first.at);
@@ -301,14 +301,14 @@ testGroup('(a) approvals: no self-approval, idempotent, compare-and-set, fail cl
     const att = await fresh();
     const c = ctx({ deps: memDeps('# CLIENT APPROVALS\n\nnot json') });
     await assert.rejects(() => att.preflight(c, actorFor({ sourceTag: null, clientId: 'gpt' }), { source: 'chatgpt' }, 'save_to_layer'), /does not parse/);
-    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'chatgpt', decision: 'approve' }), /does not parse/);
+    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'chatgpt', decision: 'approve' }), /does not parse/);
   });
 });
 
 testGroup('(a) new clients: no COS (single-instance users)', () => {
   test('a first, solo client on a truly fresh store is auto-approved as the primary', async () => {
     const att = await fresh();
-    const c = ctx({ registry: [], db: fakeDb({ tokens: [{ client_id: 'claude-only', subject: 'owner1' }] }) });
+    const c = ctx({ registry: [], db: fakeDb({ tokens: [{ client_id: 'claude-only', subject: 'alex' }] }) });
     const solo = ownerHost({ sourceTag: null, clientId: 'claude-only', sourceBasis: undefined });
     await att.preflight(c, solo, { source: 'claude', layer: 'semantic', content: 'first note' }, 'save_to_layer');
     assert.strictEqual(att.parseApprovals(c.deps.store.content).approved.claude.primary, true);
@@ -327,14 +327,14 @@ testGroup('(a) new clients: no COS (single-instance users)', () => {
     const v = att.approvalsView(att.cachedApprovals(), ownerHost());
     assert.strictEqual(v.routed_to, 'owner');
     assert.strictEqual(v.pending[0].tag, 'chatgpt');
-    await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'chatgpt', decision: 'approve' });
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'chatgpt', decision: 'approve' });
     await att.preflight(c, actorFor({ sourceTag: null, clientId: 'gpt-1' }), { source: 'chatgpt' }, 'save_to_layer');
   });
   test('a denied tag stays read-only', async () => {
     const att = await fresh();
     const c = ctx();
     await assert.rejects(() => att.preflight(c, actorFor({ sourceTag: null, clientId: 'gpt' }), { source: 'chatgpt' }, 'write_doc'));
-    await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'chatgpt', decision: 'deny' });
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'chatgpt', decision: 'deny' });
     await assert.rejects(() => att.preflight(c, actorFor({ sourceTag: null, clientId: 'gpt' }), { source: 'chatgpt' }, 'write_doc'), /denied/);
   });
   test('a login with no tag and no declaration gets an auto- tag, gated the same way', async () => {
@@ -343,12 +343,12 @@ testGroup('(a) new clients: no COS (single-instance users)', () => {
   });
 });
 
-testGroup('(d) remembered client tags (the owner 2026-10-12)', () => {
+testGroup('(d) remembered client tags (Alex 2026-10-12)', () => {
   test('an approved client keeps its tag on a later login; startup tells it to use it', async () => {
     const att = await fresh();
     const c = ctx();
     await assert.rejects(() => att.preflight(c, actorFor({ sourceTag: null, clientId: 'gpt', grantId: 'g1' }), { source: 'chatgpt', content: 'x' }, 'write_doc'));
-    await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'chatgpt', decision: 'approve' });
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'chatgpt', decision: 'approve' });
     const d = att.parseApprovals(c.deps.store.content);
     assert.strictEqual(d.clients.gpt.tags.chatgpt.declared_name, 'chatgpt');
     // New login (new grant), same client_id.
@@ -363,11 +363,11 @@ testGroup('(d) remembered client tags (the owner 2026-10-12)', () => {
     const att = await fresh();
     const c = ctx();
     await assert.rejects(() => att.preflight(c, actorFor({ sourceTag: null, clientId: 'gpt' }), { source: 'chatgpt', content: 'x' }, 'write_doc'));
-    await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'chatgpt', decision: 'approve' });
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'chatgpt', decision: 'approve' });
     await assert.rejects(() => att.preflight(c, actorFor({ sourceTag: null, clientId: 'gpt' }), { source: 'gpt-five', content: 'x' }, 'write_doc'), /rename/);
     assert.strictEqual(att.parseApprovals(c.deps.store.content).pending['gpt-five'].kind, 'rename');
-    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'gpt-five', decision: 'approve' }), /Pass "as"/);
-    await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'gpt-five', decision: 'approve', as: 'rename' });
+    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'gpt-five', decision: 'approve' }), /Pass "as"/);
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'gpt-five', decision: 'approve', as: 'rename' });
     const d = att.parseApprovals(c.deps.store.content);
     assert.strictEqual(d.clients.gpt.tags.chatgpt.retired, true);
     assert.deepStrictEqual(att.rememberedFor(d, 'gpt'), ['gpt-five']);
@@ -383,7 +383,7 @@ testGroup('(d) remembered client tags (the owner 2026-10-12)', () => {
     await assert.rejects(() => att.preflight(c, first, { content: 'x' }, 'write_doc'));
     const auto = first.effectiveTag;
     assert.match(auto, /^auto-/);
-    await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: auto, decision: 'approve' });
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: auto, decision: 'approve' });
     // Even if the auto scheme changed, the remembered tag wins.
     const d = att.parseApprovals(c.deps.store.content);
     assert.strictEqual(d.clients['weird-client-123'].tags[auto].basis, 'auto');
@@ -396,11 +396,11 @@ testGroup('(d) remembered client tags (the owner 2026-10-12)', () => {
     const att = await fresh();
     const c = ctx();
     await assert.rejects(() => att.preflight(c, actorFor({ sourceTag: null, clientId: 'shared' }), { source: 'bot-a', content: 'x' }, 'write_doc'));
-    await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'bot-a', decision: 'approve' });
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'bot-a', decision: 'approve' });
     // bot-b on the same client: queued (rename kind, since the client is known), owner approves as a second tag.
     await assert.rejects(() => att.preflight(c, actorFor({ sourceTag: null, clientId: 'shared' }), { source: 'bot-b', content: 'x' }, 'write_doc'));
     assert.deepStrictEqual(att.parseApprovals(c.deps.store.content).pending['bot-b'].rename_from, ['bot-a']);
-    await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'bot-b', decision: 'approve', as: 'add', reason: 'second bot' });
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'bot-b', decision: 'approve', as: 'add', reason: 'second bot' });
     assert.deepStrictEqual(att.rememberedFor(att.parseApprovals(c.deps.store.content), 'shared').sort(), ['bot-a', 'bot-b']);
     const a = actorFor({ sourceTag: null, clientId: 'shared' });
     await att.preflight(c, a, { source: 'bot-b', content: 'y' }, 'write_doc');
@@ -409,36 +409,36 @@ testGroup('(d) remembered client tags (the owner 2026-10-12)', () => {
   });
 });
 
-testGroup('(e) review delta M2: explicit as on a client with approved tags', () => {
+testGroup('(e) the reviewer delta M2: explicit as on a client with approved tags', () => {
   test("the owner's case: client 8xm with the intake bot approved, approving grok-project keeps the intake bot", async () => {
     const att = await fresh();
     const c = ctx({ registry: ['cowork-cloud'] });
-    const on8xm = () => actorFor({ sourceTag: null, clientId: 'shared-client-0001', grantId: 'g-shared' });
+    const on8xm = () => actorFor({ sourceTag: null, clientId: '8xm-7ILLKEDFc3-QRxqlgw', grantId: 'g-8xm' });
     await assert.rejects(() => att.preflight(c, on8xm(), { source: 'intake-bot', content: 'x' }, 'write_doc'));
-    await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'intake-bot', decision: 'approve' });
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'intake-bot', decision: 'approve' });
     await assert.rejects(() => att.preflight(c, on8xm(), { source: 'grok-project', content: 'x' }, 'write_doc'));
-    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'grok-project', decision: 'approve' }), /already has approved tags \(intake-bot\)/);
+    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'grok-project', decision: 'approve' }), /already has approved tags \(intake-bot\)/);
     assert.ok(att.parseApprovals(c.deps.store.content).pending['grok-project'], 'unchanged on refusal');
-    await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'grok-project', decision: 'approve', as: 'add' });
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'grok-project', decision: 'approve', as: 'add' });
     const d = att.parseApprovals(c.deps.store.content);
-    assert.deepStrictEqual(att.rememberedFor(d, 'shared-client-0001').sort(), ['grok-project', 'intake-bot']);
-    assert.ok(!d.clients['shared-client-0001'].tags['intake-bot'].retired);
+    assert.deepStrictEqual(att.rememberedFor(d, '8xm-7ILLKEDFc3-QRxqlgw').sort(), ['grok-project', 'intake-bot']);
+    assert.ok(!d.clients['8xm-7ILLKEDFc3-QRxqlgw'].tags['intake-bot'].retired);
   });
   test('rename on a client with several tags must name the one it replaces', async () => {
     const att = await fresh();
     const c = ctx({ registry: ['cowork-cloud'] });
     const on = () => actorFor({ sourceTag: null, clientId: 'sh' });
     await assert.rejects(() => att.preflight(c, on(), { source: 'a1', content: 'x' }, 'write_doc'));
-    await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'a1', decision: 'approve' });
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'a1', decision: 'approve' });
     await assert.rejects(() => att.preflight(c, on(), { source: 'a2', content: 'x' }, 'write_doc'));
-    await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'a2', decision: 'approve', as: 'add' });
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'a2', decision: 'approve', as: 'add' });
     await assert.rejects(() => att.preflight(c, on(), { source: 'a3', content: 'x' }, 'write_doc'));
-    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'a3', decision: 'approve', as: 'rename' }), /"from"/);
-    // review should-fix: `from` must be one of the client's own approved tags.
-    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'a3', decision: 'approve', as: 'rename', from: 'not-a-sibling' }), /"from"/);
-    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'a3', decision: 'approve', as: 'rename', from: 'a3' }), /"from"/);
+    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'a3', decision: 'approve', as: 'rename' }), /"from"/);
+    // the reviewer should-fix: `from` must be one of the client's own approved tags.
+    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'a3', decision: 'approve', as: 'rename', from: 'not-a-sibling' }), /"from"/);
+    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'a3', decision: 'approve', as: 'rename', from: 'a3' }), /"from"/);
     assert.ok(att.parseApprovals(c.deps.store.content).pending.a3, 'still pending after a bad from');
-    await att.clientApprove(c.deps, ownerHost(), 'owner1', { tag: 'a3', decision: 'approve', as: 'rename', from: 'a1' });
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'a3', decision: 'approve', as: 'rename', from: 'a1' });
     assert.deepStrictEqual(att.rememberedFor(att.parseApprovals(c.deps.store.content), 'sh').sort(), ['a2', 'a3']);
   });
 });
@@ -464,6 +464,55 @@ testGroup('(c) startup reports the real tag', () => {
   test('emet_initialize and emet_status accept source in their schemas', async () => {
     const { TOOLS } = await import('../src/tools.js');
     for (const n of ['emet_initialize', 'emet_status']) assert.ok(TOOLS.find((t) => t.name === n).inputSchema.properties.source);
+  });
+});
+
+testGroup('strict login tag (EMET_STRICT_LOGIN_TAG=1)', () => {
+  const withStrict = async (fn) => { const prev = process.env.EMET_STRICT_LOGIN_TAG; process.env.EMET_STRICT_LOGIN_TAG = '1'; try { await fn(); } finally { if (prev === undefined) delete process.env.EMET_STRICT_LOGIN_TAG; else process.env.EMET_STRICT_LOGIN_TAG = prev; } };
+  test('a session bound to one tag cannot write as another tag, even a registered one', async () => withStrict(async () => {
+    const att = await fresh();
+    const { resolvedSourceTag } = await import('../src/tools.js');
+    const { actorStore } = await import('../src/persons.js');
+    for (const tool of [...att.WRITE_TOOLS, 'emet_initialize']) {
+      const a = actorFor();
+      await assert.rejects(() => att.preflight(ctx(), a, { source: 'intake-bot', session_id: 'strict_s1' }, tool), /bound to "hub-bot"; it may not write as "intake-bot"/);
+      assert.notStrictEqual(a.effectiveTag, 'intake-bot');
+      assert.strictEqual(actorStore.run(a, () => resolvedSourceTag('intake-bot')).tag, 'hub-bot');
+    }
+  }));
+  test('the bound tag itself, or no tag, still writes under the login', async () => withStrict(async () => {
+    const att = await fresh();
+    const a = actorFor();
+    await att.preflight(ctx(), a, { source: 'hub-bot', session_id: 'strict_s2' }, 'save_to_layer');
+    assert.strictEqual(a.effectiveTag, 'hub-bot');
+    assert.strictEqual(a.sourceBasis, 'login');
+    const b = actorFor();
+    await att.preflight(ctx(), b, { session_id: 'strict_s2' }, 'save_to_layer');
+    assert.strictEqual(b.effectiveTag, 'hub-bot');
+  }));
+  test('reads with a different declared tag are not refused', async () => withStrict(async () => {
+    const att = await fresh();
+    await att.preflight(ctx(), actorFor(), { source: 'intake-bot' }, 'query_transcripts');
+  }));
+  test('emet_setup_complete is a write and refuses a mismatched tag', async () => withStrict(async () => {
+    const att = await fresh();
+    assert.ok(att.WRITE_TOOLS.has('emet_setup_complete'));
+    await assert.rejects(() => att.preflight(ctx(), actorFor(), { source: 'intake-bot', answers: { source_tag: 'intake-bot' } }, 'emet_setup_complete'), /bound to "hub-bot"; it may not write as "intake-bot"/);
+  }));
+  test('emet_initialize refuses a mismatched tag under strict, but stays out of WRITE_TOOLS', async () => withStrict(async () => {
+    const att = await fresh();
+    assert.ok(!att.WRITE_TOOLS.has('emet_initialize'));
+    await assert.rejects(() => att.preflight(ctx(), actorFor(), { source: 'intake-bot' }, 'emet_initialize'), /may not write as "intake-bot"/);
+    const a = actorFor();
+    await att.preflight(ctx(), a, {}, 'emet_initialize');
+    assert.strictEqual(a.effectiveTag, 'hub-bot');
+  }));
+  test('off by default: attribution v2 declared tags still apply', async () => {
+    delete process.env.EMET_STRICT_LOGIN_TAG;
+    const att = await fresh();
+    const a = actorFor();
+    await att.preflight(ctx(), a, { source: 'intake-bot', session_id: 'strict_s3' }, 'save_to_layer');
+    assert.strictEqual(a.effectiveTag, 'intake-bot');
   });
 });
 

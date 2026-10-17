@@ -27,7 +27,7 @@ function allowBoard(db, id = 'board-ok') {
 }
 async function write(id, content, options = {}) {
   const { writeDoc } = await import('../src/tools.js');
-  return writeDoc(id, content, 'project-host', null, null, options);
+  return writeDoc(id, content, 'grok-project', null, null, options);
 }
 
 testGroup('sixteen board-guard checks', () => {
@@ -35,10 +35,10 @@ testGroup('sixteen board-guard checks', () => {
     ['the board is never written', () => write('STATE.md', '# Board\n'), /never written|provisioned/],
     ['a working document is edited, not rewritten', async () => { await write('threads/x.md', '# X\nx\n'); return write('threads/x.md', '# X\ny\n'); }, /edited, not rewritten/],
     ['a record revision needs a reason', async () => { await write('HANDOFF.md', '# Handoff\nfirst\n', { reason: REASON }); return write('HANDOFF.md', '# Handoff\nnext\n', { supersedes: 1 }); }, /needs reason/],
-    ['retire of a working document is refused', async () => { const { retireDoc } = await import('../src/tools.js'); await write('threads/x.md', '# X\nx\n'); return retireDoc('threads/x.md', REASON, 'project-host'); }, /not a drop/],
-    ['the board is never renamed', async () => { const { renameDoc } = await import('../src/tools.js'); await write('STATE.md', '# Board\n', { provision: true }); return renameDoc('STATE.md', 'archive/STATE.md', 'project-host', null, REASON); }, /never renamed/],
-    ['a drop is never renamed', async () => { const { renameDoc } = await import('../src/tools.js'); await write('drops/a.md', 'note\n'); return renameDoc('drops/a.md', 'drops/b.md', 'project-host', null, REASON); }, /write-once/],
-    ['restore needs a reason', async () => { const { restoreDoc } = await import('../src/tools.js'); return restoreDoc('threads/x.md', 1, 'project-host', null, 'short'); }, /needs reason/]
+    ['retire of a working document is refused', async () => { const { retireDoc } = await import('../src/tools.js'); await write('threads/x.md', '# X\nx\n'); return retireDoc('threads/x.md', REASON, 'grok-project'); }, /not a drop/],
+    ['the board is never renamed', async () => { const { renameDoc } = await import('../src/tools.js'); await write('STATE.md', '# Board\n', { provision: true }); return renameDoc('STATE.md', 'archive/STATE.md', 'grok-project', null, REASON); }, /never renamed/],
+    ['a drop is never renamed', async () => { const { renameDoc } = await import('../src/tools.js'); await write('drops/a.md', 'note\n'); return renameDoc('drops/a.md', 'drops/b.md', 'grok-project', null, REASON); }, /write-once/],
+    ['restore needs a reason', async () => { const { restoreDoc } = await import('../src/tools.js'); return restoreDoc('threads/x.md', 1, 'grok-project', null, 'short'); }, /needs reason/]
   ];
   for (const [name, fn, pattern] of cases) {
     test(name, async () => {
@@ -106,7 +106,7 @@ testGroup('sixteen board-guard checks', () => {
       await write('STATE.md', '# Board\n- open\n', { provision: true });
       await write('drops/open.md', 'still open\n');
       db.col('emet_sessions').docs.push({ _id: 's-boot', drops_seen: ['drops/open.md'] });
-      await assert.rejects(() => patchDoc('STATE.md', '- open', '- handled', 'project-host', null, null, { reason: REASON, session_id: 's-boot', drops_seen: [] }), /listed at this session boot/);
+      await assert.rejects(() => patchDoc('STATE.md', '- open', '- handled', 'grok-project', null, null, { reason: REASON, session_id: 's-boot', drops_seen: [] }), /listed at this session boot/);
     });
   });
   test('patch of the board needs a reason', async () => {
@@ -114,7 +114,7 @@ testGroup('sixteen board-guard checks', () => {
     const db = makeStore();
     await withStore(db, async () => {
       await write('STATE.md', '# Board\nactive\n', { provision: true });
-      await assert.rejects(() => patchDoc('STATE.md', 'active', 'idle', 'project-host'), /needs reason/);
+      await assert.rejects(() => patchDoc('STATE.md', 'active', 'idle', 'grok-project'), /needs reason/);
     });
   });
 });
@@ -124,7 +124,7 @@ test('floor applies to a patch', async () => {
   const db = makeStore();
   await withStore(db, async () => {
     await write('threads/floor.md', 'x'.repeat(100));
-    await assert.rejects(() => patchDoc('threads/floor.md', 'x'.repeat(100), 'x'.repeat(40), 'project-host', null, null, { reason: REASON, session_id: 's1' }), /first touched/);
+    await assert.rejects(() => patchDoc('threads/floor.md', 'x'.repeat(100), 'x'.repeat(40), 'grok-project', null, null, { reason: REASON, session_id: 's1' }), /first touched/);
   });
 });
 test('a board wipe via patch is refused', async () => {
@@ -133,7 +133,7 @@ test('a board wipe via patch is refused', async () => {
   await withStore(db, async () => {
     await write('STATE.md', '# Board\n\n## \u00a71 HALF-STATE\n| Id | What |\n|---|---|\n| B-001 | keep |\n', { provision: true });
     const sid = allowBoard(db);
-    await assert.rejects(() => patchDoc('STATE.md', 'B-001', 'gone', 'project-host', null, null, { reason: REASON, session_id: sid }), /nonconforming|no disposition/);
+    await assert.rejects(() => patchDoc('STATE.md', 'B-001', 'gone', 'grok-project', null, null, { reason: REASON, session_id: sid }), /nonconforming|no disposition/);
   });
 });
 test('a drop cannot be patched or restored', async () => {
@@ -141,8 +141,8 @@ test('a drop cannot be patched or restored', async () => {
   const db = makeStore();
   await withStore(db, async () => {
     await write('drops/once.md', 'original note\n');
-    await assert.rejects(() => patchDoc('drops/once.md', 'original', 'rewritten', 'project-host', null, null, { reason: REASON }), /write-once/);
-    await assert.rejects(() => restoreDoc('drops/once.md', 1, 'project-host', null, REASON), /never restored/);
+    await assert.rejects(() => patchDoc('drops/once.md', 'original', 'rewritten', 'grok-project', null, null, { reason: REASON }), /write-once/);
+    await assert.rejects(() => restoreDoc('drops/once.md', 1, 'grok-project', null, REASON), /never restored/);
   });
 });
 test('restore with no source is refused', async () => {
@@ -159,8 +159,8 @@ test('a tampered hash is not restored', async () => {
     await write('threads/tamper.md', '# Tamper\n');
     const row = db.doc('threads/tamper.md');
     db.collection('documents_history').docs.push({ ...row, version: 1, content: 'tampered\n', sha256: 'deadbeef', conformance: { verdict: 'conforms' } });
-    process.env.EMET_SOURCE_TAG = 'project-host';
-    await assert.rejects(() => restoreDoc('threads/tamper.md', 1, 'project-host', null, REASON), /digest/);
+    process.env.EMET_SOURCE_TAG = 'grok-project';
+    await assert.rejects(() => restoreDoc('threads/tamper.md', 1, 'grok-project', null, REASON), /digest/);
   });
 });
 test('the 21st drop from one source in a day is refused', async () => {
@@ -175,7 +175,7 @@ test('edits are atomic against the current text', async () => {
   const db = makeStore();
   await withStore(db, async () => {
     await write('threads/edits.md', 'alpha beta\n');
-    await assert.rejects(() => patchDoc('threads/edits.md', null, null, 'project-host', null, null, { reason: REASON, edits: [{ old_str: 'alpha', new_str: 'ALPHA' }, { old_str: 'ALPHA', new_str: 'nope' }] }), /not found|exactly once/);
+    await assert.rejects(() => patchDoc('threads/edits.md', null, null, 'grok-project', null, null, { reason: REASON, edits: [{ old_str: 'alpha', new_str: 'ALPHA' }, { old_str: 'ALPHA', new_str: 'nope' }] }), /not found|exactly once/);
     assert.strictEqual(db.doc('threads/edits.md').content, 'alpha beta\n');
   });
 });
@@ -186,8 +186,8 @@ test('a drop listed at boot blocks a board patch; a later drop does not', async 
     await write('STATE.md', '# Board\nactive\n', { provision: true });
     db.col('emet_sessions').docs.push({ _id: 's-boot', drops_seen: ['drops/boot.md'] });
     db.col('documents').docs.push({ doc_id: 'drops/boot.md', content: 'boot\n', retired: false, version: 1 });
-    await assert.rejects(() => patchDoc('STATE.md', 'active', 'idle', 'project-host', null, null, { reason: REASON, session_id: 's-boot', drops_seen: [] }), /listed at this session boot/);
-    await assert.rejects(() => patchDoc('STATE.md', 'active', 'idle', 'project-host', null, null, { reason: REASON, drops_seen: ['drops/boot.md'] }), (e) => !/listed at this session boot/.test(e.message));
+    await assert.rejects(() => patchDoc('STATE.md', 'active', 'idle', 'grok-project', null, null, { reason: REASON, session_id: 's-boot', drops_seen: [] }), /listed at this session boot/);
+    await assert.rejects(() => patchDoc('STATE.md', 'active', 'idle', 'grok-project', null, null, { reason: REASON, drops_seen: ['drops/boot.md'] }), (e) => !/listed at this session boot/.test(e.message));
   });
 });
 
@@ -196,8 +196,8 @@ test('a session baseline is not reset by another session in between', async () =
   const db = makeStore();
   await withStore(db, async () => {
     await write('threads/aba.md', 'x'.repeat(100), { session_id: 'A' });
-    await patchDoc('threads/aba.md', 'x'.repeat(100), 'x'.repeat(80), 'project-host', null, null, { reason: REASON, session_id: 'B' });
-    await assert.rejects(() => patchDoc('threads/aba.md', 'x'.repeat(80), 'x'.repeat(45), 'project-host', null, null, { reason: REASON, session_id: 'A_verbatim_part1' }), /first touched/);
+    await patchDoc('threads/aba.md', 'x'.repeat(100), 'x'.repeat(80), 'grok-project', null, null, { reason: REASON, session_id: 'B' });
+    await assert.rejects(() => patchDoc('threads/aba.md', 'x'.repeat(80), 'x'.repeat(45), 'grok-project', null, null, { reason: REASON, session_id: 'A_verbatim_part1' }), /first touched/);
   });
 });
 test('restore succeeds for a board and a working doc, and a record is refused', async () => {
@@ -205,44 +205,44 @@ test('restore succeeds for a board and a working doc, and a record is refused', 
   const { provisionBoardText } = await import('../src/setup.js');
   const db = makeStore();
   await withStore(db, async () => {
-    process.env.EMET_SOURCE_TAG = 'project-host';
+    process.env.EMET_SOURCE_TAG = 'grok-project';
     const board = provisionBoardText();
     await write('STATE.md', board, { provision: true });
     const sid = allowBoard(db);
-    await patchDoc('STATE.md', 'Provisioned by the server. Verified at setup.', 'Provisioned by the server. Verified at setup. touched', 'project-host', null, null, { reason: REASON, session_id: sid });
-    const restoredBoard = await restoreDoc('STATE.md', 1, 'project-host', null, REASON, { session_id: sid });
+    await patchDoc('STATE.md', 'Provisioned by the server. Verified at setup.', 'Provisioned by the server. Verified at setup. touched', 'grok-project', null, null, { reason: REASON, session_id: sid });
+    const restoredBoard = await restoreDoc('STATE.md', 1, 'grok-project', null, REASON, { session_id: sid });
     assert.strictEqual(restoredBoard.restored_from_version, 1);
     await write('notes/plain.md', 'alpha note\n');
-    await patchDoc('notes/plain.md', 'alpha', 'beta', 'project-host', null, null, { reason: REASON });
-    const restoredThread = await restoreDoc('notes/plain.md', 1, 'project-host', null, REASON);
+    await patchDoc('notes/plain.md', 'alpha', 'beta', 'grok-project', null, null, { reason: REASON });
+    const restoredThread = await restoreDoc('notes/plain.md', 1, 'grok-project', null, REASON);
     assert.strictEqual(restoredThread.restored_from_version, 1);
     await write('HANDOFF.md', 'x'.repeat(40), { reason: REASON });
-    await assert.rejects(() => restoreDoc('HANDOFF.md', 1, 'project-host', null, REASON), /revise_memory/);
+    await assert.rejects(() => restoreDoc('HANDOFF.md', 1, 'grok-project', null, REASON), /revise_memory/);
   });
 });
 test('a nonconforming retained revision is not restored', async () => {
   const { restoreDoc } = await import('../src/tools.js');
   const db = makeStore();
   await withStore(db, async () => {
-    process.env.EMET_SOURCE_TAG = 'project-host';
+    process.env.EMET_SOURCE_TAG = 'grok-project';
     const { patchDoc } = await import('../src/tools.js');
     await write('threads/bad.md', 'keep\n');
-    await patchDoc('threads/bad.md', 'keep', 'changed', 'project-host', null, null, { reason: REASON });
+    await patchDoc('threads/bad.md', 'keep', 'changed', 'grok-project', null, null, { reason: REASON });
     const row = db.col('documents_history').docs.find((d) => d.doc_id === 'threads/bad.md');
     row.conformance = { verdict: 'nonconforming' };
-    await assert.rejects(() => restoreDoc('threads/bad.md', 1, 'project-host', null, REASON), /not conforming/);
+    await assert.rejects(() => restoreDoc('threads/bad.md', 1, 'grok-project', null, REASON), /not conforming/);
   });
 });
 test('restore with no open session is refused by the session graph', async () => {
   const { graphBefore, GRAPH_WRITE_TOOLS } = await import('../src/session-graph.js');
   assert.strictEqual(GRAPH_WRITE_TOOLS.has('restore_doc'), true);
-  await assert.rejects(() => graphBefore('restore_doc', { doc_id: 'notes/plain.md', version: 1, reason: REASON, source: 'project-host' }, null), /no session/);
+  await assert.rejects(() => graphBefore('restore_doc', { doc_id: 'notes/plain.md', version: 1, reason: REASON, source: 'grok-project' }, null), /no session/);
 });
 test('a shipped copy is not restored', async () => {
   const { restoreDoc } = await import('../src/tools.js');
   const db = makeStore();
   await withStore(db, async () => {
-    await assert.rejects(() => restoreDoc('CHARTER.md', 1, 'project-host', null, REASON), /shipped copy/);
+    await assert.rejects(() => restoreDoc('CHARTER.md', 1, 'grok-project', null, REASON), /shipped copy/);
   });
 });
 test('overlapping edits are refused', async () => {
@@ -251,7 +251,7 @@ test('overlapping edits are refused', async () => {
   await withStore(db, async () => {
     const body = 'LEFTMIDRIGHT' + 'z'.repeat(400);
     await write('threads/span.md', body);
-    await assert.rejects(() => patchDoc('threads/span.md', null, null, 'project-host', null, null, { reason: REASON, edits: [{ old_str: 'LEFTMID', new_str: 'A' }, { old_str: 'MIDRIGHT', new_str: 'B' }] }), /overlap/);
+    await assert.rejects(() => patchDoc('threads/span.md', null, null, 'grok-project', null, null, { reason: REASON, edits: [{ old_str: 'LEFTMID', new_str: 'A' }, { old_str: 'MIDRIGHT', new_str: 'B' }] }), /overlap/);
     assert.strictEqual(db.doc('threads/span.md').content, body);
   });
 });
@@ -262,7 +262,7 @@ test('an added board row needs an origin', async () => {
   await withStore(db, async () => {
     await write('STATE.md', provisionBoardText(), { provision: true });
     const sid = allowBoard(db);
-    await assert.rejects(() => patchDoc('STATE.md', 'Provisioned by the server. Verified at setup.', 'Provisioned by the server. Verified at setup. B-010', 'project-host', null, null, { reason: REASON, session_id: sid }), /origin/);
+    await assert.rejects(() => patchDoc('STATE.md', 'Provisioned by the server. Verified at setup.', 'Provisioned by the server. Verified at setup. B-010', 'grok-project', null, null, { reason: REASON, session_id: sid }), /origin/);
   });
 });
 test('a provisioned board conforms, and initialize provisions only a missing board', async () => {
@@ -270,7 +270,7 @@ test('a provisioned board conforms, and initialize provisions only a missing boa
   const { provisionBoardIfMissing, provisionBoardText } = await import('../src/setup.js');
   const db = makeStore();
   await withStore(db, async () => {
-    process.env.EMET_SOURCE_TAG = 'project-host';
+    process.env.EMET_SOURCE_TAG = 'grok-project';
     const made = await provisionBoardIfMissing();
     assert.strictEqual(made.version, 1);
     assert.strictEqual(validateDocument('STATE.md', provisionBoardText(), null).verdict, 'conforms');
@@ -291,7 +291,7 @@ test('a rotated source tag does not reset the drop cap', async () => {
   const db = makeStore();
   await withStore(db, async () => {
     for (let i = 0; i < 20; i++) await writeDoc(`drops/flood-${i}.md`, `note ${i}\n`, null);
-    await assert.rejects(() => writeDoc('drops/tagged.md', 'still allowed\n', 'project-host'), /20 drops/);
+    await assert.rejects(() => writeDoc('drops/tagged.md', 'still allowed\n', 'grok-project'), /20 drops/);
     assert.strictEqual(db.doc('drops/flood-0.md').drop_bucket, 'stdio');
   });
 });
@@ -299,14 +299,14 @@ test('a template is not restored', async () => {
   const { restoreDoc } = await import('../src/tools.js');
   const db = makeStore();
   await withStore(db, async () => {
-    await assert.rejects(() => restoreDoc('templates/BOARD.md', 1, 'project-host', null, REASON), /shipped copy/);
+    await assert.rejects(() => restoreDoc('templates/BOARD.md', 1, 'grok-project', null, REASON), /shipped copy/);
   });
 });
 test('initialize on an existing store does not replace the board', async () => {
   const { initialize, setStartupBuildForTests } = await import('../src/setup.js');
   const db = makeStore();
   await withStore(db, async () => {
-    process.env.EMET_SOURCE_TAG = 'project-host';
+    process.env.EMET_SOURCE_TAG = 'grok-project';
     await write('STATE.md', 'KEEP THIS BOARD\n', { provision: true });
     setStartupBuildForTests(async () => ({ state: 'ready' }));
     try { await initialize({ page: 'all' }); } catch { /* paging may refuse a stub payload; the board must still stand */ }
@@ -334,7 +334,7 @@ test('initialize with a write scope provisions a missing board', async () => {
   const { actorStore } = await import('../src/persons.js');
   const db = makeStore();
   await withStore(db, async () => {
-    process.env.EMET_SOURCE_TAG = 'project-host';
+    process.env.EMET_SOURCE_TAG = 'grok-project';
     setStartupBuildForTests(async () => ({ state: 'ready' }));
     try { await actorStore.run({ scopes: ['emet.write'] }, () => initialize({ page: 'all' })); }
     catch { /* stub payload; provision runs first */ }
@@ -398,7 +398,7 @@ test('after the startup cache is evicted, a boot-listed drop still refuses a boa
   const { patchDoc } = await import('../src/tools.js');
   const db = makeStore();
   await withStore(db, async () => {
-    process.env.EMET_SOURCE_TAG = 'project-host';
+    process.env.EMET_SOURCE_TAG = 'grok-project';
     await write('drops/boot.md', 'still open\n');
     await write('STATE.md', provisionBoardText(), { provision: true });
     setStartupBuildForTests(async () => ({ state: 'ready', unhandled_drops: ['drops/boot.md'] }));
@@ -410,7 +410,7 @@ test('after the startup cache is evicted, a boot-listed drop still refuses a boa
     const opened = await actorStore.run({ scopes: ['emet.write'], clientId: 'stdio' }, () => dispatchTool('emet_session_open', { slug: 'late', load_id: load }, { dbManager: db }));
     const data = toolData(opened);
     assert.ok((data.drops_seen || []).includes('drops/boot.md'), JSON.stringify(opened).slice(0, 400));
-    await assert.rejects(() => patchDoc('STATE.md', 'Verified at setup.', 'Verified at setup. later', 'project-host', null, null, { reason: REASON, session_id: data.session_id }), /retired with retire_doc/);
+    await assert.rejects(() => patchDoc('STATE.md', 'Verified at setup.', 'Verified at setup. later', 'grok-project', null, null, { reason: REASON, session_id: data.session_id }), /retired with retire_doc/);
     clearPageCache();
   });
 });
@@ -439,7 +439,7 @@ test('initialize with no source tag warns, and a write scope provisions as emet-
   await withStore(db, async () => {
     const prior = process.env.EMET_SOURCE_TAG;
     delete process.env.EMET_SOURCE_TAG;
-    process.env.EMET_SOURCE_TAGS = 'project-host';
+    process.env.EMET_SOURCE_TAGS = 'grok-project';
     setStartupBuildForTests(async () => ({ state: 'ready' }));
     try {
       const warned = await actorStore.run({ scopes: ['emet.read'] }, () => initialize({ page: 'all' }));
@@ -462,11 +462,11 @@ test('the drop cap is 20 in a New York day, and yesterday does not count', async
     const yesterday = new Date(Date.now() - 36 * 60 * 60 * 1000);
     await actorStore.run({ clientId: 'app-1' }, async () => {
       for (let i = 0; i < 20; i++) {
-        await writeDoc(`drops/old-${i}.md`, `old ${i}\n`, 'project-host');
+        await writeDoc(`drops/old-${i}.md`, `old ${i}\n`, 'grok-project');
         db.doc(`drops/old-${i}.md`).updated_at = yesterday;
       }
-      for (let i = 0; i < 20; i++) await writeDoc(`drops/day-${i}.md`, `day ${i}\n`, 'project-host');
-      await assert.rejects(() => writeDoc('drops/over.md', 'over\n', 'project-host'), /20 drops/);
+      for (let i = 0; i < 20; i++) await writeDoc(`drops/day-${i}.md`, `day ${i}\n`, 'grok-project');
+      await assert.rejects(() => writeDoc('drops/over.md', 'over\n', 'grok-project'), /20 drops/);
     });
   });
 });
@@ -477,7 +477,7 @@ test('stdio with no source does not fill a tagged stdio bucket, and http with no
   await withStore(db, async () => {
     await actorStore.run({ clientId: 'stdio' }, async () => {
       for (let i = 0; i < 20; i++) await writeDoc(`drops/vis-${i}.md`, `v ${i}\n`, null);
-      await assert.rejects(() => writeDoc('drops/tagged-ok.md', 'ok\n', 'project-host'), /20 drops/);
+      await assert.rejects(() => writeDoc('drops/tagged-ok.md', 'ok\n', 'grok-project'), /20 drops/);
     });
     assert.strictEqual(db.doc('drops/vis-0.md').drop_bucket, 'stdio');
     await actorStore.run({ clientId: 'http:visitor' }, async () => {
@@ -491,10 +491,10 @@ test('restore goes through dispatch, and a templated row with no verdict is refu
   const { writeDoc, patchDoc } = await import('../src/tools.js');
   const db = makeStore();
   await withStore(db, async () => {
-    process.env.EMET_SOURCE_TAG = 'project-host';
-    process.env.EMET_RESTORE_TAGS = 'project-host';
-    await writeDoc('notes/plain.md', 'alpha note that is long enough to restore\n', 'project-host');
-    await patchDoc('notes/plain.md', 'alpha', 'beta', 'project-host', null, null, { reason: REASON });
+    process.env.EMET_SOURCE_TAG = 'grok-project';
+    process.env.EMET_RESTORE_TAGS = 'grok-project';
+    await writeDoc('notes/plain.md', 'alpha note that is long enough to restore\n', 'grok-project');
+    await patchDoc('notes/plain.md', 'alpha', 'beta', 'grok-project', null, null, { reason: REASON });
     const { initialize, setStartupBuildForTests } = await import('../src/setup.js');
     setStartupBuildForTests(async () => ({ state: 'ready' }));
     let started;
@@ -502,14 +502,14 @@ test('restore goes through dispatch, and a templated row with no verdict is refu
     const opened = await dispatchTool('emet_session_open', { slug: 'restore', load_id: started.startup_page.load_id }, { dbManager: db });
     const session_id = toolData(opened).session_id;
     assert.ok(session_id, JSON.stringify(opened).slice(0, 300));
-    const restored = await dispatchTool('restore_doc', { doc_id: 'notes/plain.md', version: 1, reason: REASON, source: 'project-host', session_id }, { dbManager: db });
+    const restored = await dispatchTool('restore_doc', { doc_id: 'notes/plain.md', version: 1, reason: REASON, source: 'grok-project', session_id }, { dbManager: db });
     assert.strictEqual(toolData(restored).restored_from_version, 1, JSON.stringify(restored).slice(0, 400));
-    await writeDoc('threads/nov.md', 'thread text long enough to restore', 'project-host');
-    await patchDoc('threads/nov.md', 'thread', 'THREAD', 'project-host', null, null, { reason: REASON });
+    await writeDoc('threads/nov.md', 'thread text long enough to restore', 'grok-project');
+    await patchDoc('threads/nov.md', 'thread', 'THREAD', 'grok-project', null, null, { reason: REASON });
     const row = db.col('documents_history').docs.find((d) => d.doc_id === 'threads/nov.md');
     assert.ok(row, 'history row');
     delete row.conformance;
-    const refused = await dispatchTool('restore_doc', { doc_id: 'threads/nov.md', version: 1, reason: REASON, source: 'project-host', session_id }, { dbManager: db });
+    const refused = await dispatchTool('restore_doc', { doc_id: 'threads/nov.md', version: 1, reason: REASON, source: 'grok-project', session_id }, { dbManager: db });
     assert.match(JSON.stringify(refused), /no conformance verdict/);
   });
 });
@@ -521,7 +521,7 @@ test('an external caller claiming emet-server cannot accept a nonconformance on 
   const { actorStore } = await import('../src/persons.js');
   const db = makeStore();
   await withStore(db, async () => {
-    process.env.EMET_SOURCE_TAGS = 'project-host';
+    process.env.EMET_SOURCE_TAGS = 'grok-project';
     const prior = process.env.EMET_SOURCE_TAG;
     delete process.env.EMET_SOURCE_TAG;
     await assert.rejects(() => acceptNonconformance('HANDOFF.md', REASON, 'emet-server'), /not a registered/);
@@ -540,10 +540,10 @@ test('a new session resets the first-touch baseline; the same session does not',
   const db = makeStore();
   await withStore(db, async () => {
     await write('threads/fresh.md', 'x'.repeat(100), { session_id: 'same' });
-    await patchDoc('threads/fresh.md', 'x'.repeat(100), 'x'.repeat(80), 'project-host', null, null, { reason: REASON, session_id: 'same' });
-    await assert.rejects(() => patchDoc('threads/fresh.md', 'x'.repeat(80), 'x'.repeat(45), 'project-host', null, null, { reason: REASON, session_id: 'same' }), /first touched/);
-    await assert.rejects(() => patchDoc('threads/fresh.md', 'x'.repeat(80), 'x'.repeat(45), 'project-host', null, null, { reason: REASON, session_id: 'other' }), /24 hours/);
-    await patchDoc('threads/fresh.md', 'x'.repeat(80), 'x'.repeat(60), 'project-host', null, null, { reason: REASON, session_id: 'other' });
+    await patchDoc('threads/fresh.md', 'x'.repeat(100), 'x'.repeat(80), 'grok-project', null, null, { reason: REASON, session_id: 'same' });
+    await assert.rejects(() => patchDoc('threads/fresh.md', 'x'.repeat(80), 'x'.repeat(45), 'grok-project', null, null, { reason: REASON, session_id: 'same' }), /first touched/);
+    await assert.rejects(() => patchDoc('threads/fresh.md', 'x'.repeat(80), 'x'.repeat(45), 'grok-project', null, null, { reason: REASON, session_id: 'other' }), /24 hours/);
+    await patchDoc('threads/fresh.md', 'x'.repeat(80), 'x'.repeat(60), 'grok-project', null, null, { reason: REASON, session_id: 'other' });
     assert.strictEqual(db.doc('threads/fresh.md').content.length, 60);
   });
 });
@@ -552,14 +552,14 @@ test('restore of the board is refused while an unretired boot drop is open', asy
   const { provisionBoardText } = await import('../src/setup.js');
   const db = makeStore();
   await withStore(db, async () => {
-    process.env.EMET_SOURCE_TAG = 'project-host';
-    process.env.EMET_RESTORE_TAGS = 'project-host';
+    process.env.EMET_SOURCE_TAG = 'grok-project';
+    process.env.EMET_RESTORE_TAGS = 'grok-project';
     await write('STATE.md', provisionBoardText(), { provision: true });
     db.col('emet_sessions').docs.push({ _id: 'plain', opened: true, drops_seen: [] });
-    await patchDoc('STATE.md', 'Verified at setup.', 'Verified at setup. later', 'project-host', null, null, { reason: REASON, session_id: 'plain' });
+    await patchDoc('STATE.md', 'Verified at setup.', 'Verified at setup. later', 'grok-project', null, null, { reason: REASON, session_id: 'plain' });
     db.col('documents').docs.push({ doc_id: 'drops/open.md', content: 'open', retired: false, updated_at: new Date() });
     db.col('emet_sessions').docs.push({ _id: 'gated', drops_seen: ['drops/open.md'] });
-    await assert.rejects(() => restoreDoc('STATE.md', 1, 'project-host', null, REASON, { session_id: 'gated' }), /retired with retire_doc/);
+    await assert.rejects(() => restoreDoc('STATE.md', 1, 'grok-project', null, REASON, { session_id: 'gated' }), /retired with retire_doc/);
   });
 });
 
@@ -588,15 +588,15 @@ test('a drop at 02:00Z does not count toward the New York day, and one at 05:00Z
     const thisNy = new Date(ny + 'T05:00:00Z');
     await actorStore.run({ clientId: 'app-boundary' }, async () => {
       for (let n = 0; n < 20; n++) {
-        await writeDoc('drops/zedge-' + n + '.md', 'edge', 'project-host');
+        await writeDoc('drops/zedge-' + n + '.md', 'edge', 'grok-project');
         db.doc('drops/zedge-' + n + '.md').updated_at = previousNy;
       }
-      await writeDoc('drops/after-zedge.md', 'allowed', 'project-host');
+      await writeDoc('drops/after-zedge.md', 'allowed', 'grok-project');
       for (let n = 0; n < 19; n++) {
-        await writeDoc('drops/zny-' + n + '.md', 'ny', 'project-host');
+        await writeDoc('drops/zny-' + n + '.md', 'ny', 'grok-project');
         db.doc('drops/zny-' + n + '.md').updated_at = thisNy;
       }
-      await assert.rejects(() => writeDoc('drops/zny-over.md', 'over', 'project-host'), /20 drops/);
+      await assert.rejects(() => writeDoc('drops/zny-over.md', 'over', 'grok-project'), /20 drops/);
     });
   });
 });
@@ -617,14 +617,14 @@ test('a failed drop read refuses a board patch and a board restore', async () =>
   const { provisionBoardText } = await import('../src/setup.js');
   const db = makeStore();
   await withStore(db, async () => {
-    process.env.EMET_SOURCE_TAG = 'project-host';
-    process.env.EMET_RESTORE_TAGS = 'project-host';
+    process.env.EMET_SOURCE_TAG = 'grok-project';
+    process.env.EMET_RESTORE_TAGS = 'grok-project';
     await write('STATE.md', provisionBoardText(), { provision: true });
     db.col('emet_sessions').docs.push({ _id: 'plain', opened: true, drops_seen: [] });
-    await patchDoc('STATE.md', 'Verified at setup.', 'Verified at setup. later', 'project-host', null, null, { reason: REASON, session_id: 'plain' });
+    await patchDoc('STATE.md', 'Verified at setup.', 'Verified at setup. later', 'grok-project', null, null, { reason: REASON, session_id: 'plain' });
     db.col('emet_sessions').docs.push({ _id: 'unknown-list', drops_unverified: true });
-    await assert.rejects(() => patchDoc('STATE.md', 'Verified at setup. later', 'Verified at setup. later still', 'project-host', null, null, { reason: REASON, session_id: 'unknown-list' }), /could not be loaded/);
-    await assert.rejects(() => restoreDoc('STATE.md', 1, 'project-host', null, REASON, { session_id: 'unknown-list' }), /could not be loaded/);
+    await assert.rejects(() => patchDoc('STATE.md', 'Verified at setup. later', 'Verified at setup. later still', 'grok-project', null, null, { reason: REASON, session_id: 'unknown-list' }), /could not be loaded/);
+    await assert.rejects(() => restoreDoc('STATE.md', 1, 'grok-project', null, REASON, { session_id: 'unknown-list' }), /could not be loaded/);
   });
 });
 test('a verified reopen that finds no unretired drops clears drops_unverified', async () => {
@@ -738,7 +738,7 @@ test('an HTTP caller with no OAuth client id is http:visitor, never a stdio buck
         headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
         body: JSON.stringify({
           jsonrpc: '2.0', id: 1, method: 'tools/call',
-          params: { name: 'write_doc', arguments: { doc_id: 'drops/http-noclient.md', content: 'visitor', source: 'project-host' } }
+          params: { name: 'write_doc', arguments: { doc_id: 'drops/http-noclient.md', content: 'visitor', source: 'grok-project' } }
         })
       });
       const body = await res.text();

@@ -1,6 +1,6 @@
 # TEMPLATE — INSTALL
 
-**Template control:** id `templates/INSTALL.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-26 · a decision record · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
+**Template control:** id `templates/INSTALL.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-26 · procedural ref 361 · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
 **Fills:** `bootstrap/INSTALL.md` — this install's hosts, machines, source tags, and the checks a session runs before the startup list. Optional; absence is not an error.
 **Failure it prevents:** a paste-block-only start that cannot check a machine, mint a session id, or tag a write, because those notes lived only in one install's head (proof of concept 2026-09-26; `install_notes` served from this document when present).
 **Completion rules:** `templates/STANDARD.md` §5, unmodified.

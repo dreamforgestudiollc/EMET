@@ -1,8 +1,8 @@
 /**
  * EMET - bot roster, bot handoff template and bot registration (2026-10-01).
  *
- * The owner: "update EMET to recognize the bot tags and update
- * templates and such as necessary for it to be fully functional";
+ * Alex, the recorded time: "update EMET to recognize the bot tags and update
+ * templates and such as necessary for it to be fully functional"; the recorded time:
  * a bot roster template and a setup reference. No production code changes:
  * a tag is a bot tag only when bots/<tag>/HANDOFF.md is in EMET_RECORD_DOCS
  * (session-graph.js isBotTag), so these tests pin (1) that the configured
@@ -23,15 +23,15 @@ import {
   isGovernedByShippedCopy, countPlaceholders, STATUS, VERDICT
 } from '../src/conformance.js';
 import { isBotTag, mainRecordIds } from '../src/session-graph.js';
-import { refuseBotMainRecord, isRecordDoc } from '../src/tools.js';
 import { privateWordsIn } from './scrub-tokens.js';
+import { refuseBotMainRecord, isRecordDoc } from '../src/tools.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
-const BOTS = ['tester-bot', 'intake-bot', 'reviewer-bot', 'memory-bot', 'research-bot'];
+const BOTS = ['reviewer-bot', 'intake-bot', 'tester-bot', 'memory-bot', 'research-bot'];
 const HUB = 'hub-bot';
-// The exact value set on the reference deploy, 2026-10-01 (four bots, then a fifth).
+// The exact value set on the reference deploy, 2026-10-01 the recorded time (four bots at 4:20, the researcher added 4:23).
 const RECORD_DOCS = BOTS.map((t) => `bots/${t}/HANDOFF.md`).join(',');
 
 function withEnv(vars, fn) {
@@ -52,14 +52,14 @@ testGroup('the configured value: five bots are bots, the hub stays a host', () =
     for (const t of BOTS) assert.strictEqual(isBotTag(t), true, t);
   }));
   test('the hub tag and host tags are not bot tags', () => withEnv(env, () => {
-    for (const t of [HUB, 'project-host', 'mobile', 'cli', 'unspecified']) assert.strictEqual(isBotTag(t), false, t);
+    for (const t of [HUB, 'grok-project', 'mobile', 'cli', 'unspecified']) assert.strictEqual(isBotTag(t), false, t);
   }));
-  test('unset, no tag is a bot tag (the state the second reader found live)', () => withEnv(CLEAN, () => {
+  test('unset, no tag is a bot tag (the state the reviewer found live)', () => withEnv(CLEAN, () => {
     for (const t of BOTS) assert.strictEqual(isBotTag(t), false, t);
   }));
-  test('the legacy CASCADE_ name is hidden once the EMET_ name is set', () => withEnv({ ...env, CASCADE_RECORD_DOCS: 'bots/other-bot/HANDOFF.md' }, () => {
-    assert.strictEqual(isBotTag('other-bot'), false);
-    assert.strictEqual(isBotTag('tester-bot'), true);
+  test('the legacy CASCADE_ name is hidden once the EMET_ name is set', () => withEnv({ ...env, CASCADE_RECORD_DOCS: 'bots/hub-other/HANDOFF.md' }, () => {
+    assert.strictEqual(isBotTag('hub-other'), false);
+    assert.strictEqual(isBotTag('reviewer-bot'), true);
   }));
   test('a bot tag is refused both main records; the hub is not', () => withEnv(env, () => {
     for (const t of BOTS) for (const id of mainRecordIds()) {
@@ -78,19 +78,19 @@ testGroup('the configured value: five bots are bots, the hub stays a host', () =
     assert.strictEqual(isRecordDoc('HANDOFF.md'), true);
   }));
   test('a stray space or leading ./ in the value: spaces are trimmed, ./ is not a match', () => {
-    withEnv({ ...CLEAN, EMET_RECORD_DOCS: ' bots/tester-bot/HANDOFF.md , ./bots/intake-bot/HANDOFF.md' }, () => {
-      assert.strictEqual(isBotTag('tester-bot'), true);
+    withEnv({ ...CLEAN, EMET_RECORD_DOCS: ' bots/reviewer-bot/HANDOFF.md , ./bots/intake-bot/HANDOFF.md' }, () => {
+      assert.strictEqual(isBotTag('reviewer-bot'), true);
       assert.strictEqual(isBotTag('intake-bot'), false);
     });
   });
 });
 
-const BOT_HANDOFF_FILLED = `# example-bot — HANDOFF
+const BOT_HANDOFF_FILLED = `# hub-example — HANDOFF
 
 ## §0 RECORD CONTROL
 - Template: \`templates/BOTHANDOFF.md\` rev 1 · Handoff revision: v1 · Supersedes: none — first revision
-- Session id: 2026-10-01_example-bot-check · Source tag: example-bot · Bot: Example (roster row in \`bots/ROSTER.md\`)
-- Host / interface: example host · Machine: example machine · Written (local): 2026-10-01 9:15 AM
+- Session id: 2026-10-01_example-bot-check · Source tag: hub-example · Bot: Example (roster row in \`bots/ROSTER.md\`)
+- Host / interface: example host · Machine: example machine · Written (local): 2026-10-01 4:40 PM
 - **Scope of this session, one line:** one read-only check, reported to the hub.
 
 ## §1 START HERE
@@ -106,7 +106,7 @@ const BOT_HANDOFF_FILLED = `# example-bot — HANDOFF
 ## §3 HANDED TO THE HUB
 | Item (finding, question, draft, verdict) | Sent (local time) | Hub's reply or decision relayed, with the user's words where given |
 |---|---|---|
-| Verdict: pass | 9:14 AM | acknowledged |
+| Verdict: pass | 4:39 PM | acknowledged |
 
 ## §4 ERRORS AND CORRECTIONS THIS SESSION
 None identified this session.
@@ -125,13 +125,13 @@ const ROSTER_FILLED = `# BOT ROSTER
 
 ## §0 RECORD CONTROL
 - Template: \`templates/ROSTER.md\` rev 1 · Roster revision: the store's version governs
-- Owner (the user): the user · Kept by (the hub): hub-example · Last updated: 2026-10-01 9:15 AM (local) · Session id: 2026-10-01_roster · Source tag: hub-example
+- Owner (the user): the user · Kept by (the hub): hub-example · Last updated: 2026-10-01 4:40 PM (local) · Session id: 2026-10-01_roster · Source tag: hub-example
 - **What changed in this revision, one line:** first revision.
 
 ## §1 BOTS
 | Tag | Name | Role | Host | Machine | Handoff doc | Tool profile | Owner | Status | Registered (SOURCE_TAGS · RECORD_DOCS) |
 |---|---|---|---|---|---|---|---|---|---|
-| example-bot | Example | tester | example host | example machine | \`bots/example-bot/HANDOFF.md\` | bot (provisional) | the user | PILOT | Y · Y |
+| hub-example | Example | tester | example host | example machine | \`bots/hub-example/HANDOFF.md\` | bot (provisional) | the user | PILOT | Y · Y |
 
 ## §2 HUB — host-level, never a bot
 | Tag | Name | Host | Machine | Records it writes | Listed in RECORD_DOCS |
@@ -139,15 +139,15 @@ const ROSTER_FILLED = `# BOT ROSTER
 | hub-example | Hub | example host | example machine | \`HANDOFF.md\`, \`STATE.md\` | No — never |
 
 ## §3 CONFIGURATION READ-BACK
-- Read (local): 2026-10-01 9:15 AM · Deployment: example · Read by: hub-example
-- \`EMET_RECORD_DOCS\` bot entries: bots/example-bot/HANDOFF.md
-- \`EMET_SOURCE_TAGS\` bot and hub entries: example-bot, hub-example
+- Read (local): 2026-10-01 4:40 PM · Deployment: example · Read by: hub-example
+- \`EMET_RECORD_DOCS\` bot entries: bots/hub-example/HANDOFF.md
+- \`EMET_SOURCE_TAGS\` bot and hub entries: hub-example, hub-example
 - **Agreement:** Y
 
 ## §4 CHANGE LOG
 | Date (local) | Change (added · retired · role · profile) | User's words, verbatim | Decision record |
 |---|---|---|---|
-| 2026-10-01 | added example-bot | "add it" | procedural 1 |
+| 2026-10-01 | added hub-example | "add it" | procedural 1 |
 `;
 
 testGroup('the two new forms ship and are DRAFT', () => {
@@ -196,13 +196,13 @@ testGroup('filled records conform to their own form', () => {
 
 testGroup('no nonconformance backlog: unmapped, or mapped to a DRAFT form', () => {
   test('with EMET_TEMPLATE_MAP unchanged, a bot handoff and the roster are untemplated', () => withEnv(CLEAN, () => {
-    assert.strictEqual(templateFor('bots/tester-bot/HANDOFF.md'), null);
+    assert.strictEqual(templateFor('bots/reviewer-bot/HANDOFF.md'), null);
     assert.strictEqual(templateFor('bots/ROSTER.md'), null);
-    assert.strictEqual(validateDocument('bots/tester-bot/HANDOFF.md', 'anything').verdict, VERDICT.UNTEMPLATED);
+    assert.strictEqual(validateDocument('bots/reviewer-bot/HANDOFF.md', 'anything').verdict, VERDICT.UNTEMPLATED);
   }));
   test('mapped to the DRAFT bot handoff form, a short bot handoff is checked but not marked', () => withEnv(
-    { ...CLEAN, EMET_TEMPLATE_MAP: 'bots/tester-bot/HANDOFF.md=templates/BOTHANDOFF.md' }, () => {
-      const v = validateDocument('bots/tester-bot/HANDOFF.md', 'a short note with no sections');
+    { ...CLEAN, EMET_TEMPLATE_MAP: 'bots/reviewer-bot/HANDOFF.md=templates/BOTHANDOFF.md' }, () => {
+      const v = validateDocument('bots/reviewer-bot/HANDOFF.md', 'a short note with no sections');
       assert.strictEqual(v.verdict, VERDICT.UNGATED, JSON.stringify(v));
     }));
 });
@@ -230,13 +230,13 @@ testGroup('the setup reference is linked where setup is described', () => {
     assert.match(b, /misspelled tag is treated as a host/);
     assert.match(b, /set `EMET_SOURCE_TAGS` and `EMET_RECORD_DOCS` together/);
   });
-  test('BOTS.md §5 states the C-3 limit in bold: "These refusals cover listed tags only." (review nit D3a)', () => {
+  test('BOTS.md §5 states the C-3 limit in bold: "These refusals cover listed tags only." (the reviewer nit D3a)', () => {
     const b = read('docs/BOTS.md');
     const s5 = b.slice(b.indexOf('\n## 5.'), b.indexOf('\n## 6.'));
     assert.ok(s5.length > 0, 'BOTS.md §5 not found');
     assert.match(s5, /\*\*These refusals cover listed tags only\.\*\*/);
   });
-  test('BOTS.md after the bot guards: no stale "can write the main records" for unlisted tags; guards off without a registry', () => {
+  test('BOTS.md after the bot guards (PR 5): no stale "can write the main records" for unlisted tags; guards off without a registry', () => {
     const b = read('docs/BOTS.md');
     assert.ok(!/treated as a host: it is not refused, and it can write the main records/.test(b));
     assert.ok(!/treated as a host and can write the main records/.test(b));
@@ -245,7 +245,7 @@ testGroup('the setup reference is linked where setup is described', () => {
     assert.match(b, /a registered tag that is not listed as a bot can still write the main records and any bot's folder/);
     assert.match(b, /The hub's tag must be in `EMET_SOURCE_TAGS`/);
   });
-  test('BOTS.md carries the name-every-write rule (a decision record)', () => {
+  test('BOTS.md carries the name-every-write rule (procedural ref 406)', () => {
     const b = read('docs/BOTS.md');
     assert.match(b, /\*\*Name every write attempt\.\*\*/);
     assert.match(b, /a write not on it, a retry, or a write after the close is a finding/);

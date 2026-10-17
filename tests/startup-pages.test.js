@@ -1,5 +1,5 @@
 /**
- * Paged startup (the owner approved paging 2026-10-03).
+ * Paged startup (Alex approved paging 2026-10-03; design paper question 1).
  * The connector gateway cuts a result at 20,000 bytes; the startup is ~64K.
  *
  *   Z   sizes: every page, envelope included, within the page budget (18,000
@@ -226,7 +226,7 @@ testGroup('B: backward compatibility', () => {
   });
   test('even a brand-new store\'s startup is paged (the shipped floor, charter and instructions alone pass one page); page "all" is the same payload in one result', async () => {
     const s = makeStore();
-    await withStore(s, () => setupComplete({ assistant_name: 'Ada', assistant_character: 'Plain.', user_name: 'Sam Example', user_context: 'Testing.', source_tag: 'example-host' }));
+    await withStore(s, () => setupComplete({ assistant_name: 'Ada', assistant_character: 'Plain.', user_name: 'Sam Example', user_context: 'Testing.', source_tag: 'example-host', more_than_one_bot: 'no' }));
     const all = payloadOf(await withStore(s, () => initialize({ page: 'all' })));
     assert.ok(sp.resultSize(all).bytes > 18000);
     const got = await fetchAll(s);

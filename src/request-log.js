@@ -68,7 +68,7 @@ export function requestLogEntry({ method, path, statusCode, ms, ip, query = {}, 
       entry.rpc = clip(b.method);
       if (b.method === 'tools/call' && b.params && b.params.name) {
         entry.tool = clip(b.params.name);
-        // Parameter NAMES only (the owner, 2026-09-27, code audit 1.6) - values never.
+        // Parameter NAMES only (Alex, 2026-09-27, code audit 1.6) - values never.
         const a = b.params.arguments;
         if (a && typeof a === 'object' && !Array.isArray(a)) entry.params = Object.keys(a).sort().map(clip);
       }

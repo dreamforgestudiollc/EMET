@@ -126,7 +126,7 @@ export function verifyLayerEntry(readBack, expected) {
     ? readBack.content
     : readBack.event);
 
-  // If the row carries its own sha256 column (written from 2026-09-05),
+  // If the row carries its own sha256 column (EMET ref 12, written from 2026-09-05),
   // it must agree with the content it sits beside. Rows written before the column
   // existed carry none and are judged on content alone - absence is not a failure,
   // but a PRESENT digest that disagrees is: the row is internally inconsistent.
@@ -197,7 +197,7 @@ export function verifyLayerEntry(readBack, expected) {
  * Canonical JSON: keys sorted at every depth, no whitespace, so the same
  * metadata produces the same bytes whatever order it was assembled in or
  * returned in. undefined values and functions are dropped as JSON.stringify
- * would drop them; a legacy metadata STRING (written before 2026-09-05) is parsed first so
+ * would drop them; a legacy metadata STRING (pre-EMET ref 6) is parsed first so
  * both stored shapes digest identically.
  */
 export function canonicalJson(value) {
@@ -238,7 +238,7 @@ export function metadataIntegrityOf(row) {
  * Integrity of a stored layer row at READ time (work list E2, 2026-09-07).
  *
  * verifyLayerEntry above runs once, at the write. The sha256 column it stores
- * makes a second check possible every time the row is read, so a
+ * (EMET ref 12) makes a second check possible every time the row is read, so a
  * row altered after its write - by a migration, a hand edit, a bug - is
  * flagged where it is used rather than discovered by accident. One hash per
  * row; the cost is small and the alternative is trusting a receipt from the
@@ -344,7 +344,7 @@ export function signatureIntegrityOf(row, key) {
 
 /**
  * May a row be RE-SIGNED after one of the sanctioned metadata marks? (2026-10-02,
- * the reviewer's finding: the marks re-attested metadata_sha256 but left the
+ * the tester's finding: the marks re-attested metadata_sha256 but left the
  * signature over the old metadata digest, so every superseded or corrected
  * row read signed:false.)
  *

@@ -107,7 +107,7 @@ testGroup('AlephError is distinguishable from a database failure', () => {
   });
 });
 
-testGroup('verifyLayerEntry - stored sha256 column', () => {
+testGroup('verifyLayerEntry - stored sha256 column (EMET ref 12)', () => {
   const content = 'a memory';
   const sha = digest(content);
   test('accepts a row whose sha256 column matches its content, and reports the digest as stored', () => {
@@ -195,7 +195,7 @@ testGroup('canonicalJson / digestMetadata - the same metadata always digests the
     assert.strictEqual(digestMetadata(undefined), digestMetadata({}));
   });
   test('a one-character change anywhere changes the digest', () => {
-    assert.notStrictEqual(digestMetadata({ source: 'cloud-host' }), digestMetadata({ source: 'cloud-hosT' }));
+    assert.notStrictEqual(digestMetadata({ source: 'cowork-cloud' }), digestMetadata({ source: 'cowork-clouD' }));
     assert.notStrictEqual(digestMetadata({ importance: 0.7 }), digestMetadata({ importance: 0.71 }));
   });
 });
@@ -261,7 +261,7 @@ testGroup('verifyLayerEntry - metadata attestation at the write (C1)', () => {
 testGroup('signed digests - key never in the row', () => {
   const key = 'test-signing-key';
   const c = digest('body');
-  const m = digestMetadata({ source: 'project-host' });
+  const m = digestMetadata({ source: 'grok-project' });
   test('sign is deterministic for the same digests and key', () => {
     assert.strictEqual(signDigests(c, m, key), signDigests(c, m, key));
   });

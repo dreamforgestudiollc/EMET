@@ -1,5 +1,5 @@
 /**
- * EMET - provenance is stamped and required at the door (2026-09-29, a decision record).
+ * EMET - provenance is stamped and required at the door (2026-09-29, procedural ref 398).
  *
  * The owner's ruling: integrity was proven on every write, provenance was not.
  * The transcript is appended every exchange, so the pointer needs no

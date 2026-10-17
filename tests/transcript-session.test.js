@@ -22,8 +22,8 @@ test('base id slugs', () => {
   assert.match(sessionBaseId(new Date('2026-09-26T16:00:00Z'), 'Grok Init'), /^2026-09-26_grok-init$/);
 });
 // ---------------------------------------------------------------------------
-// Session ids (2026-10-01).
-// Two failures observed on 2026-09-30 (two incident records):
+// Session ids (2026-10-01, review note: dev team plan Part B, fix 1).
+// Two failures observed on 2026-09-30 (episodic ref 598 and 600):
 //  (a) emet_session_open handed back a CLOSED session's id, and the next
 //      append landed in the closed session as its exchange 9;
 //  (b) the id's date came from UTC, so an evening session in the user's zone
@@ -122,7 +122,7 @@ const EVENING = new Date('2026-10-01T01:30:00Z');
 const minutesAfter = (t, m) => new Date(t.getTime() + m * 60000);
 const dataOf = (r) => JSON.parse(r.content[0].text).data;
 
-testGroup('session ids: the date is the local day (failure b, an incident record)', () => {
+testGroup('session ids: the date is the local day (failure b, episodic ref 600)', () => {
   test('9:30 PM in New York on 9/30 (01:30 UTC on 10/1) is dated 2026-09-30 by default', () => {
     assert.strictEqual(sessionBaseId(new Date('2026-10-01T01:30:00Z'), 'grok-init'), '2026-09-30_grok-init');
   });
@@ -145,7 +145,7 @@ testGroup('session ids: the date is the local day (failure b, an incident record
     assert.strictEqual(sessionTimeZone(undefined).zone, 'America/New_York');
     assert.strictEqual(sessionTimeZone(undefined).note, null);
   });
-  test('end to end: emet_session_open at 9:30 PM New York time on 9/30 opens 2026-09-30_<slug> (clock injected)', async () => {
+  test('end to end: emet_session_open at the recorded time on 9/30 opens 2026-09-30_<slug> (clock injected)', async () => {
     const { sessionOpen } = await import('../src/tools.js');
     const r = await sessionOpen({ slug: 'grok-init' }, null, fakeSessions(), EVENING);
     assert.strictEqual(r.base, '2026-09-30_grok-init');
@@ -158,13 +158,13 @@ testGroup('session ids: the date is the local day (failure b, an incident record
   });
 });
 
-testGroup('session ids: a closed id is never reused (failure a, an incident record)', () => {
+testGroup('session ids: a closed id is never reused (failure a, episodic ref 598)', () => {
   test('a slug whose id is already CLOSED opens as <id>-2, and the response says why', async () => {
     const { sessionOpen } = await import('../src/tools.js');
     const { baseOf } = await import('../src/session-graph.js');
-    const first = await sessionOpen({ slug: 'project-host-init' }, null, fakeSessions(), EVENING);
+    const first = await sessionOpen({ slug: 'grok-project-init' }, null, fakeSessions(), EVENING);
     const db = fakeSessions([first.base]);
-    const r = await sessionOpen({ slug: 'project-host-init' }, null, db, EVENING);
+    const r = await sessionOpen({ slug: 'grok-project-init' }, null, db, EVENING);
     assert.strictEqual(r.base, `${first.base}-2`);
     assert.strictEqual(r.session_id, `${first.base}-2_verbatim_part1`);
     assert.ok(r.suffix_applied, 'no suffix_applied block');
@@ -251,8 +251,8 @@ testGroup('session ids: a suffix never collides with a real slug ending in -N (r
   });
 });
 
-testGroup('transcript writes into a closed session (review fix 1; the owner 2026-10-01: one closing exchange, corrections allowed)', () => {
-  const CLOSED = '2026-09-30_project-host-init';
+testGroup('transcript writes into a closed session (review fix 1; Alex 2026-10-01: one closing exchange, corrections allowed)', () => {
+  const CLOSED = '2026-09-30_grok-project-init';
   const P1 = `${CLOSED}_verbatim_part1`;
   const CLOSED_AT = EVENING;
   const msg = { user_message: 'u', assistant_message: 'a', source: 'test' };
@@ -428,8 +428,8 @@ testGroup('transcript writes into a closed session (review fix 1; the owner 2026
   });
 });
 
-testGroup('closed sessions: a retry or an odd id can write nothing (second-reader review 3 and review gate on an earlier draft)', () => {
-  const CLOSED = '2026-09-30_project-host-init';
+testGroup('closed sessions: a retry or an odd id can write nothing (the reviewer review 3 and the tester gate on commit-2a361fd)', () => {
+  const CLOSED = '2026-09-30_grok-project-init';
   const P1 = `${CLOSED}_verbatim_part1`;
   const CLOSED_AT = EVENING;
   const msg = { user_message: 'u', assistant_message: 'a', source: 'test' };
@@ -584,7 +584,7 @@ testGroup('closed sessions: a retry or an odd id can write nothing (second-reade
     const r = await call(db, 'emet_transcript_append', { session_id: P1, exchange_index: 4, ...msg }, minutesAfter(CLOSED_AT, 4));
     assert.strictEqual(snapshot(db), before, 'the retry wrote after the correction');
     assert.ok(retried(r), text(r).slice(0, 300));
-    // Even where a part already lacks the closing exchange (e.g. a revision made on an earlier draft), a retry writes nothing.
+    // Even where a part already lacks the closing exchange (e.g. a revision made on commit-2a361fd), a retry writes nothing.
     const db2 = await afterClosing();
     db2.transcripts[0].exchanges = db2.transcripts[0].exchanges.filter((e) => e.exchange_index !== 4);
     const before2 = snapshot(db2);
@@ -645,7 +645,7 @@ testGroup('closed sessions: a retry or an odd id can write nothing (second-reade
     assert.deepStrictEqual(db.transcripts.find((d) => d.session_id === sid).exchanges.map((e) => e.exchange_index), [1, 2, 3]);
   });
 
-  // --- the second reader's nits 1, 4, 7 -------------------------------------------------------------
+  // --- the reviewer's nits 1, 4, 7 -------------------------------------------------------------
   test('monorail wording: the closed gate and next step say "closed and locked" and never "open a new session"', async () => {
     const { evaluate, nextStep } = await import('../src/session-graph.js');
     const next = nextStep({ opened: true, closed: true }, 4);

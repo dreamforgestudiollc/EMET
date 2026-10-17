@@ -11,6 +11,7 @@
  */
 
 import { TOOL_ANNOTATIONS } from './annotations.js';
+import { activeRune } from './rune-registry.js';
 
 // A tool whose scope deliberately differs from its annotation.
 // emet_status without probe is a read, so a guest can see that the store is up.
@@ -33,6 +34,8 @@ export function scopeForTool(name, args = null) {
   if (SCOPE_OVERRIDES[name]) return SCOPE_OVERRIDES[name];
   const a = TOOL_ANNOTATIONS[name];
   if (a && a.readOnlyHint === true) return 'emet.read';
+  const rune = activeRune(name);
+  if (rune && rune.annotations && rune.annotations.readOnlyHint === true) return 'emet.read';
   return 'emet.write';
 }
 

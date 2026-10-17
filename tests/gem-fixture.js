@@ -20,6 +20,14 @@ export async function syncDigests(dir, manifest) {
     entry.size = buf.length;
     entry.digest = sha256(buf);
   }
+  for (const directive of manifest.runes || []) {
+    if (!directive || typeof directive.artifact !== 'string') continue;
+    directive.version = manifest.version;
+    try {
+      const buf = await fs.promises.readFile(path.join(dir, ...directive.artifact.split('/')));
+      directive.sha256 = sha256(buf);
+    } catch { /* GC-19 reports a missing artifact */ }
+  }
   await fs.promises.writeFile(path.join(dir, 'gem.json'), JSON.stringify(manifest, null, 2) + '\n');
   return manifest;
 }
@@ -53,6 +61,7 @@ export async function tempRelease(ids, alter) {
     manifest.id = id;
     manifest.name = id;
     manifest.requires = { emet: '>=0.2.4' };
+    manifest.released = true;
     if (alter) await alter(manifest, dir, id);
     await syncDigests(dir, manifest);
   }
@@ -83,15 +92,21 @@ export function floorDocument(target) {
 export function rune(name, extra = {}) {
   return {
     name,
-    description: 'Reads one layer and writes nothing.',
+    description: 'A pure function of the inputs the caller passes in. A call returns the code and does not run it.',
+    execution: 'client',
+    artifact: `runes/${name}.js`,
+    sha256: 'sha256:' + 'ab'.repeat(32),
+    version: '1.0.0',
+    runtime: 'node',
     inputSchema: { type: 'object' },
+    outputSchema: { type: 'object' },
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
       idempotentHint: true,
       openWorldHint: false
     },
-    reads: ['semantic'],
+    reads: [],
     writes: [],
     network: 'none',
     ...extra

@@ -1,5 +1,5 @@
 /**
- * EMET - re-sign on the sanctioned metadata marks (2026-10-02; the reviewer's finding).
+ * EMET - re-sign on the sanctioned metadata marks (2026-10-02; the tester's finding at commit-3476acf).
  *
  * The signature is an HMAC over the content digest and the metadata digest. saveMemory signs at insert,
  * but markCorrectedBy (a corrected_by mark) and reviseMemory (the parent's superseded_by mark) re-attested
@@ -25,7 +25,7 @@ async function withKey(key, fn) {
 }
 
 
-const SRC = { source: 'tester-bot', assertion_origin: 'assistant' };
+const SRC = { source: 'reviewer-bot', assertion_origin: 'assistant' };
 const POINTER = { session_id: '2026-10-02_resign-fixture', exchange_start: 1, exchange_end: 1 };
 const resultsOf = (out) => (Array.isArray(out) ? out : (out.results || out.memories || out.entries || []));
 const readOne = async (db, layer, id) => resultsOf(await queryLayer(db, layer, { include_superseded: true })).find((m) => Number(m.id) === Number(id));

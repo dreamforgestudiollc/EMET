@@ -7,7 +7,7 @@ export const EXCHANGES_PER_PART = 8;
 /**
  * The zone a session id is dated in (2026-10-01, the owner's approval; dev team plan
  * Part B, fix 1). Ids were dated from UTC, so an evening session in New York
- * carried the next day's date (an incident record: `2026-10-01_grok-init` minted on
+ * carried the next day's date (episodic ref 600: `2026-10-01_grok-init` minted on
  * the night of 9/30). The day is now the user's local day: EMET_TIMEZONE, an
  * IANA zone name, default America/New_York. A name the runtime does not know
  * falls back to the default and says so - marked, never guessed at.
