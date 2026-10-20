@@ -145,7 +145,7 @@ testGroup('an empty mount is silence, and the example is not installed', () => {
       assert.strictEqual(lss.active, false);
       assert.strictEqual(lss.defaultOn, false);
       assert.strictEqual(lss.loadable, true, lss.reason);
-      assert.strictEqual(lss.version, '1.0.0-beta');
+      assert.strictEqual(lss.version, '0.9.0');
       assert.notStrictEqual(row.bytes, 953);
       assert.deepStrictEqual(seated.gems_active, []);
       assert.deepStrictEqual(heard.infos.map((row) => row.message), [

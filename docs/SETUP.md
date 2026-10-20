@@ -162,8 +162,9 @@ The interview asks eight things, four required and four optional:
 - Optionally: how you want to be worked with, this host's source tag, and whether more than
   one bot or AI will use this memory. Leaving that one out leaves sub-keys off. The
   walkthrough is [SUBKEYS.md](SUBKEYS.md).
-- Optionally: whether to turn on bot-team backup. **Yes is the recommended choice.** No, or
-  leaving it out, leaves it off. The answer is recorded. EMET does not copy prompts or
+- Optionally: whether to turn on bot-team backup. **Yes is the recommended choice.** Yes and
+  Yes. count as yes, the same way as the multi-bot question. No, or leaving it out, leaves it
+  off. The answer is recorded. EMET does not copy prompts or
   settings itself, and secret values are never stored. The recipe is `gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md`.
 
 Your assistant asks these conversationally, one at a time — not as a form — then calls

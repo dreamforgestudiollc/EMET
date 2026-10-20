@@ -3,7 +3,7 @@
   "id": "lean-six-sigma",
   "name": "Lean Six Sigma",
   "description": "DMAIC and DMADV guidance, blank templates, and formulas with worked examples for hand calculation. Capability calculator. DPMO and yield calculator. Control limit calculator. Sample size calculator. Basic statistics calculator. Off unless the user asks.",
-  "version": "1.0.0-beta",
+  "version": "0.9.0",
   "released": true,
   "kind": "runed-gem",
   "requires": {
@@ -27,11 +27,11 @@
     {
       "name": "lss_capability",
       "title": "Capability indexes",
-      "description": "Compute Cp, Cpk, Pp, or Ppk from the mean, sigma, and specs on this call. Return assumption flags. A kept result is filed by the assistant as a sealed record only when the user asks to save it. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_capability. A call returns the code and does not run it. metadata.gem is lean-six-sigma@1.0.0-beta.",
+      "description": "Compute Cp, Cpk, Pp, or Ppk from the mean, sigma, and specs on this call. Return assumption flags. A kept result is filed by the assistant as a sealed record only when the user asks to save it. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_capability. A call returns the code and does not run it. metadata.gem is lean-six-sigma@0.9.0.",
       "execution": "client",
       "artifact": "runes/lss_capability.js",
       "sha256": "sha256:572c51f83006d798ce6e6b2c5752e74d78c07253683b87203bf09cf1493db9fb",
-      "version": "1.0.0-beta",
+      "version": "0.9.0",
       "runtime": "javascript",
       "inputSchema": {
         "type": "object",
@@ -140,11 +140,11 @@
     {
       "name": "lss_dpmo_sigma",
       "title": "DPMO and yield",
-      "description": "Compute DPO, DPMO, and opportunity yield from defect counts. Do not invent a sigma level. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_dpmo_sigma. A call returns the code and does not run it. metadata.gem is lean-six-sigma@1.0.0-beta.",
+      "description": "Compute DPO, DPMO, and opportunity yield from defect counts. Do not invent a sigma level. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_dpmo_sigma. A call returns the code and does not run it. metadata.gem is lean-six-sigma@0.9.0.",
       "execution": "client",
       "artifact": "runes/lss_dpmo_sigma.js",
       "sha256": "sha256:0daa1dd326deec76f95a7340d63bd2cafa2442b5725358618f5a1dd3b2481f73",
-      "version": "1.0.0-beta",
+      "version": "0.9.0",
       "runtime": "javascript",
       "inputSchema": {
         "type": "object",
@@ -233,11 +233,11 @@
     {
       "name": "lss_control_limits",
       "title": "Control limits",
-      "description": "Compute three-sigma control limits for xbar-r, i-mr, p, np, c, or u from the summaries on this call. Floor only the lower limits of R, moving range, p, np, c, and u. Leave an X-bar or individuals lower limit negative. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_control_limits. A call returns the code and does not run it. metadata.gem is lean-six-sigma@1.0.0-beta.",
+      "description": "Compute three-sigma control limits for xbar-r, i-mr, p, np, c, or u from the summaries on this call. Floor only the lower limits of R, moving range, p, np, c, and u. Leave an X-bar or individuals lower limit negative. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_control_limits. A call returns the code and does not run it. metadata.gem is lean-six-sigma@0.9.0.",
       "execution": "client",
       "artifact": "runes/lss_control_limits.js",
       "sha256": "sha256:28367f8f0bf588ffabf3c7a7b7238e462fdabd0ef4a6bb8e3498bd092f3cf532",
-      "version": "1.0.0-beta",
+      "version": "0.9.0",
       "runtime": "javascript",
       "inputSchema": {
         "type": "object",
@@ -383,11 +383,11 @@
     {
       "name": "lss_sample_size",
       "title": "Sample size",
-      "description": "Compute a normal-approximation sample size for a mean or a proportion. This is a margin-of-error figure. The result says so. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_sample_size. A call returns the code and does not run it. metadata.gem is lean-six-sigma@1.0.0-beta.",
+      "description": "Compute a normal-approximation sample size for a mean or a proportion. This is a margin-of-error figure. The result says so. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_sample_size. A call returns the code and does not run it. metadata.gem is lean-six-sigma@0.9.0.",
       "execution": "client",
       "artifact": "runes/lss_sample_size.js",
       "sha256": "sha256:5a099e639ea71121fe51ed3d08778e186760a27c773a4feac3eeb25dc6dcbfae",
-      "version": "1.0.0-beta",
+      "version": "0.9.0",
       "runtime": "javascript",
       "inputSchema": {
         "type": "object",
@@ -477,11 +477,11 @@
     {
       "name": "lss_hypothesis",
       "title": "Basic statistics",
-      "description": "Compute one-sample t, chi-square goodness of fit, one-way ANOVA, simple regression, or a confidence interval from the caller's numbers. Return flags. Do not return a p-value. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_hypothesis. A call returns the code and does not run it. metadata.gem is lean-six-sigma@1.0.0-beta.",
+      "description": "Compute one-sample t, chi-square goodness of fit, one-way ANOVA, simple regression, or a confidence interval from the caller's numbers. Return flags. Do not return a p-value. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_hypothesis. A call returns the code and does not run it. metadata.gem is lean-six-sigma@0.9.0.",
       "execution": "client",
       "artifact": "runes/lss_hypothesis.js",
       "sha256": "sha256:4edd30e5e33227057c4cf502d43a1bc18de844d813c1ab929b4b7c4dd3ff5ef9",
-      "version": "1.0.0-beta",
+      "version": "0.9.0",
       "runtime": "javascript",
       "inputSchema": {
         "type": "object",
@@ -722,7 +722,7 @@
   "update": {
     "class": "initial",
     "previous": null,
-    "summary": "Initial release 1.0.0-beta, a runed-gem of class initial. DMAIC guidance, blank templates, hand formulas, and five pure-function calculators that return numbers and do not write a record.",
+    "summary": "Initial release 0.9.0, a runed-gem of class initial. DMAIC guidance, blank templates, hand formulas, and five pure-function calculators that return numbers and do not write a record.",
     "retireGem": false
   },
   "knowledge": {
@@ -1255,8 +1255,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "digest": "sha256:ec2bbbf26e040705195b400941e6fdc90e93cffa4763e67f81ac1bd3fc11f837",
-      "size": 1218
+      "digest": "sha256:74459ce8384f8732ee484f0a935ae47a9a5bbe9a431668fb4064d019209b6af9",
+      "size": 1106
     },
     {
       "path": "README.md",

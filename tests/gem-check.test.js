@@ -293,9 +293,12 @@ testGroup('GC-02 schema and GC-03 revision', () => {
     const notes = await checked((gem) => { gem.manifest.changelog = { '1.0.0': 'Initial release.' }; });
     assert.strictEqual(line(notes, 'GC-02').status, 'pass', line(notes, 'GC-02').reason);
   });
-  test('1.0.0-beta passes GC-02 and 1.0.0-rc.1 fails', async () => {
+  test('1.0.0 passes GC-02 and 1.0.0-beta fails', async () => {
+    const plain = await checked((gem) => { gem.manifest.version = '1.0.0'; });
+    assert.strictEqual(line(plain, 'GC-02').status, 'pass', line(plain, 'GC-02').reason);
     const beta = await checked((gem) => { gem.manifest.version = '1.0.0-beta'; });
-    assert.strictEqual(line(beta, 'GC-02').status, 'pass', line(beta, 'GC-02').reason);
+    assertFail(beta, 'GC-02');
+    assert.match(line(beta, 'GC-02').reason, /version/);
     const rc = await checked((gem) => { gem.manifest.version = '1.0.0-rc.1'; });
     assertFail(rc, 'GC-02');
     assert.match(line(rc, 'GC-02').reason, /version/);
@@ -303,16 +306,18 @@ testGroup('GC-02 schema and GC-03 revision', () => {
     const runePattern = schema.$defs.rune.properties.version.pattern;
     assert.strictEqual(schema.properties.version.pattern, runePattern);
     assert.ok(runePattern.startsWith('^') && runePattern.endsWith('$'));
+    assert.ok(!runePattern.includes('beta'));
     const re = new RegExp(runePattern);
-    assert.strictEqual(re.test('1.0.0-beta'), true);
+    assert.strictEqual(re.test('0.9.0'), true);
     assert.strictEqual(re.test('1.0.0'), true);
+    assert.strictEqual(re.test('1.0.0-beta'), false);
     assert.strictEqual(re.test('1.0.0-rc.1'), false);
   });
   test('a prefixed, zero-padded, dotted, or capital version fails GC-02', async () => {
     const schema = JSON.parse(fs.readFileSync(path.join(ROOT, 'gem-library/gem.schema.json'), 'utf8'));
     assert.strictEqual(schema.properties.version.pattern, schema.$defs.rune.properties.version.pattern);
     const re = new RegExp(schema.properties.version.pattern);
-    for (const bad of ['x1.0.0', '01.0.0', '1.0.0-beta.1', '1.0.0-BETA', 'v1.0.0', '2.0.00']) {
+    for (const bad of ['x1.0.0', '01.0.0', '1.0.0-beta', '1.0.0-beta.1', '1.0.0-BETA', 'v1.0.0', '2.0.00']) {
       assert.strictEqual(re.test(bad), false, bad);
       const result = await checked((gem) => { gem.manifest.version = bad; });
       assertFail(result, 'GC-02');

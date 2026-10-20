@@ -29,4 +29,4 @@ The use they named at interview — work, a project, personal continuity, or the
 How they want to be worked with: length, directness, being asked before changes — or *"None stated."*
 
 ## §4 BOT-TEAM BACKUP
-`yes` or `no`. Recorded at the first-run interview. Yes is the recommended choice and means follow `gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md`. No, or leaving the question out, records `no` and leaves the practice off. EMET does not copy prompts or settings itself. Never store secret values in a bot-team document.
+`yes` or `no`. Recorded at the first-run interview. Yes and Yes. are recorded as yes. Yes is the recommended choice and means follow `gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md`. No, or leaving the question out, records `no` and leaves the practice off. EMET does not copy prompts or settings itself. Never store secret values in a bot-team document.

@@ -1,9 +1,9 @@
 # Changelog
 
-## 1.0.0-beta
+## 0.9.0
 date: 2026-10-20
 class: note
-what changed and why: Shipped on EMET 0.2.6. requires.emet changed from >=0.3.0 to >=0.2.6 so this GEM seats on 0.2.6 when released is true. The version is 1.0.0-beta. Rune files are unchanged. guides/BELTS.md drops one sentence that named a person; that file digest is re-vendored. Every other file digest is unchanged.
+what changed and why: Placeholder copy. Version 0.9.0. released is true. requires.emet is >=0.2.6. The version suffix is gone. Rune files are unchanged. These bytes stand in until the EMET-GEMs copy replaces them.
 init time: before unmeasured, after unmeasured
 test time: before unmeasured, after unmeasured
 log noise: before unmeasured, after unmeasured
