@@ -85,6 +85,24 @@ function specTerm(stem) {
   return found[1];
 }
 
+function siteTextFiles() {
+  const root = path.join(ROOT, 'site');
+  const files = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(html|css|js|xml|txt|md|json)$/i.test(entry.name)) files.push(full);
+    }
+  };
+  walk(root);
+  return files;
+}
+
+function outsideCode(text) {
+  return text.replace(/<code\b[^>]*>[\s\S]*?<\/code>/gi, '');
+}
+
 function factBlock(panel, manifest) {
   const dt = `<dt>${manifest.name} ${manifest.version}</dt>`;
   const at = panel.indexOf(dt);
@@ -471,39 +489,74 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
 
   test('the site does not restore retired names for GEM or RUNED', () => {
     const retired = [
-      'Guided Engagement Module',
-      'Registered Utility Node Extension',
-      'Golem Expansion Module',
-      'older note says',
-      'read RUNED',
-      'is superseded',
-      '2026-09-08 expansion',
+      /\bformerly\b/i,
+      /\bformerly\s+\w+/i,
+      /\(\s*formerly\s+[^)]+\)/i,
+      /\bpreviously\s+called\b/i,
+      /\bwas\s+called\b/i,
+      /\bnow\s+called\b/i,
+      /\baka\b/i,
+      /\bold\s+name\b/i,
+      /\bold\s+name\s+(?:was|is)\b/i,
+      /\bguided\s+engagement\b/i,
+      /\bregistered\s+utility\s+node\s+extension\b/i,
+      /\bguided\s+engagement(?:\s+module)?\b[^.\n]{0,80}\bis\s+superseded\b/i,
+      /\bregistered\s+utility\s+node\s+extension\b[^.\n]{0,80}\bis\s+superseded\b/i,
+      /\bgolem\s+expansion\s+module\b/i,
+      /\bolder\s+note\s+says\b/i,
+      /\bread\s+runed\b/i,
+      /2026-09-08\s+expansion/i,
     ];
-    const root = path.join(ROOT, 'site');
-    const files = [];
-    const walk = (dir) => {
-      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) walk(full);
-        else if (/\.(html|css|js|xml|txt|md|json)$/i.test(entry.name)) files.push(full);
+    const files = siteTextFiles();
+    const rels = files.map((file) => path.relative(ROOT, file).split(path.sep).join('/'));
+    for (const required of ['site/index.html', 'site/styles.css', 'site/sitemap.xml']) {
+      assert.ok(rels.includes(required), required);
+    }
+    const page = fs.readFileSync(path.join(ROOT, 'site/index.html'), 'utf8');
+    const cssText = fs.readFileSync(path.join(ROOT, 'site/styles.css'), 'utf8');
+    const mapText = fs.readFileSync(path.join(ROOT, 'site/sitemap.xml'), 'utf8');
+    assert.ok(page.includes('<title>'));
+    assert.ok(/<meta\s/i.test(page));
+    assert.ok(page.includes('<!--'));
+    assert.ok(cssText.includes('/*'));
+    assert.ok(mapText.includes('<urlset'));
+    const allowed = [
+      ISO_DD,
+      'entries are superseded',
+      'are superseded whole',
+      'names the version it supersedes',
+      'A superseded or expired entry',
+      'A record is superseded, never patched.',
+      'Registered Utility Node Executable Directive is superseded.',
+    ];
+    for (const pattern of retired) {
+      for (const sentence of allowed) {
+        assert.equal(pattern.test(sentence), false, `${pattern} matched product wording: ${sentence}`);
       }
-    };
-    walk(root);
-    assert.ok(files.some((file) => file.endsWith(`${path.sep}index.html`)));
-    assert.ok(files.length > 1);
+    }
+    assert.ok(retired.some((pattern) => pattern.test('Guided Engagement Module is superseded.')));
+    assert.ok(retired.some((pattern) => pattern.test('The Registered Utility Node Extension is superseded.')));
+    assert.equal(retired.some((pattern) => pattern.test('A record is superseded, never patched.')), false);
     for (const file of files) {
       const text = fs.readFileSync(file, 'utf8');
-      for (const phrase of retired) {
-        assert.ok(!text.includes(phrase), `${path.relative(ROOT, file)} mentions ${phrase}`);
+      const where = path.relative(ROOT, file);
+      for (const pattern of retired) {
+        assert.equal(pattern.test(text), false, `${where} matches ${pattern}`);
       }
+      assert.equal(/\bRUNE(?!D)\b/.test(outsideCode(text)), false, `${where} uses the bare name RUNE`);
     }
     const gem = panelHtml('gem');
     assert.ok(gem.includes('The name marks the golem legend: the word <span lang="he">אמת</span>, truth, animates the figure.'));
     assert.ok(gem.includes('RUNED (Registered Utility Node Executable Directive) is one declared, registered tool built into a GEM. A RUNED GEM is a GEM whose manifest contains one or more of those directives.'));
+    assert.ok(html.includes('One read-only tool per RUNED'));
+    assert.ok(html.includes('imports the RUNED load gate'));
+    assert.ok(html.includes('and the RUNED load gate'));
+    assert.ok(html.includes('<code>gem_&lt;gem&gt;__&lt;rune&gt;</code>'));
     assert.ok(html.includes(ISO_DD));
     assert.ok(html.includes('entries are superseded'));
     assert.ok(html.includes('are superseded whole'));
     assert.ok(html.includes('names the version it supersedes'));
+    assert.ok(html.includes('A superseded or expired entry'));
   });
 
   test('origin credits goal_check and no_rapport_mirroring to 0.2.5', () => {
