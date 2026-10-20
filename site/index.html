@@ -692,7 +692,7 @@ save_to_layer</code></pre>
       <div class="wrap">
         <h2 id="gem-title">Golem Expertise Module (GEM)</h2>
         <p class="prose">GEMs are gems of knowledge: a way for experts and others to package and share their knowledge and skills. They extend EMET without compromising the core architecture.</p>
-        <p class="prose">A Golem Expertise Module (GEM) is optional guidance that seats in the socket. The name marks the golem legend: the word <span lang="he">אמת</span>, truth, animates the figure. The 2026-09-08 expansion Guided Engagement Module is superseded. The core floor stays the memory minimum and cannot be switched off. Behavioral guidance lives in the GEM. The floor ships in server code. Setup cannot write it, and it cannot be lost, edited away, or forked per install. An active GEM ranks below that floor and below the user's current word. It may add lines. It cannot remove a protected floor line.</p>
+        <p class="prose">A Golem Expertise Module (GEM) is optional guidance that seats in the socket. The name marks the golem legend: the word <span lang="he">אמת</span>, truth, animates the figure. The core floor stays the memory minimum and cannot be switched off. Behavioral guidance lives in the GEM. The floor ships in server code. Setup cannot write it, and it cannot be lost, edited away, or forked per install. An active GEM ranks below that floor and below the user's current word. It may add lines. It cannot remove a protected floor line.</p>
 
         <h3>How a GEM sits on the core</h3>
         <p class="prose">The socket is that seat, not a host connector and not a network socket. It seats bundled GEMs from the <code>gems/</code> directory inside a release, and nothing else. A folder someone drops in, a document in the store, or a fetch from the network is not loaded. The socket does not discover a user-supplied path.</p>
@@ -701,7 +701,7 @@ save_to_layer</code></pre>
         <p class="prose">A person may write a GEM. That person may not change the standard, the schema, or the socket rules. Those change only by a GEM Enhancement Proposal.</p>
 
         <h3>A plain GEM and a RUNED GEM</h3>
-        <p class="prose">RUNED (Registered Utility Node Executable Directive) is one declared, registered tool built into a GEM. The 2026-09-08 expansion Registered Utility Node Extension is superseded. Where an older note says RUNE, read RUNED. A RUNED GEM is a GEM whose manifest contains one or more of those directives.</p>
+        <p class="prose">RUNED (Registered Utility Node Executable Directive) is one declared, registered tool built into a GEM. A RUNED GEM is a GEM whose manifest contains one or more of those directives.</p>
         <dl class="facts">
           <div>
             <dt><code>kind</code> <code>gem</code></dt>
@@ -824,9 +824,9 @@ EMET_ACTIVE_GEMS=neurendipity,lean-six-sigma</code></pre>
           <li><code>emet_status</code> reports each GEM’s byte cost in <code>gems</code>: installed and active counts, active floor bytes against the cap, headroom, and per-GEM id, version, kind, bytes, and refusal reason. The field is read-only and carries no floor text. A socket failure is reported there and does not fail the status call.</li>
           <li>Optional bot-team backup, off unless the first-run interview records yes. Yes is the recommended choice. EMET does not copy prompts or settings itself. Secret values are never stored.</li>
           <li>Lean Six Sigma 0.9.0, a bundled GEM, off unless <code>EMET_ACTIVE_GEMS=lean-six-sigma</code>. Its <code>requires.emet</code> is <code>&gt;=0.2.6</code> and <code>released</code> is true. The GEM version pattern is <code>MAJOR.MINOR.PATCH</code> with no suffix.</li>
-          <li>The socket serves RUNED code and does not run it. One read-only tool per RUNE, named <code>gem_&lt;gem&gt;__&lt;rune&gt;</code>, returns the code, description, inputs, outputs, runtime, and served sha256. The server sandbox is removed. A kept result is sealed on the existing write path.</li>
+          <li>The socket serves RUNED code and does not run it. One read-only tool per RUNED, named <code>gem_&lt;gem&gt;__&lt;rune&gt;</code>, returns the code, description, inputs, outputs, runtime, and served sha256. The server sandbox is removed. A kept result is sealed on the existing write path.</li>
           <li>A GEM is seated only when <code>released</code> is the boolean <code>true</code>. <code>false</code>, the string <code>"true"</code>, <code>1</code>, and <code>null</code> fail. A missing field is allowed only for the legacy manifests the release pins by id, version, and file digests.</li>
-          <li>The deploy image and the npm package include <code>verification/</code>. <code>src/host-reach.js</code> imports the RUNE load gate from there.</li>
+          <li>The deploy image and the npm package include <code>verification/</code>. <code>src/host-reach.js</code> imports the RUNED load gate from there.</li>
         </ul>
 
         <h3>What is in the tree</h3>
@@ -845,7 +845,7 @@ EMET_ACTIVE_GEMS=neurendipity,lean-six-sigma</code></pre>
           </div>
           <div>
             <dt><code>gems/</code>, <code>templates/</code>, <code>verification/</code></dt>
-            <dd>Bundled GEMs, controlled templates, and the RUNE load gate. Fieldnote is off by default and is not a user-facing GEM.</dd>
+            <dd>Bundled GEMs, controlled templates, and the RUNED load gate. Fieldnote is off by default and is not a user-facing GEM.</dd>
           </div>
           <div>
             <dt><code>site/</code></dt>

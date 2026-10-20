@@ -85,6 +85,128 @@ function specTerm(stem) {
   return found[1];
 }
 
+const SITE_TEXT = /\.(?:html|css|js|xml|txt|md|json|svg|webmanifest)$/i;
+const BARE_RUNE = /\bRUNEs?(?![A-Za-z])/i;
+const PHRASING = /^(?:a|abbr|b|bdi|bdo|cite|data|dfn|em|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|time|u|var)$/i;
+
+function siteTextFiles() {
+  const root = path.join(ROOT, 'site');
+  const files = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (SITE_TEXT.test(entry.name)) files.push(full);
+    }
+  };
+  walk(root);
+  return files;
+}
+
+function decodeEntities(text) {
+  const char = (code) => (code >= 0 && code <= 0x10FFFF ? String.fromCodePoint(code) : '');
+  return text
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => char(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => char(Number(dec)))
+    .replace(/&shy;/gi, '\u00AD')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;|&#39;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&');
+}
+
+function stripInvisibles(text) {
+  return text.replace(/[\u00AD\u200B\u200C\u200D\u2060\uFEFF\u180E]/g, '');
+}
+
+function tagEnd(text, start) {
+  let quote = '';
+  for (let i = start + 1; i < text.length; i++) {
+    const c = text[i];
+    if (quote) {
+      if (c === quote) quote = '';
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      quote = c;
+      continue;
+    }
+    if (c === '>') return i;
+  }
+  return -1;
+}
+
+function nextTag(text, from) {
+  let i = text.indexOf('<', from);
+  while (i !== -1) {
+    const end = tagEnd(text, i);
+    if (end !== -1) return [i, end];
+    i = text.indexOf('<', i + 1);
+  }
+  return null;
+}
+
+function tagName(interior) {
+  const name = /^\/?\s*([^\s/>]+)/.exec(interior);
+  return name ? name[1] : '';
+}
+
+function attributesOf(interior) {
+  return interior.replace(/^\/?\s*[^\s/>]+/, ' ');
+}
+
+function selfClosing(interior) {
+  return /\/\s*$/.test(interior.replace(/"[^"]*"|'[^']*'/g, ''));
+}
+
+function proseOutsideCode(text) {
+  const exposed = [];
+  let markup = text.replace(/<!--([\s\S]*?)-->/g, (_, body) => {
+    exposed.push(body);
+    return ' ';
+  });
+  // A <code> block whose content contains no other tag is removed. <code /> is
+  // not one of those blocks: HTML ignores the slash, and the text after it stays.
+  let i = 0;
+  while (i < markup.length) {
+    const found = nextTag(markup, i);
+    if (!found) break;
+    const [start, end] = found;
+    const interior = markup.slice(start + 1, end);
+    const name = tagName(interior);
+    const after = markup.slice(end + 1);
+    const plain = /^code$/i.test(name) && interior[0] !== '/' && !selfClosing(interior)
+      ? /^([^<]*)<\/code>/i.exec(after)
+      : null;
+    if (plain) {
+      exposed.push(attributesOf(interior));
+      markup = `${markup.slice(0, start)} ${after.slice(plain[0].length)}`;
+      i = start;
+      continue;
+    }
+    i = end + 1;
+  }
+  // Every remaining tag is checked in full, attributes included. The tag name is not.
+  let out = '';
+  i = 0;
+  while (i < markup.length) {
+    const found = nextTag(markup, i);
+    if (!found) {
+      out += markup.slice(i);
+      break;
+    }
+    const [start, end] = found;
+    const interior = markup.slice(start + 1, end);
+    exposed.push(attributesOf(interior));
+    out += markup.slice(i, start);
+    out += PHRASING.test(tagName(interior)) ? '' : ' ';
+    i = end + 1;
+  }
+  return stripInvisibles(decodeEntities(`${exposed.join('\n')}\n${out}`));
+}
+
 function factBlock(panel, manifest) {
   const dt = `<dt>${manifest.name} ${manifest.version}</dt>`;
   const at = panel.indexOf(dt);
@@ -467,6 +589,115 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
     assert.ok(gem.includes('calls 0.9.0 a pre-release'));
     assert.ok(read('gem-library/SPEC.md').includes('cannot be lost, edited away, or forked per install') || read('src/floor.js').includes('cannot be lost, edited away, or forked per install'));
     assert.ok(gem.includes('forked per install'));
+  });
+
+  test('the site does not restore retired names for GEM or RUNED', () => {
+    const retired = [
+      /\bformerly\b/i,
+      /\bformerly\s+\w+/i,
+      /\(\s*formerly\s+[^)]+\)/i,
+      /\bpreviously\s+called\b/i,
+      /\bwas\s+called\b/i,
+      /\bnow\s+called\b/i,
+      /\baka\b/i,
+      /\bold\s+name\b/i,
+      /\bold\s+name\s+(?:was|is)\b/i,
+      /\bguided\s+engagement\b/i,
+      /\bregistered\s+utility\s+node\s+extension\b/i,
+      /\bguided\s+engagement(?:\s+module)?\b[^.\n]{0,80}\bis\s+superseded\b/i,
+      /\bregistered\s+utility\s+node\s+extension\b[^.\n]{0,80}\bis\s+superseded\b/i,
+      /\bgolem\s+expansion\s+module\b/i,
+      /\bolder\s+note\s+says\b/i,
+      /\bread\s+runed\b/i,
+      /2026-09-08\s+expansion/i,
+      /\brenamed\s+from\b/i,
+    ];
+    const files = siteTextFiles();
+    const rels = files.map((file) => path.relative(ROOT, file).split(path.sep).join('/'));
+    for (const required of ['site/index.html', 'site/styles.css', 'site/sitemap.xml']) {
+      assert.ok(rels.includes(required), required);
+    }
+    const page = fs.readFileSync(path.join(ROOT, 'site/index.html'), 'utf8');
+    const cssText = fs.readFileSync(path.join(ROOT, 'site/styles.css'), 'utf8');
+    const mapText = fs.readFileSync(path.join(ROOT, 'site/sitemap.xml'), 'utf8');
+    assert.ok(page.includes('<title>'));
+    assert.ok(/<meta\s/i.test(page));
+    assert.ok(page.includes('<!--'));
+    assert.ok(cssText.includes('/*'));
+    assert.ok(mapText.includes('<urlset'));
+    const allowed = [
+      ISO_DD,
+      'entries are superseded',
+      'are superseded whole',
+      'names the version it supersedes',
+      'A superseded or expired entry',
+      'A record is superseded, never patched.',
+      'Registered Utility Node Executable Directive is superseded.',
+    ];
+    for (const pattern of retired) {
+      for (const sentence of allowed) {
+        assert.equal(pattern.test(sentence), false, `${pattern} matched product wording: ${sentence}`);
+      }
+    }
+    assert.ok(retired.some((pattern) => pattern.test('Guided Engagement Module is superseded.')));
+    assert.ok(retired.some((pattern) => pattern.test('The Registered Utility Node Extension is superseded.')));
+    assert.equal(retired.some((pattern) => pattern.test('A record is superseded, never patched.')), false);
+    assert.equal(/\brenamed\s+from\b/i.test('Nothing is renamed or copied.'), false);
+    for (const name of ['page.svg', 'manifest.webmanifest', 'index.html', 'styles.css', 'sitemap.xml']) {
+      assert.equal(SITE_TEXT.test(name), true, name);
+    }
+    assert.equal(SITE_TEXT.test('portrait.webp'), false);
+    for (const sample of [
+      'Rune',
+      'rune',
+      'RUNEs',
+      'runes',
+      'RU<b>NE</b>',
+      '&#82;UNE',
+      'renamed from',
+      '<code>x RUNE prose</p><code>kept</code>',
+      '<!-- <code>RUNE</code> -->',
+      '<!-- <code> -->RUNE<!-- </code> -->',
+      '<img alt="<code>RUNE</code>">',
+      '<img alt="<code>">RUNE<img alt="</code>">',
+      'Use<br>RUNE',
+      'RU\u00ADNE',
+      'RU&shy;NE',
+      'RU\u200BNE',
+      '<span title=RUNE>',
+      'title=`RUNE`',
+      '<code /> RUNE </code>',
+      '<span data-x=`a RUNE b`></span>',
+    ]) {
+      const prose = proseOutsideCode(sample);
+      const caught = sample === 'renamed from' ? /\brenamed\s+from\b/i.test(sample) : BARE_RUNE.test(prose);
+      assert.equal(caught, true, sample);
+    }
+    for (const kept of ['RUNED', 'a runed GEM', '<code>runes</code>', '<code>gem_&lt;gem&gt;__&lt;rune&gt;</code>', '<code>Rune</code>']) {
+      assert.equal(BARE_RUNE.test(proseOutsideCode(kept)), false, kept);
+    }
+    for (const file of files) {
+      const text = fs.readFileSync(file, 'utf8');
+      const prose = proseOutsideCode(text);
+      const where = path.relative(ROOT, file);
+      for (const pattern of retired) {
+        assert.equal(pattern.test(text), false, `${where} matches ${pattern}`);
+        assert.equal(pattern.test(prose), false, `${where} matches ${pattern} after tags are read`);
+      }
+      assert.equal(BARE_RUNE.test(prose), false, `${where} uses the bare name RUNE`);
+    }
+    const gem = panelHtml('gem');
+    assert.ok(gem.includes('The name marks the golem legend: the word <span lang="he">אמת</span>, truth, animates the figure.'));
+    assert.ok(gem.includes('RUNED (Registered Utility Node Executable Directive) is one declared, registered tool built into a GEM. A RUNED GEM is a GEM whose manifest contains one or more of those directives.'));
+    assert.ok(html.includes('One read-only tool per RUNED'));
+    assert.ok(html.includes('imports the RUNED load gate'));
+    assert.ok(html.includes('and the RUNED load gate'));
+    assert.ok(html.includes('<code>gem_&lt;gem&gt;__&lt;rune&gt;</code>'));
+    assert.ok(html.includes(ISO_DD));
+    assert.ok(html.includes('entries are superseded'));
+    assert.ok(html.includes('are superseded whole'));
+    assert.ok(html.includes('names the version it supersedes'));
+    assert.ok(html.includes('A superseded or expired entry'));
   });
 
   test('origin credits goal_check and no_rapport_mirroring to 0.2.5', () => {
