@@ -2,9 +2,10 @@
  * Lean Six Sigma ships as gems/lean-six-sigma. The rune files are the attached
  * bytes. requires.emet is >=0.2.6 and released is true, so 0.2.6 seats it.
  * The emet-gems-9b5191a fixture keeps requires.emet >=0.3.0 and released false.
- * FORMULAS.md in the attachment has 30 "Test vector" lines, not a separate
- * list of 49 golden cases. This file runs every rune-backed worked example,
- * including the negative-limit examples written beside those vectors.
+ * FORMULAS.md in the attachment has 30 "Test vector" lines. The 49 golden
+ * cases are tests/fixtures/emet-gems-9b5191a/verification/golden-outputs.json.
+ * This file runs those cases on the shipped runes, plus every rune-backed
+ * worked example, including the negative-limit examples beside the vectors.
  */
 import { test, testGroup, summary } from './harness.js';
 import assert from 'assert';
@@ -19,6 +20,7 @@ const { seatGems } = await import('../src/socket.js');
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GEM = path.join(ROOT, 'gems/lean-six-sigma');
 const FIXTURE = path.join(ROOT, 'tests/fixtures/emet-gems-9b5191a/lean-six-sigma');
+const GOLDEN = path.join(ROOT, 'tests/fixtures/emet-gems-9b5191a/verification/golden-outputs.json');
 const RUNE_DIGESTS = {
   'runes/lss_capability.js': 'sha256:572c51f83006d798ce6e6b2c5752e74d78c07253683b87203bf09cf1493db9fb',
   'runes/lss_control_limits.js': 'sha256:28367f8f0bf588ffabf3c7a7b7238e462fdabd0ef4a6bb8e3498bd092f3cf532',
@@ -101,6 +103,27 @@ testGroup('the shipped Lean Six Sigma GEM seats on 0.2.6', () => {
     assert.strictEqual(row.loadable, true, row.reason);
     assert.strictEqual(row.active, false);
     assert.strictEqual(row.version, '1.0.0-beta');
+  });
+});
+
+testGroup('the 49 golden cases match the shipped runes', () => {
+  test('every golden stdout matches JSON.stringify of the shipped rune', async () => {
+    const golden = readJson(GOLDEN);
+    assert.strictEqual(golden.cases.length, 49);
+    const runs = new Map();
+    let matched = 0;
+    for (const row of golden.cases) {
+      assert.ok(row.artifact.startsWith('runes/') && row.artifact.endsWith('.js'), row.name);
+      if (!runs.has(row.artifact)) {
+        const mod = await import(pathToFileURL(path.join(GEM, row.artifact)).href);
+        assert.strictEqual(typeof mod.run, 'function', row.artifact);
+        runs.set(row.artifact, mod.run);
+      }
+      const got = JSON.stringify(runs.get(row.artifact)(row.payload));
+      assert.strictEqual(got, row.stdout, row.name);
+      matched += 1;
+    }
+    assert.strictEqual(matched, 49);
   });
 });
 
