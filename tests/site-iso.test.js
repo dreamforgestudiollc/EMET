@@ -8,6 +8,9 @@
  * Noun and verb families of certify, comply, conform, and accredit fail
  * anywhere in site/index.html, including visible text, meta, and JSON-LD.
  * Exact allowlisted phrases pass. The patterns are not narrowed to spare them.
+ * Matching uses the same normalization as the RUNE guard in site-tabs.test.js:
+ * decode numeric and named entities, drop soft hyphens and zero-width characters,
+ * and remove inline tags so a split word is one word.
  */
 import { test, testGroup, summary } from './harness.js';
 import assert from 'assert';
@@ -44,6 +47,16 @@ const FORBIDDEN = [
   'We certify',
   'ISO-accredited',
 ];
+const DISGUISED = [
+  ['cer&#116;ified', 'cer&#116;ified'],
+  ['cer&#x74;ified', 'cer&#x74;ified'],
+  ['certi&shy;fied', 'certi&shy;fied'],
+  ['certi + U+00AD + fied', 'certi\u00ADfied'],
+  ['cert + U+200B + ified', 'cert\u200Bified'],
+  ['<b>cert</b>ified', '<b>cert</b>ified'],
+  ['&#99;ompliant', '&#99;ompliant'],
+];
+const PHRASING = /^(?:a|abbr|b|bdi|bdo|cite|data|dfn|em|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|time|u|var)$/i;
 const LEDE = 'An MCP memory server built for ISO 9001 / ISO 13485 document control: persistent, shared memory.';
 const SHARED = 'EMET 0.2.6 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
 const JSONLD = 'EMET 0.2.6 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
@@ -67,33 +80,141 @@ function whatPanel(page) {
   return page.slice(start, end);
 }
 
-function familyHits(text) {
-  return [...text.matchAll(new RegExp(FAMILY.source, 'gi'))];
+function decodeEntities(text) {
+  const char = (code) => (code >= 0 && code <= 0x10FFFF ? String.fromCodePoint(code) : '');
+  return text
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => char(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => char(Number(dec)))
+    .replace(/&shy;/gi, '\u00AD')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;|&#39;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&');
 }
 
-function allowedSpans(text) {
-  const spans = [];
-  for (const phrase of ALLOWED) {
-    let from = 0;
-    while (from < text.length) {
-      const at = text.indexOf(phrase, from);
-      if (at < 0) break;
-      spans.push([at, at + phrase.length]);
-      from = at + 1;
+function stripInvisibles(text) {
+  return text.replace(/[\u00AD\u200B\u200C\u200D\u2060\uFEFF\u180E]/g, '');
+}
+
+function tagEnd(text, start) {
+  let quote = '';
+  for (let i = start + 1; i < text.length; i++) {
+    const c = text[i];
+    if (quote) {
+      if (c === quote) quote = '';
+      continue;
     }
+    if (c === '"' || c === "'") {
+      quote = c;
+      continue;
+    }
+    if (c === '>') return i;
   }
-  return spans;
+  return -1;
+}
+
+function nextTag(text, from) {
+  let i = text.indexOf('<', from);
+  while (i !== -1) {
+    const end = tagEnd(text, i);
+    if (end !== -1) return [i, end];
+    i = text.indexOf('<', i + 1);
+  }
+  return null;
+}
+
+function tagName(interior) {
+  const name = /^\/?\s*([^\s/>]+)/.exec(interior);
+  return name ? name[1] : '';
+}
+
+function attributesOf(interior) {
+  return interior.replace(/^\/?\s*[^\s/>]+/, ' ');
+}
+
+function selfClosing(interior) {
+  return /\/\s*$/.test(interior.replace(/"[^"]*"|'[^']*'/g, ''));
+}
+
+function proseOutsideCode(text) {
+  const exposed = [];
+  let markup = text.replace(/<!--([\s\S]*?)-->/g, (_, body) => {
+    exposed.push(body);
+    return ' ';
+  });
+  let i = 0;
+  while (i < markup.length) {
+    const found = nextTag(markup, i);
+    if (!found) break;
+    const [start, end] = found;
+    const interior = markup.slice(start + 1, end);
+    const name = tagName(interior);
+    const after = markup.slice(end + 1);
+    const plain = /^code$/i.test(name) && interior[0] !== '/' && !selfClosing(interior)
+      ? /^([^<]*)<\/code>/i.exec(after)
+      : null;
+    if (plain) {
+      exposed.push(attributesOf(interior));
+      markup = `${markup.slice(0, start)} ${after.slice(plain[0].length)}`;
+      i = start;
+      continue;
+    }
+    i = end + 1;
+  }
+  let out = '';
+  i = 0;
+  while (i < markup.length) {
+    const found = nextTag(markup, i);
+    if (!found) {
+      out += markup.slice(i);
+      break;
+    }
+    const [start, end] = found;
+    const interior = markup.slice(start + 1, end);
+    exposed.push(attributesOf(interior));
+    out += markup.slice(i, start);
+    out += PHRASING.test(tagName(interior)) ? '' : ' ';
+    i = end + 1;
+  }
+  return stripInvisibles(decodeEntities(`${exposed.join('\n')}\n${out}`));
+}
+
+function normalize(text) {
+  return proseOutsideCode(text);
+}
+
+function familyHits(text) {
+  return [...normalize(text).matchAll(new RegExp(FAMILY.source, 'gi'))].map((match) => match[0]);
+}
+
+function maskFamily(phrase) {
+  return phrase.replace(new RegExp(FAMILY.source, 'gi'), (hit) => ' '.repeat(hit.length));
+}
+
+function maskAllowed(text) {
+  const phrases = [...ALLOWED].sort((a, b) => b.length - a.length);
+  let out = text;
+  for (const phrase of phrases) {
+    let from = 0;
+    let built = '';
+    while (from < out.length) {
+      const at = out.indexOf(phrase, from);
+      if (at < 0) {
+        built += out.slice(from);
+        break;
+      }
+      built += out.slice(from, at) + maskFamily(phrase);
+      from = at + phrase.length;
+    }
+    out = built;
+  }
+  return out;
 }
 
 function uncovered(text) {
-  const spans = allowedSpans(text);
-  return familyHits(text)
-    .filter((match) => {
-      const start = match.index;
-      const end = start + match[0].length;
-      return !spans.some(([from, to]) => start >= from && end <= to);
-    })
-    .map((match) => match[0]);
+  return familyHits(maskAllowed(text));
 }
 
 function jsonLdDescription() {
@@ -143,6 +264,12 @@ testGroup('the public site keeps ISO 9001 and ISO 13485', () => {
   for (const claim of FORBIDDEN) {
     test(`fails: ${claim}`, () => {
       assert.ok(uncovered(claim).length > 0, claim);
+    });
+  }
+
+  for (const [name, claim] of DISGUISED) {
+    test(`fails: ${name}`, () => {
+      assert.ok(uncovered(claim).length > 0, name);
     });
   }
 
