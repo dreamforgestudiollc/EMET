@@ -1,7 +1,7 @@
 {
-  "note": "Placeholder digests for the shipped Lean Six Sigma gem.json and CHANGELOG.md. Replace both files and these digests together when the EMET-GEMs bytes arrive. Expected outputs in the golden cases are not part of this record.",
+  "note": "Recorded sha256 of the shipped Lean Six Sigma gem.json and CHANGELOG.md from EMET-GEMs head emet-gems-aef8d0a. Every other vendored file is unchanged. Expected outputs in the golden cases are not part of this record.",
   "files": {
-    "gem.json": "sha256:49768556281eebab8d345c4b91329de30e66d89a32cf7fc9ddaf10045c551e67",
-    "CHANGELOG.md": "sha256:74459ce8384f8732ee484f0a935ae47a9a5bbe9a431668fb4064d019209b6af9"
+    "gem.json": "sha256:5f9da0caf7719a73f19bfbff211002eb66dbd0f988fd094131b56c4ecf438b31",
+    "CHANGELOG.md": "sha256:d07810bd35e71952cea36212b878d8762a43b4f7b8e5f710b41a4190308d86fc"
   }
 }

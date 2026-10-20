@@ -31,7 +31,7 @@ const RUNE_DIGESTS = {
 };
 const REVENDORED = {
   'guides/BELTS.md': 'sha256:e9e591af0e2d89a27cddf73da48e4f4acacd1785e22473d42dd3b56366d008d0',
-  'CHANGELOG.md': 'sha256:74459ce8384f8732ee484f0a935ae47a9a5bbe9a431668fb4064d019209b6af9'
+  'CHANGELOG.md': 'sha256:d07810bd35e71952cea36212b878d8762a43b4f7b8e5f710b41a4190308d86fc'
 };
 
 function readJson(file) {
@@ -99,7 +99,7 @@ testGroup('the shipped Lean Six Sigma GEM seats on 0.2.6', () => {
     assert.strictEqual(later.exitCode, 0, (later.lines || []).join('\n'));
   });
 
-  test('the shipped gem.json and CHANGELOG.md match the recorded placeholder digests', () => {
+  test('the shipped gem.json and CHANGELOG.md match the recorded digests', () => {
     const recorded = readJson(DIGESTS);
     for (const rel of ['gem.json', 'CHANGELOG.md']) {
       assert.strictEqual(digestOf(path.join(GEM, rel)), recorded.files[rel], rel);

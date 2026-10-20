@@ -722,7 +722,7 @@
   "update": {
     "class": "initial",
     "previous": null,
-    "summary": "Initial release 0.9.0, a runed-gem of class initial. DMAIC guidance, blank templates, hand formulas, and five pure-function calculators that return numbers and do not write a record.",
+    "summary": "Pre-release 0.9.0. requires.emet is >=0.2.6. Rune files are unchanged.",
     "retireGem": false
   },
   "knowledge": {
@@ -1255,8 +1255,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "digest": "sha256:74459ce8384f8732ee484f0a935ae47a9a5bbe9a431668fb4064d019209b6af9",
-      "size": 1106
+      "digest": "sha256:d07810bd35e71952cea36212b878d8762a43b4f7b8e5f710b41a4190308d86fc",
+      "size": 305
     },
     {
       "path": "README.md",
