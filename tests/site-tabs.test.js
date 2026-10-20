@@ -19,6 +19,23 @@ const js = read('site/tabs.js');
 const ISO_DT = 'Document control (ISO 9001 7.5.3 / ISO 13485 4.2.5)';
 const ISO_DD = 'No delete, on any store, by design. Corrections are made by adding: entries are superseded, documents are revised or retired, and retired means obsolete, not gone. Prior versions are retained, and templates are controlled documents. EMET supports that work; it holds no certification and claims no conformity.';
 
+function panelHtml(id) {
+  const start = html.indexOf(`id="${id}"`);
+  const end = html.indexOf(`data-demo-mount="${id}"`, start);
+  if (start < 0 || end < 0) throw new Error(`panel ${id} not found`);
+  return html.slice(start, end);
+}
+
+function panelWords(fragment) {
+  const text = fragment
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"');
+  return text.split(/\s+/).filter(Boolean);
+}
+
 function matches(node, sel) {
   let rest = sel.trim();
   if (rest.startsWith('[')) return attrOk(node, rest);
@@ -224,6 +241,24 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
     assert.ok(!/data-demo-src=/.test(html));
     const declared = [...html.matchAll(/id="tab-([a-z]+)"/g)].map((item) => item[1]);
     assert.deepStrictEqual(declared, [...TAB_IDS]);
+  });
+
+  test('each subject panel has substantive content', () => {
+    const docs = 'https://github.com/dreamforgestudiollc/EMET/blob/main/';
+    for (const id of TAB_IDS) {
+      const panel = panelHtml(id);
+      const count = panelWords(panel).length;
+      assert.ok(count >= 300, `${id} has ${count} words`);
+      assert.ok(!/data-demo-src=/.test(panel), id);
+      assert.equal((panel.match(/data-demo-mount=/g) || []).length, 0, id);
+    }
+    for (const id of ['hosts', 'access', 'record', 'start', 'origin', 'project']) {
+      const panel = panelHtml(id);
+      assert.ok((panel.match(/<h3\b/g) || []).length >= 4, `${id} headings`);
+      assert.ok(panel.includes('<h3>Limits</h3>'), `${id} limits`);
+      assert.ok(panel.includes('<h3>Read more</h3>'), `${id} links`);
+      assert.ok(panel.includes(docs), `${id} doc link`);
+    }
   });
 
   test('styles wrap the tabs, keep panels visible without the js class, and do not animate them', () => {

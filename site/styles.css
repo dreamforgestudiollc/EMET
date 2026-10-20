@@ -344,6 +344,26 @@ pre code {
   font-size: 1rem;
 }
 
+.block h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.28rem;
+  line-height: 1.25;
+  margin: 1.85rem 0 0.55rem;
+}
+
+.steps,
+.limits {
+  max-width: 40rem;
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.steps li + li,
+.limits li + li {
+  margin-top: 0.45rem;
+}
+
 /* Subject tabs. Without the js class the header links stay a normal list and
    every section shows. Demo mounts stay empty until a future demo fills them. */
 .subject-nav {

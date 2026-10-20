@@ -206,7 +206,104 @@
       <div class="wrap">
         <h2 id="hosts-title">One memory, several hosts</h2>
         <p class="prose">EMET is a bridge. Several AI hosts read and write one shared memory: desktop, command line, browser, phone, another vendor’s agent, bot teams, and single-session chats. Write a decision from one. Ask about it from another. It is there.</p>
-        <p class="prose">A local host is launched by the client. A remote host adds your server’s address as an MCP connector and signs in with OAuth. Both use the same memory.</p>
+        <p class="prose">The store is MongoDB, Atlas or MongoDB you run yourself. A local host is launched by the client. A remote host adds your server’s address as an MCP connector and signs in with OAuth. Both use the same memory. The transport changes. The store does not.</p>
+
+        <h3>How a host reaches the store</h3>
+        <p class="prose">Two entry points ship over one source tree. They are not two projects. Both call the same <code>dispatchTool</code> in <code>dispatch.js</code>, which calls <code>tools.js</code> and <code>database.js</code>. <code>src/index.js</code> also imports <code>validation.js</code>. <code>src/http-remote.js</code> does not import <code>validation.js</code> or <code>content_analyzer.js</code>. <code>tools.js</code> imports the analyser.</p>
+        <dl class="facts">
+          <div>
+            <dt><code>src/index.js</code>, stdio</dt>
+            <dd>Desktop and command line. The client launches it.</dd>
+          </div>
+          <div>
+            <dt><code>src/http-remote.js</code>, streamable HTTP with OAuth</dt>
+            <dd>Phone, tablet, browser, and another vendor’s agent. Deploy this entry point.</dd>
+          </div>
+        </dl>
+        <p class="prose">The remote endpoint is OAuth-protected. A device is authorized once with the passphrase in <code>EMET_OAUTH_PASSPHRASE</code>, and the token persists across restarts and redeploys. <code>PUBLIC_URL</code> is the OAuth issuer. It must match the deployed URL exactly, or authorization fails in ways that look like a client problem.</p>
+        <ol class="steps">
+          <li>Deploy <code>src/http-remote.js</code>. The repository <code>Dockerfile</code> starts it. Without the Dockerfile, the start command is <code>npm run start:http</code>. <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/DEPLOY.md">Deploy</a> walks through Railway and Fly.</li>
+          <li>Register every host’s tag in <code>EMET_SOURCE_TAGS</code> before that host writes. Leave <code>EMET_SOURCE_TAG</code> unset when several hosts share one server. A default tag makes every host look the same.</li>
+          <li>Add <code>https://&lt;your-host&gt;/mcp</code> as a remote MCP connector and finish the sign-in. A connector that only takes a fixed header or key will not work.</li>
+          <li>Put the instruction block from <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/BOOTSTRAP.md">Bootstrap</a> in the project instructions. Where there is no such field, paste it as the first message.</li>
+        </ol>
+        <p class="prose">Over HTTP, document, transcript, and memory writes use the source tag bound at approval. The caller does not pass <code>source</code> on those writes. A local stdio host still passes an exact tag from <code>EMET_SOURCE_TAGS</code> as <code>source</code>. Every entry records which machine produced it.</p>
+        <p class="prose">The guards that refuse an unregistered tag, on the main records and on another bot’s <code>bots/</code> folder, are off unless <code>EMET_SOURCE_TAGS</code> is set. With it unset, any caller can write under any tag.</p>
+
+        <h3>What each host is for</h3>
+        <p class="prose">A single-session chat only works when you send it a message. It can’t watch EMET, and bots can’t message it. When a bot team needs that chat, the practice in the README is:</p>
+        <ol class="steps">
+          <li>The bots leave a task in EMET, in a document whose id they give you.</li>
+          <li>You send the chat one line that names that document. The README’s example is: “Initialize EMET, read threads/open-tasks.md, do the task, and save the result to EMET.”</li>
+          <li>The chat saves its draft to EMET.</li>
+          <li>The bots check it.</li>
+        </ol>
+        <p class="prose">The README names long drafting and review, done in one sitting, as a fit for the chat, and work in the repository, on the server, on a schedule, or in accounts as a fit for the bots. If the chat runs on a separate plan, its work draws on that plan’s allowance, not the bots’.</p>
+        <p class="prose">Grok Bot teams and single-session Grok chats can use the same server. What the bots save is there for a fresh Grok chat once it initializes, and the reverse. To connect a single-session chat, a Grok project or any chat host that takes a remote MCP connector and supports its OAuth sign-in, add <code>https://&lt;your-host&gt;/mcp</code> and complete the sign-in.</p>
+        <p class="prose">EMET also ships a plugin for Cursor and Grok Bot, in <code>.cursor-plugin/plugin.json</code> and <code>mcp.json</code>. The Cursor Marketplace listing is submitted and pending review. The plugin does not host memory. It connects to your own EMET server, so the records stay in your MongoDB.</p>
+        <ol class="steps">
+          <li>Deploy EMET remotely. Set <code>PUBLIC_URL</code> and a strong <code>EMET_OAUTH_PASSPHRASE</code>. Check that <code>https://&lt;your-host&gt;/health</code> returns <code>{"ok":true,...}</code>.</li>
+          <li>Install the EMET plugin and set <code>EMET_URL</code> to <code>https://&lt;host&gt;/mcp</code>.</li>
+          <li>Connect. The OAuth sign-in opens EMET’s passphrase page. Enter the passphrase once per device.</li>
+          <li>Call <code>emet_status</code> with <code>{"probe": true}</code>. It writes, reads back, and removes a row from <code>_emet_verify</code> only. Then <code>save_to_layer</code> and <code>recall</code> that entry from another client.</li>
+        </ol>
+        <p class="prose">The plugin also ships an <code>emet-memory</code> skill that tells the agent when to recall, save, and close a session.</p>
+        <p class="prose">One bot, one tag. In the same deployment, append the tag to <code>EMET_SOURCE_TAGS</code>, keep every existing tag in order, and append <code>bots/&lt;tag&gt;/HANDOFF.md</code> to <code>EMET_RECORD_DOCS</code>. A registered tag that is not listed as a bot can still write the main records. The hub’s tag is registered as a host and is never listed as a bot. After either variable changes, check <code>/health</code> and <code>emet_status</code>.</p>
+
+        <h3>Opening a session on that host</h3>
+        <p class="prose">Call <code>emet_initialize</code> with <code>{}</code> first and fetch every page it names. Ask for <code>{"page": "all"}</code> only on a host known to read long results whole. Pass the <code>load_id</code> from those pages to <code>emet_session_open</code>. An open with no <code>load_id</code>, with a page missing, or with a <code>load_id</code> the server has no record of, one from before a restart or 60 minutes past its last page, is refused, and the reply says what to call. A skipped page is refused before anything is written.</p>
+        <p class="prose"><code>emet_initialize</code> is served in pages so a host that cuts a long tool result still receives the startup. The page budget defaults to 18,000 bytes (<code>EMET_INIT_PAGE_BYTES</code>) and is clamped between 12,000 and 19,000. The example environment describes 20,000 bytes as the usual limit a host may cut at, and says to lower the page size only for a host that cuts shorter than that. <code>page: "all"</code> returns the whole startup in one result for a host with no size limit.</p>
+        <p class="prose">A session that has not initialized can read everything and can write only a new drop, <code>drops/&lt;date&gt;-&lt;slug&gt;.md</code>: its items, wrap-up, and handoff. A session with a registered source and the full startup has full access. Every initialized session sees unhandled drops first. New drops are capped at 20 per New York day, in one bucket: the whole local process on stdio, one shared visitor bucket for HTTP with no signed-in client, the source tag bound at approval when there is one, or that OAuth client otherwise. A source the caller types does not move the bucket. Drops are never deleted.</p>
+        <p class="prose">Hosts cache the tool list. After a deploy that adds or renames tools, each host keeps the old set until you reconnect the connector there. New tools stay invisible until then, and the host may ask again for approvals you had already given. Existing tools keep working.</p>
+
+        <h3>Examples</h3>
+        <p class="prose">A desktop or command-line client launches the stdio server and sets that host’s tag:</p>
+        <pre><code>{ "mcpServers": { "emet": {
+  "command": "node",
+  "args": ["/absolute/path/to/emet/src/index.js"],
+  "env": {
+    "MONGODB_URI": "mongodb+srv://...",
+    "MONGODB_DB": "emet",
+    "EMET_SOURCE_TAG": "laptop"
+  }
+} } }</code></pre>
+        <p class="prose">A phone, a browser, or another vendor’s agent uses the HTTPS endpoint. Claude, on every interface including a phone, adds a custom connector at that URL and enters the passphrase. Any other MCP client points at the same URL and completes OAuth. Then recall something saved from the other host.</p>
+        <pre><code>https://&lt;your-host&gt;/mcp
+
+curl https://&lt;host&gt;/health
+curl https://&lt;host&gt;/.well-known/oauth-authorization-server</code></pre>
+        <p class="prose"><code>/health</code> should report ok and a tool count. The well-known URL should return OAuth metadata, not a 404. A 404 means <code>PUBLIC_URL</code> is wrong.</p>
+
+        <h3>Limits</h3>
+        <ul class="limits">
+          <li>A connector that only accepts a fixed header or key cannot sign in.</li>
+          <li>The passphrase is the whole perimeter. There is no second factor. Changing it and redeploying invalidates existing device authorizations.</li>
+          <li>Connecting the server gives an assistant the ability to remember. It does not make the assistant use that ability. Without the instruction block, it is less likely to search before answering, or to save a decision you did not ask it to save.</li>
+          <li>A phone, or a web project that cannot store a key file, does not take a delegated client sub-key. It uses the tag on its own connection. See <a href="#access">Access</a>.</li>
+          <li>The HTTP body limit is 256 KB. Tool calls are capped at 300 per minute for that person and client, and again per tool: 120 for <code>recall</code> and <code>semantic_recall</code>, 100 for <code>query_layer</code>, 30 for <code>emet_status</code>, 60 for <code>save_to_layer</code>, and 60 for every other tool.</li>
+          <li>An HTTP caller with no OAuth client id is stored as <code>http:visitor</code>, never in a stdio bucket.</li>
+          <li>Running cost for a single user is a small MongoDB cluster plus a hobby-tier container host. Both have free tiers adequate to start. The deploy notes say a small Atlas cluster plus a hobby-tier host runs in the low tens of dollars a month, and that both have free tiers adequate for a single user.</li>
+        </ul>
+
+        <h3>Read more</h3>
+        <ul class="guides">
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/DEPLOY.md">Deploy</a>
+            <span>Remote HTTP with OAuth, source tags, client connection, and the caps already in force.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/BOOTSTRAP.md">Bootstrap</a>
+            <span>The instruction block, and what still works on a host with no instructions field.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/BOTS.md">Bots</a>
+            <span>Register a bot’s tag and its own handoff before its first write.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/SETUP.md">Setup</a>
+            <span>Local stdio, one source tag per host, and the first-run interview.</span>
+          </li>
+        </ul>
       </div>
       <div class="demo-mount" data-demo-mount="hosts"></div>
     </section>
@@ -215,6 +312,104 @@
       <div class="wrap">
         <h2 id="access-title">Who can join</h2>
         <p class="prose access">The store has one owner, and other people can join only through the optional Guest (read-only) and Member (read and write) access, both off by default.</p>
+        <p class="prose">A new client, a bot or a single-instance assistant, is read-limited until it is approved. The approval is recorded. Every write is attributed to the client that made it. A declared source tag does not gain rights beyond the login it is bound to.</p>
+
+        <h3>How joining works</h3>
+        <p class="prose">Three places can say no, and none of them can widen another. The host decides what gets called and what data goes into the call. The server decides what it will do when asked. The database login, the role <code>emetRecordKeeper</code>, can insert and update, and it has no permission to remove anything from the record. A server cannot grant itself permission. Nothing in this repository can stop a host from asking before every call.</p>
+        <p class="prose">Two doors let a second person into this store. Both stay shut on a single-person assistant. Turn a door on only for a household or project store that is meant to be shared. The owner creates the code. The other person pastes it on the connect screen instead of the passphrase. A code expires in 14 days unless <code>days</code> says otherwise.</p>
+        <dl class="facts">
+          <div>
+            <dt>Guest, <code>EMET_INVITES=1</code></dt>
+            <dd><code>emet_invite_create</code> mints a one-time code. The only scope it accepts is <code>emet.read</code>. It is not Member access.</dd>
+          </div>
+          <div>
+            <dt>Member, <code>EMET_MEMBER_ACCESS=1</code></dt>
+            <dd><code>emet_member_access_create</code> mints a one-time code for a new person with <code>emet.read</code> and <code>emet.write</code>. It never makes them the owner. A display name is a label, not a credential: it never selects an existing person.</dd>
+          </div>
+        </dl>
+        <p class="prose">Redeeming a code allocates a new person id. If the slug of the display name is already taken, or it is the reserved id <code>owner</code>, the next free id is used (<code>&lt;slug&gt;-2</code>, then <code>-3</code>). An empty slug becomes <code>guest</code>. Linking a second device to an existing member is not inferred from a name.</p>
+        <p class="prose">A separate queue covers a new client on the owner’s store. A tag is known when it is in <code>EMET_SOURCE_TAGS</code>, already approved, or bound to a login at consent. The first write by any other tag is refused and queued in <code>emet/CLIENT_APPROVALS.md</code>, with who connected, the declared name, the client id, and what it tried to write. Hosts cannot write, patch, retire, or rename that document. Decide with <code>emet_client_approve</code>. Only the owner, or the chief-of-staff bot named by <code>EMET_COS_TAG</code>, may decide. Pending clients are listed to that reader by <code>emet_initialize</code> and <code>emet_status</code>. On a fresh store, the first solo client is approved as the owner’s primary.</p>
+        <p class="prose">A client may not decide its own approval. The connection that queued the request may not decide it either. <code>decision</code> is <code>approve</code> or <code>deny</code>. An optional <code>reason</code> is kept. When that client id already has approved tags, pass <code>as</code> <code>add</code> to keep them or <code>rename</code> to replace one.</p>
+        <p class="prose"><code>EMET_STRICT_LOGIN_TAG=1</code> is off by default. With it on, a login’s bound tag is final: a write that declares a different <code>source</code> is refused, and so are <code>emet_setup_complete</code> and <code>emet_initialize</code> with a mismatched tag. Leave it off while bots share one login. Turn it on only once each bot has its own login, for example a Member code bound to its tag.</p>
+
+        <h3>Delegated client sub-keys</h3>
+        <p class="prose">One EMET, one owner login. If more than one bot or AI writes through that login, each bot that can keep a key file gets its own key. The server stamps the tag on the key. This is the same server, not a second product. It stays off unless setup is told that more than one bot or AI will use the memory, and the server has restarted with <code>EMET_SUBKEYS=1</code>. With the flag off, the tool list does not grow.</p>
+        <ol class="steps">
+          <li>Say “initialize.” Leaving the question out is the same as no. No leaves sub-keys off.</li>
+          <li>Yes, on a server that reads <code>.env</code>, writes <code>EMET_SUBKEYS=1</code>, a generated pepper, and <code>EMET_SUBKEY_PEPPER_VERSION=1</code> into that file after the identity documents are saved. They do not turn on in the process that is already running. Restart once. The tools and <code>/owner/approvals</code> appear together after that.</li>
+          <li>Yes, on a server that takes settings from the platform, is refused before anything is saved. Set <code>EMET_SUBKEYS=1</code>, an owner-generated <code>EMET_SUBKEY_PEPPER</code> of at least 32 bytes, and <code>EMET_SUBKEY_PEPPER_VERSION=1</code>, then redeploy. Do not paste the pepper into the chat or into an EMET document.</li>
+          <li>List each bot’s tag in <code>EMET_SOURCE_TAGS</code> before it asks. An empty list refuses every request.</li>
+          <li>The bot calls <code>emet_subkey_request</code>. Approve it on <code>/owner/approvals</code> with the same passphrase used to connect a device. A correct passphrase opens a session of 15 minutes. The bot claims the key within 24 hours with <code>emet_subkey_claim</code> and keeps it where the other bots cannot read it. The key is never written into EMET.</li>
+        </ol>
+        <p class="prose">A bot then opens a session with that key and passes the session handle on later writes. The server stamps the key’s tag, whatever <code>source</code> the caller sends. A key lasts 30 days (<code>EMET_SUBKEY_TTL_DAYS</code>, default 30, at most 90). To renew it, the bot asks again, you approve it, and the bot claims the new key within 24 hours. The previous key stays valid for <code>EMET_SUBKEY_GRACE_MINUTES</code> (default 10) while the bot switches. Earlier writes stay as they were written.</p>
+        <p class="prose">The four tools, registered only when the flag is on, are <code>emet_subkey_request</code>, <code>emet_subkey_claim</code>, <code>emet_subkey_revoke</code>, and <code>emet_subkey_end_session</code>. Write tools gain <code>session_handle</code>. <code>emet_session_open</code> and <code>emet_session_close</code> gain <code>subkey</code>.</p>
+
+        <h3>What the tools are allowed to do</h3>
+        <p class="prose">Thirty tools are registered with sub-keys off. Every tool declares MCP annotations in <code>src/annotations.js</code>: <code>readOnlyHint</code>, <code>destructiveHint</code>, <code>idempotentHint</code>, and <code>openWorldHint</code>. The hints let a host stop asking about reads. They are hints, not enforcement. What is actually auto-approved is a host-side setting. <code>openWorldHint</code> is false on every tool. The tools reach this server’s database and nothing else: no filesystem and no shell. The sign-in server fetches a client’s metadata document, and only from a public address it has already checked.</p>
+        <dl class="facts">
+          <div>
+            <dt>11 read-only</dt>
+            <dd><code>emet_gaps</code>, <code>emet_floor</code>, <code>recall</code>, <code>semantic_recall</code>, <code>corpus_recall</code>, <code>query_layer</code>, <code>query_transcripts</code>, <code>read_doc</code>, <code>read_doc_history</code>, <code>list_docs</code>, <code>validate_doc</code>. These cannot change the store under any arguments.</dd>
+          </div>
+          <div>
+            <dt>10 additive writes</dt>
+            <dd><code>emet_initialize</code> (it can provision a missing board; it stays a read), <code>save_to_layer</code>, <code>revise_memory</code>, <code>save_transcript</code>, <code>revise_transcript</code>, <code>emet_session_open</code>, <code>emet_transcript_append</code>, <code>emet_session_close</code>, <code>rename_doc</code>, <code>accept_nonconformance</code>. They add. They do not remove or replace. Opening a session still needs <code>emet.write</code>, because it stamps the drop list a board edit trusts.</dd>
+          </div>
+          <div>
+            <dt>7 that replace or hand out access</dt>
+            <dd><code>write_doc</code>, <code>patch_doc</code>, <code>restore_doc</code>, <code>emet_setup_complete</code>, <code>emet_invite_create</code>, <code>emet_member_access_create</code>, <code>emet_client_approve</code>. Prior versions of a document are archived first. A code that grants access is marked the same way.</dd>
+          </div>
+          <div>
+            <dt><code>retire_doc</code> and <code>emet_status</code></dt>
+            <dd><code>retire_doc</code> marks a document obsolete and keeps its id and content. <code>emet_status</code> is not read-only: with <code>probe: true</code> it writes, reads the same value back, and removes that document. It does not drop the collection. A read-scoped token may call it without <code>probe</code>.</dd>
+          </div>
+        </dl>
+        <p class="prose">A reasonable default, from the permissions doc, is standing approval for reads, per-call or standing approval for additive writes, and eyes on the replacing writes, including setup and the two access doors. Do not carry that posture to a filesystem or shell server. A wrong call there can do something no archive brings back.</p>
+
+        <h3>Examples</h3>
+        <p class="prose">On a single-person install, leave both doors commented, as <code>.env.example</code> ships them:</p>
+        <pre><code># EMET_INVITES=1
+# EMET_MEMBER_ACCESS=1</code></pre>
+        <p class="prose">The owner decides a pending client by tag. Nothing is changed if <code>tag</code> or <code>decision</code> is missing or wrong:</p>
+        <pre><code>emet_client_approve
+{"tag": "&lt;tag&gt;", "decision": "approve"}</code></pre>
+        <p class="prose">A guest code takes a display name and only <code>emet.read</code>. A member code takes a display name. When a registry is set, pass <code>source</code> as an exact member of <code>EMET_SOURCE_TAGS</code>. A member needs that tag to write documents over HTTP while a registry is set.</p>
+
+        <h3>Limits</h3>
+        <ul class="limits">
+          <li>Both doors are off unless the matching variable is <code>1</code>. A single-person assistant store stays private. A later shared space does not copy a personal EMET into the room.</li>
+          <li>A guest invite accepts only <code>emet.read</code>. A member is never the owner. Only the owner can create either code. Over HTTP those codes require an owner person. The local stdio client is the owner.</li>
+          <li>A read-only token can call <code>emet_initialize</code> and cannot open a session. <code>emet_session_open</code>, and <code>emet_status</code> with <code>probe: true</code>, need <code>emet.write</code>. An HTTP token with no scopes is not the owner. The consent page shows the scopes it is granting.</li>
+          <li>Sub-keys apply only to authenticated HTTP. Stdio keeps the registry rules. Invite and Member Access logins cannot request, claim, or present a sub-key. A sub-key never grants more than the owner login, and it cannot call the owner-only tools, including approve, invite, member access, and setup.</li>
+          <li>What a sub-key shows is that a write was made with a key you approved. If several bots can read each other’s files, EMET cannot prove which program was holding the key. Revoke a leaked active key with <code>emet_subkey_revoke</code> from the owner’s login. Deny applies only to a pending request.</li>
+          <li>Revoking the owner login stops every sub-key. They hang off that login.</li>
+          <li>The pepper is a server secret. It is not stored in the database, in a document, or in the answer setup gives the assistant. A hosted server does not get a pepper written into its container.</li>
+          <li>With <code>EMET_SOURCE_TAGS</code> unset, an unregistered tag is not refused. Set the list before more than one host or bot writes.</li>
+        </ul>
+
+        <h3>Read more</h3>
+        <ul class="guides">
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/PERMISSIONS.md">Permissions</a>
+            <span>Host, server, and database boundaries, and which tools replace a document.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/SUBKEYS.md">Sub-keys</a>
+            <span>Turning delegated client sub-keys on, approving a bot, and what a key does not prove.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/proposals/EMET-0001-delegated-client-sub-keys.md">EMET-0001</a>
+            <span>The accepted proposal for delegated client sub-keys.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/DEPLOY.md">Deploy</a>
+            <span><code>EMET_STRICT_LOGIN_TAG</code>, source tags, and member codes that carry a tag.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/.env.example">.env.example</a>
+            <span>The two doors, strict login tags, and the sub-key variables, all off unless set.</span>
+          </li>
+        </ul>
       </div>
       <div class="demo-mount" data-demo-mount="access"></div>
     </section>
@@ -223,6 +418,116 @@
       <div class="wrap">
         <h2 id="record-title">What stays on the record</h2>
         <p class="prose">A correction writes a new entry. The earlier entry gets an end date and stays visible, marked with what replaced it. Current entries are listed first. The earlier one is still there to read. An episodic event is immutable. Events do not get revised, and a later entry corrects the reading of it instead of putting an end date on the event.</p>
+        <p class="prose">Two tiers stay separate. Tier 1 holds curated claims in six layers. Tier 2 holds the conversation as it was written, so a summary cannot overwrite the record it came from. EMET verifies the record, not the computation.</p>
+
+        <h3>The six layers</h3>
+        <p class="prose">An entry is filed by what kind of thing it is, not by topic. Each one carries an importance score and optional temporal validity. <code>src/layers.js</code> ships the charter for all six, and <code>emet_initialize</code> returns it, on a new store and on an established one.</p>
+        <dl class="facts">
+          <div>
+            <dt>identity</dt>
+            <dd>Who the assistant is and who it serves. Importance 0.9 to 1.0. Written rarely, by design.</dd>
+          </div>
+          <div>
+            <dt>semantic</dt>
+            <dd>Facts that stay true regardless of when they were learned. Importance 0.6 to 0.9. Written when a durable fact is established or corrected.</dd>
+          </div>
+          <div>
+            <dt>episodic</dt>
+            <dd>What happened, and when. Importance 0.4 to 0.7. Written at session close and at milestones. Not revised.</dd>
+          </div>
+          <div>
+            <dt>procedural</dt>
+            <dd>How something is done, and decisions that govern later action, with the reasoning. Importance 0.5 to 0.8.</dd>
+          </div>
+          <div>
+            <dt>meta</dt>
+            <dd>What is visible only from outside the exchange: how the memory behaves, and how the assistant behaves toward the user. Importance 0.6 to 0.9.</dd>
+          </div>
+          <div>
+            <dt>working</dt>
+            <dd>Short-lived context and notes for whoever picks the work up. Importance 0.3 to 0.6. An unlabelled write lands here.</dd>
+          </div>
+        </dl>
+        <p class="prose">Episodic, semantic, and procedural are about the world. Meta is about the system. In the deployment this design came from, the meta layer sat nearly unused for about a year: the collection existed, and the tools accepted writes, and it was not the obvious place to put anything. <code>assessLayerHealth()</code> reports a layer that has gone dark. It reports. It never blocks, and it stays silent on a store too new to have a pattern.</p>
+
+        <h3>How a write is checked</h3>
+        <p class="prose">There is one door for each store: <code>saveMemory</code> for the six layers, <code>writeDoc</code> for documents (<code>patch_doc</code> delegates to it), and <code>saveTranscript</code> and <code>reviseTranscript</code> for the verbatim tier. <code>tests/write-path.test.js</code> fails the build if a MongoDB write in <code>src/</code> sits outside those functions, and if anything removes from a layer, document, or transcript collection.</p>
+        <ol class="steps">
+          <li>Secrets are masked before anything is stored or hashed (<code>src/redact.js</code>). Credentials inside URIs, bearer tokens, JWTs, <code>EMET_SUBKEY_PEPPER</code>, and <code>key: value</code> pairs whose key names a secret become <code>*****</code>. The receipt’s <code>redacted</code> count is the spans this write changed.</li>
+          <li>The source tag is decided here. Over HTTP it is the tag bound at approval. On stdio it is the caller’s exact registered tag, else the environment default marked <code>source_defaulted</code>, else null marked <code>source_missing</code>.</li>
+          <li>A missing accountability field becomes a visible marker, such as <code>provenance_missing</code> or <code>importance_defaulted</code>, because a missing value can be queried and an absent field cannot. One refusal: a semantic or procedural entry with no source is not written.</li>
+          <li>Content and metadata are digested into their own columns, read back, and compared before the write is reported as saved. The id is checked by content, not by mere existence, because ids come from a counters collection.</li>
+        </ol>
+        <p class="prose">That read-back is <code>src/aleph.js</code>. A database error means the store could not be reached and the write probably did not happen. An <code>AlephError</code> means the call succeeded and the store does not contain what it should. It is not flattened into “the save failed,” and it is not retried blindly.</p>
+        <p class="prose">Later reads ask a second question: is the row still what was recorded? Each row carries content and metadata digests, an HMAC over both when <code>EMET_SIGNING_KEY</code> is set (the key stays on the service; unset means the entry is saved unsigned), and a link in its layer’s hash chain. <code>recall</code>, <code>query_layer</code>, and <code>semantic_recall</code> recompute the digests and attach <code>integrity</code>: <code>true</code>, <code>false</code> (the row is returned and flagged, never dropped), or <code>unattested</code> for a row written before the column existed. <code>emet_gaps</code> walks the chain and counts a row altered after writing (<code>broken_chain</code>) or removed from mid-chain (<code>chain_discontinuities</code>). The expected count for both is zero. <code>emet_gaps</code> identifies holes and never fills them.</p>
+        <p class="prose"><code>revise_memory</code> writes a new entry carrying <code>supersedes</code> and marks the parent with <code>superseded_by</code> and <code>superseded_at</code>. Nothing is edited or deleted, and the parent is not hidden. The new content has to stand alone. Episodic is not in the layers <code>revise_memory</code> accepts. When a later entry corrects only part of an earlier one, it carries <code>metadata.corrects</code> set to the parent id, same layer. A missing parent is refused before anything is written. The parent’s content, digest, and liveness stay untouched. Its <code>corrected_by</code> list gains the new id. <code>corrected_by</code> is a door marker. A caller cannot set it.</p>
+        <p class="prose"><code>recall</code> ranks by how many of the query’s words match, then by importance. Current entries come first in every order, including time order. Pass <code>order: "latest"</code> for time order. A superseded or expired entry stays in the result, marked with its end date and the id of what replaced it. Pass <code>history: true</code> when current matches fill the limit and you still need the ended ones. The store ranks before it keeps a window of at least 200 rows, or 20 times the page. A word matches as written, so <code>$gt</code> is that text. Capital and lower case match, including <code>École</code> and <code>école</code>. <code>İ</code> matches only itself.</p>
+        <p class="prose">An entry can point at the transcript span it came from: <code>session_id</code> plus a range of exchange indices, stored as <code>derived_from</code>. An entry consolidated from other entries carries <code>{entries: [...]}</code> instead of a guessed timestamp. The pointer wins when it is present. The timestamp is the fallback when the pointer is null. They are not averaged. Entries written before pointers existed keep a null pointer and are not backfilled. <code>crossCheckProvenance()</code> reports a pointer and a timestamp that disagree.</p>
+
+        <h3>Documents and the transcript</h3>
+        <p class="prose">No tool removes a memory entry, a document, or a transcript. The database role is not granted remove on the record either. A document is revised or retired. <code>retire_doc</code> marks it obsolete and keeps its id, content, version, and digest. <code>read_doc</code> still returns it, flagged retired, with the reason. Every document write archives the copy it replaces. <code>read_doc_history</code> lists what is retained and returns any retained revision in full, checked against its stored digest.</p>
+        <p class="prose">Records, including the handoff and any id in <code>EMET_RECORD_DOCS</code>, are superseded whole. <code>patch_doc</code> is refused on them. A new revision is written in full and names the version it supersedes. Templates are controlled documents. The shipped copy governs. <code>validate_doc</code> checks form and continuity, and the same check runs inside the write path, where no caller can skip it. A record that fails is marked and kept, never silently accepted or discarded. It stays counted at session start until a later revision corrects it or <code>accept_nonconformance</code> dispositions it. Whether an answer is true is not something this check decides.</p>
+        <p class="prose">The server provisions a blank board at setup. No session can write the board as a new document. It is edited with <code>patch_doc</code> and a reason. Once any working document exists, it is edited, not rewritten. A change that leaves a document under half the size it had when this session first touched it, or under half of its largest size in the last 24 hours, is refused. <code>retire_doc</code> refuses a working document. <code>rename_doc</code> issues a new id and marks the old id retired. The text stays readable and stays in the list. <code>restore_doc</code> is the one whole-document recovery, for an owner-listed tag, and only a stored conforming revision whose digest matches. A record is not restored. A shipped copy is never restored.</p>
+        <p class="prose">The transcript path stores exactly what it is given. If a payload will not transmit, split it across parts. Do not compress it. <code>save_transcript</code> does not read a file path. The caller passes the exchanges. A transcript field is capped at 32,000 characters, and the whole transcript request at 256,000 characters. <code>query_transcripts</code> reads the live transcript store and the legacy exchange archive together, each result naming the collection it came from. Nothing is migrated between them. <code>revise_transcript</code> writes a corrected part and must keep exactly the same exchange numbers.</p>
+        <p class="prose">At the end of a session the assistant writes four things: the handoff, the state document, an episodic entry, and the verbatim transcript. <code>emet_session_close</code> checks that each one landed and returns <code>state: "complete"</code> only when they did. It does not write those artifacts. A tool that generated a summary would be manufacturing the record. Receipts are required, and each one is compared with the store. A mismatch returns <code>blocked</code>. Three blocked closes on one session return <code>escalate</code>. After a complete close, the session takes exactly one more append, its closing exchange, within <code>EMET_CLOSE_GRACE_MINUTES</code> (default 5, at most 60), and is then locked.</p>
+        <p class="prose">A bot in a long-running chat saves its transcripts word for word at least nightly, under the open session or a daily <code>YYYY-MM-DD_chat-daily</code> session. Prefer event triggers over time-based polling. When polling is unavoidable, use the longest interval the job allows. Never reconstruct turns. Mark gaps as gaps. Session close cites those saved parts.</p>
+        <p class="prose">The door guards each write. The monorail, <code>src/session-graph.js</code>, guards the order: open, work, record, board, handoff, close. Every skipped step is refused, and the refusal says how to pass. There is no report mode and no off switch. <code>EMET_SESSION_GRAPH</code> is no longer read. Switches at the junctions are designed, not yet built. The monorail’s turn coverage is only as strong as the exchange numbers hosts report, and it never sees the reply text.</p>
+
+        <h3>Examples</h3>
+        <p class="prose">Save a durable fact inside an open session, then read the current matches and the ended ones. Semantic and procedural saves without a <code>session_id</code> or a <code>derived_from</code> are refused.</p>
+        <pre><code>save_to_layer
+{"layer": "semantic", "content": "...", "session_id": "&lt;session_id&gt;"}
+
+recall
+{"query": "budget", "history": true}
+
+revise_memory
+{"layer": "semantic", "target_id": 1, "content": "..."}</code></pre>
+        <p class="prose"><code>target_id</code> is the id <code>save_to_layer</code> returned. The revised content must stand alone. Episodic is refused here. A partial correction of an episode is a new entry whose metadata names <code>corrects</code>.</p>
+        <pre><code>read_doc_history
+{"doc_id": "HANDOFF.md"}
+
+emet_gaps
+{}
+
+emet_status
+{"probe": true}</code></pre>
+        <p class="prose">Omit <code>version</code> on <code>read_doc_history</code> to list retained revisions. Pass <code>version</code> to read one back, re-hashed against its stored digest. The probe writes a row, reads it back, and removes that row only.</p>
+
+        <h3>Limits</h3>
+        <ul class="limits">
+          <li>Nothing in the record is deleted. Corrections are new writes. Retired means obsolete, not gone.</li>
+          <li>The store does not promise that every write is complete. It does promise that every write is attested, attributed, and scrubbed, and that every absence it can see is visible.</li>
+          <li><code>validate_doc</code> checks form and continuity. It does not check whether an answer is true.</li>
+          <li>EMET does not run a GEM’s computation. A client-executed result is recorded as the client attested it. It can be replayed from the recorded inputs. EMET does not re-execute it.</li>
+          <li>Two content routers are carried from upstream. Measured against a 1,175-row corpus, they agree with the stored layer well under half the time (41% and 36%), so neither places entries. An unlabelled write lands in <code>working</code>, flagged, with both opinions kept in <code>routing</code>.</li>
+          <li><code>consolidation_candidates</code> in <code>emet_gaps</code> is tag overlap, not semantic similarity.</li>
+          <li>Rows written before 2026-09-05 carry no content digest, and rows written before 2026-09-07 carry no metadata digest. Reads report them as <code>unattested</code>. They are not backfilled.</li>
+          <li><code>save_transcript</code>’s description does not state that it stores content verbatim. The implementation does.</li>
+          <li>There is no export, import, or restore-and-compare.</li>
+          <li>The document store is not prefixed, so one database holds one instance’s identity. Run separate databases if you want separate memories.</li>
+          <li>EMET supports document-control work. It holds no certification and claims no conformity. An organization that uses it stays responsible for its own quality system, including validating EMET for its intended use.</li>
+        </ul>
+
+        <h3>Read more</h3>
+        <ul class="guides">
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/README.md#document-control-iso-9001-753--iso-13485-425">Document control in the README</a>
+            <span>No delete, supersession, retired documents, retained versions, and controlled templates.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/GUARDRAILS-AND-MONORAILS.md">Guardrails and monorails</a>
+            <span>The session order, enforce only, and the limit of what the server can see.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/README.md#the-six-layers">The six layers</a>
+            <span>What belongs in each layer, and what its absence looks like.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/README.md#known-gaps">Known gaps</a>
+            <span>What the record does not backfill, and what is not built yet.</span>
+          </li>
+        </ul>
       </div>
       <div class="demo-mount" data-demo-mount="record"></div>
     </section>
@@ -231,10 +536,64 @@
       <div class="wrap">
         <h2 id="start-title">Start here</h2>
         <p class="prose">You need Node.js 22 or newer and a MongoDB connection. Copy the example environment file, set <code>MONGODB_URI</code> and <code>MONGODB_DB</code>, then start the local server. It waits for an MCP client.</p>
+        <p class="prose">Atlas, or MongoDB you run yourself. A one-machine trial can use MongoDB 6 or newer, for example <code>mongodb://127.0.0.1:27017/</code>. Only <code>semantic_recall</code> needs Atlas, because it uses a vector index. <code>.env</code> is gitignored. Never commit it. Real environment variables win over the file, so a hosted deployment that sets them directly is unaffected by a stray local file.</p>
         <pre><code>npm install
 cp .env.example .env
 npm start</code></pre>
-        <p class="prose">On the first run, say “initialize.” The assistant asks a short interview and records it. After that, the same word opens a session that already knows where things stood.</p>
+        <p class="prose"><code>npm start</code> prints its startup log and then waits, silently, for an MCP client on standard input. That is normal. Stop it with Ctrl-C. Day to day you do not run it by hand. The MCP client starts <code>src/index.js</code>. <code>npm test</code> is optional and needs no database and no credentials.</p>
+        <p class="prose">EMET is still 0.x. Stored document shapes may change before 1.0. Pin a version if you depend on them. Set <code>EMET_SOURCE_TAGS</code> before more than one host or bot writes. With it unset, any caller can write under any tag.</p>
+
+        <h3>First run</h3>
+        <p class="prose">On the first run, say “initialize.” The assistant asks a short interview and records it with <code>emet_setup_complete</code>, which also creates the owner person. After that, the same word opens a session that already knows where things stood. There is no separate setup command to memorize. The branch happens inside the tool.</p>
+        <p class="prose">The interview asks eight things, four required and four optional. The assistant asks them one at a time, not as a form.</p>
+        <dl class="facts">
+          <div>
+            <dt>Required</dt>
+            <dd>What the assistant should be called. How it should carry itself. Your name, in the form you want used. What you are using this memory for.</dd>
+          </div>
+          <div>
+            <dt>Optional</dt>
+            <dd>How you want to be worked with. This host’s source tag. Whether more than one bot or AI will use this memory. Whether to turn on bot-team backup.</dd>
+          </div>
+        </dl>
+        <p class="prose">Leaving the multi-bot question out leaves delegated client sub-keys off. A yes writes them only when this server reads <code>.env</code>, and they take effect on restart. A hosted server refuses and names the three variables to set, then redeploy. See <a href="#access">Access</a>.</p>
+        <p class="prose">Bot-team backup is off unless the interview records yes. Yes is the recommended choice. The words Yes and Yes. count as yes. No, or leaving it out, leaves it off. A non-string and any other text are refused before a write. The answer is stored on <code>bootstrap/USER.md</code>. EMET does not copy prompts or settings itself, and secret values are never stored. The recipe and the recovery template ship as the bundled bot-team-backup GEM, at <code>gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md</code>.</p>
+        <p class="prose">What gets written: <code>bootstrap/IDENTITY.md</code>, <code>bootstrap/USER.md</code>, and an entry in the identity layer. All three are read back before setup reports success. Edit any of them later with <code>write_doc</code>. The same versioning applies. A read-scoped <code>emet_initialize</code> writes nothing. A write-scoped one may provision a missing board.</p>
+        <p class="prose">Setup refuses to finish on partial answers rather than inventing an identity. If the store cannot be reached, initialize says so instead of proceeding as though memory were available. <code>emet_setup_complete</code> is refused under a bot tag. On a store where <code>bootstrap/IDENTITY.md</code> and <code>bootstrap/USER.md</code> already exist, it is refused unless <code>reissue: true</code> is passed on the owner’s explicit word. Nothing is written on that refusal. When a reissue does run, the previous copy is archived. Nothing is overwritten in place.</p>
+
+        <h3>Every session after that</h3>
+        <p class="prose">Say “initialize” as the first message, on every device, before the question you came to ask. <code>emet_initialize</code> returns who the assistant is, who you are, where things were left, and the operating disciplines. Fetch every page it names, or pass <code>{"page": "all"}</code> on a host with no size limit, then <code>emet_session_open</code> with that startup’s <code>load_id</code>.</p>
+        <p class="prose">Before it asks you anything, it names items from the handoff and state documents: anything left half-finished, what is dated in the next seven days, each open item you own with its next action, and whatever was left undecided. A count, or a bare “where do you want to start?”, is not treated as a startup.</p>
+        <p class="prose">Say “wrap up” at the end, or goodbye, or that you are opening a new session. The assistant writes the handoff, the state document, an episodic entry, and the verbatim transcript, then calls <code>emet_session_close</code>. Wait until it returns <code>state: "complete"</code> before you close the window. If it comes back anything else, something did not save, and the reply says which. Close without that and the next session inherits a hole. <code>emet_gaps</code> will count it.</p>
+        <p class="prose">Connecting the server does not make the assistant use it unprompted. Paste the block from <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/BOOTSTRAP.md">Bootstrap</a> into the project instructions. On a host with no such field, paste it as the first message.</p>
+
+        <h3>The other machine</h3>
+        <p class="prose">Remote HTTP is <code>npm run start:http</code>, or the included <code>Dockerfile</code>. Set <code>PORT</code> (the platform usually injects it), <code>PUBLIC_URL</code>, and <code>EMET_OAUTH_PASSPHRASE</code>. Then add <code>https://&lt;your-host&gt;/mcp</code> as a custom connector. One service serves every host, so register their tags with <code>EMET_SOURCE_TAGS</code> and leave <code>EMET_SOURCE_TAG</code> unset.</p>
+        <p class="prose">Guided setup is the path if you have never deployed anything. You sign in when asked and paste the connector URL. The assistant installs, configures, deploys, and verifies. The guide estimates about 30 to 45 minutes, mostly waiting. It names an email address for two accounts, MongoDB Atlas and Railway. Atlas’s free tier needs no card. Railway may ask for a card or a small plan. You act at three moments: sign in to Atlas, sign in to Railway, and add the connector. Keep the passphrase and the URL. The passphrase is the whole perimeter. There is no second factor.</p>
+        <p class="prose">Claude Desktop needs a shell for that guided path. The guide’s installer is <code>npx @wonderwhy-er/desktop-commander@latest setup</code>, then a full quit and restart of Claude Desktop. Claude Code and Claude Cowork already have a shell. Keep per-step approval on. Desktop Commander can run any command you could run.</p>
+        <p class="prose">If you already run upstream CASCADE against MongoDB, EMET can read that store in place. Nothing is renamed or copied. Point <code>MONGODB_DB</code>, <code>EMET_COLLECTION_PREFIX</code>, <code>EMET_VECTOR_INDEX</code>, and, if you use it, <code>EMET_CORPORA</code> at the existing names. If the prefix sees zero memories while the same database holds rows under a different prefix, <code>emet_initialize</code> returns <code>state: "misconfigured"</code> and refuses the setup interview. Do not run the interview in that case. It would write a new identity over the existing one.</p>
+
+        <h3>Check that it worked</h3>
+        <pre><code>emet_status
+emet_status
+{"probe": true}
+
+emet_session_open
+save_to_layer</code></pre>
+        <p class="prose"><code>emet_status</code> should report <code>initialized: true</code> after the interview, and <code>false</code> before it. With <code>probe: true</code>, every probe check should pass. A read alone cannot show a broken write path. Then save from one device and <code>recall</code> it from another. A semantic or procedural save without a <code>session_id</code>, or a <code>derived_from</code>, is refused by design.</p>
+        <pre><code>curl https://&lt;host&gt;/health</code></pre>
+
+        <h3>Limits</h3>
+        <ul class="limits">
+          <li>Node.js older than 22 is outside <code>package.json</code> <code>engines</code>.</li>
+          <li><code>semantic_recall</code> does not run on a MongoDB that has no Atlas vector index. The other tools do.</li>
+          <li>Do not commit <code>.env</code>. Do not paste a passphrase, a connection string, or a pepper into a chat, an issue, or a screenshot.</li>
+          <li>Re-running setup on an established store is refused until the owner passes <code>reissue: true</code>. A host flow that re-runs setup at every startup gets that refusal. That is intended.</li>
+          <li>An open with a stale <code>load_id</code> is refused once after a deploy, a restart, or 60 minutes after the startup’s last page. Call <code>emet_initialize</code> with <code>{}</code> again.</li>
+          <li>The server trusts exactly one proxy hop. <code>TRUST_PROXY</code> is not read.</li>
+        </ul>
+
+        <h3>Read more</h3>
         <ul class="guides">
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/GUIDED-SETUP.md">Guided setup</a>
@@ -248,6 +607,14 @@ npm start</code></pre>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/DEPLOY.md">Deploy</a>
             <span>Remote HTTP with OAuth, so a phone, a browser, or another vendor’s agent reaches the same store.</span>
           </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/BOOTSTRAP.md">Bootstrap</a>
+            <span>The block to paste so the assistant calls memory without being reminded.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/SUBKEYS.md">Sub-keys</a>
+            <span>The multi-bot question in the interview, and what a hosted server refuses to write.</span>
+          </li>
         </ul>
       </div>
       <div class="demo-mount" data-demo-mount="start"></div>
@@ -258,6 +625,56 @@ npm start</code></pre>
         <h2 id="origin-title">Where EMET came from</h2>
         <p class="prose">EMET was built by Dreamforge Studio LLC from a neurodivergent user’s own need for an AI assistant that remembers. The word coined for that is neurendipity: neurodivergent and serendipity.</p>
         <p class="prose">It is designed first for neurodivergent users, and it works for anyone.</p>
+
+        <h3>The name</h3>
+        <p class="prose"><span lang="he">אמת</span> is Hebrew for truth. EMET is also an acronym: Enduring Memory &amp; Epistemic Tiers. Both halves are load-bearing.</p>
+        <p class="prose">In the golem legend the word <span lang="he">אמת</span> is inscribed to animate the body, and erasing its first letter leaves <span lang="he">מת</span>, met, dead. That is why the verification layer is called <code>aleph</code>. <code>emet_initialize</code> is the call that hands the model an identity, the person it serves, where things stood, and the disciplines it is bound by. Nothing mystical is claimed. It is a description of what that first tool call does.</p>
+        <p class="prose">Enduring is measured against what a language model is by default: a session that starts from nothing and ends by forgetting. Epistemic tiers are how that record stays checkable. Tier 1 holds curated claims. Tier 2 holds the verbatim record that justifies them. They are kept separate so neither can overwrite the other. The mechanism is on <a href="#record">Record</a>.</p>
+
+        <h3>Neurendipity, the bundled GEM</h3>
+        <p class="prose">The GEM specification describes EMET as a memory server. Its function is the record: what was written, what was decided, and what still stands. It is not a behavior framework. Behavioral guidance lives in GEMs. The core floor is the lines every install serves and nobody can switch off. The spec names integrity, honesty, no sycophancy, truth over speculation, fact-checking, and persistence. They ship in server code. Setup cannot write them. A GEM ranks below that floor and below the user’s current word, and it cannot remove a protected floor line.</p>
+        <p class="prose">The release notes for 0.2.6 name two floor lines in this version. <code>goal_check</code>: before multi-step work, on an ambiguous request, or when the conversation turns, state the person’s goal and the problem under it in one sentence, marked as your read, and confirm. <code>no_rapport_mirroring</code>: no echoing, flattery, or agreement used to build rapport or seem attuned. Agreement is earned by substance.</p>
+        <p class="prose">Neurendipity is the bundled GEM for neurodivergent engagement and autistic burnout support. It is support only, not counseling or treatment. It ships installed and stays off unless <code>EMET_ACTIVE_GEMS=neurendipity</code>. <code>emet_floor</code> takes a <code>gem</code> argument to read an installed GEM’s floor without turning it on. The guide id <code>guides/NEURODIVERGENT_SUPPORT.md</code> still resolves, for one release, to that GEM’s copy. The example at <code>gem-library/examples/neurendipity/</code> is a shape, not the installed GEM.</p>
+        <p class="prose">A GEM may declare a tool. EMET does not run that computation. The client runs the tool, and what is written back is checked the same way as any other write. A GEM is seated only when its <code>released</code> flag is the boolean <code>true</code>. A missing flag is refused except for a legacy manifest pinned by id, version, and file digests. The GEM specification in this repo is Draft, revision 2026-10-12. Its canonical home is the private repository EMET-GEMs. The copy under review is <code>gem-library/</code>.</p>
+
+        <h3>Where the code came from</h3>
+        <p class="prose">EMET is a derivative of CASCADE Enterprise RAM by Jason Glass / C.I.P.S. LLC, published at <code>github.com/For-Sunny/cascade-memory-enterprise</code>, used and redistributed under the MIT license that project adopted at commit <code>acdb5c8c99cdfc29fb44db2cd828d7752be744db</code> (v2.2.2, 2026-02-19). Both copyright lines are retained in <code>LICENSE</code>: C.I.P.S. LLC and Dreamforge Studio LLC. Both notices must travel with any copy.</p>
+        <p class="prose">As of 2026-10-03 that repository no longer resolves. GitHub answers 404, and the README records that no moved copy, public mirror, or archive of it was found. The address and the commit are kept as the record of where this code came from.</p>
+        <p class="prose">The README’s attribution section compares this tree with upstream v2.2.2 at that commit. The method is an exact, case-sensitive comparison of non-blank lines, regenerated by <code>scripts/measure-upstream.mjs</code>. The retained percentages were not recomputed: the upstream repository no longer resolves, and no local copy of that commit was available for the later count. What the same section does state is the divergence. Storage moved from SQLite on a RAM disk to MongoDB. Upstream’s temporal-decay engine and health check are not carried. Transport moved from stdio only to stdio and streamable HTTP with OAuth, from one source tree. Three tools are carried from upstream: <code>recall</code>, <code>query_layer</code>, and <code>save_to_layer</code>. The write path here reads every write back. No claim is made that layered memory, entry supersession, or a split curated and verbatim store originate here.</p>
+        <p class="prose"><a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/AUTHORSHIP.md">Authorship</a> records that earlier commits used the user’s git identity for changes written by assistant instances under the user’s direction, and that later commits name the assistant in the author field and the user in an <code>Approved-by</code> trailer. Those earlier commits are not rewritten. A history rewritten to read correctly would destroy the retained record. The file is the addition.</p>
+
+        <h3>Limits</h3>
+        <ul class="limits">
+          <li>Nothing mystical is claimed for the name, the legend, or <code>emet_initialize</code>.</li>
+          <li>Neurendipity is support material, not counseling or treatment. It is off unless the install names it. It does not outrank the core floor or the user’s current word.</li>
+          <li>Fieldnote stays in the tree as a developer case-study of a runed GEM. It is not a user-facing GEM, and it is off by default. Lean Six Sigma is a separate bundled GEM, also off unless named. See <a href="#project">The project</a>.</li>
+          <li>The upstream repository does not resolve. The comparison percentages in the README were not recomputed after that.</li>
+          <li>EMET holds no certification and claims no conformity.</li>
+        </ul>
+
+        <h3>Read more</h3>
+        <ul class="guides">
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/README.md#the-name">The name</a>
+            <span>Why the verification layer is called aleph, and what the two halves of the acronym refer to.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/README.md#attribution">Attribution</a>
+            <span>Upstream CASCADE, what diverged, and the comparison that was not recomputed.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/AUTHORSHIP.md">Authorship</a>
+            <span>Machine-authored commits, the Approved-by trailer, and why the early history was not rewritten.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/gem-library/SPEC.md">GEM specification</a>
+            <span>Draft, revision 2026-10-12. What a GEM is, and what the core floor is.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/gem/README.md">GEM socket</a>
+            <span>What this release seats, and the rule that the socket does not run RUNED code.</span>
+          </li>
+        </ul>
       </div>
       <div class="demo-mount" data-demo-mount="origin"></div>
     </section>
@@ -265,11 +682,106 @@ npm start</code></pre>
     <section class="block" id="project" aria-labelledby="project-title">
       <div class="wrap">
         <h2 id="project-title">The project</h2>
+        <p class="prose">EMET 0.2.6 is free and open source under the MIT License. No account, key, or payment is required to run it. You run it on infrastructure you control: your host, your MongoDB, your passphrase. The npm package is <code>@dreamforgestudiollc/emet</code>. The command it installs is <code>emet</code>, and <code>bin</code> and <code>main</code> are <code>src/index.js</code>. Node.js 22 or newer.</p>
+        <p class="prose">The Official MCP Registry manifest is <code>server.json</code>. Its name is <code>io.github.dreamforgestudiollc/emet</code>, the same value as <code>mcpName</code> in <code>package.json</code>. The package it names is the stdio server. <code>MONGODB_URI</code> is the required secret. This site is the homepage.</p>
         <ul class="project-links">
           <li><a href="https://github.com/dreamforgestudiollc/EMET">Repository</a></li>
           <li><a href="https://github.com/dreamforgestudiollc/EMET/releases">Releases</a></li>
           <li><a href="https://github.com/dreamforgestudiollc/EMET/issues">Issues</a></li>
           <li><a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CHANGELOG.md">Changelog</a></li>
+        </ul>
+
+        <h3>What 0.2.6 added</h3>
+        <p class="prose">The stored document shapes are not frozen. Pin a version if you depend on them. The document-control wording is unchanged. The charter commitment on client-executed tools is stated again: EMET verifies the record, not the computation.</p>
+        <ul class="limits">
+          <li>Delegated client sub-keys (EMET-0001), off unless the first-use answer is yes and the server restarts with <code>EMET_SUBKEYS=1</code>. The tools are <code>emet_subkey_request</code>, <code>emet_subkey_claim</code>, <code>emet_subkey_revoke</code>, and <code>emet_subkey_end_session</code>. Keys expire after 30 days and can be reissued. Approve and revoke stay on the owner’s own login.</li>
+          <li><code>emet_status</code> reports each GEM’s byte cost in <code>gems</code>: installed and active counts, active floor bytes against the cap, headroom, and per-GEM id, version, kind, bytes, and refusal reason. The field is read-only and carries no floor text. A socket failure is reported there and does not fail the status call.</li>
+          <li>Optional bot-team backup, off unless the first-run interview records yes. Yes is the recommended choice. EMET does not copy prompts or settings itself. Secret values are never stored.</li>
+          <li>Lean Six Sigma 0.9.0, a bundled GEM, off unless <code>EMET_ACTIVE_GEMS=lean-six-sigma</code>. Its <code>requires.emet</code> is <code>&gt;=0.2.6</code> and <code>released</code> is true. The GEM version pattern is <code>MAJOR.MINOR.PATCH</code> with no suffix.</li>
+          <li>The socket serves RUNED code and does not run it. One read-only tool per RUNE, named <code>gem_&lt;gem&gt;__&lt;rune&gt;</code>, returns the code, description, inputs, outputs, runtime, and served sha256. The server sandbox is removed. A kept result is sealed on the existing write path.</li>
+          <li>A GEM is seated only when <code>released</code> is the boolean <code>true</code>. <code>false</code>, the string <code>"true"</code>, <code>1</code>, and <code>null</code> fail. A missing field is allowed only for the legacy manifests the release pins by id, version, and file digests.</li>
+          <li>The deploy image and the npm package include <code>verification/</code>. <code>src/host-reach.js</code> imports the RUNE load gate from there.</li>
+        </ul>
+
+        <h3>What is in the tree</h3>
+        <dl class="facts">
+          <div>
+            <dt><code>src/</code></dt>
+            <dd>The server. <code>src/index.js</code> is stdio. <code>src/http-remote.js</code> is remote HTTP. Both call <code>dispatch.js</code>.</dd>
+          </div>
+          <div>
+            <dt><code>docs/</code></dt>
+            <dd>Setup, deploy, permissions, bots, sub-keys, and the instruction block. The working roadmap is <code>docs/ROADMAP.md</code>. It is not a commitment. Its status date is 2026-10-11.</dd>
+          </div>
+          <div>
+            <dt><code>gem-library/</code></dt>
+            <dd>The GEM standard under review: <code>SPEC.md</code> (Draft, revision 2026-10-12), the schema, authoring, and conformance. A GEM loads only from <code>gems/</code> inside a release, and only after <code>gem-check</code>.</dd>
+          </div>
+          <div>
+            <dt><code>gems/</code>, <code>templates/</code>, <code>verification/</code></dt>
+            <dd>Bundled GEMs, controlled templates, and the RUNE load gate. Fieldnote is off by default and is not a user-facing GEM.</dd>
+          </div>
+          <div>
+            <dt><code>site/</code></dt>
+            <dd>This page. <code>.github/workflows/pages.yml</code> publishes the folder to GitHub Pages for <code>dreamforgestudiollc/EMET</code> on <code>main</code>.</dd>
+          </div>
+          <div>
+            <dt><code>tests/</code></dt>
+            <dd><code>npm test</code> runs every <code>*.test.js</code> on one shared harness. No framework, no database, no credentials. The README recorded 1,852 checks across 64 suites on 2026-10-07, and it does not keep per-suite counts because they go stale. <code>npm test</code> prints the current lines.</dd>
+          </div>
+        </dl>
+        <p class="prose"><code>package.json</code> <code>files</code> ships <code>src/</code>, <code>verification/</code>, <code>templates/</code>, <code>guides/</code>, <code>gems/</code>, top-level docs, <code>CHARTER.md</code>, <code>CHANGELOG.md</code>, <code>server.json</code>, <code>.env.example</code>, <code>README.md</code>, and <code>LICENSE</code>. It does not ship tests or <code>.env</code>.</p>
+        <p class="prose">Two checks hold the no-delete line. <code>write-path.test.js</code> fails if anything in <code>src/</code> removes from a layer, document, or transcript collection. <code>atlas-role.test.js</code> fails if the database role grants remove. Open an issue before a pull request for anything beyond a typo. The feature template asks the four questions the charter asks of every change. Run <code>npm ci &amp;&amp; npm test</code>. The charter, the core floor, the README’s document-control section, attribution, and the GEM standard change only by the maintainer’s decision.</p>
+
+        <h3>Examples</h3>
+        <pre><code>npm install
+npm test
+npm start
+npm run start:http</code></pre>
+        <p class="prose"><code>npm start</code> is the local stdio server. <code>npm run start:http</code> is the remote server. A release is published from the repository. Only the latest release receives fixes.</p>
+
+        <h3>Limits</h3>
+        <ul class="limits">
+          <li>Still 0.x. Breaking changes to stored document shapes may land before 1.0.</li>
+          <li>No export, import, or restore-and-compare yet.</li>
+          <li>The document store is not prefixed. One database holds one instance. Use separate databases for separate memories.</li>
+          <li>Dynamic Client Registration is still served beside Client ID Metadata Documents. It is scheduled to come off on 2027-06-01. The MCP specification’s deprecation window closes around 2027-07.</li>
+          <li>Delegated client sub-keys stay off unless setup is told that more than one bot or AI will use the memory. A hosted server does not write a pepper into its container. A stamp shows that an approved key was presented, not which program held it.</li>
+          <li><code>save_transcript</code>’s description does not say that it stores content verbatim. The implementation does.</li>
+          <li>Monorail switches are designed, not yet built. The session-order check never sees the reply text.</li>
+          <li>Securing the deployment is yours: the host, MongoDB, and <code>EMET_OAUTH_PASSPHRASE</code>. Report a vulnerability in EMET’s own code privately, through GitHub security advisories, not in a public issue. Include the version, the transport (stdio or remote HTTP), and steps to reproduce. Do not include real passphrases, tokens, connection strings, or memory content.</li>
+        </ul>
+
+        <h3>Read more</h3>
+        <ul class="guides">
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CHANGELOG.md">Changelog</a>
+            <span>0.2.6, then the earlier releases. The format is Keep a Changelog.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CONTRIBUTING.md">Contributing</a>
+            <span>Open an issue first. No delete on any store. What only the maintainer changes.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/SECURITY.md">Security</a>
+            <span>How to report a vulnerability, and which release receives fixes.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CHARTER.md">Charter</a>
+            <span>The architecture charter. Changes to it are the maintainer’s decision.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/ROADMAP.md">Roadmap</a>
+            <span>A working list, not a commitment. Status as of 2026-10-11.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/server.json">server.json</a>
+            <span>The registry manifest for 0.2.6.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/README.md#known-gaps">Known gaps</a>
+            <span>The longer honest list, including what the routers do not do.</span>
+          </li>
         </ul>
       </div>
       <div class="demo-mount" data-demo-mount="project"></div>
