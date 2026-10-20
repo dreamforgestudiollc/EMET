@@ -18,6 +18,7 @@ import { makeStore, withStore } from './memstore.js';
 process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://in-memory.test/emet';
 const { parseBotTeamBackup, setupBegin, setupComplete, ENV_FILE } = await import('../src/setup.js');
 const { checkGem } = await import('../src/gem-check.js');
+const { hostTools } = await import('../src/tools.js');
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ANSWERS = { assistant_name: 'Ada', assistant_character: 'Plain.', user_name: 'Sam Example', user_context: 'A shared memory.', more_than_one_bot: 'no' };
@@ -41,13 +42,19 @@ testGroup('bot-team backup is one optional recorded answer', () => {
     assert.match(begin.instructions, /Yes is the recommended choice/);
   });
 
-  test('yes and no parse; absent means no; anything else does not', () => {
+  test('only the strings yes and no parse; absent means no', () => {
     assert.strictEqual(parseBotTeamBackup('yes'), true);
-    assert.strictEqual(parseBotTeamBackup('Yes.'), true);
     assert.strictEqual(parseBotTeamBackup('no'), false);
     assert.strictEqual(parseBotTeamBackup(''), false);
     assert.strictEqual(parseBotTeamBackup(undefined), false);
+    assert.strictEqual(parseBotTeamBackup(null), false);
+    assert.strictEqual(parseBotTeamBackup('Yes.'), null);
+    assert.strictEqual(parseBotTeamBackup('YES'), null);
+    assert.strictEqual(parseBotTeamBackup('y'), null);
     assert.strictEqual(parseBotTeamBackup('maybe'), null);
+    assert.strictEqual(parseBotTeamBackup(true), null);
+    assert.strictEqual(parseBotTeamBackup(false), null);
+    assert.strictEqual(parseBotTeamBackup(['yes']), null);
   });
 
   test('yes records the flag and does not copy a bot or write a secret', async () => {
@@ -55,7 +62,7 @@ testGroup('bot-team backup is one optional recorded answer', () => {
     const s = makeStore();
     const done = await withStore(s, () => setupComplete({ ...ANSWERS, bot_team_backup: 'yes' }, null, { envFile }));
     assert.strictEqual(done.bot_team_backup, true);
-    assert.match(done.next_step, /guides\/BOT_TEAM_BACKUP\.md/);
+    assert.match(done.next_step, /gems\/bot-team-backup\/guides\/BOT_TEAM_BACKUP\.md/);
     assert.match(done.next_step, /never store secret values/i);
     const user = docOf(s, 'bootstrap/USER.md').content;
     assert.match(user, /## §4 BOT-TEAM BACKUP\nyes\n/);
@@ -76,14 +83,25 @@ testGroup('bot-team backup is one optional recorded answer', () => {
     }
   });
 
-  test('an answer that is not yes or no writes nothing', async () => {
-    const s = makeStore();
-    await assert.rejects(
-      () => withStore(s, () => setupComplete({ ...ANSWERS, bot_team_backup: 'maybe' })),
-      (e) => e.field === 'bot_team_backup' && /Nothing was written/.test(e.message) && /Yes is the recommended choice/.test(e.message)
-    );
-    assert.deepStrictEqual(s.writes, []);
-    assert.ok(!docOf(s, 'bootstrap/USER.md'));
+  test('an answer that is not the string yes or no writes nothing', async () => {
+    for (const bot_team_backup of ['maybe', 'Yes.', true, ['yes']]) {
+      const s = makeStore();
+      await assert.rejects(
+        () => withStore(s, () => setupComplete({ ...ANSWERS, bot_team_backup })),
+        (e) => e.field === 'bot_team_backup' && /Nothing was written/.test(e.message) && /Yes is the recommended choice/.test(e.message)
+      );
+      assert.deepStrictEqual(s.writes, []);
+      assert.ok(!docOf(s, 'bootstrap/USER.md'));
+    }
+  });
+
+  test('emet_setup_complete still declares bot_team_backup as a string', () => {
+    const tool = hostTools().find((row) => row.name === 'emet_setup_complete');
+    const prop = tool.inputSchema.properties.answers.properties.bot_team_backup;
+    assert.ok(prop, 'bot_team_backup dropped from emet_setup_complete');
+    assert.strictEqual(prop.type, 'string');
+    const source = fs.readFileSync(path.join(ROOT, 'src/tools.js'), 'utf8');
+    assert.match(source, /bot_team_backup:\s*\{\s*type:\s*"string"/);
   });
 
   test('the bundled add-on passes gem-check and stays off', async () => {

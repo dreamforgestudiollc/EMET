@@ -164,7 +164,7 @@ The interview asks eight things, four required and four optional:
   walkthrough is [SUBKEYS.md](SUBKEYS.md).
 - Optionally: whether to turn on bot-team backup. **Yes is the recommended choice.** No, or
   leaving it out, leaves it off. The answer is recorded. EMET does not copy prompts or
-  settings itself, and secret values are never stored. The recipe is `guides/BOT_TEAM_BACKUP.md`.
+  settings itself, and secret values are never stored. The recipe is `gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md`.
 
 Your assistant asks these conversationally, one at a time — not as a form — then calls
 `emet_setup_complete`.

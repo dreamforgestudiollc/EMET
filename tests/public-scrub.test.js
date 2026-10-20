@@ -101,6 +101,13 @@ testGroup('the shipped tree is scrubbed', () => {
     assert.ok(files.includes('.github/workflows/pages.yml'));
     assert.ok(files.includes('glama.json'));
     for (const rel of ['site/sitemap.xml', 'site/robots.txt', 'site/.nojekyll']) assert.ok(files.includes(rel), rel);
+    for (const rel of [
+      'gems/lean-six-sigma/gem.json',
+      'gems/lean-six-sigma/runes/lss_capability.js',
+      'gems/lean-six-sigma/guides/FORMULAS.md',
+      'gems/lean-six-sigma/guides/BELTS.md',
+      'tests/fixtures/emet-gems-fc2dc4d/lean-six-sigma/gem.json'
+    ]) assert.ok(files.includes(rel), rel);
   });
   test('the Pages deploy job if is exactly the public repository and main', () => {
     const pages = read('.github/workflows/pages.yml');

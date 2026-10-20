@@ -47,9 +47,9 @@
       "maxLength": 400
     },
     "version": {
-      "description": "MAJOR.MINOR.PATCH. This revision does not accept pre-release tags.",
+      "description": "MAJOR.MINOR.PATCH, or the same with the suffix -beta. Any other pre-release tag is refused.",
       "type": "string",
-      "pattern": "^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$"
+      "pattern": "^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})(?:-beta)?$"
     },
     "kind": {
       "enum": ["gem", "runed-gem"]
@@ -261,9 +261,9 @@
           "pattern": "^sha256:[a-f0-9]{64}$"
         },
         "version": {
-          "description": "The GEM semver.",
+          "description": "The GEM semver. Same form as the manifest version, including the -beta suffix.",
           "type": "string",
-          "pattern": "^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$"
+          "pattern": "^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})(?:-beta)?$"
         },
         "runtime": {
           "description": "Runtime the client needs to run the code.",

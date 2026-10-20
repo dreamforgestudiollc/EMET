@@ -35,12 +35,14 @@ change before 1.0.
 
 ### Fixed
 - Error text again replaces a stack frame with `[stack-frame]`. The publish workflow runs only on a published release. Public text no longer carries a private path, a private branch name, or an install-specific display name.
+- Bot-team backup references name `gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md`, the file on disk.
 
 ### Changed
 - Version 0.2.6. Charter commitment 1 again states the client-executed RUNE carve-out: EMET verifies the record, not the computation. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
 ### Added
-- Optional bot-team backup, off unless the first-run interview records yes. Yes is the recommended choice. The answer is stored on `bootstrap/USER.md`. The recipe and the recovery template ship as the bundled bot-team-backup GEM. EMET does not copy prompts or settings itself. Secret values are never stored.
+- Optional bot-team backup, off unless the first-run interview records yes. Yes is the recommended choice. The answer is stored on `bootstrap/USER.md`. The recipe and the recovery template ship as the bundled bot-team-backup GEM. EMET does not copy prompts or settings itself. Secret values are never stored. The recorded answer accepts only the strings `yes` and `no`. Any other value, including a boolean or a list, is refused before a write.
+- Lean Six Sigma 1.0.0-beta, a bundled runed GEM, off unless `EMET_ACTIVE_GEMS=lean-six-sigma`. Its `requires.emet` is `>=0.2.6`. The earlier copy required `>=0.3.0`, which SR-06 refuses on this version. `released` is true. Rune file digests are unchanged. `guides/BELTS.md` (`sha256:e9e591af0e2d89a27cddf73da48e4f4acacd1785e22473d42dd3b56366d008d0`) and `CHANGELOG.md` (`sha256:ec2bbbf26e040705195b400941e6fdc90e93cffa4763e67f81ac1bd3fc11f837`) are the re-vendored file digests. `gems/artifact-index.json` is unchanged.
 
 ## 0.2.5 - 2026-10-14
 

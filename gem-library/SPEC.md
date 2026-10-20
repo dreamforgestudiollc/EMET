@@ -71,7 +71,7 @@ A GEM directory contains `gem.json` and the files it lists. `gem.json` MUST vali
 | `id` | Stable. Lowercase, digits, hyphens. Unique on one server. |
 | `name` | Label people see. Not unique. |
 | `description` | One short summary. Served on `gems_available`. |
-| `version` | `MAJOR.MINOR.PATCH` only, this revision. |
+| `version` | `MAJOR.MINOR.PATCH`, or the same with the suffix `-beta`. Any other pre-release tag is refused. |
 | `kind` | `gem` or `runed-gem`. |
 | `requires.emet` | Exact version, or one of `>=`, `^`, `~`, on `MAJOR.MINOR.PATCH`. The socket refuses a GEM when the running version is outside the range. `^0.3.0` means `>=0.3.0 <0.4.0`. |
 | `priority` | Integer 0 through 100. Higher wins. Equal priority: the `id` that sorts first in UTF-8 byte order wins. |
@@ -338,7 +338,7 @@ A GEM that fails any check in [CONFORMANCE.md](CONFORMANCE.md) is not on that li
 ## 14. Versioning and deprecation
 
 - This document's revision date changes only for a breaking change. States: Draft, Current, Final. Final will not change.
-- A GEM's `version` is semver. A breaking change to lines an install may have relied on MUST bump the major version. This revision of the spec does not accept pre-release tags in `version`.
+- A GEM's `version` is semver. A breaking change to lines an install may have relied on MUST bump the major version. This revision accepts `MAJOR.MINOR.PATCH`, and that same version with the suffix `-beta`. Any other pre-release tag is refused.
 - The socket MUST refuse a GEM whose `spec` it does not implement, and whose `requires.emet` excludes the running server.
 - A deprecated manifest field or check stays available for at least 12 months after the Current revision that marks it deprecated, or 90 days when Alex records an active security risk in the deprecation GEP. Removal is a new spec date. The deprecation GEP names what replaces it, or states that nothing does.
 - One old doc id is special. When the Neurendipity guide moves, `guides/NEURODIVERGENT_SUPPORT.md` on the server MUST keep resolving to the GEM's guide for one release, then that alias MAY be removed. That alias is server behavior from GEP-0001, not a second copy of the text.

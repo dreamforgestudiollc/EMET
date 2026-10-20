@@ -18,7 +18,7 @@ Every write is attributed to the client that made it. A declared source tag does
 
 ## GEM socket
 
-Add-on behavior ships as GEMs (Golem Expertise Modules). A GEM ranks below the core floor and below the user's current word. It cannot remove a protected floor line. The bundled Neurendipity GEM is a work-in-progress example and is off unless the install turns it on. It is support material, not counseling or treatment.
+Add-on behavior ships as GEMs (Golem Expertise Modules). A GEM ranks below the core floor and below the user's current word. It cannot remove a protected floor line. Neurendipity and Lean Six Sigma are work-in-progress examples and stay off unless the install turns one on. Neurendipity is support material, not counseling or treatment. Fieldnote is a developer case-study of a runed GEM. It is not a user-facing GEM, and it is off by default.
 
 ## Client-side GEM execution
 

@@ -3827,7 +3827,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_setup_complete",
-    description: "First-time setup, the owner's only: record the user's interview answers as bootstrap/IDENTITY.md, bootstrap/CHARACTER.md and bootstrap/USER.md and as an identity-layer entry, and create the owner person. Every write is read-back verified. Refused under a bot tag. On a store that is already set up it is refused unless reissue is true (the owner's explicit word): a re-run writes new versions of the user's identity documents; prior versions are archived, never destroyed. answers.more_than_one_bot is optional. Absent or no leaves sub-keys off. yes writes EMET_SUBKEYS=1, a generated pepper and EMET_SUBKEY_PEPPER_VERSION=1 into .env only when that file is the config source, after the store writes succeed, and does not turn the flag on in this process. A hosted server refuses yes and returns the three variables to set, then redeploy. See docs/SUBKEYS.md. answers.bot_team_backup is optional. Yes is the recommended choice and records the flag. Absent or no leaves bot-team backup off. Setup does not copy prompts or settings.",
+    description: "First-time setup, the owner's only: record the user's interview answers as bootstrap/IDENTITY.md, bootstrap/CHARACTER.md and bootstrap/USER.md and as an identity-layer entry, and create the owner person. Every write is read-back verified. Refused under a bot tag. On a store that is already set up it is refused unless reissue is true (the owner's explicit word): a re-run writes new versions of the user's identity documents; prior versions are archived, never destroyed. answers.more_than_one_bot is optional. Absent or no leaves sub-keys off. yes writes EMET_SUBKEYS=1, a generated pepper and EMET_SUBKEY_PEPPER_VERSION=1 into .env only when that file is the config source, after the store writes succeed, and does not turn the flag on in this process. A hosted server refuses yes and returns the three variables to set, then redeploy. See docs/SUBKEYS.md. answers.bot_team_backup is optional. The only accepted strings are yes and no. yes is the recommended choice and records the flag. Absent or no leaves bot-team backup off. Any other value, including a non-string, is refused before a write. Setup does not copy prompts or settings.",
     inputSchema: {
       type: "object",
       properties: {
@@ -3842,7 +3842,7 @@ const TOOL_DEFINITIONS = [
             user_preferences: { type: "string" },
             source_tag: { type: "string" },
             more_than_one_bot: { type: "string", description: "Optional. yes or no, in the user's words. Absent or no leaves sub-keys off. yes turns them on only when this server reads .env. Do not invent this answer." },
-            bot_team_backup: { type: "string", description: "Optional. yes or no, in the user's words. Yes is the recommended choice and records bot-team backup as on. Absent or no leaves it off. Do not invent this answer." }
+            bot_team_backup: { type: "string", description: "Optional. The only accepted values are the strings yes and no. yes is the recommended choice and records bot-team backup as on. Absent or no leaves it off. A non-string is refused. Do not invent this answer." }
           },
           required: ["assistant_name", "assistant_character", "user_name", "user_context"]
         },

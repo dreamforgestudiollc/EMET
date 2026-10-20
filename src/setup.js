@@ -534,7 +534,7 @@ export const SETUP_INTERVIEW = Object.freeze([
     why: 'Yes turns on delegated client sub-keys when this server reads .env. No, or leaving it out, leaves them off. A hosted server does not write a pepper; it tells you the three settings to put in the platform\'s variables. Each bot\'s tag must be listed in EMET_SOURCE_TAGS. See docs/SUBKEYS.md.' },
   { key: 'bot_team_backup', required: false,
     ask: 'Turn on bot-team backup? It is off unless you say yes. Yes is the recommended choice. Answer yes or no.',
-    why: 'Yes records that choice and means the assistant follows the bot-team backup recipe: each bot\'s name, prompt, settings, routines and skills are written as controlled documents, revised only when they change. No, or leaving it out, leaves the practice off. EMET does not copy those documents itself, and secret values are never stored. See guides/BOT_TEAM_BACKUP.md.' }
+    why: 'Yes records that choice and means the assistant follows the bot-team backup recipe: each bot\'s name, prompt, settings, routines and skills are written as controlled documents, revised only when they change. No, or leaving it out, leaves the practice off. EMET does not copy those documents itself, and secret values are never stored. See gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md.' }
 ]);
 
 /**
@@ -549,9 +549,16 @@ export function parseMoreThanOneBot(value) {
   return null;
 }
 
-/** Same yes/no rule as the sub-key question. The backup flag is only this answer. */
+/**
+ * Only the strings "yes" and "no". Absent means no. A non-string, "Yes.",
+ * or any other text is not an answer, and setup does not invent one.
+ */
 export function parseBotTeamBackup(value) {
-  return parseMoreThanOneBot(value);
+  if (value == null || value === '') return false;
+  if (typeof value !== 'string') return null;
+  if (value === 'yes') return true;
+  if (value === 'no') return false;
+  return null;
 }
 
 /** Steps returned when yes is refused because real env vars are the config source. Thrown before any store write. */
@@ -1316,7 +1323,7 @@ function renderUserDoc(a) {
     '## §4 BOT-TEAM BACKUP',
     a.bot_team_backup === true ? 'yes' : 'no',
     '',
-    'Recorded at setup. Yes means follow guides/BOT_TEAM_BACKUP.md. No, or leaving the question out, leaves the practice off. EMET does not copy prompts or settings itself. Never store secret values in a bot-team document.',
+    'Recorded at setup. Yes means follow gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md. No, or leaving the question out, leaves the practice off. EMET does not copy prompts or settings itself. Never store secret values in a bot-team document.',
     '',
     '---',
     '',
@@ -1373,7 +1380,7 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
   if (backup === null) {
     throw new ValidationError(
       'bot_team_backup',
-      'Answer yes or no. Yes is the recommended choice and records bot-team backup as on. No leaves it off. Leaving it out leaves it off. Do not invent the answer. Nothing was written.'
+      'Answer with the string yes or the string no. Yes is the recommended choice and records bot-team backup as on. No leaves it off. Leaving it out leaves it off. Do not invent the answer. Nothing was written.'
     );
   }
   answers = { ...answers, bot_team_backup: backup };
@@ -1499,7 +1506,7 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
         'set EMET_SOURCE_TAG only on a server one host uses. New logins will be issued as this person, not as a generic owner. ' +
         subkeySetupNote(multi, subkeys) + ' ' +
         (backup
-          ? 'Bot-team backup is on. Follow guides/BOT_TEAM_BACKUP.md. Revise bot-team documents only when they change, and never store secret values.'
+          ? 'Bot-team backup is on. Follow gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md. Revise bot-team documents only when they change, and never store secret values.'
           : 'Bot-team backup stays off.')
     };
   } finally {

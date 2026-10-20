@@ -83,23 +83,15 @@ async function bootToday() {
 }
 
 /**
- * Lean Six Sigma beside today's boot. The commit-fc2dc4d tree is used when this
- * checkout has it. Otherwise the shipped fieldnote bytes are retargeted to
- * that id so the refusal is still SR-08 on a GEM that passes every other check.
+ * Lean Six Sigma beside today's boot, from the emet-gems-fc2dc4d fixture. That copy has
+ * released false and requires.emet >=0.3.0. A missing fixture fails the test.
  */
 async function placeLss(root) {
   const dest = path.join(root, 'lean-six-sigma');
-  if (fs.existsSync(path.join(LSS_FIXTURE, 'gem.json'))) {
-    const commit = fs.readFileSync(path.join(LSS_FIXTURE, '..', 'COMMIT'), 'utf8').trim();
-    assert.strictEqual(commit, 'commit-fc2dc4d');
-    await fs.promises.cp(LSS_FIXTURE, dest, { recursive: true });
-    return dest;
-  }
-  await fs.promises.cp(path.join(ROOT, 'gems/fieldnote'), dest, { recursive: true });
-  await writeGemJson(dest, (manifest) => {
-    manifest.id = 'lean-six-sigma';
-    manifest.name = 'Lean Six Sigma';
-  });
+  assert.ok(fs.existsSync(path.join(LSS_FIXTURE, 'gem.json')), 'tests/fixtures/emet-gems-fc2dc4d/lean-six-sigma is required');
+  const commit = fs.readFileSync(path.join(LSS_FIXTURE, '..', 'COMMIT'), 'utf8').trim();
+  assert.strictEqual(commit, 'commit-fc2dc4d');
+  await fs.promises.cp(LSS_FIXTURE, dest, { recursive: true });
   return dest;
 }
 
@@ -128,11 +120,12 @@ testGroup('an empty mount is silence, and the example is not installed', () => {
     try {
       const heard = quiet();
       const seated = await seatGems({ log: heard.log });
-      assert.strictEqual(seated.gems_available.length, 3);
+      assert.strictEqual(seated.gems_available.length, 4);
       const row = seated.gems_available.find((g) => g.id === 'neurendipity');
       const note = seated.gems_available.find((g) => g.id === 'fieldnote');
       const backup = seated.gems_available.find((g) => g.id === 'bot-team-backup');
-      assert.ok(row && note && backup);
+      const lss = seated.gems_available.find((g) => g.id === 'lean-six-sigma');
+      assert.ok(row && note && backup && lss);
       assert.strictEqual(row.loadable, true, row.reason);
       assert.strictEqual(row.active, false);
       assert.strictEqual(row.defaultOn, false);
@@ -144,13 +137,19 @@ testGroup('an empty mount is silence, and the example is not installed', () => {
       assert.strictEqual(backup.active, false);
       assert.strictEqual(backup.defaultOn, false);
       assert.strictEqual(backup.loadable, true, backup.reason);
+      assert.strictEqual(lss.kind, 'runed-gem');
+      assert.strictEqual(lss.active, false);
+      assert.strictEqual(lss.defaultOn, false);
+      assert.strictEqual(lss.loadable, true, lss.reason);
+      assert.strictEqual(lss.version, '1.0.0-beta');
       assert.notStrictEqual(row.bytes, 953);
       assert.deepStrictEqual(seated.gems_active, []);
       assert.deepStrictEqual(heard.infos.map((row) => row.message), [
         'GEM seated: bot-team-backup',
         'GEM seated: fieldnote',
+        'GEM seated: lean-six-sigma',
         'GEM seated: neurendipity',
-        'GEMs seated: 3 installed, 0 active'
+        'GEMs seated: 4 installed, 0 active'
       ]);
       assert.strictEqual(heard.warnings.length, 0);
     } finally {
@@ -406,9 +405,12 @@ testGroup('server refusals', () => {
       let rows = byId(seated);
       assert.strictEqual(rows.neurendipity.loadable, true, rows.neurendipity.reason);
       assert.strictEqual(rows.fieldnote.loadable, true, rows.fieldnote.reason);
+      const fixtureManifest = JSON.parse(await fs.promises.readFile(path.join(lss, 'gem.json'), 'utf8'));
+      assert.strictEqual(fixtureManifest.released, false);
+      assert.strictEqual(fixtureManifest.requires.emet, '>=0.3.0');
       assert.strictEqual(rows['lean-six-sigma'].loadable, false);
       assert.strictEqual(rows['lean-six-sigma'].reason, 'SR-08');
-      assert.match(missing.warnings.map((row) => row.message).join('\n'), /GEM refused: lean-six-sigma SR-08: released is missing/);
+      assert.match(missing.warnings.map((row) => row.message).join('\n'), /GEM refused: lean-six-sigma SR-08: released must be boolean true, got boolean false/);
       assert.ok(missing.infos.some((row) => row.message === 'GEM seated: neurendipity'));
       assert.ok(missing.infos.some((row) => row.message === 'GEM seated: fieldnote'));
       assert.ok(!missing.infos.some((row) => row.message === 'GEM seated: lean-six-sigma'));
@@ -444,6 +446,11 @@ testGroup('server refusals', () => {
       }
 
       await setReleased(lss, true);
+      seated = await seatGems({ root, releaseRoot: root, log: quiet().log });
+      rows = byId(seated);
+      assert.strictEqual(rows['lean-six-sigma'].loadable, false);
+      assert.strictEqual(rows['lean-six-sigma'].reason, 'SR-06');
+      await writeGemJson(lss, (manifest) => { manifest.requires.emet = '>=0.2.6'; });
       seated = await seatGems({ root, releaseRoot: root, log: quiet().log });
       rows = byId(seated);
       assert.strictEqual(rows['lean-six-sigma'].loadable, true, rows['lean-six-sigma'].reason);
@@ -658,6 +665,7 @@ testGroup('server refusals', () => {
     const mutants = path.join(ROOT, 'tests/.mutants');
     try {
       await setReleased(lss, false);
+      await writeGemJson(lss, (manifest) => { manifest.requires.emet = '>=0.2.6'; });
       await fs.promises.rm(path.join(root, 'fieldnote'), { recursive: true, force: true });
       const real = await seatGems({ root, releaseRoot: root, asked: ['lean-six-sigma'], log: quiet().log });
       assert.strictEqual(byId(real)['lean-six-sigma'].reason, 'SR-08');
@@ -781,7 +789,7 @@ testGroup('startup lists Neurendipity off, and the guide stays out of the payloa
     const median = times[3];
     const bytes = resultSize(full).bytes;
     console.log(`    init off median ${median.toFixed(2)} ms, min ${times[0].toFixed(2)} ms, bytes ${bytes} (before ${BEFORE_BYTES})`);
-    assert.strictEqual(full.gems_available.length, 3);
+    assert.strictEqual(full.gems_available.length, 4);
     const row = full.gems_available.find((g) => g.id === 'neurendipity');
     const note = full.gems_available.find((g) => g.id === 'fieldnote');
     assert.ok(row && note);
@@ -792,8 +800,11 @@ testGroup('startup lists Neurendipity off, and the guide stays out of the payloa
     assert.deepStrictEqual(full.gems_active, []);
     const line = 'neurendipity, Neurendipity, off';
     const noteLine = 'fieldnote, Fieldnote, off';
+    const lssLine = 'lean-six-sigma, Lean Six Sigma, off';
     assert.ok(full.instructions.includes(line));
     assert.ok(full.instructions.includes(noteLine));
+    assert.ok(full.instructions.includes(lssLine));
+    assert.ok(full.instructions_short.includes(lssLine));
     assert.ok(full.instructions_short.includes(line));
     assert.ok(full.instructions_short.includes(noteLine));
     assert.ok(full.instructions.indexOf(line) < full.instructions.indexOf('Never open with a question alone'));
@@ -815,10 +826,10 @@ testGroup('startup lists Neurendipity off, and the guide stays out of the payloa
     }
     const seen = laid.pages.flatMap((page) => Object.keys(page).filter((key) => key === 'gems_available' || key === 'gems_active'));
     assert.deepStrictEqual(seen.sort(), ['gems_active', 'gems_available']);
-    assert.deepStrictEqual(pages.assemblePages(laid.pages).gems_available.map((g) => g.id), ['bot-team-backup', 'fieldnote', 'neurendipity']);
+    assert.deepStrictEqual(pages.assemblePages(laid.pages).gems_available.map((g) => g.id), ['bot-team-backup', 'fieldnote', 'lean-six-sigma', 'neurendipity']);
     assert.deepStrictEqual(pages.assemblePages(laid.pages).gems_active, []);
     const abridged = abridgeReadyPayload(full);
-    assert.deepStrictEqual(abridged.gems_available.map((g) => g.id), ['bot-team-backup', 'fieldnote', 'neurendipity']);
+    assert.deepStrictEqual(abridged.gems_available.map((g) => g.id), ['bot-team-backup', 'fieldnote', 'lean-six-sigma', 'neurendipity']);
     assert.deepStrictEqual(abridged.gems_active, []);
     assert.ok(!abridged.pointers.some((p) => p.key === 'gems_available' || p.key === 'gems_active'));
   });
@@ -843,11 +854,12 @@ testGroup('startup lists Neurendipity off, and the guide stays out of the payloa
     const fresh = await withStore(makeStore(), () => initialize({ page: 'all' }));
     const body = payloadOf(fresh);
     assert.strictEqual(body.state, 'setup_required');
-    assert.deepStrictEqual(body.gems_available.map((g) => g.id), ['bot-team-backup', 'fieldnote', 'neurendipity']);
+    assert.deepStrictEqual(body.gems_available.map((g) => g.id), ['bot-team-backup', 'fieldnote', 'lean-six-sigma', 'neurendipity']);
     assert.ok(body.gems_available.every((g) => g.active === false));
     assert.deepStrictEqual(body.gems_active, []);
     assert.ok(body.instructions.includes('neurendipity, Neurendipity, off'));
     assert.ok(body.instructions.includes('fieldnote, Fieldnote, off'));
+    assert.ok(body.instructions.includes('lean-six-sigma, Lean Six Sigma, off'));
     assert.ok(!body.instructions.includes(GEMS_NONE_LINE));
   });
   test('a refused GEM in the release directory does not stop initialize', async () => {
@@ -863,7 +875,7 @@ testGroup('startup lists Neurendipity off, and the guide stays out of the payloa
       const full = payloadOf(await withStore(store, () => initialize({ page: 'all' })));
       assert.strictEqual(full.state, 'ready');
       const ids = full.gems_available.map((g) => g.id);
-      assert.deepStrictEqual(ids, ['bot-team-backup', 'broken', 'fieldnote', 'neurendipity']);
+      assert.deepStrictEqual(ids, ['bot-team-backup', 'broken', 'fieldnote', 'lean-six-sigma', 'neurendipity']);
       const refused = full.gems_available.find((g) => g.id === 'broken');
       assert.strictEqual(refused.loadable, false);
       assert.strictEqual(refused.active, false);

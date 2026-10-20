@@ -293,6 +293,19 @@ testGroup('GC-02 schema and GC-03 revision', () => {
     const notes = await checked((gem) => { gem.manifest.changelog = { '1.0.0': 'Initial release.' }; });
     assert.strictEqual(line(notes, 'GC-02').status, 'pass', line(notes, 'GC-02').reason);
   });
+  test('1.0.0-beta passes GC-02 and 1.0.0-rc.1 fails', async () => {
+    const beta = await checked((gem) => { gem.manifest.version = '1.0.0-beta'; });
+    assert.strictEqual(line(beta, 'GC-02').status, 'pass', line(beta, 'GC-02').reason);
+    const rc = await checked((gem) => { gem.manifest.version = '1.0.0-rc.1'; });
+    assertFail(rc, 'GC-02');
+    assert.match(line(rc, 'GC-02').reason, /version/);
+    const schema = JSON.parse(fs.readFileSync(path.join(ROOT, 'gem-library/gem.schema.json'), 'utf8'));
+    const runePattern = schema.$defs.rune.properties.version.pattern;
+    assert.strictEqual(schema.properties.version.pattern, runePattern);
+    const re = new RegExp(runePattern);
+    assert.strictEqual(re.test('1.0.0-beta'), true);
+    assert.strictEqual(re.test('1.0.0-rc.1'), false);
+  });
   test('an update block shaped like Lean Six Sigma 1.0.0 passes GC-02', async () => {
     const result = await checked((gem) => {
       gem.manifest.id = 'lean-six-sigma';
