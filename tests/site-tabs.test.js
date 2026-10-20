@@ -469,6 +469,43 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
     assert.ok(gem.includes('forked per install'));
   });
 
+  test('the site does not restore retired names for GEM or RUNED', () => {
+    const retired = [
+      'Guided Engagement Module',
+      'Registered Utility Node Extension',
+      'Golem Expansion Module',
+      'older note says',
+      'read RUNED',
+      'is superseded',
+      '2026-09-08 expansion',
+    ];
+    const root = path.join(ROOT, 'site');
+    const files = [];
+    const walk = (dir) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.(html|css|js|xml|txt|md|json)$/i.test(entry.name)) files.push(full);
+      }
+    };
+    walk(root);
+    assert.ok(files.some((file) => file.endsWith(`${path.sep}index.html`)));
+    assert.ok(files.length > 1);
+    for (const file of files) {
+      const text = fs.readFileSync(file, 'utf8');
+      for (const phrase of retired) {
+        assert.ok(!text.includes(phrase), `${path.relative(ROOT, file)} mentions ${phrase}`);
+      }
+    }
+    const gem = panelHtml('gem');
+    assert.ok(gem.includes('The name marks the golem legend: the word <span lang="he">אמת</span>, truth, animates the figure.'));
+    assert.ok(gem.includes('RUNED (Registered Utility Node Executable Directive) is one declared, registered tool built into a GEM. A RUNED GEM is a GEM whose manifest contains one or more of those directives.'));
+    assert.ok(html.includes(ISO_DD));
+    assert.ok(html.includes('entries are superseded'));
+    assert.ok(html.includes('are superseded whole'));
+    assert.ok(html.includes('names the version it supersedes'));
+  });
+
   test('origin credits goal_check and no_rapport_mirroring to 0.2.5', () => {
     const origin = panelHtml('origin');
     const v025 = changelogSection('## 0.2.5 - 2026-10-14');
