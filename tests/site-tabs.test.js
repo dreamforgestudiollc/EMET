@@ -128,7 +128,7 @@ function proseOutsideCode(text) {
     return ' ';
   });
   markup = markup.replace(
-    /[^\s=<>`/]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/g,
+    /[^\s=<>`/]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+))/g,
     (_, dq, sq, uq) => {
       exposed.push(dq !== undefined ? dq : sq !== undefined ? sq : uq);
       return ' ';
@@ -607,6 +607,7 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
       'RU&shy;NE',
       'RU\u200BNE',
       '<span title=RUNE>',
+      'title=`RUNE`',
       '<code /> RUNE </code>',
     ]) {
       const prose = proseOutsideCode(sample);
