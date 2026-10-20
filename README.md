@@ -43,10 +43,6 @@ EMET is built for document control in environments that work under ISO 9001 and 
 
 ## 30-second start
 
-> **npm lags the repo.** `npx -y @dreamforgestudiollc/emet` installs 0.2.4 until 0.2.6 is
-> published. For 0.2.6, clone this repo and run `npm ci && npm start`, or deploy the
-> `Dockerfile`. See [docs/SETUP.md](docs/SETUP.md).
-
 - **Guided setup:** [docs/GUIDED-SETUP.md](docs/GUIDED-SETUP.md) — never deployed anything. Your assistant installs, configures, deploys, and verifies. You sign in when asked and paste the connector URL.
 - **Setup:** [docs/SETUP.md](docs/SETUP.md) — the manual walkthrough: MongoDB, both transports, and the first-run interview.
 - **Deploy:** [docs/DEPLOY.md](docs/DEPLOY.md) — remote HTTP with OAuth, so a phone, a browser, or another vendor's agent reaches the same store.
