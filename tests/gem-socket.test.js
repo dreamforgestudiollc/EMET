@@ -29,7 +29,7 @@ const BEFORE_BYTES = 65493;
 
 console.log('\n=== GEM socket (empty mount, refusals, startup cost) ===');
 
-const LSS_FIXTURE = path.join(ROOT, 'tests/fixtures/emet-gems-9b5191a/lean-six-sigma');
+const LSS_FIXTURE = path.join(ROOT, 'tests/fixtures/lss-0.9.0/lean-six-sigma');
 
 function quiet() {
   const warnings = [];
@@ -83,15 +83,14 @@ async function bootToday() {
 }
 
 /**
- * Lean Six Sigma beside today's boot, from the emet-gems-9b5191a fixture. That copy has
+ * Lean Six Sigma beside today's boot, from the lss-0.9.0 fixture. That copy has
  * released false and requires.emet >=0.3.0. A missing fixture fails the test.
  */
 async function placeLss(root) {
   const dest = path.join(root, 'lean-six-sigma');
-  assert.ok(fs.existsSync(path.join(LSS_FIXTURE, 'gem.json')), 'tests/fixtures/emet-gems-9b5191a/lean-six-sigma is required');
+  assert.ok(fs.existsSync(path.join(LSS_FIXTURE, 'gem.json')), 'tests/fixtures/lss-0.9.0/lean-six-sigma is required');
   const commit = fs.readFileSync(path.join(LSS_FIXTURE, '..', 'COMMIT'), 'utf8');
-  assert.match(commit, /emet-gems-9b5191a/);
-  assert.match(commit, /commit-fc2dc4d/);
+  assert.match(commit, /lss-0\.9\.0/);
   assert.match(commit, /guides\/BELTS\.md/);
   assert.match(commit, /gem\.json/);
   assert.match(commit, /named a person/);

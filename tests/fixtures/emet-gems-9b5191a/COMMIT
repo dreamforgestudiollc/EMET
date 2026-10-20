@@ -1,4 +1,0 @@
-Source: emet-gems-9b5191a on EMET-GEMs main. The earlier label commit-fc2dc4d named a branch-only commit. The files match emet-gems-9b5191a.
-Scrub: guides/BELTS.md dropped one sentence that named a person. The guides/BELTS.md digest and size in gem.json were updated to match. released stays false. requires.emet stays >=0.3.0. version stays 1.0.0.
-Golden: verification/lean-six-sigma/golden-outputs.json from emet-gems-9b5191a is vendored at verification/golden-outputs.json, unmodified. It has 49 cases. None names a person or a private path, so the expected outputs are unchanged.
-Digests: DIGESTS.json records the sha256 of the shipped gem.json and CHANGELOG.md from EMET-GEMs head emet-gems-aef8d0a. Those two files are that copy. Every other vendored file is unchanged.
