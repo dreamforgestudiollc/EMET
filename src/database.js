@@ -111,7 +111,7 @@ const REDACTION_RULES = Object.freeze([
   { token: '[credentialed-uri]', match: /\b[a-z][a-z0-9+.-]*:\/\/[^\s"'@/]+:[^\s"'@/]+@[^\s"']+/gi },
   { token: '[db-uri]', match: /\bmongodb(?:\+srv)?:\/\/[^\s"']+/gi },
   { token: '[env-var]', match: /\bprocess\.env(?:\.[A-Za-z_$][\w$]*|\[[^\]]*\])/g },
-  { token: '[stack-frame]', match: /\reviewer\s+\S+\s+\([^)]*\)/gi },
+  { token: '[stack-frame]', match: /\bat\s+\S+\s+\([^)]*\)/gi },
   { token: '[home-dir]', match: /\b[A-Za-z]:[\\/]Users[\\/][^\s"']*/g },
   { token: '[home-dir]', match: /\/(?:home|Users|root)\/[^\s"']*/g },
   { token: '[path]', match: /\b[A-Za-z]:[\\/][^\s"']*/g },

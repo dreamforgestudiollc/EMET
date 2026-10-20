@@ -4,7 +4,7 @@ labels: [bug]
 body:
   - type: input
     id: version
-    attributes: {label: EMET version, description: "From emet_status or package.json, e.g. 0.2.5"}
+    attributes: {label: EMET version, description: "From emet_status or package.json, e.g. 0.2.6"}
     validations: {required: true}
   - type: dropdown
     id: transport

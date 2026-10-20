@@ -80,7 +80,7 @@ function packedTree() {
   const parsed = JSON.parse(r.stdout.slice(start));
   assert.ok(Array.isArray(parsed) && parsed[0], 'npm pack --json did not return a pack result');
   const entry = parsed[0];
-  assert.strictEqual(entry.filename, 'dreamforgestudiollc-emet-0.2.5.tgz');
+  assert.strictEqual(entry.filename, 'dreamforgestudiollc-emet-0.2.6.tgz');
   const tgz = path.join(dir, entry.filename);
   const read = (rel) => {
     const ex = spawnSync('tar', ['-xOf', tgz, `package/${rel}`], { encoding: 'utf8' });
@@ -93,7 +93,7 @@ function packedTree() {
 testGroup('npm publish metadata', () => {
   test('the package name, version, and registry manifest agree', () => {
     assert.strictEqual(pkg.name, '@dreamforgestudiollc/emet');
-    assert.strictEqual(pkg.version, '0.2.5');
+    assert.strictEqual(pkg.version, '0.2.6');
     assert.strictEqual(pkg.mcpName, 'io.github.dreamforgestudiollc/emet');
     assert.strictEqual(server.name, pkg.mcpName);
     assert.strictEqual(server.version, pkg.version);

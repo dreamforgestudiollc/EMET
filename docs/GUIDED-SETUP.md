@@ -268,9 +268,11 @@ Say nothing about setup. Call `emet_initialize`. On a new store it returns `setu
 the interview questions. Ask them **conversationally, one at a time** — what the assistant should
 be called and how it should carry itself, the person's name in the form they want used, what the
 memory is for, whether more than one bot or AI will use this memory (yes or no, in their words),
-and optionally how they want to be worked with and this host's tag. Then
+whether to turn on bot-team backup (yes or no; **yes is the recommended choice**; no, or leaving
+it out, leaves it off and the answer is recorded), and optionally how they want to be worked with
+and this host's tag. Then
 `emet_setup_complete`. It refuses partial answers rather than inventing an identity; that is
-correct behaviour.
+correct behaviour. Bot-team backup does not copy prompts or settings, and secret values are never stored.
 
 If they answer **no**, or they skip it, leave sub-keys off. If they answer **yes** on the local server that reads `.env`, `emet_setup_complete` writes the flag, a generated pepper, and version 1 into that file after the store writes succeed. The result does not contain the pepper. Do not paste it into the chat. Tell them to restart (or redeploy) the server once. If they answer **yes** against the hosted server, the call refuses before it saves anything. No pepper or .env was written. Tell them to run setup again without yes to finish the rest, and to follow the platform-variable steps in [SUBKEYS.md](SUBKEYS.md): set `EMET_SUBKEYS=1`, an `EMET_SUBKEY_PEPPER` they generate (at least 32 bytes), and `EMET_SUBKEY_PEPPER_VERSION=1`, then redeploy. Do not copy a pepper out of the server. Each bot's tag must be listed in `EMET_SOURCE_TAGS`. The rest is [SUBKEYS.md](SUBKEYS.md).
 

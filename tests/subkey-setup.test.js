@@ -64,12 +64,12 @@ function assertNoDefaultEnvWrite(existed, before) {
 console.log('\n=== sub-key first-use setup ===');
 
 testGroup('the interview asks, and only yes or no counts', () => {
-  test('more_than_one_bot is optional and is the last question', async () => {
+  test('more_than_one_bot is optional', async () => {
     const begin = await withStore(makeStore(), () => setupBegin());
     const q = begin.questions.find((item) => item.key === 'more_than_one_bot');
     assert.ok(q);
     assert.strictEqual(q.required, false);
-    assert.strictEqual(begin.questions[begin.questions.length - 1].key, 'more_than_one_bot');
+    assert.ok(begin.questions.some((item) => item.key === 'more_than_one_bot'));
     assert.match(begin.instructions, /Leaving it out leaves sub-keys off/);
   });
   test('yes and no parse; absent means no; anything else does not', () => {

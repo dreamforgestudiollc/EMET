@@ -531,7 +531,10 @@ export const SETUP_INTERVIEW = Object.freeze([
     why: 'Every write records its origin. A shared default tag makes provenance meaningless once a second host connects.' },
   { key: 'more_than_one_bot', required: false,
     ask: 'Will more than one bot or AI use this memory? Answer yes or no.',
-    why: 'Yes turns on delegated client sub-keys when this server reads .env. No, or leaving it out, leaves them off. A hosted server does not write a pepper; it tells you the three settings to put in the platform\'s variables. Each bot\'s tag must be listed in EMET_SOURCE_TAGS. See docs/SUBKEYS.md.' }
+    why: 'Yes turns on delegated client sub-keys when this server reads .env. No, or leaving it out, leaves them off. A hosted server does not write a pepper; it tells you the three settings to put in the platform\'s variables. Each bot\'s tag must be listed in EMET_SOURCE_TAGS. See docs/SUBKEYS.md.' },
+  { key: 'bot_team_backup', required: false,
+    ask: 'Turn on bot-team backup? It is off unless you say yes. Yes is the recommended choice. Answer yes or no.',
+    why: 'Yes records that choice and means the assistant follows the bot-team backup recipe: each bot\'s name, prompt, settings, routines and skills are written as controlled documents, revised only when they change. No, or leaving it out, leaves the practice off. EMET does not copy those documents itself, and secret values are never stored. See guides/BOT_TEAM_BACKUP.md.' }
 ]);
 
 /**
@@ -544,6 +547,11 @@ export function parseMoreThanOneBot(value) {
   if (s === 'yes' || s === 'y' || s === 'true') return true;
   if (s === 'no' || s === 'n' || s === 'false') return false;
   return null;
+}
+
+/** Same yes/no rule as the sub-key question. The backup flag is only this answer. */
+export function parseBotTeamBackup(value) {
+  return parseMoreThanOneBot(value);
 }
 
 /** Steps returned when yes is refused because real env vars are the config source. Thrown before any store write. */
@@ -670,6 +678,7 @@ export async function setupBegin() {
       'Ask the user these questions conversationally - one at a time, in their own words, not as a form. ' +
       'Do not invent answers, and do not fill in an answer the user did not give. ' +
       'more_than_one_bot is optional. Yes or no, in the user\'s words. Leaving it out leaves sub-keys off. ' +
+      'bot_team_backup is optional. Yes is the recommended choice. No, or leaving it out, leaves bot-team backup off. ' +
       'When you have them, call emet_setup_complete with an `answers` object keyed exactly as below.',
     questions: SETUP_INTERVIEW.map(q => ({ key: q.key, ask: q.ask, why: q.why, required: q.required }))
   };
@@ -1304,6 +1313,11 @@ function renderUserDoc(a) {
     '## §3 PREFERENCES',
     a.user_preferences && String(a.user_preferences).trim() ? a.user_preferences : 'None stated.',
     '',
+    '## §4 BOT-TEAM BACKUP',
+    a.bot_team_backup === true ? 'yes' : 'no',
+    '',
+    'Recorded at setup. Yes means follow guides/BOT_TEAM_BACKUP.md. No, or leaving the question out, leaves the practice off. EMET does not copy prompts or settings itself. Never store secret values in a bot-team document.',
+    '',
     '---',
     '',
     '*Written by the EMET setup interview. Add to it as you learn more — this document is',
@@ -1355,6 +1369,14 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
       'Answer yes or no. Yes turns on delegated client sub-keys. No leaves them off. Leaving it out leaves them off. Do not invent the answer. Nothing was written.'
     );
   }
+  const backup = parseBotTeamBackup(answers.bot_team_backup);
+  if (backup === null) {
+    throw new ValidationError(
+      'bot_team_backup',
+      'Answer yes or no. Yes is the recommended choice and records bot-team backup as on. No leaves it off. Leaving it out leaves it off. Do not invent the answer. Nothing was written.'
+    );
+  }
+  answers = { ...answers, bot_team_backup: backup };
   if (multi && !dotenvWritable(options.envFile || ENV_FILE, process.env, options.startup)) {
     throw new ValidationError('more_than_one_bot', HOSTED_SUBKEY_STEPS);
   }
@@ -1458,6 +1480,7 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
       source_tag: tag,
       person_id: person.person_id,
       person_role: person.role,
+      bot_team_backup: backup,
       subkeys: multi
         ? (subkeys.env_error
           ? { enabled: false, turned_on: false, env_error: subkeys.env_error }
@@ -1474,7 +1497,10 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
         'same store, each one needs its own source tag: on a server several hosts share, leave EMET_SOURCE_TAG ' +
         'unset, have each host pass its tag as `source` on its writes, and register the tags in EMET_SOURCE_TAGS; ' +
         'set EMET_SOURCE_TAG only on a server one host uses. New logins will be issued as this person, not as a generic owner. ' +
-        subkeySetupNote(multi, subkeys)
+        subkeySetupNote(multi, subkeys) + ' ' +
+        (backup
+          ? 'Bot-team backup is on. Follow guides/BOT_TEAM_BACKUP.md. Revise bot-team documents only when they change, and never store secret values.'
+          : 'Bot-team backup stays off.')
     };
   } finally {
     if (client) await client.close();

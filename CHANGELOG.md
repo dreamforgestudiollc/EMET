@@ -31,6 +31,17 @@ change before 1.0.
 ### Docs
 - Client-side execution of RUNED directives (GEP-0003, accepted by Alex 2026-10-16). Supersedes GEP-0002, which is kept. The socket must not run RUNE code. One read-only tool per RUNE serves that RUNE's code, inputs, outputs, description, and served hash. SPEC.md §10–12, CONFORMANCE.md GC-19, the charter commitment 1 carve-out (EMET verifies the record, not the computation) and the Extension-socket row, and `docs/gem/README.md`. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged. No code change in this revision.
 
+## 0.2.6 - 2026-10-20
+
+### Fixed
+- Error text again replaces a stack frame with `[stack-frame]`. The publish workflow runs only on a published release. Public text no longer carries a private path, a private branch name, or an install-specific display name.
+
+### Changed
+- Version 0.2.6. Charter commitment 1 again states the client-executed RUNE carve-out: EMET verifies the record, not the computation. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
+### Added
+- Optional bot-team backup, off unless the first-run interview records yes. Yes is the recommended choice. The answer is stored on `bootstrap/USER.md`. The recipe and the recovery template ship as the bundled bot-team-backup GEM. EMET does not copy prompts or settings itself. Secret values are never stored.
+
 ## 0.2.5 - 2026-10-14
 
 Per-session attribution with client approval, the GEM socket with the bundled Neurendipity GEM (off unless the user asks), and two new core floor lines: `goal_check` and `no_rapport_mirroring`. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged. No stored data shapes change; deploy over 0.2.4.

@@ -1,8 +1,8 @@
-# EMET 0.2.5
+# EMET 0.2.6
 
-EMET is an MCP memory server: persistent shared memory for AI agents, bot teams, and chats. Version 0.2.5. The stored document shapes are not frozen. Pin a version if you depend on them.
+EMET is an MCP memory server: persistent shared memory for AI agents, bot teams, and chats. Version 0.2.6. The stored document shapes are not frozen. Pin a version if you depend on them.
 
-The npm package on the registry is still 0.2.4 until this version is published. The repository tag for this version is v0.2.5.
+The npm package on the registry is still 0.2.4 until this version is published. The repository tag for this version is v0.2.6.
 
 EMET holds no certification and claims no conformity. The document-control wording is unchanged: ISO 9001 7.5.3 / ISO 13485 4.2.5.
 
@@ -18,7 +18,7 @@ Every write is attributed to the client that made it. A declared source tag does
 
 ## GEM socket
 
-Add-on behavior ships as GEMs (Golem Expertise Modules). A GEM ranks below the core floor and below the user's current word. It cannot remove a protected floor line. The bundled Neurendipity GEM is off unless the install turns it on. It is support material, not counseling or treatment.
+Add-on behavior ships as GEMs (Golem Expertise Modules). A GEM ranks below the core floor and below the user's current word. It cannot remove a protected floor line. The bundled Neurendipity GEM is a work-in-progress example and is off unless the install turns it on. It is support material, not counseling or treatment.
 
 ## Client-side GEM execution
 
@@ -27,6 +27,10 @@ A GEM may declare a tool. EMET does not run that computation. EMET verifies the 
 ## Released flag
 
 A GEM is seated only when its released flag is the boolean true. Any other value is refused. A missing flag is refused except for a legacy manifest the release pins by id, version, and file digests. The check runs on startup. A GEM that fails the check is listed and does not stop the server.
+
+## Bot-team backup
+
+Optional, and off unless the first-run interview records yes. Yes is the recommended choice. The recipe and the recovery template ship with the release. EMET does not copy prompts or settings itself. Secret values are never stored.
 
 ## Floor lines in this version
 

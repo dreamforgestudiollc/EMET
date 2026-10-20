@@ -19,11 +19,12 @@ See also: [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md) · [SECUR
 - **Word-for-word transcript tier.** A separate tier stores the conversation as it was written, so a summary cannot overwrite the record it came from.
 - **stdio and remote HTTP with OAuth.** The same server runs locally over stdio, and remotely over HTTP with OAuth. The transport changes. The store does not.
 - **MongoDB.** Atlas, or MongoDB you run yourself. A one-machine trial can use MongoDB 6 or newer. Only `semantic_recall` needs Atlas.
-- **Golem Expertise Module (GEM) socket.** Add-on behavior ships as GEMs, seated at startup and checked by `gem-check` against the GEM standard in `gem-library/`. A GEM ranks below the core floor and below the user's current word, and cannot remove a protected floor line. The bundled Neurendipity GEM (neurodivergent engagement and autistic burnout support; support only, not counseling or treatment) is off unless `EMET_ACTIVE_GEMS=neurendipity`.
+- **Golem Expertise Module (GEM) socket.** Add-on behavior ships as GEMs, seated at startup and checked by `gem-check` against the GEM standard in `gem-library/`. A GEM ranks below the core floor and below the user's current word, and cannot remove a protected floor line. The bundled Neurendipity GEM (neurodivergent engagement and autistic burnout support; support only, not counseling or treatment) is a work-in-progress example and is off unless `EMET_ACTIVE_GEMS=neurendipity`.
+- **Bot-team backup (optional).** Off unless the first-run interview records yes. Yes is the recommended choice. The recipe and the recovery template ship as the bundled bot-team-backup GEM. EMET does not copy prompts or settings itself, and secret values are never stored.
 - **Client-side GEM execution.** A GEM may declare a tool. EMET does not run that computation. EMET verifies the record, not the computation. The client runs the tool, and what is written back is checked the same way as any other write.
 - **Released flag.** A GEM is seated only when its released flag is the boolean true. Any other value is refused. A missing flag is refused except for a legacy manifest pinned by id, version, and file digests.
 - **Per-client attribution and approvals.** Every write is attributed to the client that made it. A new client is read-limited until it is approved. The approval is recorded.
-- **MIT.** Version 0.2.5. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
+- **MIT.** Version 0.2.6. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
 
 The store has one owner, and other people can join only through the optional Guest
 (read-only) and Member (read and write) access, both off by default.
@@ -42,8 +43,8 @@ EMET is built for document control in environments that work under ISO 9001 and 
 
 ## 30-second start
 
-> **npm lags the repo.** `npx -y @dreamforgestudiollc/emet` installs 0.2.4 until 0.2.5 is
-> published. For 0.2.5, clone this repo and run `npm ci && npm start`, or deploy the
+> **npm lags the repo.** `npx -y @dreamforgestudiollc/emet` installs 0.2.4 until 0.2.6 is
+> published. For 0.2.6, clone this repo and run `npm ci && npm start`, or deploy the
 > `Dockerfile`. See [docs/SETUP.md](docs/SETUP.md).
 
 - **Guided setup:** [docs/GUIDED-SETUP.md](docs/GUIDED-SETUP.md) — never deployed anything. Your assistant installs, configures, deploys, and verifies. You sign in when asked and paste the connector URL.
@@ -657,13 +658,46 @@ are in [`docs/GUARDRAILS-AND-MONORAILS.md`](docs/GUARDRAILS-AND-MONORAILS.md).
 
 ## Tools
 
-Thirty tools. With `EMET_SUBKEYS=1`, four more (`emet_subkey_request`, `emet_subkey_claim`, `emet_subkey_revoke`, `emet_subkey_end_session`) and the `subkey` and `session_handle` arguments. `recall` · `semantic_recall` · `query_layer` · `save_to_layer` · `revise_memory` ·
-`read_doc` · `read_doc_history` · `write_doc` · `list_docs` · `patch_doc` ·
-`retire_doc` · `rename_doc` · `restore_doc` · `save_transcript` · `revise_transcript` · `query_transcripts` ·
-`corpus_recall` · `emet_gaps` · `emet_floor` · `validate_doc` · `accept_nonconformance` ·
-`emet_initialize` · `emet_status` · `emet_setup_complete` · `emet_session_open` ·
-`emet_transcript_append` · `emet_session_close` · `emet_invite_create` · `emet_member_access_create` ·
-`emet_client_approve`
+Thirty tools are registered with sub-keys off. With `EMET_SUBKEYS=1`, four more (`emet_subkey_request`, `emet_subkey_claim`, `emet_subkey_revoke`, `emet_subkey_end_session`) and the `subkey` and `session_handle` arguments. The names below are every tool the registry registers, both sets together.
+
+<!-- emet-tools -->
+```
+accept_nonconformance
+corpus_recall
+emet_client_approve
+emet_floor
+emet_gaps
+emet_initialize
+emet_invite_create
+emet_member_access_create
+emet_session_close
+emet_session_open
+emet_setup_complete
+emet_status
+emet_subkey_claim
+emet_subkey_end_session
+emet_subkey_request
+emet_subkey_revoke
+emet_transcript_append
+list_docs
+patch_doc
+query_layer
+query_transcripts
+read_doc
+read_doc_history
+recall
+rename_doc
+restore_doc
+retire_doc
+revise_memory
+revise_transcript
+save_to_layer
+save_transcript
+semantic_recall
+validate_doc
+write_doc
+```
+<!-- /emet-tools -->
 
 **Retained revisions** — every document write archives the prior copy; `read_doc_history` lists
 what is retained for a document and returns any retained revision in full, re-hashed against its
@@ -824,7 +858,9 @@ It is designed first for neurodivergent users, and it works for anyone.
 
 ---
 
-## License
+## License and access
+
+EMET is free and open source under the MIT License (see LICENSE). No account, key or payment is required to run it.
 
 Authorship of the commit history, including a correction recorded as an addition
 rather than a rewrite: `docs/AUTHORSHIP.md`.

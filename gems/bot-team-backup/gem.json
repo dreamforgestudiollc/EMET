@@ -1,0 +1,43 @@
+{
+  "spec": "2026-10-12",
+  "id": "bot-team-backup",
+  "name": "Bot-team backup",
+  "description": "Optional recipe for writing each bot's name, prompt, settings, routines and skills as controlled documents. Off unless the recorded setup answer is yes. Does not store tokens, passwords or card data.",
+  "version": "1.0.0",
+  "kind": "gem",
+  "requires": {
+    "emet": ">=0.2.6"
+  },
+  "priority": 10,
+  "defaultOn": false,
+  "released": true,
+  "overrides": [],
+  "distribution": "bundled",
+  "floor": "floor.json",
+  "guides": [
+    "guides/BOT_TEAM_BACKUP.md",
+    "guides/BOT_TEAM_RECOVERY.md"
+  ],
+  "runes": [],
+  "files": [
+    {
+      "path": "floor.json",
+      "digest": "sha256:7182ec1d78bed4234c9a309bd03b4ca4099fa3b031e6b743d554378862230862",
+      "size": 802
+    },
+    {
+      "path": "guides/BOT_TEAM_BACKUP.md",
+      "digest": "sha256:aa912c28c08745e4cde13d156488af94a74745573e7d184a10007ee453de2d12",
+      "size": 1384
+    },
+    {
+      "path": "guides/BOT_TEAM_RECOVERY.md",
+      "digest": "sha256:8fbccbc7985c2e1696c42293c73c1257e2fbf9548717b19a8086306b2ed0db0e",
+      "size": 1305
+    }
+  ],
+  "authors": [
+    "Dreamforge Studio LLC"
+  ],
+  "license": "MIT"
+}

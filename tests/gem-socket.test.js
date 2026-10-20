@@ -128,10 +128,11 @@ testGroup('an empty mount is silence, and the example is not installed', () => {
     try {
       const heard = quiet();
       const seated = await seatGems({ log: heard.log });
-      assert.strictEqual(seated.gems_available.length, 2);
+      assert.strictEqual(seated.gems_available.length, 3);
       const row = seated.gems_available.find((g) => g.id === 'neurendipity');
       const note = seated.gems_available.find((g) => g.id === 'fieldnote');
-      assert.ok(row && note);
+      const backup = seated.gems_available.find((g) => g.id === 'bot-team-backup');
+      assert.ok(row && note && backup);
       assert.strictEqual(row.loadable, true, row.reason);
       assert.strictEqual(row.active, false);
       assert.strictEqual(row.defaultOn, false);
@@ -139,12 +140,17 @@ testGroup('an empty mount is silence, and the example is not installed', () => {
       assert.strictEqual(note.active, false);
       assert.strictEqual(note.defaultOn, false);
       assert.strictEqual(note.loadable, true, note.reason);
+      assert.strictEqual(backup.kind, 'gem');
+      assert.strictEqual(backup.active, false);
+      assert.strictEqual(backup.defaultOn, false);
+      assert.strictEqual(backup.loadable, true, backup.reason);
       assert.notStrictEqual(row.bytes, 953);
       assert.deepStrictEqual(seated.gems_active, []);
       assert.deepStrictEqual(heard.infos.map((row) => row.message), [
+        'GEM seated: bot-team-backup',
         'GEM seated: fieldnote',
         'GEM seated: neurendipity',
-        'GEMs seated: 2 installed, 0 active'
+        'GEMs seated: 3 installed, 0 active'
       ]);
       assert.strictEqual(heard.warnings.length, 0);
     } finally {
@@ -775,7 +781,7 @@ testGroup('startup lists Neurendipity off, and the guide stays out of the payloa
     const median = times[3];
     const bytes = resultSize(full).bytes;
     console.log(`    init off median ${median.toFixed(2)} ms, min ${times[0].toFixed(2)} ms, bytes ${bytes} (before ${BEFORE_BYTES})`);
-    assert.strictEqual(full.gems_available.length, 2);
+    assert.strictEqual(full.gems_available.length, 3);
     const row = full.gems_available.find((g) => g.id === 'neurendipity');
     const note = full.gems_available.find((g) => g.id === 'fieldnote');
     assert.ok(row && note);
@@ -809,10 +815,10 @@ testGroup('startup lists Neurendipity off, and the guide stays out of the payloa
     }
     const seen = laid.pages.flatMap((page) => Object.keys(page).filter((key) => key === 'gems_available' || key === 'gems_active'));
     assert.deepStrictEqual(seen.sort(), ['gems_active', 'gems_available']);
-    assert.deepStrictEqual(pages.assemblePages(laid.pages).gems_available.map((g) => g.id), ['fieldnote', 'neurendipity']);
+    assert.deepStrictEqual(pages.assemblePages(laid.pages).gems_available.map((g) => g.id), ['bot-team-backup', 'fieldnote', 'neurendipity']);
     assert.deepStrictEqual(pages.assemblePages(laid.pages).gems_active, []);
     const abridged = abridgeReadyPayload(full);
-    assert.deepStrictEqual(abridged.gems_available.map((g) => g.id), ['fieldnote', 'neurendipity']);
+    assert.deepStrictEqual(abridged.gems_available.map((g) => g.id), ['bot-team-backup', 'fieldnote', 'neurendipity']);
     assert.deepStrictEqual(abridged.gems_active, []);
     assert.ok(!abridged.pointers.some((p) => p.key === 'gems_available' || p.key === 'gems_active'));
   });
@@ -837,7 +843,7 @@ testGroup('startup lists Neurendipity off, and the guide stays out of the payloa
     const fresh = await withStore(makeStore(), () => initialize({ page: 'all' }));
     const body = payloadOf(fresh);
     assert.strictEqual(body.state, 'setup_required');
-    assert.deepStrictEqual(body.gems_available.map((g) => g.id), ['fieldnote', 'neurendipity']);
+    assert.deepStrictEqual(body.gems_available.map((g) => g.id), ['bot-team-backup', 'fieldnote', 'neurendipity']);
     assert.ok(body.gems_available.every((g) => g.active === false));
     assert.deepStrictEqual(body.gems_active, []);
     assert.ok(body.instructions.includes('neurendipity, Neurendipity, off'));
@@ -857,7 +863,7 @@ testGroup('startup lists Neurendipity off, and the guide stays out of the payloa
       const full = payloadOf(await withStore(store, () => initialize({ page: 'all' })));
       assert.strictEqual(full.state, 'ready');
       const ids = full.gems_available.map((g) => g.id);
-      assert.deepStrictEqual(ids, ['broken', 'fieldnote', 'neurendipity']);
+      assert.deepStrictEqual(ids, ['bot-team-backup', 'broken', 'fieldnote', 'neurendipity']);
       const refused = full.gems_available.find((g) => g.id === 'broken');
       assert.strictEqual(refused.loadable, false);
       assert.strictEqual(refused.active, false);

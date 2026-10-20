@@ -1,0 +1,15 @@
+{
+  "sections": {
+    "bot_team_backup": {
+      "title": "Bot-team backup",
+      "note": "Optional. Off unless the recorded setup answer is yes. This floor does not copy documents by itself.",
+      "lines": {
+        "follow_the_recipe": "When bootstrap/USER.md records bot-team backup as yes, follow guides/BOT_TEAM_BACKUP.md. Write each bot's name, prompt, settings, routines and skills to bot-team/<bot>.md. Revise a document only when it changed. Supersede; do not delete.",
+        "no_secrets": "Never store secret values, tokens, passwords or card data in a bot-team document. Connectors, logins and secrets are reconnected by hand. Name those items in bot-team/RECOVERY.md. Do not write the values."
+      }
+    }
+  },
+  "reassertion": [
+    "Bot-team backup stores no secret values."
+  ]
+}

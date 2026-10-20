@@ -1,7 +1,7 @@
 /**
  * EMET - attribution per session, v2 (2026-10-12).
  *
- * Alex approved PROPOSAL.md (/workspace/emet-attribution) with its 7 defaults;
+ * Alex approved PROPOSAL.md with its 7 defaults;
  * v1 (PR 32) was reverted after the reviewer's review (A1-A4). This version:
  *
  *  STAMP vs RIGHTS. Several agents share one OAuth login (the Grok client

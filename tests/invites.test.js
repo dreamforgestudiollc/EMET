@@ -6,7 +6,7 @@ import { memDb as memoryDb } from './memstore.js';
 console.log('\n=== invites ===');
 await test('frozen flag is on', () => assert.strictEqual(INVITES_FROZEN, true));
 await test('create throws while frozen', async () => {
-  await assert.rejects(() => createInvite(memoryDb(), { display_name: 'Otto' }), /off on this install/i);
+  await assert.rejects(() => createInvite(memoryDb(), { display_name: 'Sam' }), /off on this install/i);
 });
 await test('redeem refuses while frozen', async () => {
   const r = await redeemInvite(memoryDb(), 'anything');

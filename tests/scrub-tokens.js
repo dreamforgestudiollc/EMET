@@ -13,7 +13,12 @@ import path from 'path';
 const PRIVATE_WORD_DIGESTS = new Set([
   'a8cb1254b7f7a6c6', 'c28ee0bfc3cbf014', '0aefc65b1ba43f88', 'fc5a299cd6cd644f',
   '960a38ace75a2fe9', 'b00ef262afae566b', 'ca5bcec12f716f44', 'e18ebaabb9f2fba0',
-  '5842a9abe95881a4', '6cb784e0f985cba2', '2961c5a0feb2a8c9'
+  '5842a9abe95881a4', '6cb784e0f985cba2', '2961c5a0feb2a8c9', '4991c47202960c57'
+]);
+// Private tree paths. Built so this file does not contain the contiguous path.
+export const PRIVATE_TREE_PATHS = Object.freeze([
+  new RegExp('/' + 'workspace' + '\\b'),
+  new RegExp('/' + 'cursor' + '/' + 'stores' + '\\b')
 ]);
 export const digest = (w) => crypto.createHash('sha256').update(w).digest('hex').slice(0, 16);
 
