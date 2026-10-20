@@ -5,8 +5,9 @@
  * the JSON-LD description each fail here if either standard is dropped.
  * Version 0.2.6 stays in the four descriptions.
  * The What it is disclaimer stays: no certification or conformity is claimed.
- * certified, compliant, and conformant fail anywhere in site/index.html,
- * including visible text, meta, and JSON-LD. The disclaimer sentence is allowed.
+ * Noun and verb families of certify, comply, conform, and accredit fail
+ * anywhere in site/index.html, including visible text, meta, and JSON-LD.
+ * Exact allowlisted phrases pass. The patterns are not narrowed to spare them.
  */
 import { test, testGroup, summary } from './harness.js';
 import assert from 'assert';
@@ -19,7 +20,30 @@ const html = fs.readFileSync(path.join(ROOT, 'site/index.html'), 'utf8');
 
 const PHRASE = 'built for ISO 9001 / ISO 13485 document control';
 const DISCLAIMER = 'EMET supports that work; it holds no certification and claims no conformity.';
-const CLAIM = /\b(?:certified|compliant|conformant)\b/i;
+const FAMILY = /certif\w*|compl(?:ies|ied|ying|iance|iant|y)|conform\w*|accredit\w*/gi;
+const ALLOWED = [
+  'holds no certification and claims no conformity',
+  'accept_nonconformance',
+  'conformance list',
+  'CONFORMANCE.md',
+  'conforming revision',
+  'gem-library/CONFORMANCE.md">Conformance</a>',
+  'authoring, and conformance',
+];
+const DISCLAIMER_SENTENCES = [
+  DISCLAIMER,
+  'It holds no certification and claims no conformity.',
+  'EMET holds no certification and claims no conformity.',
+];
+const FORBIDDEN = [
+  'EMET holds ISO 13485 certification.',
+  'EMET conforms to ISO 9001.',
+  'EMET complies with ISO 13485.',
+  'Full ISO 13485 compliance.',
+  'in conformity with ISO 9001',
+  'We certify',
+  'ISO-accredited',
+];
 const LEDE = 'An MCP memory server built for ISO 9001 / ISO 13485 document control: persistent, shared memory.';
 const SHARED = 'EMET 0.2.6 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
 const JSONLD = 'EMET 0.2.6 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
@@ -41,6 +65,35 @@ function whatPanel(page) {
   const end = page.indexOf('data-demo-mount="what"', start);
   assert.ok(start >= 0 && end > start, 'what panel');
   return page.slice(start, end);
+}
+
+function familyHits(text) {
+  return [...text.matchAll(new RegExp(FAMILY.source, 'gi'))];
+}
+
+function allowedSpans(text) {
+  const spans = [];
+  for (const phrase of ALLOWED) {
+    let from = 0;
+    while (from < text.length) {
+      const at = text.indexOf(phrase, from);
+      if (at < 0) break;
+      spans.push([at, at + phrase.length]);
+      from = at + 1;
+    }
+  }
+  return spans;
+}
+
+function uncovered(text) {
+  const spans = allowedSpans(text);
+  return familyHits(text)
+    .filter((match) => {
+      const start = match.index;
+      const end = start + match[0].length;
+      return !spans.some(([from, to]) => start >= from && end <= to);
+    })
+    .map((match) => match[0]);
 }
 
 function jsonLdDescription() {
@@ -77,16 +130,37 @@ testGroup('the public site keeps ISO 9001 and ISO 13485', () => {
     });
   }
 
-  test('the What it is disclaimer stays and the whole page claims no ISO certification', () => {
+  test('the What it is disclaimer stays', () => {
     const what = whatPanel(html);
     assert.ok(what.includes('<dt>Document control (ISO 9001 7.5.3 / ISO 13485 4.2.5)</dt>'));
     assert.ok(what.includes(DISCLAIMER), 'disclaimer');
-    assert.equal(CLAIM.test(DISCLAIMER), false, 'the disclaimer is allowed');
-    assert.equal(CLAIM.test(html), false, 'site/index.html');
-    for (const claim of ['ISO 13485 certified', 'EMET is ISO certified', 'ISO 9001 compliant', 'conformant to ISO 13485']) {
-      assert.equal(CLAIM.test(claim), true, claim);
-    }
   });
+
+  test('the whole of site/index.html has no unallowlisted certify, comply, conform, or accredit hit', () => {
+    assert.deepStrictEqual(uncovered(html), []);
+  });
+
+  for (const claim of FORBIDDEN) {
+    test(`fails: ${claim}`, () => {
+      assert.ok(uncovered(claim).length > 0, claim);
+    });
+  }
+
+  for (const sentence of DISCLAIMER_SENTENCES) {
+    test(`passes: ${sentence}`, () => {
+      assert.ok(html.includes(sentence), sentence);
+      assert.ok(familyHits(sentence).length > 0, sentence);
+      assert.deepStrictEqual(uncovered(sentence), []);
+    });
+  }
+
+  for (const phrase of ALLOWED) {
+    test(`passes: ${phrase}`, () => {
+      assert.ok(html.includes(phrase), phrase);
+      assert.ok(familyHits(phrase).length > 0, phrase);
+      assert.deepStrictEqual(uncovered(phrase), []);
+    });
+  }
 });
 
 summary('site ISO descriptions');
