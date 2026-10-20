@@ -106,8 +106,8 @@ testGroup('the shipped tree is scrubbed', () => {
       'gems/lean-six-sigma/runes/lss_capability.js',
       'gems/lean-six-sigma/guides/FORMULAS.md',
       'gems/lean-six-sigma/guides/BELTS.md',
-      'tests/fixtures/emet-gems-9b5191a/lean-six-sigma/gem.json',
-      'tests/fixtures/emet-gems-9b5191a/verification/golden-outputs.json'
+      'tests/fixtures/lss-source/lean-six-sigma/gem.json',
+      'tests/fixtures/lss-source/verification/golden-outputs.json'
     ]) assert.ok(files.includes(rel), rel);
   });
   test('the Pages deploy job if is exactly the public repository and main', () => {

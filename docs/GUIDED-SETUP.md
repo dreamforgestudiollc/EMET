@@ -268,7 +268,7 @@ Say nothing about setup. Call `emet_initialize`. On a new store it returns `setu
 the interview questions. Ask them **conversationally, one at a time** — what the assistant should
 be called and how it should carry itself, the person's name in the form they want used, what the
 memory is for, whether more than one bot or AI will use this memory (yes or no, in their words),
-whether to turn on bot-team backup (yes or no; **yes is the recommended choice**; no, or leaving
+whether to turn on bot-team backup (yes or no, in their words; Yes and Yes. count as yes; **yes is the recommended choice**; no, or leaving
 it out, leaves it off and the answer is recorded), and optionally how they want to be worked with
 and this host's tag. Then
 `emet_setup_complete`. It refuses partial answers rather than inventing an identity; that is

@@ -42,16 +42,21 @@ testGroup('bot-team backup is one optional recorded answer', () => {
     assert.match(begin.instructions, /Yes is the recommended choice/);
   });
 
-  test('only the strings yes and no parse; absent means no', () => {
+  test('Yes and Yes. parse like the multi-bot question; anything else is refused', () => {
     assert.strictEqual(parseBotTeamBackup('yes'), true);
+    assert.strictEqual(parseBotTeamBackup('Yes'), true);
+    assert.strictEqual(parseBotTeamBackup('Yes.'), true);
+    assert.strictEqual(parseBotTeamBackup('YES'), true);
+    assert.strictEqual(parseBotTeamBackup(' yes '), true);
+    assert.strictEqual(parseBotTeamBackup('y'), true);
     assert.strictEqual(parseBotTeamBackup('no'), false);
+    assert.strictEqual(parseBotTeamBackup('No.'), false);
     assert.strictEqual(parseBotTeamBackup(''), false);
+    assert.strictEqual(parseBotTeamBackup('   '), false);
     assert.strictEqual(parseBotTeamBackup(undefined), false);
     assert.strictEqual(parseBotTeamBackup(null), false);
-    assert.strictEqual(parseBotTeamBackup('Yes.'), null);
-    assert.strictEqual(parseBotTeamBackup('YES'), null);
-    assert.strictEqual(parseBotTeamBackup('y'), null);
     assert.strictEqual(parseBotTeamBackup('maybe'), null);
+    assert.strictEqual(parseBotTeamBackup('yeah'), null);
     assert.strictEqual(parseBotTeamBackup(true), null);
     assert.strictEqual(parseBotTeamBackup(false), null);
     assert.strictEqual(parseBotTeamBackup(['yes']), null);
@@ -83,8 +88,17 @@ testGroup('bot-team backup is one optional recorded answer', () => {
     }
   });
 
-  test('an answer that is not the string yes or no writes nothing', async () => {
-    for (const bot_team_backup of ['maybe', 'Yes.', true, ['yes']]) {
+  test('Yes and Yes. record the flag before any other write', async () => {
+    for (const bot_team_backup of ['Yes', 'Yes.']) {
+      const s = makeStore();
+      const done = await withStore(s, () => setupComplete({ ...ANSWERS, bot_team_backup }));
+      assert.strictEqual(done.bot_team_backup, true);
+      assert.match(docOf(s, 'bootstrap/USER.md').content, /## §4 BOT-TEAM BACKUP\nyes\n/);
+    }
+  });
+
+  test('anything else writes nothing', async () => {
+    for (const bot_team_backup of ['maybe', 'yeah', true, ['yes']]) {
       const s = makeStore();
       await assert.rejects(
         () => withStore(s, () => setupComplete({ ...ANSWERS, bot_team_backup })),

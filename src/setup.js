@@ -550,14 +550,17 @@ export function parseMoreThanOneBot(value) {
 }
 
 /**
- * Only the strings "yes" and "no". Absent means no. A non-string, "Yes.",
- * or any other text is not an answer, and setup does not invent one.
+ * yes or no from the interview, in the user's words, the same way as
+ * more_than_one_bot. Absent means no. A non-string is not an answer.
+ * "Yes" and "Yes." are yes. Anything else is refused before a write.
  */
 export function parseBotTeamBackup(value) {
-  if (value == null || value === '') return false;
+  if (value == null) return false;
   if (typeof value !== 'string') return null;
-  if (value === 'yes') return true;
-  if (value === 'no') return false;
+  const s = value.trim().toLowerCase().replace(/[.!]+$/, '');
+  if (s === '') return false;
+  if (s === 'yes' || s === 'y' || s === 'true') return true;
+  if (s === 'no' || s === 'n' || s === 'false') return false;
   return null;
 }
 
@@ -1380,7 +1383,7 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
   if (backup === null) {
     throw new ValidationError(
       'bot_team_backup',
-      'Answer with the string yes or the string no. Yes is the recommended choice and records bot-team backup as on. No leaves it off. Leaving it out leaves it off. Do not invent the answer. Nothing was written.'
+      'Answer yes or no, in your own words. Yes and Yes. record bot-team backup as on. Yes is the recommended choice. No leaves it off. Leaving it out leaves it off. A non-string is refused. Do not invent the answer. Nothing was written.'
     );
   }
   answers = { ...answers, bot_team_backup: backup };

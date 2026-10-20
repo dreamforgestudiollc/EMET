@@ -1,9 +1,9 @@
 /**
  * Lean Six Sigma ships as gems/lean-six-sigma. The rune files are the attached
  * bytes. requires.emet is >=0.2.6 and released is true, so 0.2.6 seats it.
- * The emet-gems-9b5191a fixture keeps requires.emet >=0.3.0 and released false.
+ * The lss-source fixture keeps requires.emet >=0.3.0 and released false.
  * FORMULAS.md in the attachment has 30 "Test vector" lines. The 49 golden
- * cases are tests/fixtures/emet-gems-9b5191a/verification/golden-outputs.json.
+ * cases are tests/fixtures/lss-source/verification/golden-outputs.json.
  * This file runs those cases on the shipped runes, plus every rune-backed
  * worked example, including the negative-limit examples beside the vectors.
  */
@@ -19,8 +19,9 @@ const { seatGems } = await import('../src/socket.js');
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GEM = path.join(ROOT, 'gems/lean-six-sigma');
-const FIXTURE = path.join(ROOT, 'tests/fixtures/emet-gems-9b5191a/lean-six-sigma');
-const GOLDEN = path.join(ROOT, 'tests/fixtures/emet-gems-9b5191a/verification/golden-outputs.json');
+const FIXTURE = path.join(ROOT, 'tests/fixtures/lss-source/lean-six-sigma');
+const GOLDEN = path.join(ROOT, 'tests/fixtures/lss-source/verification/golden-outputs.json');
+const DIGESTS = path.join(ROOT, 'tests/fixtures/lss-source/DIGESTS.json');
 const RUNE_DIGESTS = {
   'runes/lss_capability.js': 'sha256:572c51f83006d798ce6e6b2c5752e74d78c07253683b87203bf09cf1493db9fb',
   'runes/lss_control_limits.js': 'sha256:28367f8f0bf588ffabf3c7a7b7238e462fdabd0ef4a6bb8e3498bd092f3cf532',
@@ -30,7 +31,7 @@ const RUNE_DIGESTS = {
 };
 const REVENDORED = {
   'guides/BELTS.md': 'sha256:e9e591af0e2d89a27cddf73da48e4f4acacd1785e22473d42dd3b56366d008d0',
-  'CHANGELOG.md': 'sha256:ec2bbbf26e040705195b400941e6fdc90e93cffa4763e67f81ac1bd3fc11f837'
+  'CHANGELOG.md': 'sha256:d07810bd35e71952cea36212b878d8762a43b4f7b8e5f710b41a4190308d86fc'
 };
 
 function readJson(file) {
@@ -55,18 +56,19 @@ const hypothesis = (await import(pathToFileURL(path.join(GEM, 'runes/lss_hypothe
 testGroup('the shipped Lean Six Sigma GEM seats on 0.2.6', () => {
   test('version, released, and requires are the shipping values', () => {
     const manifest = readJson(path.join(GEM, 'gem.json'));
-    assert.strictEqual(manifest.version, '1.0.0-beta');
+    assert.strictEqual(manifest.version, '0.9.0');
     assert.strictEqual(manifest.released, true);
     assert.strictEqual(manifest.requires.emet, '>=0.2.6');
     assert.strictEqual(manifest.defaultOn, false);
     for (const rune of manifest.runes) {
-      assert.strictEqual(rune.version, '1.0.0-beta');
-      assert.ok(rune.description.includes('lean-six-sigma@1.0.0-beta'));
+      assert.strictEqual(rune.version, '0.9.0');
+      assert.ok(rune.description.includes('lean-six-sigma@0.9.0'));
       assert.strictEqual(RUNE_DIGESTS[rune.artifact], rune.sha256);
     }
     const changelog = fs.readFileSync(path.join(GEM, 'CHANGELOG.md'), 'utf8');
-    assert.match(changelog, /requires\.emet changed from >=0\.3\.0 to >=0\.2\.6/);
-    assert.match(changelog, /1\.0\.0-beta/);
+    assert.match(changelog, /requires\.emet is >=0\.2\.6/);
+    assert.match(changelog, /0\.9\.0/);
+    assert.ok(!changelog.includes('1.0.0-beta'));
   });
 
   test('rune bytes match the attachment, and only BELTS and CHANGELOG were re-vendored', () => {
@@ -97,12 +99,19 @@ testGroup('the shipped Lean Six Sigma GEM seats on 0.2.6', () => {
     assert.strictEqual(later.exitCode, 0, (later.lines || []).join('\n'));
   });
 
+  test('the shipped gem.json and CHANGELOG.md match the recorded digests', () => {
+    const recorded = readJson(DIGESTS);
+    for (const rel of ['gem.json', 'CHANGELOG.md']) {
+      assert.strictEqual(digestOf(path.join(GEM, rel)), recorded.files[rel], rel);
+    }
+  });
+
   test('the release seats it off, with no legacy pin', async () => {
     const seated = await seatGems({ log: { warn() {}, info() {}, error() {} } });
     const row = seated.gems_available.find((gem) => gem.id === 'lean-six-sigma');
     assert.strictEqual(row.loadable, true, row.reason);
     assert.strictEqual(row.active, false);
-    assert.strictEqual(row.version, '1.0.0-beta');
+    assert.strictEqual(row.version, '0.9.0');
   });
 });
 

@@ -17,7 +17,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const EXAMPLE = path.join(ROOT, 'gem-library/examples/neurendipity');
 const CLI = path.join(ROOT, 'src/gem-check.js');
 
-const { checkGem, parseStrictJson, PROTECTED_OVERRIDES, MODIFIABLE_OVERRIDES, satisfiesEmetRange, scanModuleSource, resolvedUnderRunes, CHECK_IDS, SPEC_REVISION } = await import('../src/gem-check.js');
+const { checkGem, parseStrictJson, parseEmetRange, PROTECTED_OVERRIDES, MODIFIABLE_OVERRIDES, satisfiesEmetRange, scanModuleSource, resolvedUnderRunes, CHECK_IDS, SPEC_REVISION } = await import('../src/gem-check.js');
 const { runeSpecifierReason } = await import('../src/host-reach.js');
 
 console.log('\n=== gem-check (GC-01 through GC-22) ===');
@@ -293,9 +293,12 @@ testGroup('GC-02 schema and GC-03 revision', () => {
     const notes = await checked((gem) => { gem.manifest.changelog = { '1.0.0': 'Initial release.' }; });
     assert.strictEqual(line(notes, 'GC-02').status, 'pass', line(notes, 'GC-02').reason);
   });
-  test('1.0.0-beta passes GC-02 and 1.0.0-rc.1 fails', async () => {
+  test('1.0.0 passes GC-02 and 1.0.0-beta fails', async () => {
+    const plain = await checked((gem) => { gem.manifest.version = '1.0.0'; });
+    assert.strictEqual(line(plain, 'GC-02').status, 'pass', line(plain, 'GC-02').reason);
     const beta = await checked((gem) => { gem.manifest.version = '1.0.0-beta'; });
-    assert.strictEqual(line(beta, 'GC-02').status, 'pass', line(beta, 'GC-02').reason);
+    assertFail(beta, 'GC-02');
+    assert.match(line(beta, 'GC-02').reason, /version/);
     const rc = await checked((gem) => { gem.manifest.version = '1.0.0-rc.1'; });
     assertFail(rc, 'GC-02');
     assert.match(line(rc, 'GC-02').reason, /version/);
@@ -303,16 +306,32 @@ testGroup('GC-02 schema and GC-03 revision', () => {
     const runePattern = schema.$defs.rune.properties.version.pattern;
     assert.strictEqual(schema.properties.version.pattern, runePattern);
     assert.ok(runePattern.startsWith('^') && runePattern.endsWith('$'));
+    assert.ok(!runePattern.includes('beta'));
     const re = new RegExp(runePattern);
-    assert.strictEqual(re.test('1.0.0-beta'), true);
+    assert.strictEqual(re.test('0.9.0'), true);
     assert.strictEqual(re.test('1.0.0'), true);
+    assert.strictEqual(re.test('1.0.0-beta'), false);
     assert.strictEqual(re.test('1.0.0-rc.1'), false);
+  });
+  test('requires.emet >=0.2.6-beta and banana fail GC-02', async () => {
+    const schema = JSON.parse(fs.readFileSync(path.join(ROOT, 'gem-library/gem.schema.json'), 'utf8'));
+    const pattern = schema.properties.requires.properties.emet.pattern;
+    assert.ok(pattern.startsWith('^') && pattern.endsWith('$'));
+    const re = new RegExp(pattern);
+    assert.strictEqual(re.test('>=0.2.6'), true);
+    assert.strictEqual(re.test('0.2.6'), true);
+    for (const bad of ['>=0.2.6-beta', 'banana']) {
+      assert.strictEqual(re.test(bad), false, bad);
+      const result = await checked((gem) => { gem.manifest.requires.emet = bad; });
+      assertFail(result, 'GC-02');
+      assert.match(line(result, 'GC-02').reason, /\/requires\/emet/, bad);
+    }
   });
   test('a prefixed, zero-padded, dotted, or capital version fails GC-02', async () => {
     const schema = JSON.parse(fs.readFileSync(path.join(ROOT, 'gem-library/gem.schema.json'), 'utf8'));
     assert.strictEqual(schema.properties.version.pattern, schema.$defs.rune.properties.version.pattern);
     const re = new RegExp(schema.properties.version.pattern);
-    for (const bad of ['x1.0.0', '01.0.0', '1.0.0-beta.1', '1.0.0-BETA', 'v1.0.0', '2.0.00']) {
+    for (const bad of ['x1.0.0', '01.0.0', '1.0.0-beta', '1.0.0-beta.1', '1.0.0-BETA', 'v1.0.0', '2.0.00']) {
       assert.strictEqual(re.test(bad), false, bad);
       const result = await checked((gem) => { gem.manifest.version = bad; });
       assertFail(result, 'GC-02');
@@ -1015,6 +1034,19 @@ testGroup('GC-16 static analysis, GC-17 permissions, GC-18 database, GC-19 hash 
 });
 
 testGroup('GC-20 ranges and GC-22 code location', () => {
+  test('GC-20 grammar refuses >=0.2.6-beta and banana', async () => {
+    assert.strictEqual(parseEmetRange('>=0.2.6-beta'), null);
+    assert.strictEqual(parseEmetRange('banana'), null);
+    assert.deepStrictEqual(parseEmetRange('>=0.2.6'), { op: '>=', base: [0, 2, 6] });
+    for (const bad of ['>=0.2.6-beta', 'banana']) {
+      const result = await checked((gem) => { gem.manifest.requires.emet = bad; });
+      const row = line(result, 'GC-20');
+      assert.strictEqual(row.status, 'fail', bad);
+      assert.strictEqual(row.reason, 'requires.emet grammar', bad);
+    }
+    const ok = await checked((gem) => { gem.manifest.requires.emet = '>=0.2.6'; });
+    assert.strictEqual(line(ok, 'GC-20').status, 'pass', line(ok, 'GC-20').reason);
+  });
   test('the comparators match the revision', () => {
     assert.strictEqual(satisfiesEmetRange('0.2.4', '>=0.3.0'), false);
     assert.strictEqual(satisfiesEmetRange('0.3.0', '>=0.3.0'), true);
