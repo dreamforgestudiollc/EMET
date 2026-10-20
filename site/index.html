@@ -35,6 +35,23 @@
   <link rel="icon" href="assets/icon-48.png" type="image/png" sizes="48x48">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    (function () {
+      var ids = { what: 1, hosts: 1, access: 1, record: 1, start: 1, origin: 1, project: 1 };
+      var hash = (location.hash || '').replace(/^#/, '');
+      var root = document.documentElement;
+      root.classList.add('js');
+      root.setAttribute('data-tab', ids[hash] ? hash : 'what');
+      try { history.scrollRestoration = 'manual'; } catch (e) {}
+      window.addEventListener('hashchange', function () {
+        var next = (location.hash || '').replace(/^#/, '');
+        if (ids[next]) root.setAttribute('data-tab', next);
+      });
+      if (!ids[hash]) return;
+      root.setAttribute('data-pending-hash', hash);
+      history.replaceState(null, '', location.pathname + location.search);
+    })();
+  </script>
 
   <script type="application/ld+json">
   {
@@ -65,7 +82,7 @@
         <img src="assets/icon-48.png" width="40" height="40" alt="">
         <span>EMET</span>
       </a>
-      <nav aria-label="On this page">
+      <nav class="header-nav" aria-label="On this page">
         <ul>
           <li><a href="#what">What it is</a></li>
           <li><a href="#hosts">Hosts</a></li>
@@ -99,6 +116,28 @@
       </div>
     </section>
 
+    <!--
+      With JavaScript, site/tabs.js turns the list below into tabs and hides
+      the header links. The hero stays above this list. Each subject section
+      ends with an empty demo mount; see the comment at the top of tabs.js.
+      With JavaScript disabled, this list is not shown and the header links
+      are ordinary anchors down the full page.
+    -->
+    <nav class="subject-nav" aria-label="On this page">
+      <div class="wrap">
+        <ul>
+          <li><a href="#what" id="tab-what">What it is</a></li>
+          <li><a href="#hosts" id="tab-hosts">Hosts</a></li>
+          <li><a href="#access" id="tab-access">Access</a></li>
+          <li><a href="#record" id="tab-record">Record</a></li>
+          <li><a href="#start" id="tab-start">Start</a></li>
+          <li><a href="#origin" id="tab-origin">Origin</a></li>
+          <li><a href="#project" id="tab-project">The project</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="subject-panels">
     <section class="block" id="what" aria-labelledby="what-title">
       <div class="wrap">
         <h2 id="what-title">What EMET is</h2>
@@ -163,6 +202,7 @@
           <figcaption>The full workshop scene. The portrait above is her face and shoulders, with the headband in frame.</figcaption>
         </figure>
       </div>
+      <div class="demo-mount" data-demo-mount="what"></div>
     </section>
 
     <section class="block" id="hosts" aria-labelledby="hosts-title">
@@ -171,6 +211,7 @@
         <p class="prose">EMET is a bridge. Several AI hosts read and write one shared memory: desktop, command line, browser, phone, another vendor’s agent, bot teams, and single-session chats. Write a decision from one. Ask about it from another. It is there.</p>
         <p class="prose">A local host is launched by the client. A remote host adds your server’s address as an MCP connector and signs in with OAuth. Both use the same memory.</p>
       </div>
+      <div class="demo-mount" data-demo-mount="hosts"></div>
     </section>
 
     <section class="block" id="access" aria-labelledby="access-title">
@@ -178,6 +219,7 @@
         <h2 id="access-title">Who can join</h2>
         <p class="prose access">The store has one owner, and other people can join only through the optional Guest (read-only) and Member (read and write) access, both off by default.</p>
       </div>
+      <div class="demo-mount" data-demo-mount="access"></div>
     </section>
 
     <section class="block" id="record" aria-labelledby="record-title">
@@ -185,6 +227,7 @@
         <h2 id="record-title">What stays on the record</h2>
         <p class="prose">A correction writes a new entry. The earlier entry gets an end date and stays visible, marked with what replaced it. Current entries are listed first. The earlier one is still there to read. An episodic event is immutable. Events do not get revised, and a later entry corrects the reading of it instead of putting an end date on the event.</p>
       </div>
+      <div class="demo-mount" data-demo-mount="record"></div>
     </section>
 
     <section class="block" id="start" aria-labelledby="start-title">
@@ -210,6 +253,7 @@ npm start</code></pre>
           </li>
         </ul>
       </div>
+      <div class="demo-mount" data-demo-mount="start"></div>
     </section>
 
     <section class="block" id="origin" aria-labelledby="origin-title">
@@ -218,6 +262,7 @@ npm start</code></pre>
         <p class="prose">EMET was built by Dreamforge Studio LLC from a neurodivergent user’s own need for an AI assistant that remembers. The word coined for that is neurendipity: neurodivergent and serendipity.</p>
         <p class="prose">It is designed first for neurodivergent users, and it works for anyone.</p>
       </div>
+      <div class="demo-mount" data-demo-mount="origin"></div>
     </section>
 
     <section class="block" id="project" aria-labelledby="project-title">
@@ -230,7 +275,9 @@ npm start</code></pre>
           <li><a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CHANGELOG.md">Changelog</a></li>
         </ul>
       </div>
+      <div class="demo-mount" data-demo-mount="project"></div>
     </section>
+    </div>
   </main>
 
   <footer class="site-footer">
@@ -245,5 +292,6 @@ npm start</code></pre>
       </ul>
     </div>
   </footer>
+  <script type="module" src="tabs.js"></script>
 </body>
 </html>

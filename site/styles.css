@@ -41,6 +41,11 @@ html {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
+  .subject-nav,
+  .subject-panels > .block {
+    transition: none;
+    animation: none;
+  }
 }
 
 body {
@@ -339,6 +344,74 @@ pre code {
   font-size: 1rem;
 }
 
+/* Subject tabs. Without the js class the header links stay a normal list and
+   every section shows. Demo mounts stay empty until a future demo fills them. */
+.subject-nav {
+  display: none;
+}
+
+.demo-mount:empty {
+  display: none;
+}
+
+html.js .header-nav {
+  display: none;
+}
+
+html.js .subject-nav {
+  display: block;
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  padding-block: 0.2rem 0.15rem;
+}
+
+html.js .subject-nav ul {
+  max-width: 100%;
+}
+
+html.js .subject-nav a {
+  display: inline-block;
+  max-width: 100%;
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  padding: 0.65rem 0.1rem;
+}
+
+html.js .subject-nav a[aria-selected="true"] {
+  border-bottom-color: currentColor;
+  font-weight: 600;
+}
+
+html.js .subject-nav a:focus-visible {
+  outline: 3px solid var(--link);
+  outline-offset: 3px;
+}
+
+html.js .subject-panels > .block {
+  display: none;
+  border-top: 0;
+}
+
+html.js[data-tab="what"] #what,
+html.js[data-tab="what"] [data-subject="what"],
+html.js[data-tab="hosts"] #hosts,
+html.js[data-tab="hosts"] [data-subject="hosts"],
+html.js[data-tab="access"] #access,
+html.js[data-tab="access"] [data-subject="access"],
+html.js[data-tab="record"] #record,
+html.js[data-tab="record"] [data-subject="record"],
+html.js[data-tab="start"] #start,
+html.js[data-tab="start"] [data-subject="start"],
+html.js[data-tab="origin"] #origin,
+html.js[data-tab="origin"] [data-subject="origin"],
+html.js[data-tab="project"] #project,
+html.js[data-tab="project"] [data-subject="project"] {
+  display: block;
+}
+
 @media (max-width: 720px) {
   .wrap {
     width: min(100% - 2rem, 68rem);
@@ -363,5 +436,9 @@ pre code {
 
   nav a {
     padding-block: 0.45rem;
+  }
+
+  html.js .subject-nav a {
+    padding: 0.7rem 0.2rem;
   }
 }
