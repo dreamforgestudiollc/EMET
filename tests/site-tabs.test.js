@@ -59,6 +59,13 @@ function grouped(n) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
+function releasedLegacy() {
+  const socket = read('src/socket.js');
+  const start = socket.indexOf('export const RELEASED_LEGACY');
+  const block = socket.slice(start, socket.indexOf(']);', start));
+  return [...block.matchAll(/id: '([^']+)',\s*version: '([^']+)'/g)].map((item) => ({ id: item[1], version: item[2] }));
+}
+
 function bundledGems() {
   const dir = path.join(ROOT, 'gems');
   return fs.readdirSync(dir, { withFileTypes: true })
@@ -365,6 +372,46 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
     const iso = what.slice(what.indexOf('<dt>Document control'), what.indexOf('</dd>', what.indexOf('<dt>Document control')) + 5);
     assert.ok(iso.includes(`<dt>${ISO_DT}</dt>`));
     assert.ok(iso.includes(`<dd>${ISO_DD}</dd>`));
+  });
+
+  test('the released check names the bundled GEMs that seat without that mark', () => {
+    const what = panelHtml('what');
+    const at = what.indexOf('<dt>Released check</dt>');
+    const line = what.slice(at, what.indexOf('</dd>', at) + 5);
+    const rows = releasedLegacy();
+    const words = ['Zero', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
+    const missing = bundledGems().filter((id) => !Object.hasOwn(gemManifest(id), 'released'));
+    assert.deepStrictEqual(missing, rows.map((row) => row.id).sort());
+    assert.ok(rows.length >= 1);
+    for (const row of rows) {
+      const manifest = gemManifest(row.id);
+      assert.strictEqual(manifest.version, row.version);
+      assert.ok(!Object.hasOwn(manifest, 'released'), row.id);
+    }
+    for (const id of bundledGems()) {
+      if (rows.some((row) => row.id === id)) continue;
+      assert.strictEqual(gemManifest(id).released, true, id);
+    }
+    assert.ok(line.includes('explicitly marked it released'));
+    assert.ok(line.includes(`${words[rows.length]} older bundled GEMs`), 'exception');
+    assert.ok(line.includes('pin of their id, version, and every file'));
+    assert.ok(!line.includes('legacy'));
+    assert.ok(!line.includes('boolean'));
+  });
+
+  test('the spec date on the page is SPEC_REVISION', () => {
+    const rev = read('src/gem-check.js').match(/export const SPEC_REVISION = '(\d{4}-\d{2}-\d{2})'/);
+    assert.ok(rev, 'SPEC_REVISION');
+    const date = rev[1];
+    const spec = read('gem-library/SPEC.md').match(/\*\*Revision:\*\* (\d{4}-\d{2}-\d{2})/);
+    assert.strictEqual(spec[1], date);
+    for (const id of ['origin', 'gem', 'project']) {
+      assert.ok(panelHtml(id).includes(`Draft, revision ${date}`), id);
+    }
+    assert.ok(panelHtml('gem').includes(`spec <code>${date}</code>`));
+    const shown = [...html.matchAll(/revision (\d{4}-\d{2}-\d{2})/g)].map((item) => item[1]);
+    assert.ok(shown.length >= 1);
+    for (const item of shown) assert.strictEqual(item, date);
   });
 
   test('the GEM panel uses the pinned names and the bundled facts', () => {
