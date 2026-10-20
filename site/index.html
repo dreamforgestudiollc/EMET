@@ -47,9 +47,6 @@
         var next = (location.hash || '').replace(/^#/, '');
         if (ids[next]) root.setAttribute('data-tab', next);
       });
-      if (!ids[hash]) return;
-      root.setAttribute('data-pending-hash', hash);
-      history.replaceState(null, '', location.pathname + location.search);
     })();
   </script>
 

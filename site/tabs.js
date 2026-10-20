@@ -16,7 +16,9 @@
  * demo. Do not add a script tag for one. That would cost the first paint.
  *
  * To attach a demo later, set data-demo-src on that mount to a module path
- * relative to the page, for example demos/start.js. The first time the reader
+ * relative to the page, for example demos/start.js, or to an absolute URL on
+ * this same origin. A cross-origin URL, a protocol-relative URL, and any
+ * non-http(s) URL are ignored and not imported. The first time the reader
  * opens that subject, the module is imported. If it exports mount(mountEl,
  * panel) or a default function of that shape, that function is called.
  *
@@ -62,6 +64,26 @@ export function tabIdFromHash(hash, ids = TAB_IDS) {
   return ids.includes(id) ? id : ids[0];
 }
 
+/**
+ * Absolute http(s) href for a demo module, or null when src is not a
+ * same-origin path. Relative paths resolve against base. Another origin,
+ * a protocol-relative URL, and javascript: or data: URLs are refused.
+ */
+export function allowedDemoSrc(src, base) {
+  if (typeof src !== 'string' || src.trim() === '') return null;
+  let page;
+  let url;
+  try {
+    page = new URL(base);
+    url = new URL(src, page);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
+  if (url.origin !== page.origin) return null;
+  return url.href;
+}
+
 /** Next index for a horizontal tablist. -1 when the key does not move tabs. */
 export function indexForKey(index, key, count) {
   if (count <= 0) return -1;
@@ -81,9 +103,11 @@ export function mountTabs(doc, win, opts = {}) {
   const root = doc.documentElement;
   root.classList.add('js');
 
-  nav.setAttribute('role', 'tablist');
-  nav.setAttribute('aria-orientation', 'horizontal');
-  list.setAttribute('role', 'presentation');
+  nav.removeAttribute('role');
+  list.setAttribute('role', 'tablist');
+  list.setAttribute('aria-orientation', 'horizontal');
+  const label = nav.getAttribute('aria-label');
+  if (label) list.setAttribute('aria-label', label);
 
   const byId = new Map();
   for (const tab of tabs) {
@@ -139,8 +163,10 @@ export function mountTabs(doc, win, opts = {}) {
   }
 
   function importModule(src) {
+    const href = allowedDemoSrc(src, doc.baseURI);
+    if (!href) return Promise.reject(new Error('EMET demo module must be a same-origin path'));
     if (typeof opts.importModule === 'function') return opts.importModule(src);
-    return import(new URL(src, doc.baseURI).href);
+    return import(href);
   }
 
   function startDemo(id, panel, initial) {
@@ -149,6 +175,7 @@ export function mountTabs(doc, win, opts = {}) {
     const reg = registry.get(id);
     const src = mount ? mount.getAttribute('data-demo-src') : null;
     if (!reg && !src) return;
+    if (!reg && !allowedDemoSrc(src, doc.baseURI)) return;
     started.add(id);
     const run = () => {
       let task;
@@ -247,8 +274,8 @@ export function mountTabs(doc, win, opts = {}) {
   if (fromHash) keepAt(0, 1800);
   const hashNow = String(win.location.hash || '').replace(/^#/, '');
   if (hashNow !== initialId && fromHash) {
-    // The early script clears the hash so the first paint does not jump.
-    // Put it back after load, once the section id no longer matches it.
+    // A subject hash that was set aside is written back after the section id
+    // no longer matches it, so the address bar keeps the fragment.
     const restore = () => {
       if (current !== initialId) return;
       const now = String(win.location.hash || '').replace(/^#/, '');
@@ -273,7 +300,7 @@ export function mountTabs(doc, win, opts = {}) {
     });
   }
 
-  nav.addEventListener('keydown', (event) => {
+  list.addEventListener('keydown', (event) => {
     const ordered = tabs.filter((tab) => byId.has(subjectOf(tab)));
     const index = ordered.indexOf(doc.activeElement);
     if (index < 0) return;

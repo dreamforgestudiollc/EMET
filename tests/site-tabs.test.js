@@ -8,7 +8,7 @@ import assert from 'assert';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { TAB_IDS, SHOW_EVENT, HIDE_EVENT, tabIdFromHash, indexForKey, mountTabs } from '../site/tabs.js';
+import { TAB_IDS, SHOW_EVENT, HIDE_EVENT, tabIdFromHash, indexForKey, allowedDemoSrc, mountTabs } from '../site/tabs.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
@@ -90,6 +90,7 @@ function el(doc, tag, attrs = {}, children = []) {
     return true;
   };
   node.focus = () => { doc.activeElement = node; };
+  node.blur = () => { doc.activeElement = doc.body || null; };
   node.querySelectorAll = (sel) => walk(node).filter((item) => item !== node && matches(item, sel));
   node.querySelector = (sel) => node.querySelectorAll(sel)[0] || null;
   node.append = (child) => {
@@ -243,6 +244,15 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
     assert.ok(!/^import /m.test(js));
     assert.strictEqual(fs.existsSync(path.join(ROOT, 'site', 'demos')), false);
   });
+
+  test('the early script keeps the subject fragment when tabs.js does not run', () => {
+    const inline = html.slice(html.indexOf('<script>'), html.indexOf('</script>'));
+    assert.ok(inline.includes("root.setAttribute('data-tab'"));
+    assert.ok(inline.includes("addEventListener('hashchange'"));
+    assert.ok(!inline.includes('replaceState'));
+    assert.ok(!inline.includes('data-pending-hash'));
+    assert.ok(!inline.includes('location.hash ='));
+  });
 });
 
 testGroup('tabs follow the hash, the keyboard, and a lazy demo', () => {
@@ -270,7 +280,12 @@ testGroup('tabs follow the hash, the keyboard, and a lazy demo', () => {
     assert.strictEqual(doc.getElementById('tab-start').getAttribute('aria-selected'), 'true');
     assert.strictEqual(doc.getElementById('tab-start').getAttribute('role'), 'tab');
     assert.strictEqual(doc.getElementById('tab-what').tabIndex, -1);
-    assert.strictEqual(doc.querySelector('nav.subject-nav').getAttribute('role'), 'tablist');
+    const nav = doc.querySelector('nav.subject-nav');
+    assert.strictEqual(nav.getAttribute('role'), null);
+    const tablist = nav.querySelector('ul');
+    assert.strictEqual(tablist.getAttribute('role'), 'tablist');
+    assert.strictEqual(tablist.getAttribute('aria-orientation'), 'horizontal');
+    assert.strictEqual(tablist.getAttribute('aria-label'), 'On this page');
     assert.deepStrictEqual(pushes, []);
     assert.deepStrictEqual(replaces, []);
     const hosts = doc.getElementById('tab-hosts');
@@ -290,26 +305,83 @@ testGroup('tabs follow the hash, the keyboard, and a lazy demo', () => {
     assert.ok(api.tabs.includes('project'));
   });
 
-  test('arrow keys, Home, and End move the selected subject', () => {
+  test('arrow keys, Home, and End move the selected subject and focus follows', () => {
     const { doc, win, pushes } = page();
     mountTabs(doc, win);
-    const nav = doc.querySelector('nav.subject-nav');
-    doc.getElementById('tab-what').focus();
-    const right = key(doc, nav, 'ArrowRight');
+    const tablist = doc.querySelector('[role="tablist"]');
+    const what = doc.getElementById('tab-what');
+    const hosts = doc.getElementById('tab-hosts');
+    what.focus();
+    const right = key(doc, tablist, 'ArrowRight');
     assert.strictEqual(right.defaultPrevented, true);
-    assert.strictEqual(doc.activeElement, doc.getElementById('tab-hosts'));
+    assert.strictEqual(doc.activeElement, hosts);
+    assert.notStrictEqual(doc.activeElement, doc.body);
+    assert.strictEqual(hosts.getAttribute('aria-selected'), 'true');
+    assert.strictEqual(what.getAttribute('aria-selected'), 'false');
     assert.strictEqual(doc.documentElement.getAttribute('data-tab'), 'hosts');
-    key(doc, nav, 'End');
+    const stay = key(doc, tablist, 'Enter');
+    assert.strictEqual(stay.defaultPrevented, true);
+    assert.strictEqual(doc.activeElement, hosts);
+    key(doc, tablist, 'End');
+    assert.strictEqual(doc.activeElement, doc.getElementById('tab-project'));
     assert.strictEqual(doc.documentElement.getAttribute('data-tab'), 'project');
-    key(doc, nav, 'Home');
+    key(doc, tablist, 'Home');
+    assert.strictEqual(doc.activeElement, what);
     assert.strictEqual(doc.documentElement.getAttribute('data-tab'), 'what');
-    key(doc, nav, 'ArrowLeft');
+    key(doc, tablist, 'ArrowLeft');
+    assert.strictEqual(doc.activeElement, doc.getElementById('tab-project'));
     assert.strictEqual(doc.documentElement.getAttribute('data-tab'), 'project');
     assert.ok(pushes.length >= 4);
     doc.activeElement = doc.body;
-    const ignored = key(doc, nav, 'ArrowRight');
+    const ignored = key(doc, tablist, 'ArrowRight');
     assert.strictEqual(ignored.defaultPrevented, false);
     assert.strictEqual(doc.documentElement.getAttribute('data-tab'), 'project');
+  });
+
+  test('unselected tabs are aria-selected false', () => {
+    const { doc, win } = page();
+    win.location.hash = '#start';
+    mountTabs(doc, win);
+    const selected = [];
+    for (const id of TAB_IDS) {
+      const tab = doc.getElementById(`tab-${id}`);
+      const value = tab.getAttribute('aria-selected');
+      if (id === 'start') {
+        assert.strictEqual(value, 'true', id);
+        selected.push(id);
+      } else {
+        assert.strictEqual(value, 'false', id);
+      }
+    }
+    assert.deepStrictEqual(selected, ['start']);
+  });
+
+  test('each tab names its panel and each panel names its tab', () => {
+    const { doc, win } = page();
+    mountTabs(doc, win);
+    for (const id of TAB_IDS) {
+      const tab = doc.getElementById(`tab-${id}`);
+      const panel = doc.getElementById(`panel-${id}`);
+      assert.strictEqual(tab.getAttribute('role'), 'tab', id);
+      assert.strictEqual(panel.getAttribute('role'), 'tabpanel', id);
+      assert.strictEqual(tab.getAttribute('aria-controls'), panel.id, id);
+      assert.strictEqual(tab.getAttribute('aria-controls'), `panel-${id}`, id);
+      assert.strictEqual(panel.getAttribute('aria-labelledby'), tab.id, id);
+      assert.strictEqual(panel.getAttribute('aria-labelledby'), `tab-${id}`, id);
+    }
+  });
+
+  test('hashchange switches the open subject', () => {
+    const { doc, win } = page();
+    mountTabs(doc, win);
+    assert.strictEqual(doc.documentElement.getAttribute('data-tab'), 'what');
+    win.location.hash = '#record';
+    win.fire('hashchange');
+    assert.strictEqual(doc.documentElement.getAttribute('data-tab'), 'record');
+    assert.strictEqual(doc.getElementById('panel-record').hidden, false);
+    assert.strictEqual(doc.getElementById('panel-what').hidden, true);
+    assert.strictEqual(doc.getElementById('tab-record').getAttribute('aria-selected'), 'true');
+    assert.strictEqual(doc.getElementById('tab-what').getAttribute('aria-selected'), 'false');
   });
 
   test('show and hide events fire, and a demo loads once, after idle for the first subject', () => {
@@ -368,6 +440,34 @@ testGroup('tabs follow the hash, the keyboard, and a lazy demo', () => {
     win.fire('load');
     assert.deepStrictEqual(replaces, ['/EMET/#origin']);
     assert.strictEqual(doc.getElementById('panel-origin').id, 'panel-origin');
+  });
+
+  test('a demo module path must be same-origin', () => {
+    const base = 'https://dreamforgestudiollc.github.io/EMET/';
+    assert.strictEqual(allowedDemoSrc('demos/start.js', base), `${base}demos/start.js`);
+    assert.strictEqual(allowedDemoSrc('/EMET/demos/start.js', base), `${base}demos/start.js`);
+    assert.strictEqual(allowedDemoSrc(`${base}demos/start.js`, base), `${base}demos/start.js`);
+    assert.strictEqual(allowedDemoSrc('https://evil.example/demo.js', base), null);
+    assert.strictEqual(allowedDemoSrc('//evil.example/demo.js', base), null);
+    assert.strictEqual(allowedDemoSrc('javascript:alert(1)', base), null);
+    assert.strictEqual(allowedDemoSrc('data:text/javascript,alert(1)', base), null);
+
+    const { doc, win } = page();
+    const imported = [];
+    doc.getElementById('start').querySelector('[data-demo-mount]').setAttribute('data-demo-src', 'https://evil.example/demo.js');
+    doc.getElementById('hosts').querySelector('[data-demo-mount]').setAttribute('data-demo-src', '//evil.example/demo.js');
+    doc.getElementById('record').querySelector('[data-demo-mount]').setAttribute('data-demo-src', `${base}demos/record.js`);
+    mountTabs(doc, win, {
+      scheduleInitial() {},
+      importModule(src) {
+        imported.push(src);
+        return { mount() {} };
+      },
+    });
+    click(doc.getElementById('tab-start'));
+    click(doc.getElementById('tab-hosts'));
+    click(doc.getElementById('tab-record'));
+    assert.deepStrictEqual(imported, [`${base}demos/record.js`]);
   });
 
   test('back restores the subject the hash names', () => {
