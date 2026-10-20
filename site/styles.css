@@ -264,12 +264,6 @@ h2 {
   height: auto;
 }
 
-.scene figcaption {
-  margin-top: 0.55rem;
-  color: var(--muted);
-  font-size: 0.95rem;
-}
-
 pre {
   max-width: 40rem;
   margin: 0 0 1rem;
@@ -344,6 +338,26 @@ pre code {
   font-size: 1rem;
 }
 
+.block h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 1.28rem;
+  line-height: 1.25;
+  margin: 1.85rem 0 0.55rem;
+}
+
+.steps,
+.limits {
+  max-width: 40rem;
+  margin: 0 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.steps li + li,
+.limits li + li {
+  margin-top: 0.45rem;
+}
+
 /* Subject tabs. Without the js class the header links stay a normal list and
    every section shows. Demo mounts stay empty until a future demo fills them. */
 .subject-nav {
@@ -407,6 +421,8 @@ html.js[data-tab="start"] #start,
 html.js[data-tab="start"] [data-subject="start"],
 html.js[data-tab="origin"] #origin,
 html.js[data-tab="origin"] [data-subject="origin"],
+html.js[data-tab="gem"] #gem,
+html.js[data-tab="gem"] [data-subject="gem"],
 html.js[data-tab="project"] #project,
 html.js[data-tab="project"] [data-subject="project"] {
   display: block;
