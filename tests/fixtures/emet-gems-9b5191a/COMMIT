@@ -1,0 +1,2 @@
+Source: emet-gems-9b5191a on EMET-GEMs main. The earlier label commit-fc2dc4d named a branch-only commit. The files match emet-gems-9b5191a.
+Scrub: guides/BELTS.md dropped one sentence that named a person. The guides/BELTS.md digest and size in gem.json were updated to match. released stays false. requires.emet stays >=0.3.0. version stays 1.0.0.
