@@ -1,7 +1,8 @@
 /**
  * The public site's subject list is tabs when JavaScript runs, and the same
  * document when it does not. Wording on the page, including the ISO 9001
- * 7.5.3 / ISO 13485 4.2.5 fact, stays as written. Version text stays 0.2.6.
+ * 7.5.3 / ISO 13485 4.2.5 fact, stays as written. The product version stays
+ * 0.2.6. A release credit names the changelog section that recorded it.
  */
 import { test, testGroup, summary } from './harness.js';
 import assert from 'assert';
@@ -24,6 +25,15 @@ function panelHtml(id) {
   const end = html.indexOf(`data-demo-mount="${id}"`, start);
   if (start < 0 || end < 0) throw new Error(`panel ${id} not found`);
   return html.slice(start, end);
+}
+
+function changelogSection(heading) {
+  const change = read('CHANGELOG.md');
+  const start = change.indexOf(heading);
+  if (start < 0) throw new Error(`missing ${heading}`);
+  const rest = change.slice(start + heading.length);
+  const next = rest.search(/\n## /);
+  return next < 0 ? rest : rest.slice(0, next);
 }
 
 function panelWords(fragment) {
@@ -213,10 +223,12 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
     assert.ok(html.includes(`<dd>${ISO_DD}</dd>`));
   });
 
-  test('version text stays 0.2.6', () => {
+  test('version marks stay 0.2.6', () => {
     assert.ok(html.includes('EMET 0.2.6'));
     assert.ok(html.includes('"version": "0.2.6"'));
-    assert.ok(!html.includes('0.2.5') && !html.includes('0.2.7'));
+    assert.ok(!html.includes('0.2.7'));
+    const outsideOrigin = html.replace(panelHtml('origin'), '');
+    assert.ok(!outsideOrigin.includes('0.2.5'));
   });
 
   test('header anchors are the original subjects and every section is in the page', () => {
@@ -259,6 +271,108 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
       assert.ok(panel.includes('<h3>Read more</h3>'), `${id} links`);
       assert.ok(panel.includes(docs), `${id} doc link`);
     }
+  });
+
+  test('origin credits goal_check and no_rapport_mirroring to 0.2.5', () => {
+    const origin = panelHtml('origin');
+    const v025 = changelogSection('## 0.2.5 - 2026-10-14');
+    const v026 = changelogSection('## 0.2.6 - 2026-10-20');
+    assert.ok(origin.includes('Version 0.2.5 added two core floor lines.'));
+    assert.ok(origin.includes('<code>goal_check</code>'));
+    assert.ok(origin.includes('<code>no_rapport_mirroring</code>'));
+    assert.ok(origin.includes('state the person’s goal and underlying problem in one sentence in your own words, marked as your read, and confirm.'));
+    assert.ok(origin.includes('no echoing, flattery, or agreement to build rapport or seem attuned. Agreement is earned by substance.'));
+    assert.ok(origin.includes('The 0.2.6 changelog records that the floor is unchanged.'));
+    assert.ok(!origin.includes('release notes for 0.2.6'));
+    assert.ok(!origin.includes('Floor lines in this version'));
+    assert.ok(!/0\.2\.6[^.]{0,160}goal_check/.test(origin));
+    assert.ok(!/0\.2\.6[^.]{0,160}no_rapport_mirroring/.test(origin));
+    assert.ok(v025.includes('two new core floor lines: `goal_check` and `no_rapport_mirroring`'));
+    assert.ok(v025.includes('Core floor, engagement: `goal_check`'));
+    assert.ok(v025.includes('before multi-step work, on an ambiguous request, or when the conversation turns, state the person\'s goal and underlying problem in one sentence in your own words, marked as your read, and confirm'));
+    assert.ok(v025.includes('no echoing, flattery, or agreement to build rapport or seem attuned'));
+    assert.ok(v025.includes('agreement is earned by substance'));
+    assert.ok(v026.includes('the floor are unchanged'));
+    assert.ok(!v026.includes('goal_check'));
+    assert.ok(!v026.includes('no_rapport_mirroring'));
+    const notes = read('RELEASE_NOTES-0.2.6.md');
+    assert.ok(notes.includes('## Floor lines in this version'));
+    assert.ok(!origin.includes('Floor lines in this version'));
+  });
+
+  test('each other version claim on the six panels matches the changelog', () => {
+    const v025 = changelogSection('## 0.2.5 - 2026-10-14');
+    const v026 = changelogSection('## 0.2.6 - 2026-10-20');
+    const origin = panelHtml('origin');
+    const project = panelHtml('project');
+    const changedStart = project.indexOf('<h3>What 0.2.6 changed</h3>');
+    const changedEnd = project.indexOf('<h3>What is in the tree</h3>');
+    assert.ok(changedStart >= 0 && changedEnd > changedStart);
+    const changed = project.slice(changedStart, changedEnd);
+
+    for (const id of ['hosts', 'access', 'record', 'start']) {
+      assert.ok(!/0\.2\.\d/.test(panelHtml(id)), `${id} names no release`);
+    }
+    assert.ok(!project.includes('0.2.5'));
+    assert.ok(!changed.includes('goal_check'));
+    assert.ok(!changed.includes('no_rapport_mirroring'));
+    assert.ok(!changed.includes('NEURODIVERGENT_SUPPORT'));
+
+    assert.ok(origin.includes('still resolves, for one release'));
+    assert.ok(v025.includes('still resolves to that GEM\'s copy for one release'));
+    assert.ok(!v026.includes('for one release'));
+    assert.ok(!changed.includes('for one release'));
+
+    assert.ok(origin.includes('Draft, revision 2026-10-12'));
+    assert.ok(project.includes('(Draft, revision 2026-10-12)'));
+    assert.ok(read('gem-library/SPEC.md').includes('**Revision:** 2026-10-12'));
+    assert.ok(v026.includes('spec `2026-10-12`'));
+    assert.ok(v025.includes('Draft revision 2026-10-11'));
+    assert.ok(!html.includes('revision 2026-10-11'));
+
+    const pkg = JSON.parse(read('package.json'));
+    const server = JSON.parse(read('server.json'));
+    assert.strictEqual(pkg.version, '0.2.6');
+    assert.strictEqual(server.version, '0.2.6');
+    assert.ok(project.includes('EMET 0.2.6'));
+    assert.ok(project.includes('The registry manifest for 0.2.6.'));
+    assert.ok(project.includes('0.2.6, then the earlier releases.'));
+
+    const claims = [
+      ['Delegated client sub-keys', 'Delegated client sub-keys (EMET-0001'],
+      ['emet_subkey_request', '`emet_subkey_request`'],
+      ['emet_subkey_claim', '`emet_subkey_claim`'],
+      ['emet_subkey_revoke', '`emet_subkey_revoke`'],
+      ['emet_subkey_end_session', '`emet_subkey_end_session`'],
+      ['Keys expire after 30 days', 'Keys expire after 30 days and can be reissued.'],
+      ['Approve and revoke stay on the owner', 'Approve and revoke stay on the owner\'s own login.'],
+      ['reports each GEM', 'reports each GEM\'s byte cost'],
+      ['off unless the first-run interview records yes', 'off unless the first-run interview records yes.'],
+      ['Yes is the recommended choice', 'Yes is the recommended choice.'],
+      ['does not copy prompts or settings itself', 'EMET does not copy prompts or settings itself.'],
+      ['Secret values are never stored', 'Secret values are never stored.'],
+      ['Lean Six Sigma 0.9.0', 'Lean Six Sigma 0.9.0'],
+      ['lean-six-sigma', '`EMET_ACTIVE_GEMS=lean-six-sigma`'],
+      ['&gt;=0.2.6', '`>=0.2.6`'],
+      ['MAJOR.MINOR.PATCH', '`MAJOR.MINOR.PATCH` with no suffix'],
+      ['gem_&lt;gem&gt;__&lt;rune&gt;', '`gem_<gem>__<rune>`'],
+      ['The server sandbox is removed', 'The server sandbox is removed.'],
+      ['boolean <code>true</code>', 'not the boolean `true`'],
+      ['<code>"true"</code>', 'the string `"true"`'],
+      ['<code>1</code>, and <code>null</code> fail', '`1`, and `null` fail'],
+      ['<code>verification/</code>', 'include `verification/`'],
+      ['src/host-reach.js', '`src/host-reach.js` imports the RUNE load gate'],
+      ['stated again', 'again states the client-executed RUNE carve-out'],
+      ['EMET verifies the record, not the computation', 'EMET verifies the record, not the computation.'],
+    ];
+    for (const [onSite, inChangelog] of claims) {
+      assert.ok(changed.includes(onSite), `site missing: ${onSite}`);
+      assert.ok(v026.includes(inChangelog), `0.2.6 changelog missing: ${inChangelog}`);
+    }
+    assert.ok(!v025.includes('emet_subkey_request'));
+    assert.ok(!v025.includes('Lean Six Sigma 0.9.0'));
+    assert.ok(!v025.includes('bot-team backup'));
+    assert.ok(!v025.includes('byte cost'));
   });
 
   test('styles wrap the tabs, keep panels visible without the js class, and do not animate them', () => {
