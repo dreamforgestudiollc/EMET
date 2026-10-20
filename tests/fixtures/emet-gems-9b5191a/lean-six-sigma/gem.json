@@ -1,0 +1,1296 @@
+{
+  "spec": "2026-10-12",
+  "id": "lean-six-sigma",
+  "name": "Lean Six Sigma",
+  "description": "DMAIC and DMADV guidance, blank templates, and formulas with worked examples for hand calculation. Capability calculator. DPMO and yield calculator. Control limit calculator. Sample size calculator. Basic statistics calculator. Off unless the user asks.",
+  "version": "1.0.0",
+  "released": false,
+  "kind": "runed-gem",
+  "requires": {
+    "emet": ">=0.3.0"
+  },
+  "priority": 40,
+  "defaultOn": false,
+  "overrides": [],
+  "distribution": "bundled",
+  "floor": "floor.json",
+  "guides": [
+    "guides/DMAIC.md",
+    "guides/DMADV.md",
+    "guides/LEAN.md",
+    "guides/TEMPLATES.md",
+    "guides/FORMULAS.md",
+    "guides/BELTS.md",
+    "guides/ASSUMPTIONS.md"
+  ],
+  "runes": [
+    {
+      "name": "lss_capability",
+      "title": "Capability indexes",
+      "description": "Compute Cp, Cpk, Pp, or Ppk from the mean, sigma, and specs on this call. Return assumption flags. A kept result is filed by the assistant as a sealed record only when the user asks to save it. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_capability. A call returns the code and does not run it. metadata.gem is lean-six-sigma@1.0.0.",
+      "execution": "client",
+      "artifact": "runes/lss_capability.js",
+      "sha256": "sha256:572c51f83006d798ce6e6b2c5752e74d78c07253683b87203bf09cf1493db9fb",
+      "version": "1.0.0",
+      "runtime": "javascript",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "index",
+          "sigmaKind"
+        ],
+        "properties": {
+          "index": {
+            "type": "string",
+            "enum": [
+              "cp",
+              "cpk",
+              "pp",
+              "ppk",
+              "cpu",
+              "cpl"
+            ]
+          },
+          "mean": {
+            "type": "number"
+          },
+          "sigma": {
+            "type": "number"
+          },
+          "sigmaKind": {
+            "type": "string",
+            "enum": [
+              "within",
+              "overall"
+            ]
+          },
+          "usl": {
+            "type": "number"
+          },
+          "lsl": {
+            "type": "number"
+          },
+          "rBar": {
+            "type": "number"
+          },
+          "d2": {
+            "type": "number"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "flags",
+          "missing",
+          "wrote"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "wrote": {
+            "const": false
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "sigmaUsed": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "reads": [],
+      "writes": [],
+      "network": "none"
+    },
+    {
+      "name": "lss_dpmo_sigma",
+      "title": "DPMO and yield",
+      "description": "Compute DPO, DPMO, and opportunity yield from defect counts. Do not invent a sigma level. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_dpmo_sigma. A call returns the code and does not run it. metadata.gem is lean-six-sigma@1.0.0.",
+      "execution": "client",
+      "artifact": "runes/lss_dpmo_sigma.js",
+      "sha256": "sha256:0daa1dd326deec76f95a7340d63bd2cafa2442b5725358618f5a1dd3b2481f73",
+      "version": "1.0.0",
+      "runtime": "javascript",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "defects",
+          "units",
+          "opportunitiesPerUnit"
+        ],
+        "properties": {
+          "defects": {
+            "type": "number"
+          },
+          "units": {
+            "type": "number"
+          },
+          "opportunitiesPerUnit": {
+            "type": "number"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "flags",
+          "missing",
+          "wrote"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "wrote": {
+            "const": false
+          },
+          "dpo": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "dpmo": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "opportunityYield": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "reads": [],
+      "writes": [],
+      "network": "none"
+    },
+    {
+      "name": "lss_control_limits",
+      "title": "Control limits",
+      "description": "Compute three-sigma control limits for xbar-r, i-mr, p, np, c, or u from the summaries on this call. Floor only the lower limits of R, moving range, p, np, c, and u. Leave an X-bar or individuals lower limit negative. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_control_limits. A call returns the code and does not run it. metadata.gem is lean-six-sigma@1.0.0.",
+      "execution": "client",
+      "artifact": "runes/lss_control_limits.js",
+      "sha256": "sha256:28367f8f0bf588ffabf3c7a7b7238e462fdabd0ef4a6bb8e3498bd092f3cf532",
+      "version": "1.0.0",
+      "runtime": "javascript",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "chart"
+        ],
+        "properties": {
+          "chart": {
+            "type": "string",
+            "enum": [
+              "xbar-r",
+              "i-mr",
+              "p",
+              "np",
+              "c",
+              "u"
+            ]
+          },
+          "n": {
+            "type": "number"
+          },
+          "xDoubleBar": {
+            "type": "number"
+          },
+          "rBar": {
+            "type": "number"
+          },
+          "a2": {
+            "type": "number"
+          },
+          "d3": {
+            "type": "number"
+          },
+          "d4": {
+            "type": "number"
+          },
+          "xBar": {
+            "type": "number"
+          },
+          "mrBar": {
+            "type": "number"
+          },
+          "pBar": {
+            "type": "number"
+          },
+          "cBar": {
+            "type": "number"
+          },
+          "uBar": {
+            "type": "number"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "flags",
+          "missing",
+          "wrote"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "wrote": {
+            "const": false
+          },
+          "center": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ucl": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lcl": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "centerR": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "uclR": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lclR": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "constantsUsed": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "reads": [],
+      "writes": [],
+      "network": "none"
+    },
+    {
+      "name": "lss_sample_size",
+      "title": "Sample size",
+      "description": "Compute a normal-approximation sample size for a mean or a proportion. This is a margin-of-error figure. The result says so. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_sample_size. A call returns the code and does not run it. metadata.gem is lean-six-sigma@1.0.0.",
+      "execution": "client",
+      "artifact": "runes/lss_sample_size.js",
+      "sha256": "sha256:5a099e639ea71121fe51ed3d08778e186760a27c773a4feac3eeb25dc6dcbfae",
+      "version": "1.0.0",
+      "runtime": "javascript",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "z",
+          "e"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "proportion",
+              "mean"
+            ]
+          },
+          "z": {
+            "type": "number"
+          },
+          "e": {
+            "type": "number"
+          },
+          "p": {
+            "type": "number"
+          },
+          "sigma": {
+            "type": "number"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "flags",
+          "missing",
+          "wrote"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "wrote": {
+            "const": false
+          },
+          "n": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "marginOfError": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "reads": [],
+      "writes": [],
+      "network": "none"
+    },
+    {
+      "name": "lss_hypothesis",
+      "title": "Basic statistics",
+      "description": "Compute one-sample t, chi-square goodness of fit, one-way ANOVA, simple regression, or a confidence interval from the caller's numbers. Return flags. Do not return a p-value. This RUNE does not write. The socket registers this RUNE as gem_lean-six-sigma__lss_hypothesis. A call returns the code and does not run it. metadata.gem is lean-six-sigma@1.0.0.",
+      "execution": "client",
+      "artifact": "runes/lss_hypothesis.js",
+      "sha256": "sha256:4edd30e5e33227057c4cf502d43a1bc18de844d813c1ab929b4b7c4dd3ff5ef9",
+      "version": "1.0.0",
+      "runtime": "javascript",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "test"
+        ],
+        "properties": {
+          "test": {
+            "type": "string",
+            "enum": [
+              "one-sample-t",
+              "chi-square-gof",
+              "anova-oneway",
+              "simple-regression",
+              "z-interval",
+              "t-interval"
+            ]
+          },
+          "xBar": {
+            "type": "number"
+          },
+          "mu0": {
+            "type": "number"
+          },
+          "s": {
+            "type": "number"
+          },
+          "sigma": {
+            "type": "number"
+          },
+          "n": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "tCrit": {
+            "type": "number"
+          },
+          "observed": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "expected": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "parametersEstimated": {
+            "type": "number"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "x": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "y": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ok",
+          "flags",
+          "missing",
+          "wrote"
+        ],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "wrote": {
+            "const": false
+          },
+          "t": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "df": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "exceedsCritical": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "chiSquare": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "grandMean": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "groupMeans": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            }
+          },
+          "ssb": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ssw": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "msb": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "msw": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "f": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "dfBetween": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "dfWithin": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "slope": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "intercept": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "r2": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "low": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "high": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "reads": [],
+      "writes": [],
+      "network": "none"
+    }
+  ],
+  "changelog": "CHANGELOG.md",
+  "update": {
+    "class": "initial",
+    "previous": null,
+    "summary": "Initial release 1.0.0, a runed-gem of class initial. DMAIC guidance, blank templates, hand formulas, and five pure-function calculators that return numbers and do not write a record.",
+    "retireGem": false
+  },
+  "knowledge": {
+    "reviewBy": "2027-10-11",
+    "sources": [
+      {
+        "title": "NIST/SEMATECH e-Handbook 6.1.6 Process capability indices",
+        "date": "2026-10-11",
+        "note": "Capability index algebra for Cp, Cpu, Cpl, Cpk, and the overall-sigma forms Pp and Ppk. Normal model is named when the handbook meaning is used. https://www.itl.nist.gov/div898/handbook/pmc/section1/pmc16.htm"
+      },
+      {
+        "title": "NIST/SEMATECH e-Handbook 6.3.2.1 Shewhart X-bar and R charts",
+        "date": "2026-10-11",
+        "note": "Live check 2026-10-11. Control chart factors for n = 2 through 10. For n = 5 the page prints A2 = 0.577, D3 = 0, D4 = 2.115. https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc321.htm"
+      },
+      {
+        "title": "NIST/SEMATECH e-Handbook 6.3.2.2 Individuals and moving range",
+        "date": "2026-10-11",
+        "note": "Individuals limits use 3 * MR-bar / d2 with d2 = 1.128 for span 2. Moving-range D4 is the n = 2 factor 3.267. https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc322.htm"
+      },
+      {
+        "title": "NIST/SEMATECH e-Handbook 6.3.3.1 c and u charts",
+        "date": "2026-10-11",
+        "note": "Poisson count charts. The handbook c chart example is c-bar = 16, upper limit 28, lower limit 4. https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc331.htm"
+      },
+      {
+        "title": "NIST/SEMATECH e-Handbook 6.3.3.2 p and np charts",
+        "date": "2026-10-11",
+        "note": "Binomial charts. Variance is n * p * (1 - p) for the count and p * (1 - p) / n for the proportion. https://www.itl.nist.gov/div898/handbook/pmc/section3/pmc332.htm"
+      },
+      {
+        "title": "ASQ Certified Six Sigma Black Belt body of knowledge",
+        "date": "2026-10-11",
+        "note": "DMAIC, DFSS, Lean tools, and the measurement and analysis topics this GEM coaches. Yellow and Green notes are this GEM's coaching scope and are reviewed against ASQ by 2027-10-11. This package does not certify. https://www.asq.org/cert/six-sigma-black-belt"
+      }
+    ]
+  },
+  "coverage": [
+    {
+      "id": "phase-1-scope",
+      "claim": "DMAIC and DMADV guidance, blank templates, and formulas with worked examples for hand calculation.",
+      "delivers": "guides/DMAIC.md#DMAIC"
+    },
+    {
+      "id": "dmaic-define",
+      "claim": "Define phase steps",
+      "delivers": "guides/DMAIC.md#Define"
+    },
+    {
+      "id": "dmaic-measure",
+      "claim": "Measure phase steps",
+      "delivers": "guides/DMAIC.md#Measure"
+    },
+    {
+      "id": "dmaic-analyze",
+      "claim": "Analyze phase steps",
+      "delivers": "guides/DMAIC.md#Analyze"
+    },
+    {
+      "id": "dmaic-improve",
+      "claim": "Improve phase steps",
+      "delivers": "guides/DMAIC.md#Improve"
+    },
+    {
+      "id": "dmaic-control",
+      "claim": "Control phase steps",
+      "delivers": "guides/DMAIC.md#Control"
+    },
+    {
+      "id": "tollgate-define",
+      "claim": "Define tollgate",
+      "delivers": "guides/DMAIC.md#Define tollgate"
+    },
+    {
+      "id": "tollgate-measure",
+      "claim": "Measure tollgate",
+      "delivers": "guides/DMAIC.md#Measure tollgate"
+    },
+    {
+      "id": "tollgate-analyze",
+      "claim": "Analyze tollgate",
+      "delivers": "guides/DMAIC.md#Analyze tollgate"
+    },
+    {
+      "id": "tollgate-improve",
+      "claim": "Improve tollgate",
+      "delivers": "guides/DMAIC.md#Improve tollgate"
+    },
+    {
+      "id": "tollgate-control",
+      "claim": "Control tollgate",
+      "delivers": "guides/DMAIC.md#Control tollgate"
+    },
+    {
+      "id": "dmadv-note",
+      "claim": "DMADV and DFSS note for a new design",
+      "delivers": "guides/DMADV.md#DMADV"
+    },
+    {
+      "id": "tollgate-dmadv-define",
+      "claim": "DMADV Define tollgate",
+      "delivers": "guides/DMADV.md#Define"
+    },
+    {
+      "id": "tollgate-dmadv-measure",
+      "claim": "DMADV Measure tollgate",
+      "delivers": "guides/DMADV.md#Measure"
+    },
+    {
+      "id": "tollgate-dmadv-analyze",
+      "claim": "DMADV Analyze tollgate",
+      "delivers": "guides/DMADV.md#Analyze"
+    },
+    {
+      "id": "tollgate-dmadv-design",
+      "claim": "DMADV Design tollgate",
+      "delivers": "guides/DMADV.md#Design"
+    },
+    {
+      "id": "tollgate-dmadv-verify",
+      "claim": "DMADV Verify tollgate",
+      "delivers": "guides/DMADV.md#Verify"
+    },
+    {
+      "id": "tool-waste",
+      "claim": "Wastes walk",
+      "delivers": "guides/LEAN.md#Wastes"
+    },
+    {
+      "id": "tool-5s",
+      "claim": "5S",
+      "delivers": "guides/LEAN.md#5S"
+    },
+    {
+      "id": "tool-vsm",
+      "claim": "Value stream map",
+      "delivers": "guides/LEAN.md#Value stream map"
+    },
+    {
+      "id": "tool-flow",
+      "claim": "Flow",
+      "delivers": "guides/LEAN.md#Flow"
+    },
+    {
+      "id": "tool-pull",
+      "claim": "Pull",
+      "delivers": "guides/LEAN.md#Pull"
+    },
+    {
+      "id": "tool-kaizen",
+      "claim": "Kaizen",
+      "delivers": "guides/LEAN.md#Kaizen"
+    },
+    {
+      "id": "tool-smed",
+      "claim": "SMED",
+      "delivers": "guides/LEAN.md#SMED"
+    },
+    {
+      "id": "tool-poka-yoke",
+      "claim": "Poka-yoke",
+      "delivers": "guides/LEAN.md#Poka-yoke"
+    },
+    {
+      "id": "template-charter",
+      "claim": "Project charter template",
+      "delivers": "guides/TEMPLATES.md#Project charter"
+    },
+    {
+      "id": "template-sipoc",
+      "claim": "SIPOC template",
+      "delivers": "guides/TEMPLATES.md#SIPOC"
+    },
+    {
+      "id": "template-voc-ctq",
+      "claim": "VOC and CTQ tree template",
+      "delivers": "guides/TEMPLATES.md#VOC and CTQ tree"
+    },
+    {
+      "id": "template-data-plan",
+      "claim": "Data collection plan template",
+      "delivers": "guides/TEMPLATES.md#Data collection plan"
+    },
+    {
+      "id": "template-msa",
+      "claim": "MSA and Gage R&R plan template",
+      "delivers": "guides/TEMPLATES.md#MSA and Gage R&R plan"
+    },
+    {
+      "id": "template-fishbone",
+      "claim": "Fishbone template",
+      "delivers": "guides/TEMPLATES.md#Fishbone"
+    },
+    {
+      "id": "template-five-whys",
+      "claim": "Five Whys template",
+      "delivers": "guides/TEMPLATES.md#Five Whys"
+    },
+    {
+      "id": "template-fmea",
+      "claim": "FMEA template",
+      "delivers": "guides/TEMPLATES.md#FMEA"
+    },
+    {
+      "id": "template-hypothesis-selection",
+      "claim": "Hypothesis test selection guide",
+      "delivers": "guides/TEMPLATES.md#Hypothesis test selection"
+    },
+    {
+      "id": "template-doe",
+      "claim": "DOE planning template",
+      "delivers": "guides/TEMPLATES.md#DOE planning"
+    },
+    {
+      "id": "template-control-plan",
+      "claim": "Control plan template",
+      "delivers": "guides/TEMPLATES.md#Control plan"
+    },
+    {
+      "id": "template-response-plan",
+      "claim": "Response plan template",
+      "delivers": "guides/TEMPLATES.md#Response plan"
+    },
+    {
+      "id": "template-a3",
+      "claim": "A3 template",
+      "delivers": "guides/TEMPLATES.md#A3"
+    },
+    {
+      "id": "template-tollgates",
+      "claim": "Tollgate checklists",
+      "delivers": "guides/TEMPLATES.md#Tollgate checklists"
+    },
+    {
+      "id": "template-benefits",
+      "claim": "Financial benefits worksheet",
+      "delivers": "guides/TEMPLATES.md#Financial benefits worksheet"
+    },
+    {
+      "id": "formula-dpmo",
+      "claim": "DPMO and DPO worked example",
+      "delivers": "guides/FORMULAS.md#DPMO"
+    },
+    {
+      "id": "formula-opportunity-yield",
+      "claim": "Opportunity yield worked example",
+      "delivers": "guides/FORMULAS.md#Opportunity yield"
+    },
+    {
+      "id": "formula-fpy",
+      "claim": "First pass yield worked example",
+      "delivers": "guides/FORMULAS.md#First pass yield"
+    },
+    {
+      "id": "formula-rty",
+      "claim": "Rolled throughput yield worked example",
+      "delivers": "guides/FORMULAS.md#Rolled throughput yield"
+    },
+    {
+      "id": "formula-sigma-level",
+      "claim": "Sigma level convention and the hand DPMO path",
+      "delivers": "guides/FORMULAS.md#Sigma level"
+    },
+    {
+      "id": "formula-cp",
+      "claim": "Cp worked example",
+      "delivers": "guides/FORMULAS.md#Cp"
+    },
+    {
+      "id": "formula-cpu",
+      "claim": "Cpu worked example",
+      "delivers": "guides/FORMULAS.md#Cpu"
+    },
+    {
+      "id": "formula-cpl",
+      "claim": "Cpl worked example",
+      "delivers": "guides/FORMULAS.md#Cpl"
+    },
+    {
+      "id": "formula-cpk",
+      "claim": "Cpk worked example",
+      "delivers": "guides/FORMULAS.md#Cpk"
+    },
+    {
+      "id": "formula-pp",
+      "claim": "Pp worked example",
+      "delivers": "guides/FORMULAS.md#Pp"
+    },
+    {
+      "id": "formula-ppk",
+      "claim": "Ppk worked example",
+      "delivers": "guides/FORMULAS.md#Ppk"
+    },
+    {
+      "id": "formula-sigma-range",
+      "claim": "Sigma from average range worked example",
+      "delivers": "guides/FORMULAS.md#Sigma from range"
+    },
+    {
+      "id": "formula-xbar-r",
+      "claim": "X-bar and R limits worked example",
+      "delivers": "guides/FORMULAS.md#X-bar and R"
+    },
+    {
+      "id": "formula-imr",
+      "claim": "Individuals and moving range limits worked example",
+      "delivers": "guides/FORMULAS.md#Individuals and moving range"
+    },
+    {
+      "id": "formula-p",
+      "claim": "p chart limits worked example",
+      "delivers": "guides/FORMULAS.md#p chart"
+    },
+    {
+      "id": "formula-np",
+      "claim": "np chart limits worked example",
+      "delivers": "guides/FORMULAS.md#np chart"
+    },
+    {
+      "id": "formula-c",
+      "claim": "c chart limits worked example",
+      "delivers": "guides/FORMULAS.md#c chart"
+    },
+    {
+      "id": "formula-u",
+      "claim": "u chart limits worked example",
+      "delivers": "guides/FORMULAS.md#u chart"
+    },
+    {
+      "id": "formula-n-proportion",
+      "claim": "Sample size for a proportion worked example",
+      "delivers": "guides/FORMULAS.md#Sample size for a proportion"
+    },
+    {
+      "id": "formula-n-mean",
+      "claim": "Sample size for a mean worked example",
+      "delivers": "guides/FORMULAS.md#Sample size for a mean"
+    },
+    {
+      "id": "formula-ci-z",
+      "claim": "Known-sigma confidence interval worked example",
+      "delivers": "guides/FORMULAS.md#Known-sigma confidence interval"
+    },
+    {
+      "id": "formula-ci-t",
+      "claim": "Confidence interval with a caller-supplied t worked example",
+      "delivers": "guides/FORMULAS.md#Confidence interval with t"
+    },
+    {
+      "id": "formula-t",
+      "claim": "One-sample t statistic worked example",
+      "delivers": "guides/FORMULAS.md#One-sample t"
+    },
+    {
+      "id": "formula-chi",
+      "claim": "Chi-square goodness of fit worked example",
+      "delivers": "guides/FORMULAS.md#Chi-square goodness of fit"
+    },
+    {
+      "id": "formula-anova",
+      "claim": "One-way ANOVA worked example",
+      "delivers": "guides/FORMULAS.md#One-way ANOVA"
+    },
+    {
+      "id": "formula-regression",
+      "claim": "Simple linear regression worked example",
+      "delivers": "guides/FORMULAS.md#Simple linear regression"
+    },
+    {
+      "id": "formula-takt",
+      "claim": "Takt time worked example",
+      "delivers": "guides/FORMULAS.md#Takt time"
+    },
+    {
+      "id": "formula-oee",
+      "claim": "OEE worked example",
+      "delivers": "guides/FORMULAS.md#OEE"
+    },
+    {
+      "id": "formula-littles",
+      "claim": "Little's Law worked example",
+      "delivers": "guides/FORMULAS.md#Little's Law"
+    },
+    {
+      "id": "formula-rpn",
+      "claim": "FMEA RPN worked example",
+      "delivers": "guides/FORMULAS.md#RPN"
+    },
+    {
+      "id": "belt-yellow",
+      "claim": "Yellow Belt scope",
+      "delivers": "guides/BELTS.md#Yellow Belt"
+    },
+    {
+      "id": "belt-green",
+      "claim": "Green Belt scope",
+      "delivers": "guides/BELTS.md#Green Belt"
+    },
+    {
+      "id": "belt-black",
+      "claim": "Black Belt scope",
+      "delivers": "guides/BELTS.md#Black Belt"
+    },
+    {
+      "id": "belt-coaching",
+      "claim": "Coaching questions",
+      "delivers": "guides/BELTS.md#Coaching"
+    },
+    {
+      "id": "assumptions",
+      "claim": "Statistical assumption flags",
+      "delivers": "guides/ASSUMPTIONS.md#Assumption flags"
+    },
+    {
+      "id": "rule-one-phase",
+      "claim": "Work one DMAIC phase at a time",
+      "delivers": "floor.json#project_path.one_phase"
+    },
+    {
+      "id": "rule-tollgate",
+      "claim": "Keep an unanswered tollgate item open",
+      "delivers": "floor.json#project_path.tollgate"
+    },
+    {
+      "id": "rule-ask",
+      "claim": "Ask for data and leave a blank field blank",
+      "delivers": "floor.json#project_path.ask"
+    },
+    {
+      "id": "rule-no-invented",
+      "claim": "Report a number the user supplied and leave every other numeric claim unstated",
+      "delivers": "floor.json#project_path.no_invented_number"
+    },
+    {
+      "id": "rule-assumptions",
+      "claim": "Name statistical assumptions that were not checked",
+      "delivers": "floor.json#project_path.assumptions"
+    },
+    {
+      "id": "rule-belt",
+      "claim": "Ask the belt for this project and do not certify one",
+      "delivers": "floor.json#project_path.belt"
+    },
+    {
+      "id": "rule-design",
+      "claim": "Open the DMADV note when the work is a new design",
+      "delivers": "floor.json#project_path.design_path"
+    },
+    {
+      "id": "rule-stays",
+      "claim": "Keep project data in this install",
+      "delivers": "floor.json#project_record.stays_here"
+    },
+    {
+      "id": "rule-save",
+      "claim": "Write a project document only when the user asks to save it",
+      "delivers": "floor.json#project_record.save_on_request"
+    },
+    {
+      "id": "rule-memory",
+      "claim": "Leave the memory layers unread and unwritten for this project",
+      "delivers": "floor.json#project_record.no_other_memory"
+    },
+    {
+      "id": "calc-capability",
+      "claim": "Capability calculator",
+      "delivers": "rune:lss_capability"
+    },
+    {
+      "id": "calc-dpmo",
+      "claim": "DPMO and yield calculator",
+      "delivers": "rune:lss_dpmo_sigma"
+    },
+    {
+      "id": "calc-limits",
+      "claim": "Control limit calculator",
+      "delivers": "rune:lss_control_limits"
+    },
+    {
+      "id": "calc-sample-size",
+      "claim": "Sample size calculator",
+      "delivers": "rune:lss_sample_size"
+    },
+    {
+      "id": "calc-hypothesis",
+      "claim": "Basic statistics calculator",
+      "delivers": "rune:lss_hypothesis"
+    }
+  ],
+  "files": [
+    {
+      "path": "floor.json",
+      "digest": "sha256:96876e28d56baa68fc7264aba469993460fe44a7cd24d655fbbefa7b15b1c892",
+      "size": 1790
+    },
+    {
+      "path": "guides/DMAIC.md",
+      "digest": "sha256:1c2b8df825fafad3692a86e5eae36cef55f57297090cc3612cb2cd59a12446ed",
+      "size": 9095
+    },
+    {
+      "path": "guides/DMADV.md",
+      "digest": "sha256:d6f1aa0b11ff34ef2a57f9b105d583ca59a8fda115865dc827b055303e7c2255",
+      "size": 3470
+    },
+    {
+      "path": "guides/LEAN.md",
+      "digest": "sha256:b5a09fb6dcd359eef210d2575f1c723f0cb430dac5dc2a79131a3eeb3062a8e2",
+      "size": 5522
+    },
+    {
+      "path": "guides/TEMPLATES.md",
+      "digest": "sha256:da448b88e9a83e090b7d2a3d52a91e013503e982c40adf7f3de168a327d72524",
+      "size": 12765
+    },
+    {
+      "path": "guides/FORMULAS.md",
+      "digest": "sha256:5f0f90ffad8a5b71f31ffccf796b426c98ce8a8e2689d5900180624d0cc5ce62",
+      "size": 18928
+    },
+    {
+      "path": "guides/BELTS.md",
+      "digest": "sha256:e9e591af0e2d89a27cddf73da48e4f4acacd1785e22473d42dd3b56366d008d0",
+      "size": 3018
+    },
+    {
+      "path": "guides/ASSUMPTIONS.md",
+      "digest": "sha256:9c6b66043accb697de7885c8ecd849d610f79232a0abe39b3b4d10265ea159ba",
+      "size": 3239
+    },
+    {
+      "path": "CHANGELOG.md",
+      "digest": "sha256:be3ef57ad5c695cbb4dd4ffd9f2c1ad7b8e5871ee66f157ff3cf66048a605cfe",
+      "size": 643
+    },
+    {
+      "path": "README.md",
+      "digest": "sha256:543b2192437cd90f85c2722bf84aed750b15b125f16655c9427d9331829eeb4c",
+      "size": 2783
+    },
+    {
+      "path": "runes/lss_capability.js",
+      "digest": "sha256:572c51f83006d798ce6e6b2c5752e74d78c07253683b87203bf09cf1493db9fb",
+      "size": 3784
+    },
+    {
+      "path": "runes/lss_control_limits.js",
+      "digest": "sha256:28367f8f0bf588ffabf3c7a7b7238e462fdabd0ef4a6bb8e3498bd092f3cf532",
+      "size": 6878
+    },
+    {
+      "path": "runes/lss_dpmo_sigma.js",
+      "digest": "sha256:0daa1dd326deec76f95a7340d63bd2cafa2442b5725358618f5a1dd3b2481f73",
+      "size": 2131
+    },
+    {
+      "path": "runes/lss_hypothesis.js",
+      "digest": "sha256:4edd30e5e33227057c4cf502d43a1bc18de844d813c1ab929b4b7c4dd3ff5ef9",
+      "size": 8618
+    },
+    {
+      "path": "runes/lss_sample_size.js",
+      "digest": "sha256:5a099e639ea71121fe51ed3d08778e186760a27c773a4feac3eeb25dc6dcbfae",
+      "size": 2101
+    }
+  ],
+  "authors": [
+    "Dreamforge Studio LLC"
+  ],
+  "license": "MIT"
+}

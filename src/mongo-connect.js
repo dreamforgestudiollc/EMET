@@ -1,7 +1,7 @@
 /**
  * EMET - the one way to open a MongoDB connection (2026-09-29).
  *
- * Some local resolvers (home routers, VPN DNS) refuse
+ * Some local resolvers (home routers, VPN DNS - STUDIO's among them) refuse
  * the SRV queries a mongodb+srv:// URI needs, and the driver fails with
  * "querySrv ECONNREFUSED". Until today the public-DNS fallback lived only in
  * EmetDatabase.ensureClient; nine other connections in src/ and
@@ -31,8 +31,51 @@ export function isSrvRefusal(error) {
  * with no database. Never set outside tests; null means the real driver.
  */
 let testClient = null;
-export function useTestClient(Client) { testClient = Client || null; }
+let sharedClient = null;
+let sharedToken = null;
+let sharedConnect = null;
+
+/** The server's Mongo client, reused by stores that would otherwise connect per call. */
+export function bindSharedClient(client) {
+  if (!client) return;
+  sharedClient = client;
+  sharedToken = testClient || 'live';
+}
+
+function resetSharedClient() {
+  sharedClient = null;
+  sharedToken = null;
+  sharedConnect = null;
+}
+
+export function useTestClient(Client) {
+  testClient = Client || null;
+  resetSharedClient();
+}
 export function testClientActive() { return testClient != null; }
+
+/**
+ * One client for this process (or for the installed test client). A second
+ * call does not open another connection.
+ */
+export async function acquireSharedClient(uri, options = {}) {
+  const token = testClient || 'live';
+  if (sharedClient && sharedToken === token) return sharedClient;
+  if (!sharedConnect) {
+    let resolve;
+    let reject;
+    // Assign before connectMongo yields, so a second caller waits on this promise.
+    sharedConnect = new Promise((res, rej) => { resolve = res; reject = rej; });
+    connectMongo(uri, options).then((client) => {
+      if ((testClient || 'live') === token && sharedConnect) {
+        sharedClient = client;
+        sharedToken = token;
+      }
+      resolve(client);
+    }, reject).finally(() => { sharedConnect = null; });
+  }
+  return sharedConnect;
+}
 
 /** Connect and return the client. `onFallback(message)` is told when the retry happens. */
 export async function connectMongo(uri, options = {}, { onFallback = null, _Client = testClient || MongoClient, _dns = dns } = {}) {

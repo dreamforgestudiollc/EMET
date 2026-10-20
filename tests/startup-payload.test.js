@@ -1,7 +1,7 @@
 /**
  * The startup payload: its size, the one dedupe, and the abridged builder
- * (the host-aware startup design; conservative variant chosen by the owner
- * 2026-10-02).
+ * (ref 358 amendment, host-aware startup; conservative variant, Alex 2026-10-02,
+ * procedural ref 405 item 8 and #407; 2026-10-03 overnight build).
  *
  *   M   measures the full ready payload on a fixture sized like the live store
  *       (document sizes from the 2026-10-02 list_docs read: IDENTITY 1,018,
@@ -32,7 +32,7 @@ process.env.MONGODB_URI = 'mongodb://in-memory.test/emet';
 for (const k of ['EMET_SOURCE_TAG', 'EMET_SOURCE_TAGS', 'EMET_TEMPLATE_MAP', 'EMET_GAP_BASELINE', 'EMET_RECORD_DOCS', 'CASCADE_RECORD_DOCS', 'EMET_CHARACTER_DOC', 'EMET_INSTALL_DOC'])
   delete process.env[k];
 
-console.log('\n=== startup-payload (host-aware startup: size, dedupe, abridged builder) ===');
+console.log('\n=== startup-payload (ref 358 amendment: size, dedupe, abridged builder) ===');
 
 const { initialize, setupComplete } = await import('../src/setup.js');
 const { LAYER_CHARTER } = await import('../src/layers.js');
@@ -186,7 +186,7 @@ testGroup('A: the abridged form', () => {
 testGroup('S: the server decides the mode, and today every load is full', () => {
   test('emet_initialize takes recent_limit and the paging arguments only (no host-chosen abridging)', () => {
     const def = TOOLS.find((t) => t.name === 'emet_initialize');
-    // 2026-10-12 (re-review): `source` lets a caller learn its own tag and approval state; it does not abridge.
+    // 2026-10-12 (the reviewer re-review): `source` lets a caller learn its own tag and approval state; it does not abridge.
     assert.deepStrictEqual(Object.keys(def.inputSchema.properties), ['recent_limit', 'page', 'load_id', 'source']);
   });
   // Every page of a load, fetched the way a host does: page 1, then each `next`.
@@ -211,7 +211,7 @@ testGroup('S: the server decides the mode, and today every load is full', () => 
       await assert.rejects(() => withStore(store, () => initialize({ page })), (e) => /whole number from 1/.test(e.message) && /"all"/.test(e.message), J(page));
     }
   });
-  // The reviewer's check of the first draft: an env switch read inside initialize(), or an
+  // the reviewer's check of commit-a64cf4c: an env switch read inside initialize(), or an
   // argument read in dispatch's emet_initialize handler, passed every test
   // above. The two tests below close both routes.
   const LOOKALIKE_ARGS = [{}, { mode: 'abridged' }, { abridged: true }, { abridge: true }, { full: false }, { startup_mode: 'abridged' }];
@@ -238,14 +238,14 @@ testGroup('S: the server decides the mode, and today every load is full', () => 
   // file to it is a design change that needs the owner's approval (the server
   // decides the mode, never a host, env switch or flag).
   const SRC = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src');
-  // Paging (2026-10-03, the owner approved) adds one startup path: setup.js pages
+  // Paging (2026-10-03, Alex approved) adds one startup path: setup.js pages
   // the FULL payload through startup-pages.js, which measures pages with
   // resultSize. Neither names the abridged builder; nothing else imports them.
   const ALLOWED = {
     abridge: ['startup-payload.js'],
     modules: {
       'startup-payload.js': { 'setup.js': ['payloadForLayerCharter'], 'startup-pages.js': ['resultSize'] },
-      // Page completion (2026-10-03, the owner approved the check): setup.js notes
+      // Page completion (2026-10-03, Alex approved the check): setup.js notes
       // each page served; tools.js reads which were missed at session open.
       // tools.js also notes an open with pages missing, so a page fetched
       // later is recorded late (2026-10-03). setup.js wraps a startup served

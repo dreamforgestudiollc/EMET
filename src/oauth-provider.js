@@ -83,7 +83,7 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function timingSafeEqualStr(a, b) {
+export function timingSafeEqualStr(a, b) {
   const ab = Buffer.from(String(a));
   const bb = Buffer.from(String(b));
   if (ab.length !== bb.length) {

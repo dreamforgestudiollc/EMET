@@ -151,17 +151,17 @@ testGroup('a write with no source', () => {
   });
   for (const n of [20, 50]) {
     test(`${n} registered tags: missing, unregistered and a 420-character tag all lead with the pass instruction and do not list the registry`, async () => {
-      process.env.EMET_SOURCE_TAGS = Array.from({ length: n }, (_, i) => `member-bot${String(i).padStart(2, '0')}`).join(',');
+      process.env.EMET_SOURCE_TAGS = Array.from({ length: n }, (_, i) => `hub-member${String(i).padStart(2, '0')}`).join(',');
       try {
         const w = () => world({ session: { opened: true }, exchanges: 1 });
         let m = refusalOf(await send(w(), 'emet_transcript_append', { session_id: SID, user_message: 'u', assistant_message: 'a' }));
         assert.ok(m.startsWith("Validation failed for 'source': emet_transcript_append: pass \"source\""), m);
         has(m, 'nothing was written');
-        assert.ok(!m.includes('member-bot') && !m.includes('cloud-scheduled'), m);
+        assert.ok(!m.includes('hub-member') && !m.includes('cloud-scheduled'), m);
         m = refusalOf(await send(w(), 'emet_transcript_append', { session_id: SID, ...msg, source: 'stranger' }));
         assert.ok(m.startsWith("Validation failed for 'source': emet_transcript_append: pass \"source\" set to a registered tag"), m);
         has(m, 'Source tag "stranger" is not registered, so nothing was written.');
-        assert.ok(!m.includes('member-bot'), m);
+        assert.ok(!m.includes('hub-member'), m);
         m = refusalOf(await send(w(), 'emet_transcript_append', { session_id: SID, ...msg, source: 's'.repeat(420) }));
         has(m, 'pass "source" set to a registered tag', `Source tag "${'s'.repeat(64)}\u2026" is not registered, so nothing was written.`);
         assert.ok(m.length <= 500, m.length);

@@ -1,7 +1,7 @@
 {
   "name": "emet",
-  "version": "0.2.5",
-  "description": "EMET is an MCP memory server built for document control (ISO 9001 7.5.3 / ISO 13485 4.2.5): persistent, shared memory for AI agents and bot teams. It holds no certification and claims no conformity. Nothing is deleted; records are superseded, retired and retained. Per-client attribution on every write and a GEM socket for add-on modules. Connects to your own self-hosted EMET server over remote HTTP with OAuth.",
+  "version": "0.2.6",
+  "description": "EMET 0.2.6 is an MCP memory server built for document control (ISO 9001 7.5.3 / ISO 13485 4.2.5): persistent, shared memory for AI agents and bot teams. It holds no certification and claims no conformity. Nothing is deleted; records are superseded, retired and retained. Per-client attribution and approvals on every write. Client-side GEM execution: EMET verifies the record, not the computation. A GEM is seated only when its released flag is true. Connects to your own self-hosted EMET server over remote HTTP with OAuth.",
   "author": { "name": "DreamForge Studio LLC" },
   "homepage": "https://dreamforgestudiollc.github.io/EMET/",
   "repository": "https://github.com/dreamforgestudiollc/EMET",

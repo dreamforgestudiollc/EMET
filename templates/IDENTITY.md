@@ -1,6 +1,6 @@
 # TEMPLATE — IDENTITY
 
-**Template control:** id `templates/IDENTITY.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-26 · a decision record · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
+**Template control:** id `templates/IDENTITY.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-26 · procedural ref 361 · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
 **Fills:** `bootstrap/IDENTITY.md` — who the assistant is. Written at the first-run interview from the user's answers. The user's name for the assistant is the SHEM; this document holds it.
 **Failure it prevents:** a first-run store with no standing form for identity, so each install invents a different shape and the next session cannot find the name or the verification phrase (held on the register 2026-09-11: bootstrap structure "not yet designed"; user 2026-09-26: the structure ships, the personal data does not).
 **Completion rules:** `templates/STANDARD.md` §5, unmodified.

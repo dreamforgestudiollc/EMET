@@ -2,7 +2,7 @@
  * Security audit (2026-09-29): what may the server's own database login do?
  * Prints the authenticated user's roles and the distinct actions it holds per
  * resource - never the URI, the user name's password, or any document.
- * Run from the repo root:
+ * Run from C:\\the client\\EMET\\repo:
  *   railway run --service <service> node scripts/db-privileges.mjs
  */
 import '../src/env.js';

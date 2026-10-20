@@ -21,7 +21,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { resolveModulePath } from './module-path.js';
-import { setting } from './env.js';
+import { setting, parseEnvAssignments, platformEnv, realEnvIsConfigSource } from './env.js';
 import { approvedTags, cachedApprovals, approvalsView, rememberedView } from './attribution.js';
 import { declaredAttribution, rawActor } from './persons.js';
 import { MONGODB_URI, MONGODB_DB, COLLECTION_PREFIX, DatabaseError, EmetDatabase } from './database.js';
@@ -42,6 +42,7 @@ function callerHoldsWriteScope() {
   return scopes.includes('emet.write') || scopes.includes('emet') || scopes.includes('*');
 }
 import { gapCounts } from './gaps.js';
+import { registerSecretsFromEnv } from './redact.js';
 import { payloadForLayerCharter } from './startup-payload.js';
 import { namedItemsFrom } from './named-items.js';
 import { paginate, cacheLoad, cachedLoad, loadIdOf, restartPage, notePageServed, wholeStartup } from './startup-pages.js';
@@ -49,6 +50,7 @@ import { paginate, cacheLoad, cachedLoad, loadIdOf, restartPage, notePageServed,
 const DOCS_COLLECTION = 'documents';
 const CHARTER_DOC = 'CHARTER.md';
 const CHARTER_FILE = resolveModulePath(import.meta.url, ['..', 'CHARTER.md']);
+export const ENV_FILE = resolveModulePath(import.meta.url, ['..', '.env']);
 const IDENTITY_DOC = 'bootstrap/IDENTITY.md';
 const USER_DOC = 'bootstrap/USER.md';
 
@@ -169,7 +171,7 @@ async function resolveCharacterDoc(docs, override) {
  * names in both places. Rule stated once, in the architecture charter; this is
  * the code half of it.
  *
- * PARKED ITEMS ARE NAMED TOO (2026-09-23, a decision record). This list used to
+ * PARKED ITEMS ARE NAMED TOO (2026-09-23, procedural ref 355). This list used to
  * end with "leave out items the user has parked" - which is the same failure
  * one step removed: for a neurodivergent user, what they deliberately set aside
  * drops out of mind exactly as fast as what they forgot. The user, verbatim:
@@ -247,7 +249,7 @@ export function registeredSourceTags() {
   return env.length ? [...new Set([...env, ...approvedTags()])] : env;
 }
 
-/** Attribution v2: the caller's real tag, not the server-wide default (the owner 2026-10-12 (c)). */
+/** Attribution v2: the caller's real tag, not the server-wide default (Alex 2026-10-12 (c)). */
 export function callerAttribution() {
   const d = declaredAttribution();
   if (!d) return { source_tag: setting('SOURCE_TAG') || null };
@@ -323,7 +325,7 @@ export function summarizeSeed(doc_id, text, today = new Date().toISOString().sli
 }
 
 /**
- * One line per seed for the initialize payload (the owner, 2026-09-27, code audit
+ * One line per seed for the initialize payload (Alex, 2026-09-27, code audit
  * 2.3: "seeds can be one line since follow-up inquiry by the user will expand
  * it"). Before this every trigger's full test text was served - 13K characters
  * for 21 seeds with none due. The line keeps what a startup scan needs: the
@@ -391,7 +393,9 @@ export function gemStartupLine(available) {
     const name = gem && typeof gem.name === 'string' && gem.name ? gem.name : id;
     const flag = gem && gem.active === true ? 'on' : 'off';
     const why = gem && gem.loadable === false && typeof gem.reason === 'string' ? ` ${gem.reason}` : '';
-    return `${id}, ${name}, ${flag}${why}`;
+    const runes = gem && gem.active === true && Array.isArray(gem.runes) ? gem.runes : [];
+    const served = runes.map((rune) => ` ${rune.name} runtime ${rune.runtime} inputs ${rune.inputs} outputs ${rune.outputs} sha256 ${rune.sha256}`).join('');
+    return `${id}, ${name}, ${flag}${why}${served}`;
   }).join('\n');
 }
 
@@ -524,8 +528,151 @@ export const SETUP_INTERVIEW = Object.freeze([
     why: 'Recorded as standing preferences rather than relearned each session.' },
   { key: 'source_tag', required: false,
     ask: 'What should writes from THIS host be tagged as? (e.g. laptop, phone, cli)',
-    why: 'Every write records its origin. A shared default tag makes provenance meaningless once a second host connects.' }
+    why: 'Every write records its origin. A shared default tag makes provenance meaningless once a second host connects.' },
+  { key: 'more_than_one_bot', required: false,
+    ask: 'Will more than one bot or AI use this memory? Answer yes or no.',
+    why: 'Yes turns on delegated client sub-keys when this server reads .env. No, or leaving it out, leaves them off. A hosted server does not write a pepper; it tells you the three settings to put in the platform\'s variables. Each bot\'s tag must be listed in EMET_SOURCE_TAGS. See docs/SUBKEYS.md.' },
+  { key: 'bot_team_backup', required: false,
+    ask: 'Turn on bot-team backup? It is off unless you say yes. Yes is the recommended choice. Answer yes or no.',
+    why: 'Yes records that choice and means the assistant follows the bot-team backup recipe: each bot\'s name, prompt, settings, routines and skills are written as controlled documents, revised only when they change. No, or leaving it out, leaves the practice off. EMET does not copy those documents itself, and secret values are never stored. See gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md.' }
 ]);
+
+/**
+ * yes or no from the interview. Absent means no. Anything else is not an
+ * answer, and setup does not invent one.
+ */
+export function parseMoreThanOneBot(value) {
+  if (value == null || String(value).trim() === '') return false;
+  const s = String(value).trim().toLowerCase().replace(/[.!]+$/, '');
+  if (s === 'yes' || s === 'y' || s === 'true') return true;
+  if (s === 'no' || s === 'n' || s === 'false') return false;
+  return null;
+}
+
+/**
+ * Only the strings "yes" and "no". Absent means no. A non-string, "Yes.",
+ * or any other text is not an answer, and setup does not invent one.
+ */
+export function parseBotTeamBackup(value) {
+  if (value == null || value === '') return false;
+  if (typeof value !== 'string') return null;
+  if (value === 'yes') return true;
+  if (value === 'no') return false;
+  return null;
+}
+
+/** Steps returned when yes is refused because real env vars are the config source. Thrown before any store write. */
+export const HOSTED_SUBKEY_STEPS =
+  'This server takes its settings from the platform, not from a .env file, so setup will not write a pepper here. No pepper or .env was written. ' +
+  'Run setup again without yes to finish the rest. ' +
+  'The platform-variable steps are in docs/SUBKEYS.md: set EMET_SUBKEYS=1, EMET_SUBKEY_PEPPER (generate it yourself, at least 32 bytes, for example with openssl rand -hex 32), and EMET_SUBKEY_PEPPER_VERSION=1, then redeploy. ' +
+  'Do not paste the pepper into the chat or into any EMET document.';
+
+/** .env is writable only when this process actually loaded that file, and no platform is injecting the environment. */
+export function dotenvWritable(envFile = ENV_FILE, env = process.env, startup) {
+  if (platformEnv(env)) return false;
+  if (path.resolve(envFile) !== path.resolve(ENV_FILE)) return true;
+  return !realEnvIsConfigSource(env, startup);
+}
+
+function pepperStrong(value) {
+  return typeof value === 'string' && Buffer.byteLength(value) >= 32;
+}
+
+/** Replace active KEY= lines. Commented lines stay. Missing keys are appended. */
+export function upsertEnvAssignments(text, assignments) {
+  const lines = String(text ?? '').replace(/\r\n/g, '\n').split('\n');
+  if (lines.length && lines[lines.length - 1] === '') lines.pop();
+  const seen = new Set();
+  const out = lines.map((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return line;
+    const eq = trimmed.indexOf('=');
+    if (eq < 1) return line;
+    const key = trimmed.slice(0, eq).trim();
+    if (!Object.prototype.hasOwnProperty.call(assignments, key)) return line;
+    seen.add(key);
+    const lead = (line.match(/^\s*/) || [''])[0];
+    return `${lead}${key}=${assignments[key]}`;
+  });
+  const missing = Object.keys(assignments).filter((key) => !seen.has(key));
+  if (missing.length) {
+    if (out.length && out[out.length - 1] !== '') out.push('');
+    out.push('# Written by first-use setup. The pepper is a server secret. Do not commit this file.');
+    for (const key of missing) out.push(`${key}=${assignments[key]}`);
+  }
+  return `${out.join('\n')}\n`;
+}
+
+/**
+ * Turn the existing sub-key flag on. A single client does not call this.
+ *
+ * Default-on was rejected. A single client has one login and one tag, so the
+ * flag does not change what it can write. The sub-key tools fail closed
+ * without a pepper of at least 32 bytes. A phone or a web project cannot
+ * store a key file and keeps the tag on its own connection. The tools, the
+ * owner page and the store already ship. This only writes EMET_SUBKEYS=1, a
+ * pepper, and EMET_SUBKEY_PEPPER_VERSION=1. The pepper is not returned. An
+ * existing strong pepper is kept, not rotated. This does not set process.env:
+ * the flag takes effect on restart, with the tools and /owner/approvals together.
+ * A hosted process, where real env vars are the config source, is refused
+ * instead of writing a pepper into the container.
+ */
+export function enableSubkeysAtFirstUse({ envFile = ENV_FILE, env = process.env, startup } = {}) {
+  if (!dotenvWritable(envFile, env, startup)) {
+    throw new ValidationError('more_than_one_bot', HOSTED_SUBKEY_STEPS);
+  }
+  let raw = '';
+  try {
+    raw = fs.readFileSync(envFile, 'utf8');
+  } catch (e) {
+    if (!e || e.code !== 'ENOENT') {
+      throw new ValidationError('more_than_one_bot', 'Could not read .env. Sub-keys were not turned on.');
+    }
+  }
+  const fromFile = parseEnvAssignments(raw);
+  const current = pepperStrong(env.EMET_SUBKEY_PEPPER) ? env.EMET_SUBKEY_PEPPER
+    : (pepperStrong(fromFile.EMET_SUBKEY_PEPPER) ? fromFile.EMET_SUBKEY_PEPPER : null);
+  const pepper = current || crypto.randomBytes(32).toString('hex');
+  const versionNum = Number(env.EMET_SUBKEY_PEPPER_VERSION || fromFile.EMET_SUBKEY_PEPPER_VERSION);
+  const version = Number.isInteger(versionNum) && versionNum > 0 ? String(versionNum) : '1';
+  const next = upsertEnvAssignments(raw, {
+    EMET_SUBKEYS: '1',
+    EMET_SUBKEY_PEPPER: pepper,
+    EMET_SUBKEY_PEPPER_VERSION: version
+  });
+  const tmp = path.join(path.dirname(envFile), `.env.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`);
+  try {
+    fs.writeFileSync(tmp, next, { mode: 0o600 });
+    fs.renameSync(tmp, envFile);
+  } catch (e) {
+    try { fs.unlinkSync(tmp); } catch { /* the temp file may not exist */ }
+    throw new ValidationError('more_than_one_bot', 'Could not write .env. Sub-keys were not turned on.');
+  }
+  // The flag stays off in this process. Tools and /owner/approvals appear together on restart.
+  // Register the pepper so a later write that contains it is masked.
+  registerSecretsFromEnv({ EMET_SUBKEY_PEPPER: pepper });
+  return {
+    enabled: true,
+    turned_on: true,
+    pepper_generated: current === null,
+    pepper_version: Number(version),
+    restart_for_owner_page: true
+  };
+}
+
+/** Two sentences and a pointer. The steps live in docs/SUBKEYS.md. The pepper is never in this note. */
+export function subkeySetupNote(multi, subkeys) {
+  if (multi && subkeys && subkeys.env_error) {
+    if (subkeys.env_error === HOSTED_SUBKEY_STEPS) return HOSTED_SUBKEY_STEPS;
+    return 'The store is set up. Sub-keys were not turned on because .env could not be written. See docs/SUBKEYS.md.';
+  }
+  if (multi && subkeys && subkeys.enabled) {
+    return 'Sub-keys were written to .env. The pepper is not in this result. Restart (or redeploy) the server once so the tools and /owner/approvals appear together. Each bot\'s tag must be listed in EMET_SOURCE_TAGS. See docs/SUBKEYS.md.';
+  }
+  if (setting('SUBKEYS') === '1') return 'Sub-keys were already on. This answer does not turn them off.';
+  return 'Sub-keys stay off. See docs/SUBKEYS.md.';
+}
 
 export async function setupBegin() {
   const state = await setupStatus();
@@ -537,6 +684,8 @@ export async function setupBegin() {
     instructions:
       'Ask the user these questions conversationally - one at a time, in their own words, not as a form. ' +
       'Do not invent answers, and do not fill in an answer the user did not give. ' +
+      'more_than_one_bot is optional. Yes or no, in the user\'s words. Leaving it out leaves sub-keys off. ' +
+      'bot_team_backup is optional. Yes is the recommended choice. No, or leaving it out, leaves bot-team backup off. ' +
       'When you have them, call emet_setup_complete with an `answers` object keyed exactly as below.',
     questions: SETUP_INTERVIEW.map(q => ({ key: q.key, ask: q.ask, why: q.why, required: q.required }))
   };
@@ -714,7 +863,7 @@ export async function initialize(options = {}, hooks = {}) {
     if (late && late.length && typeof hooks.onLate === 'function') { try { hooks.onLate(late); } catch { /* recording never fails a page */ } }
     return late;
   };
-  // Paged startup (2026-10-03, the owner approved paging; src/startup-pages.js).
+  // Paged startup (2026-10-03, Alex approved paging; src/startup-pages.js).
   // The full payload is built exactly as before; only its delivery changes.
   const raw = options.page;
   const wantAll = typeof raw === 'string' && raw.trim().toLowerCase() === 'all';
@@ -875,7 +1024,8 @@ async function buildStartup(options = {}) {
         'This memory store is new. Do not report a list of questions back to the user. ' +
         'Explain in a sentence that you have no memory of them yet and would like to set that ' +
         'up, then ask these questions conversationally, one at a time, in your own words. ' +
-        'Never invent or assume an answer. When you have them, call emet_setup_complete. ' + gemLine,
+        'Never invent or assume an answer. One question is optional, yes or no: whether more than one bot or AI will use this memory. Leaving it out leaves sub-keys off. ' +
+        'When you have them, call emet_setup_complete. ' + gemLine,
       questions: begin.questions,
       gems_available,
       gems_active
@@ -967,8 +1117,8 @@ async function buildStartup(options = {}) {
       lessonsPending = { assessed: false, error: e && e.message ? e.message : String(e), pending: [] };
     }
 
-    // Stage 1 of the host-aware startup amendment (2026-10-02; the owner's decision 2,
-    // the owner's decision record: "emet_initialize is the startup doorway every bot
+    // Stage 1 of the ref 358 startup amendment (2026-10-02; the owner's decision 2,
+    // procedural ref 407: "emet_initialize is the startup doorway every bot
     // calls; only first-time setup stays the owner's"). Initialize no longer creates
     // the owner person: that write moved to setupComplete, the owner's
     // first-time setup, so initialize is read-only in every branch and matches
@@ -983,6 +1133,12 @@ async function buildStartup(options = {}) {
     const openDrops = dropRows.filter((d) => d.retired !== true);
     const retiredDrops = dropRows.filter((d) => d.retired === true);
     const shown = openDrops.slice(0, 20);
+    let subkeys = null;
+    if (setting('SUBKEYS') === '1') {
+      const { subkeysView, loadSubkeyRecords } = await import('./subkeys.js');
+      const { approvalsDeps } = await import('./tools.js');
+      subkeys = subkeysView(await loadSubkeyRecords(approvalsDeps), rawActor() || { transport: 'stdio' }, personId, new Date());
+    }
 
     return {
       state: 'ready',
@@ -990,6 +1146,7 @@ async function buildStartup(options = {}) {
       ...callerAttribution(),
       person_id: personId,
       ...((() => { const v = approvalsView(cachedApprovals(), rawActor() || { transport: 'stdio' }, null); return v ? { client_approvals: v } : {}; })()),
+      ...(subkeys ? { subkeys } : {}),
       unhandled_drops: shown.map((d) => d.doc_id),
       unhandled_drops_more: Math.max(0, openDrops.length - shown.length),
       retired_drops: retiredDrops.map((d) => ({ doc_id: d.doc_id, ...retirementFields(d) })),
@@ -998,7 +1155,7 @@ async function buildStartup(options = {}) {
       // and connection; the user's name does the animating.
       emet_line: EMET_LINE,
       emet_line_if_unanswered: EMET_LINE_UNANSWERED,
-      // 2026-09-26 the owner: prune may not drop the close-order tool. These two
+      // 2026-09-26 Alex: prune may not drop the close-order tool. These two
       // fields MUST precede identity/character/user so a 20k host truncate
       // still receives them. The charter text may stay pointed; the steps may not.
       tools_in_force: {
@@ -1011,7 +1168,7 @@ async function buildStartup(options = {}) {
           'source tag on every write'
         ],
         on_wrap: ['working documents', 'episodic session record', 'board', 'verbatim transcript', 'HANDOFF last one write'],
-        // 2026-09-26 the owner (a decision record): close is blocked without receipts.
+        // 2026-09-26 Alex (procedural ref 391): close is blocked without receipts.
         confirm: 'emet_session_close with receipts for all four items and the handoff; say its speak lines in order; saved only when state is complete'
       },
       // Code audit 2026-09-27 (2.1): the short instructions ride up front with
@@ -1038,7 +1195,7 @@ async function buildStartup(options = {}) {
         ...retirementFields(installNotes)
       } : null,
       install_notes_doc_id: installDoc(),
-      // One line each since 2026-09-27 (the owner); the full seed is one read_doc away.
+      // One line each since 2026-09-27 (Alex); the full seed is one read_doc away.
       seeds: seeds.map((s) => seedLine(s)),
       seeds_due: seeds.filter((s) => s.due && s.retired !== true).map((s) => s.doc_id),
       seeds_evaluated_on: today,
@@ -1163,6 +1320,11 @@ function renderUserDoc(a) {
     '## §3 PREFERENCES',
     a.user_preferences && String(a.user_preferences).trim() ? a.user_preferences : 'None stated.',
     '',
+    '## §4 BOT-TEAM BACKUP',
+    a.bot_team_backup === true ? 'yes' : 'no',
+    '',
+    'Recorded at setup. Yes means follow gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md. No, or leaving the question out, leaves the practice off. EMET does not copy prompts or settings itself. Never store secret values in a bot-team document.',
+    '',
     '---',
     '',
     '*Written by the EMET setup interview. Add to it as you learn more — this document is',
@@ -1172,16 +1334,16 @@ function renderUserDoc(a) {
 }
 
 export async function setupComplete(answers = {}, logger = null, options = {}) {
-  // First-time setup is the owner's (decision 2, the owner's decision record). Stage 1
-  // guards (2026-10-02, the reviewer's stage 1 admission, conditions S1-S2):
+  // First-time setup is the owner's (decision 2, procedural ref 407). Stage 1
+  // guards (2026-10-02, the tester's stage 1 admission, conditions S1-S2):
   //  - refused under a configured bot tag. The tag is self-declared and
   //    emet_initialize takes no source until stage 2, so this is inert until a
-  //    caller declares a bot tag that the owner has configured (stage 3);
+  //    caller declares a bot tag that Alex has configured (stage 3);
   //  - refused on a store that is already set up unless `reissue: true` (the owner's
   //    answer 5): a re-run replaces the user's identity documents with new
   //    versions, so it needs the owner's explicit word. Nothing is written
   //    when either refusal fires.
-  // S1-1 (the reviewer's re-check of the first draft): EACH declared value is checked, not
+  // S1-1 (the tester's re-check of commit-1a215d7): EACH declared value is checked, not
   // the first non-empty one. The write below takes answers.source_tag first, so
   // checking only `source` let `source: <host>` + `answers.source_tag: <bot>`
   // write the identity documents as the bot. The tag that would be written
@@ -1207,8 +1369,27 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
       'Ask the user for them - do not supply them yourself.'
     );
   }
+  const multi = parseMoreThanOneBot(answers.more_than_one_bot);
+  if (multi === null) {
+    throw new ValidationError(
+      'more_than_one_bot',
+      'Answer yes or no. Yes turns on delegated client sub-keys. No leaves them off. Leaving it out leaves them off. Do not invent the answer. Nothing was written.'
+    );
+  }
+  const backup = parseBotTeamBackup(answers.bot_team_backup);
+  if (backup === null) {
+    throw new ValidationError(
+      'bot_team_backup',
+      'Answer with the string yes or the string no. Yes is the recommended choice and records bot-team backup as on. No leaves it off. Leaving it out leaves it off. Do not invent the answer. Nothing was written.'
+    );
+  }
+  answers = { ...answers, bot_team_backup: backup };
+  if (multi && !dotenvWritable(options.envFile || ENV_FILE, process.env, options.startup)) {
+    throw new ValidationError('more_than_one_bot', HOSTED_SUBKEY_STEPS);
+  }
 
   const written = [];
+  let subkeys = null;
   let client;
 
   try {
@@ -1229,7 +1410,7 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
     const [hasIdentity, hasUser] = await Promise.all([
       docsCol.findOne({ doc_id: IDENTITY_DOC }), docsCol.findOne({ doc_id: USER_DOC })
     ]);
-    // Set up = BOTH identity documents exist (the second reader's S-c; the reviewer: test it,
+    // Set up = BOTH identity documents exist (the reviewer's S-c; the tester: test it,
     // don't loosen it). A half-set-up store (one of the two) is an interrupted
     // first setup, and completing it needs no reissue.
     if (hasIdentity && hasUser && options.reissue !== true) {
@@ -1286,6 +1467,18 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
     const { ensureOwnerPerson } = await import('./persons.js');
     const person = await ensureOwnerPerson(conn.db, { display_name: answers.user_name });
 
+    if (multi) {
+      try {
+        subkeys = enableSubkeysAtFirstUse({ envFile: options.envFile || ENV_FILE, startup: options.startup });
+      } catch (e) {
+        const message = e.validationMessage || e.message;
+        // A hosted refusal is a refusal, not a half-finished setup. It is thrown
+        // before these writes; if it surfaces here, do not report it as a file error.
+        if (message === HOSTED_SUBKEY_STEPS) throw e;
+        subkeys = { enabled: false, turned_on: false, env_error: message };
+      }
+    }
+
     return {
       ok: true,
       documents: written,
@@ -1294,12 +1487,27 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
       source_tag: tag,
       person_id: person.person_id,
       person_role: person.role,
+      bot_team_backup: backup,
+      subkeys: multi
+        ? (subkeys.env_error
+          ? { enabled: false, turned_on: false, env_error: subkeys.env_error }
+          : {
+              enabled: true,
+              pepper_generated: subkeys.pepper_generated,
+              pepper_version: subkeys.pepper_version,
+              restart_for_owner_page: true
+            })
+        : { enabled: setting('SUBKEYS') === '1', turned_on: false },
       next_step:
         'Setup complete and verified. Tell the user what was recorded, in their own words, and ' +
         'that they can change any of it later with write_doc. If other hosts will connect to this ' +
         'same store, each one needs its own source tag: on a server several hosts share, leave EMET_SOURCE_TAG ' +
         'unset, have each host pass its tag as `source` on its writes, and register the tags in EMET_SOURCE_TAGS; ' +
-        'set EMET_SOURCE_TAG only on a server one host uses. New logins will be issued as this person, not as a generic owner.'
+        'set EMET_SOURCE_TAG only on a server one host uses. New logins will be issued as this person, not as a generic owner. ' +
+        subkeySetupNote(multi, subkeys) + ' ' +
+        (backup
+          ? 'Bot-team backup is on. Follow gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md. Revise bot-team documents only when they change, and never store secret values.'
+          : 'Bot-team backup stays off.')
     };
   } finally {
     if (client) await client.close();

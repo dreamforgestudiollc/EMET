@@ -26,7 +26,7 @@ function cleanRow(extraMd = {}, extraRow = {}) {
     ...extraRow
   };
 }
-const opts = { registry: ['cli', 'cloud-host'], nowSec: NOW };
+const opts = { registry: ['cli', 'cowork-cloud'], nowSec: NOW };
 
 testGroup('A clean row has no gaps', () => {
   test('semantic, fully attributed, attested, pointed, explicit routing', () => {
@@ -69,7 +69,7 @@ testGroup('ambiguous_attribution', () => {
     assert.ok(classifyRow('working', cleanRow({ source: 'stranger' }), opts).includes('ambiguous_attribution'));
   });
   test('a registered, chosen source is not ambiguous; with no registry any string passes', () => {
-    assert.ok(!classifyRow('working', cleanRow({ source: 'cloud-host' }), opts).includes('ambiguous_attribution'));
+    assert.ok(!classifyRow('working', cleanRow({ source: 'cowork-cloud' }), opts).includes('ambiguous_attribution'));
     assert.ok(!classifyRow('working', cleanRow({ source: 'stranger' }), { ...opts, registry: [] }).includes('ambiguous_attribution'));
   });
 });

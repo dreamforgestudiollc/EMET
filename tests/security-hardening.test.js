@@ -104,7 +104,8 @@ const ANSWERS = {
   assistant_name: 'Ada',
   assistant_character: 'Direct and brief.',
   user_name: 'Alex',
-  user_context: 'A project store.'
+  user_context: 'A project store.',
+  more_than_one_bot: 'no'
 };
 const REASON = 'fixture reason for the edit';
 
@@ -233,11 +234,11 @@ testGroup('S3 board guard', () => {
     const { provisionBoardText } = await import('../src/setup.js');
     const db = makeStore();
     await withStore(db, async () => {
-      await writeDoc('STATE.md', provisionBoardText(), 'project-host', null, null, { provision: true });
+      await writeDoc('STATE.md', provisionBoardText(), 'grok-project', null, null, { provision: true });
       db.collection('emet_sessions').docs.push({ _id: 'no-list', opened: true });
       const current = db.doc('STATE.md').content;
       await assert.rejects(
-        () => patchDoc('STATE.md', 'Provisioned by the server.', 'Provisioned by the server.', 'project-host', null, null, { reason: REASON, session_id: 'no-list' }),
+        () => patchDoc('STATE.md', 'Provisioned by the server.', 'Provisioned by the server.', 'grok-project', null, null, { reason: REASON, session_id: 'no-list' }),
         /could not be loaded|verified drop/
       );
       assert.strictEqual(db.doc('STATE.md').content, current);
@@ -250,15 +251,15 @@ testGroup('S3 board guard', () => {
     const { provisionBoardText } = await import('../src/setup.js');
     const db = makeStore();
     await withStore(db, async () => {
-      await writeDoc('STATE.md', provisionBoardText(), 'project-host', null, null, { provision: true });
-      await writeDoc('drops/open.md', 'still open\n', 'project-host');
+      await writeDoc('STATE.md', provisionBoardText(), 'grok-project', null, null, { provision: true });
+      await writeDoc('drops/open.md', 'still open\n', 'grok-project');
       const failed = { base: 'sess-drops', drops_seen: null, drops_unverified: true };
       await graphAfter('emet_session_open', {}, failed, db);
       const stuck = db.collection('emet_sessions').docs.find((d) => d._id === 'sess-drops');
       assert.strictEqual(stuck.drops_unverified, true);
       const before = db.doc('STATE.md').content;
       await assert.rejects(
-        () => patchDoc('STATE.md', 'Provisioned by the server.', 'Provisioned by the server.', 'project-host', null, null, { reason: REASON, session_id: 'sess-drops' }),
+        () => patchDoc('STATE.md', 'Provisioned by the server.', 'Provisioned by the server.', 'grok-project', null, null, { reason: REASON, session_id: 'sess-drops' }),
         /could not be loaded/
       );
       const opened = { base: 'sess-drops', drops_seen: ['drops/open.md'] };
@@ -267,11 +268,11 @@ testGroup('S3 board guard', () => {
       assert.strictEqual(row.drops_unverified, undefined);
       assert.ok(row.drops_seen.includes('drops/open.md'));
       await assert.rejects(
-        () => patchDoc('STATE.md', 'Provisioned by the server.', 'Provisioned by the server. early', 'project-host', null, null, { reason: REASON, session_id: 'sess-drops' }),
+        () => patchDoc('STATE.md', 'Provisioned by the server.', 'Provisioned by the server. early', 'grok-project', null, null, { reason: REASON, session_id: 'sess-drops' }),
         /must be retired/
       );
       db.doc('drops/open.md').retired = true;
-      await patchDoc('STATE.md', 'Provisioned by the server.', 'Provisioned by the server. kept', 'project-host', null, null, { reason: REASON, session_id: 'sess-drops' });
+      await patchDoc('STATE.md', 'Provisioned by the server.', 'Provisioned by the server. kept', 'grok-project', null, null, { reason: REASON, session_id: 'sess-drops' });
       assert.match(db.doc('STATE.md').content, /kept/);
       assert.notStrictEqual(db.doc('STATE.md').content, before);
     });
@@ -281,10 +282,10 @@ testGroup('S3 board guard', () => {
     const { writeDoc, patchDoc } = await import('../src/tools.js');
     const db = makeStore();
     await withStore(db, async () => {
-      await writeDoc('threads/peak.md', 'x'.repeat(100), 'project-host', null, null, { session_id: 'first' });
-      await patchDoc('threads/peak.md', 'x'.repeat(100), 'x'.repeat(80), 'project-host', null, null, { reason: REASON, session_id: 'first' });
+      await writeDoc('threads/peak.md', 'x'.repeat(100), 'grok-project', null, null, { session_id: 'first' });
+      await patchDoc('threads/peak.md', 'x'.repeat(100), 'x'.repeat(80), 'grok-project', null, null, { reason: REASON, session_id: 'first' });
       await assert.rejects(
-        () => patchDoc('threads/peak.md', 'x'.repeat(80), 'x'.repeat(45), 'project-host', null, null, { reason: REASON, session_id: 'second' }),
+        () => patchDoc('threads/peak.md', 'x'.repeat(80), 'x'.repeat(45), 'grok-project', null, null, { reason: REASON, session_id: 'second' }),
         /24 hours/
       );
       assert.strictEqual(db.doc('threads/peak.md').content.length, 80);
@@ -364,7 +365,7 @@ testGroup('S4 source tags and stamps', () => {
     const { saveMemory } = await import('../src/tools.js');
     const db = layerDb();
     await saveMemory(db, 'a note for the record', 'episodic', {
-      source: 'project-host',
+      source: 'grok-project',
       client_id: 'attacker',
       custom: { client_id: 'attacker', person_id: 'attacker', note: 'keep' }
     });

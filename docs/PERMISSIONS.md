@@ -37,7 +37,7 @@ Every tool carries MCP annotations, declared in one table in `src/annotations.js
 | `idempotentHint` | Calling it again with the same arguments changes nothing further. |
 | `openWorldHint` | It reaches systems outside this server's own store. |
 
-Of the 30 tools:
+Of the 30 tools (`EMET_SUBKEYS=1` adds the four sub-key tools below; with the flag off they are not registered):
 
 - **11 are read-only.** `emet_gaps`, `emet_floor`, `recall`, `semantic_recall`,
   `corpus_recall`, `query_layer`, `query_transcripts`, `read_doc`, `read_doc_history`, `list_docs`,
@@ -48,7 +48,8 @@ Of the 30 tools:
   `emet_session_open` still needs the `emet.write` scope, because it stamps the drop list a board edit trusts.
   `emet_initialize` stays a read.
 - **7 can replace what is already there, or hand out access.** `write_doc`, `patch_doc`, `restore_doc`, `emet_setup_complete`,
-  `emet_invite_create`, `emet_member_access_create`, `emet_client_approve` (it admits or refuses a new client). Prior versions of a document are archived to the history
+  `emet_invite_create`, `emet_member_access_create`, `emet_client_approve` (it admits or refuses a new client).
+  Prior versions of a document are archived to the history
   collection first, but the visible content a person may be relying on is replaced. A code that grants access
   is marked the same way: it is not a harmless add.
 - **1 marks a document obsolete.** `retire_doc`. Neither a removal nor a replacement: the
@@ -60,6 +61,8 @@ Of the 30 tools:
   declared read-only: with `probe: true` it writes, and a health check that only reads cannot
   detect a broken write path. A read-scoped token may call it without `probe`. With `probe: true` it needs
   `emet.write`. The probe deletes only that document. It does not drop the collection.
+
+With `EMET_SUBKEYS=1` the host also receives four tools: `emet_subkey_request`, `emet_subkey_claim`, and `emet_subkey_end_session` (additive), and `emet_subkey_revoke` (it retires a key's authority; the record stays). Write tools gain `session_handle`. `emet_session_open` and `emet_session_close` gain `subkey`. With the flag off those names and fields are absent. First-use setup turns the flag on only when the owner says yes and the server reads `.env`. A hosted server refuses that yes. A single client stays on the flag-off list. See [SUBKEYS.md](SUBKEYS.md).
 
 **`openWorldHint` is false on every tool.** The tools talk to this server's configured database
 and nothing else: no filesystem and no shell. The sign-in server fetches a client's metadata

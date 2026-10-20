@@ -7,7 +7,7 @@
 
 # dependencies
 node_modules/
-node_modules
+tests/.mutants/
 
 # backups & scratch - must not enter history
 *.backup_*

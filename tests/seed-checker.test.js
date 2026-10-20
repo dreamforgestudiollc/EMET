@@ -51,7 +51,7 @@ trigger:
     test: 2026-11-01
 status: DORMANT
 planted: 2026-09-26
-planted_by: project-host
+planted_by: grok-project
 session: 2026-09-26_saturday-grok-init`;
 
 test('good front matter has no field failures', () => {

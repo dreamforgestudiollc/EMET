@@ -1,6 +1,6 @@
 # TEMPLATE — USER
 
-**Template control:** id `templates/USER.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-26 · a decision record · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
+**Template control:** id `templates/USER.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-26 · procedural ref 361 · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
 **Fills:** `bootstrap/USER.md` — who the install serves. Written at the first-run interview from the user's answers.
 **Failure it prevents:** a store that knows an assistant name and not the person, or that relearns spelling and working preferences every session because they had no standing home (interview keys `user_name`, `user_context`, `user_preferences`; user 2026-09-26: structure ships, personal data does not).
 **Completion rules:** `templates/STANDARD.md` §5, unmodified.
@@ -27,3 +27,6 @@ The use they named at interview — work, a project, personal continuity, or the
 
 ## §3 PREFERENCES
 How they want to be worked with: length, directness, being asked before changes — or *"None stated."*
+
+## §4 BOT-TEAM BACKUP
+`yes` or `no`. Recorded at the first-run interview. Yes is the recommended choice and means follow `gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md`. No, or leaving the question out, records `no` and leaves the practice off. EMET does not copy prompts or settings itself. Never store secret values in a bot-team document.

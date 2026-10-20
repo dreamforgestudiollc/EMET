@@ -1,0 +1,1765 @@
+{
+  "note": "Vendored with verification/load-gate/load-gate.mjs. expect pass or refuse. sole marks the witness for that rule. branch marks the walker line that witness kills. from, files, path, and resolved are options passed to refuseHostAccess. resolved maps a normalized import to its real path relative to the GEM. via gate means the private text scan is not the checker for that case.",
+  "cases": [
+    {
+      "id": "pass-fieldnote",
+      "expect": "pass",
+      "source": "export default function fieldnote(input) {\n  const rows = input && Array.isArray(input.rows) ? input.rows : [];\n  return { count: rows.length };\n}\n"
+    },
+    {
+      "id": "pass-guarded-factors",
+      "expect": "pass",
+      "source": "const FACTORS = Object.freeze({\n  __proto__: null,\n  2: Object.freeze({ __proto__: null, A2: 1.88, D3: 0, D4: 3.267 }),\n  3: Object.freeze({ __proto__: null, A2: 1.023, D3: 0, D4: 2.574 })\n});\nexport function controlLimits(input) {\n  const n = String(input.n);\n  if (!Object.hasOwn(FACTORS, n)) return null;\n  return FACTORS[n].A2;\n}\n"
+    },
+    {
+      "id": "pass-guard-const",
+      "expect": "pass",
+      "source": "const FACTORS = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const n = String(input.n);\n  if (!Object.hasOwn(FACTORS, n)) return 0;\n  return FACTORS[n];\n}\n"
+    },
+    {
+      "id": "pass-guard-if",
+      "expect": "pass",
+      "source": "const FACTORS = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const n = String(input.n);\n  if (Object.hasOwn(FACTORS, n)) return FACTORS[n];\n  return 0;\n}\n"
+    },
+    {
+      "id": "pass-guard-and",
+      "expect": "pass",
+      "source": "const FACTORS = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const n = String(input.n);\n  return Object.hasOwn(FACTORS, n) && FACTORS[n];\n}\n"
+    },
+    {
+      "id": "pass-guard-ternary",
+      "expect": "pass",
+      "source": "const FACTORS = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const n = String(input.n);\n  return Object.hasOwn(FACTORS, n) ? FACTORS[n] : 0;\n}\n"
+    },
+    {
+      "id": "pass-guard-or",
+      "expect": "pass",
+      "source": "const FACTORS = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const n = String(input.n);\n  return !Object.hasOwn(FACTORS, n) || FACTORS[n];\n}\n"
+    },
+    {
+      "id": "pass-math",
+      "expect": "pass",
+      "source": "export function f(n) { return Math.round(Math.sqrt(n)) + Math.PI + Math.abs(n); }\n"
+    },
+    {
+      "id": "pass-const-index",
+      "expect": "pass",
+      "source": "export function f(values) { const index = 0; return values[index] + values[0]; }\n"
+    },
+    {
+      "id": "pass-label-for-of",
+      "expect": "pass",
+      "source": "export function f(values, Date) {\n  let sum = 0;\n  process: for (let i = 0; i < values.length; i++) { if (i < 0) break process; }\n  for (const value of values) sum += value;\n  const index = 0;\n  return Math.round(Math.sqrt(sum + values[index])) + Date;\n}\n"
+    },
+    {
+      "id": "pass-hashbang",
+      "expect": "pass",
+      "source": "#!/usr/bin/env node\nexport const x = 1\n"
+    },
+    {
+      "id": "pass-import",
+      "expect": "pass",
+      "source": "import { a } from './helper.js';\nexport const x = a;\n"
+    },
+    {
+      "id": "pass-import-runes",
+      "expect": "pass",
+      "from": "runes/look.js",
+      "files": ["runes/look.js", "runes/helper.js"],
+      "resolved": { "runes/helper.js": "runes/helper.js" },
+      "source": "import { a } from './helper.js';\nexport const x = a;\n"
+    },
+    {
+      "id": "pass-import-sibling",
+      "expect": "pass",
+      "from": "runes/sub/calc.js",
+      "files": ["runes/sub/calc.js", "runes/helper.js"],
+      "resolved": { "runes/helper.js": "runes/helper.js" },
+      "source": "import { a } from '../helper.js';\nexport const x = a;\n"
+    },
+    {
+      "id": "pass-error",
+      "expect": "pass",
+      "source": "export function f(input) { if (!input) throw new Error('missing'); return input.n; }\n"
+    },
+    {
+      "id": "pass-local-write",
+      "expect": "pass",
+      "source": "export function f() { const o = {}; o.a = 1; return o.a; }\n"
+    },
+    {
+      "id": "pass-foreach",
+      "expect": "pass",
+      "source": "export function f(input) { let total = 0; input.values.forEach((value) => { total += value; }); return total; }\n"
+    },
+    {
+      "id": "pass-comment-string",
+      "expect": "pass",
+      "source": "// new Date()\nexport const label = \"performance.now() crypto.randomUUID()\";\n"
+    },
+    {
+      "id": "pass-literal-key",
+      "expect": "pass",
+      "source": "const FACTORS = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f() { return FACTORS.a + FACTORS['b']; }\n"
+    },
+    {
+      "id": "sole-globalThis",
+      "expect": "refuse",
+      "rule": "globalThis",
+      "reason": "global",
+      "sole": true,
+      "branch": "global",
+      "source": "export function f(){ return globalThis; }\n"
+    },
+    {
+      "id": "sole-global",
+      "expect": "refuse",
+      "rule": "global",
+      "reason": "global",
+      "sole": true,
+      "source": "export function f(){ return global; }\n"
+    },
+    {
+      "id": "sole-self",
+      "expect": "refuse",
+      "rule": "self",
+      "reason": "global",
+      "sole": true,
+      "source": "export function f(){ return self; }\n"
+    },
+    {
+      "id": "sole-window",
+      "expect": "refuse",
+      "rule": "window",
+      "reason": "global",
+      "sole": true,
+      "source": "export function f(){ return window; }\n"
+    },
+    {
+      "id": "sole-process",
+      "expect": "refuse",
+      "rule": "process",
+      "reason": "env",
+      "sole": true,
+      "source": "export function f(){ return process; }\n"
+    },
+    {
+      "id": "sole-Date",
+      "expect": "refuse",
+      "rule": "Date",
+      "reason": "clock",
+      "sole": true,
+      "source": "export function f(){ return Date; }\n"
+    },
+    {
+      "id": "sole-performance",
+      "expect": "refuse",
+      "rule": "performance",
+      "reason": "clock",
+      "sole": true,
+      "source": "export function f(){ return performance; }\n"
+    },
+    {
+      "id": "sole-crypto",
+      "expect": "refuse",
+      "rule": "crypto",
+      "reason": "random",
+      "sole": true,
+      "source": "export function f(){ return crypto; }\n"
+    },
+    {
+      "id": "sole-setTimeout",
+      "expect": "refuse",
+      "rule": "setTimeout",
+      "reason": "timer",
+      "sole": true,
+      "source": "export function f(){ return setTimeout; }\n"
+    },
+    {
+      "id": "sole-setInterval",
+      "expect": "refuse",
+      "rule": "setInterval",
+      "reason": "timer",
+      "sole": true,
+      "source": "export function f(){ return setInterval; }\n"
+    },
+    {
+      "id": "sole-setImmediate",
+      "expect": "refuse",
+      "rule": "setImmediate",
+      "reason": "timer",
+      "sole": true,
+      "source": "export function f(){ return setImmediate; }\n"
+    },
+    {
+      "id": "sole-clearTimeout",
+      "expect": "refuse",
+      "rule": "clearTimeout",
+      "reason": "timer",
+      "sole": true,
+      "source": "export function f(){ return clearTimeout; }\n"
+    },
+    {
+      "id": "sole-clearInterval",
+      "expect": "refuse",
+      "rule": "clearInterval",
+      "reason": "timer",
+      "sole": true,
+      "source": "export function f(){ return clearInterval; }\n"
+    },
+    {
+      "id": "sole-clearImmediate",
+      "expect": "refuse",
+      "rule": "clearImmediate",
+      "reason": "timer",
+      "sole": true,
+      "source": "export function f(){ return clearImmediate; }\n"
+    },
+    {
+      "id": "sole-queueMicrotask",
+      "expect": "refuse",
+      "rule": "queueMicrotask",
+      "reason": "timer",
+      "sole": true,
+      "source": "export function f(){ return queueMicrotask; }\n"
+    },
+    {
+      "id": "sole-requestAnimationFrame",
+      "expect": "refuse",
+      "rule": "requestAnimationFrame",
+      "reason": "timer",
+      "sole": true,
+      "source": "export function f(){ return requestAnimationFrame; }\n"
+    },
+    {
+      "id": "sole-cancelAnimationFrame",
+      "expect": "refuse",
+      "rule": "cancelAnimationFrame",
+      "reason": "timer",
+      "sole": true,
+      "source": "export function f(){ return cancelAnimationFrame; }\n"
+    },
+    {
+      "id": "sole-Function",
+      "expect": "refuse",
+      "rule": "Function",
+      "reason": "Function",
+      "sole": true,
+      "source": "export function f(){ return Function; }\n"
+    },
+    {
+      "id": "sole-eval",
+      "expect": "refuse",
+      "rule": "eval",
+      "reason": "eval",
+      "sole": true,
+      "source": "export function f(){ return eval; }\n"
+    },
+    {
+      "id": "sole-require",
+      "expect": "refuse",
+      "rule": "require",
+      "reason": "require",
+      "sole": true,
+      "source": "export function f(){ return require; }\n"
+    },
+    {
+      "id": "sole-Reflect",
+      "expect": "refuse",
+      "rule": "Reflect",
+      "reason": "reflect",
+      "sole": true,
+      "source": "export function f(){ return Reflect; }\n"
+    },
+    {
+      "id": "sole-Intl",
+      "expect": "refuse",
+      "rule": "Intl",
+      "reason": "intl",
+      "sole": true,
+      "source": "export function f(){ return Intl; }\n"
+    },
+    {
+      "id": "sole-navigator",
+      "expect": "refuse",
+      "rule": "navigator",
+      "reason": "navigator",
+      "sole": true,
+      "source": "export function f(){ return navigator; }\n"
+    },
+    {
+      "id": "sole-WebAssembly",
+      "expect": "refuse",
+      "rule": "WebAssembly",
+      "reason": "wasm",
+      "sole": true,
+      "source": "export function f(){ return WebAssembly; }\n"
+    },
+    {
+      "id": "sole-Atomics",
+      "expect": "refuse",
+      "rule": "Atomics",
+      "reason": "atomics",
+      "sole": true,
+      "source": "export function f(){ return Atomics; }\n"
+    },
+    {
+      "id": "sole-Proxy",
+      "expect": "refuse",
+      "rule": "Proxy",
+      "reason": "proxy",
+      "sole": true,
+      "source": "export function f(){ return Proxy; }\n"
+    },
+    {
+      "id": "sole-WeakRef",
+      "expect": "refuse",
+      "rule": "WeakRef",
+      "reason": "weakref",
+      "sole": true,
+      "source": "export function f(){ return WeakRef; }\n"
+    },
+    {
+      "id": "sole-FinalizationRegistry",
+      "expect": "refuse",
+      "rule": "FinalizationRegistry",
+      "reason": "finalizer",
+      "sole": true,
+      "source": "export function f(){ return FinalizationRegistry; }\n"
+    },
+    {
+      "id": "sole-SharedArrayBuffer",
+      "expect": "refuse",
+      "rule": "SharedArrayBuffer",
+      "reason": "memory",
+      "sole": true,
+      "source": "export function f(){ return SharedArrayBuffer; }\n"
+    },
+    {
+      "id": "sole-structuredClone",
+      "expect": "refuse",
+      "rule": "structuredClone",
+      "reason": "intrinsic",
+      "sole": true,
+      "source": "export function f(){ return structuredClone; }\n"
+    },
+    {
+      "id": "sole-object-getOwnPropertyDescriptor",
+      "expect": "refuse",
+      "rule": "getOwnPropertyDescriptor",
+      "reason": "intrinsic",
+      "sole": true,
+      "source": "export function f(o){ return Object.getOwnPropertyDescriptor(o); }\n"
+    },
+    {
+      "id": "sole-object-getOwnPropertyDescriptors",
+      "expect": "refuse",
+      "rule": "getOwnPropertyDescriptors",
+      "reason": "intrinsic",
+      "sole": true,
+      "source": "export function f(o){ return Object.getOwnPropertyDescriptors(o); }\n"
+    },
+    {
+      "id": "sole-object-getPrototypeOf",
+      "expect": "refuse",
+      "rule": "getPrototypeOf",
+      "reason": "intrinsic",
+      "sole": true,
+      "branch": "object-method",
+      "source": "export function f(o){ return Object.getPrototypeOf(o); }\n"
+    },
+    {
+      "id": "sole-object-setPrototypeOf",
+      "expect": "refuse",
+      "rule": "setPrototypeOf",
+      "reason": "intrinsic",
+      "sole": true,
+      "source": "export function f(o){ return Object.setPrototypeOf(o); }\n"
+    },
+    {
+      "id": "sole-object-defineProperty",
+      "expect": "refuse",
+      "rule": "defineProperty",
+      "reason": "intrinsic",
+      "sole": true,
+      "source": "export function f(o){ return Object.defineProperty(o); }\n"
+    },
+    {
+      "id": "sole-object-defineProperties",
+      "expect": "refuse",
+      "rule": "defineProperties",
+      "reason": "intrinsic",
+      "sole": true,
+      "source": "export function f(o){ return Object.defineProperties(o); }\n"
+    },
+    {
+      "id": "math-value",
+      "expect": "refuse",
+      "rule": "math",
+      "reason": "random",
+      "sole": true,
+      "branch": "math-value",
+      "source": "export function f(){ return Math; }\n"
+    },
+    {
+      "id": "math-member",
+      "expect": "refuse",
+      "rule": "math",
+      "reason": "random",
+      "sole": true,
+      "branch": "math-member",
+      "source": "export function f(){ return Math.random(); }\n"
+    },
+    {
+      "id": "math-write",
+      "expect": "refuse",
+      "rule": "math",
+      "reason": "random",
+      "sole": true,
+      "branch": "math-write",
+      "source": "export function f(){ Math.round = 1; return 1; }\n"
+    },
+    {
+      "id": "math-map",
+      "expect": "refuse",
+      "rule": "math",
+      "reason": "random",
+      "sole": true,
+      "source": "export function f(){ return [Math].map((m) => m.random()); }\n"
+    },
+    {
+      "id": "math-find",
+      "expect": "refuse",
+      "rule": "math",
+      "reason": "random",
+      "sole": true,
+      "source": "export function f(){ return [Math].find((m) => m); }\n"
+    },
+    {
+      "id": "math-throw",
+      "expect": "refuse",
+      "rule": "math",
+      "reason": "random",
+      "sole": true,
+      "source": "export function f(){ try { throw Math } catch (M) { return M; } }\n"
+    },
+    {
+      "id": "math-alias",
+      "expect": "refuse",
+      "rule": "math",
+      "reason": "random",
+      "sole": false,
+      "source": "const M = Math;\nexport const x = 1;\n"
+    },
+    {
+      "id": "math-destructure",
+      "expect": "refuse",
+      "rule": "math",
+      "reason": "random",
+      "sole": false,
+      "source": "const { round } = Math;\nexport const x = 1;\n"
+    },
+    {
+      "id": "math-bracket",
+      "expect": "refuse",
+      "rule": "math",
+      "reason": "random",
+      "sole": true,
+      "source": "export function f(){ return Math['random'](); }\n"
+    },
+    {
+      "id": "math-store",
+      "expect": "refuse",
+      "rule": "math",
+      "reason": "random",
+      "sole": true,
+      "source": "export function f(){ const o = {}; o.m = Math; return o.m; }\n"
+    },
+    {
+      "id": "math-or",
+      "expect": "refuse",
+      "rule": "math",
+      "reason": "random",
+      "sole": true,
+      "source": "export function f(input){ return input.a || Math; }\n"
+    },
+    {
+      "id": "math-ternary",
+      "expect": "refuse",
+      "rule": "math",
+      "reason": "random",
+      "sole": true,
+      "source": "export function f(input){ return input.a ? Math : Math; }\n"
+    },
+    {
+      "id": "math-yield",
+      "expect": "refuse",
+      "rule": "node",
+      "reason": "syntax",
+      "sole": false,
+      "source": "export function* g(){ yield Math }\n"
+    },
+    {
+      "id": "intrinsic-create",
+      "expect": "refuse",
+      "rule": "intrinsic",
+      "reason": "intrinsic",
+      "sole": true,
+      "branch": "intrinsic",
+      "source": "export function f(){ return Object.create(null); }\n"
+    },
+    {
+      "id": "intrinsic-json-box",
+      "expect": "refuse",
+      "rule": "intrinsic",
+      "reason": "intrinsic",
+      "sole": true,
+      "source": "export function f(){ const o = { J: JSON }; o.J.parse = function () { return 1; }; return o; }\n"
+    },
+    {
+      "id": "intrinsic-ternary",
+      "expect": "refuse",
+      "rule": "intrinsic",
+      "reason": "intrinsic",
+      "sole": false,
+      "source": "export function f(input){ const O = input.a ? Object : Object; return O.getPrototypeOf({}); }\n"
+    },
+    {
+      "id": "intrinsic-or",
+      "expect": "refuse",
+      "rule": "intrinsic",
+      "reason": "intrinsic",
+      "sole": true,
+      "source": "export function f(input){ return input.a || Object; }\n"
+    },
+    {
+      "id": "prototype-read",
+      "expect": "refuse",
+      "rule": "prototype",
+      "reason": "prototype",
+      "sole": true,
+      "branch": "prototype",
+      "source": "export function f(){ return Array.prototype; }\n"
+    },
+    {
+      "id": "prototype-push-write",
+      "expect": "refuse",
+      "rule": "prototype",
+      "reason": "prototype",
+      "sole": true,
+      "source": "export function f(){ Array.prototype.push = null; return 1; }\n"
+    },
+    {
+      "id": "prototype-obj",
+      "expect": "refuse",
+      "rule": "prototype",
+      "reason": "prototype",
+      "sole": true,
+      "source": "export function f(){ const o = { p: Array.prototype }; return o.p; }\n"
+    },
+    {
+      "id": "prototype-arr",
+      "expect": "refuse",
+      "rule": "prototype",
+      "reason": "prototype",
+      "sole": true,
+      "source": "export function f(){ return [Array.prototype][0]; }\n"
+    },
+    {
+      "id": "prototype-fn",
+      "expect": "refuse",
+      "rule": "prototype",
+      "reason": "prototype",
+      "sole": true,
+      "source": "export function f(){ return (() => Array.prototype)(); }\n"
+    },
+    {
+      "id": "prototype-key",
+      "expect": "refuse",
+      "rule": "prototype",
+      "reason": "prototype",
+      "sole": false,
+      "source": "const T = Object.freeze({ __proto__: { x: 1 }, a: 1 });\nexport const x = 1;\n"
+    },
+    {
+      "id": "constructor",
+      "expect": "refuse",
+      "rule": "constructor",
+      "reason": "Function",
+      "sole": true,
+      "branch": "constructor",
+      "source": "export function f(){ return (() => {}).constructor; }\n"
+    },
+    {
+      "id": "constructor-unicode",
+      "expect": "refuse",
+      "rule": "constructor",
+      "reason": "Function",
+      "sole": true,
+      "source": "export function f(o){ return o.\\u0063onstructor; }\n"
+    },
+    {
+      "id": "stack",
+      "expect": "refuse",
+      "rule": "stack",
+      "reason": "intrinsic",
+      "sole": true,
+      "branch": "stack",
+      "source": "export function f(){ Error.prepareStackTrace = function () {}; return 1; }\n"
+    },
+    {
+      "id": "stack-read",
+      "expect": "refuse",
+      "rule": "stack",
+      "reason": "intrinsic",
+      "sole": true,
+      "source": "export function f(){ return new Error('x').stack; }\n"
+    },
+    {
+      "id": "computed",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": true,
+      "branch": "computed",
+      "source": "export function f(o, k){ return o[k]; }\n"
+    },
+    {
+      "id": "computed-twohop-string",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": true,
+      "source": "export function f(){ const k = ['constr', 'uctor'].join(''); return ''[k][k]('return globalThis')(); }\n"
+    },
+    {
+      "id": "computed-twohop-array",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": true,
+      "source": "export function f(){ const k = ['constr', 'uctor'].join(''); return [][k][k]('return globalThis')(); }\n"
+    },
+    {
+      "id": "computed-twohop-fn",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": true,
+      "source": "export function f(fn, k){ return fn[k]('return 1')(); }\n"
+    },
+    {
+      "id": "computed-no-guard",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": true,
+      "source": "const FACTORS = Object.freeze({\n  __proto__: null,\n  2: Object.freeze({ __proto__: null, A2: 1.88, D3: 0, D4: 3.267 }),\n  3: Object.freeze({ __proto__: null, A2: 1.023, D3: 0, D4: 2.574 })\n});\nexport function f(input){ return FACTORS[input.n]; }\n"
+    },
+    {
+      "id": "table",
+      "expect": "refuse",
+      "rule": "table",
+      "reason": "module state",
+      "sole": true,
+      "branch": "table",
+      "source": "const T = Object.freeze({ __proto__: null, a: 1 });\nfunction id(x){ return x; }\nexport function f(){ return id(T); }\n"
+    },
+    {
+      "id": "table-foreach",
+      "expect": "refuse",
+      "rule": "table",
+      "reason": "module state",
+      "sole": false,
+      "source": "const T = Object.freeze({ __proto__: null, a: 1 });\nexport function f(){ [T].forEach((o) => { o.a = 2; }); return T.a; }\n"
+    },
+    {
+      "id": "table-getter",
+      "expect": "refuse",
+      "rule": "table",
+      "reason": "module state",
+      "sole": true,
+      "source": "const T = Object.freeze({ __proto__: null, a: 1 });\nexport function f(){ const box = { get v(){ return T; } }; return box.v; }\n"
+    },
+    {
+      "id": "table-destructure",
+      "expect": "refuse",
+      "rule": "table",
+      "reason": "module state",
+      "sole": true,
+      "source": "const T = Object.freeze({ __proto__: null, a: Object.freeze({ __proto__: null, x: 1 }) });\nexport function f(){ const { a } = T; return a; }\n"
+    },
+    {
+      "id": "table-reduce",
+      "expect": "refuse",
+      "rule": "table",
+      "reason": "module state",
+      "sole": true,
+      "source": "const T = Object.freeze({ __proto__: null, a: 1 });\nexport function f(){ return [T].reduce((acc, o) => o.a, 0); }\n"
+    },
+    {
+      "id": "table-sort",
+      "expect": "refuse",
+      "rule": "table",
+      "reason": "module state",
+      "sole": true,
+      "source": "const T = Object.freeze({ __proto__: null, l: Object.freeze([1, 2]) });\nexport function f(){ return T.l.sort((a, b) => a - b); }\n"
+    },
+    {
+      "id": "member",
+      "expect": "refuse",
+      "rule": "member",
+      "reason": "module state",
+      "sole": true,
+      "branch": "member",
+      "source": "export function f(o){ o.a = 1; return o.a; }\n"
+    },
+    {
+      "id": "callbind",
+      "expect": "refuse",
+      "rule": "callbind",
+      "reason": "module state",
+      "sole": true,
+      "branch": "callbind",
+      "source": "export function f(m){ return m.call(null); }\n"
+    },
+    {
+      "id": "callbind-apply",
+      "expect": "refuse",
+      "rule": "callbind",
+      "reason": "module state",
+      "sole": false,
+      "source": "const T = Object.freeze({ __proto__: null, l: Object.freeze([1]) });\nexport function f(){ Array.prototype.push.apply(T.l, [9]); return 1; }\n"
+    },
+    {
+      "id": "callbind-reverse",
+      "expect": "refuse",
+      "rule": "callbind",
+      "reason": "module state",
+      "sole": false,
+      "source": "const T = Object.freeze({ __proto__: null, l: Object.freeze([1]) });\nexport function f(){ return Array.prototype.reverse.call(T.l); }\n"
+    },
+    {
+      "id": "callbind-bind",
+      "expect": "refuse",
+      "rule": "callbind",
+      "reason": "module state",
+      "sole": true,
+      "source": "export function f(m){ return m.bind(null); }\n"
+    },
+    {
+      "id": "callbind-table",
+      "expect": "refuse",
+      "rule": "callbind",
+      "reason": "module state",
+      "sole": false,
+      "source": "const T = Object.freeze({ __proto__: null, a: 1 });\nexport function f(m){ return m.call(null, T); }\n"
+    },
+    {
+      "id": "var",
+      "expect": "refuse",
+      "rule": "var",
+      "reason": "syntax",
+      "sole": true,
+      "branch": "var",
+      "source": "export function f(){ var n = 1; return n; }\n"
+    },
+    {
+      "id": "var-for-of",
+      "expect": "refuse",
+      "rule": "var",
+      "reason": "syntax",
+      "sole": false,
+      "source": "const k = 0;\nconst fn = () => {};\nexport function h(){ for (var k of [fn.k2]); return fn[k]; }\n"
+    },
+    {
+      "id": "var-for-in",
+      "expect": "refuse",
+      "rule": "var",
+      "reason": "syntax",
+      "sole": false,
+      "source": "const k = 0;\nexport function g(){ for (var k in { constructor: 1 }); return k; }\n"
+    },
+    {
+      "id": "var-nested",
+      "expect": "refuse",
+      "rule": "var",
+      "reason": "syntax",
+      "sole": false,
+      "source": "const k = 0;\nexport function g(){ function h(){ for (var k of [1]); return k; } return h(); }\n"
+    },
+    {
+      "id": "shadow",
+      "expect": "refuse",
+      "rule": "shadow",
+      "reason": "syntax",
+      "sole": true,
+      "branch": "shadow",
+      "source": "const k = 0;\nexport function f(){ const k = 1; return k; }\n"
+    },
+    {
+      "id": "shadow-nested",
+      "expect": "refuse",
+      "rule": "shadow",
+      "reason": "syntax",
+      "sole": true,
+      "source": "const k = 0;\nexport function g(){ function h(){ const k = 'constructor'; return k; } return h(); }\n"
+    },
+    {
+      "id": "for-in",
+      "expect": "refuse",
+      "rule": "for-in",
+      "reason": "syntax",
+      "sole": true,
+      "branch": "for-in",
+      "source": "export function f(o){ for (const k in o) return k; }\n"
+    },
+    {
+      "id": "module-let",
+      "expect": "refuse",
+      "rule": "module",
+      "reason": "module state",
+      "sole": true,
+      "branch": "module",
+      "source": "let n = 0;\nexport const x = 1;\n"
+    },
+    {
+      "id": "module-json",
+      "expect": "refuse",
+      "rule": "module",
+      "reason": "module state",
+      "sole": true,
+      "source": "export const s = JSON.parse('[]');\n"
+    },
+    {
+      "id": "module-split",
+      "expect": "refuse",
+      "rule": "module",
+      "reason": "module state",
+      "sole": true,
+      "source": "export const s = 'ab'.split('');\n"
+    },
+    {
+      "id": "module-array",
+      "expect": "refuse",
+      "rule": "module",
+      "reason": "module state",
+      "sole": true,
+      "source": "export const s = Array(0);\n"
+    },
+    {
+      "id": "module-iife",
+      "expect": "refuse",
+      "rule": "module",
+      "reason": "module state",
+      "sole": true,
+      "source": "export const run = (() => { let n = 0; return () => ++n; })();\n"
+    },
+    {
+      "id": "module-unfrozen",
+      "expect": "refuse",
+      "rule": "module",
+      "reason": "module state",
+      "sole": true,
+      "source": "export const T = { a: 1 };\n"
+    },
+    {
+      "id": "new",
+      "expect": "refuse",
+      "rule": "new",
+      "reason": "module state",
+      "sole": true,
+      "branch": "new",
+      "source": "export function f(){ return new Map(); }\n"
+    },
+    {
+      "id": "node-class",
+      "expect": "refuse",
+      "rule": "node",
+      "reason": "syntax",
+      "sole": true,
+      "branch": "node",
+      "source": "export class A {}\n"
+    },
+    {
+      "id": "node-generator",
+      "expect": "refuse",
+      "rule": "node",
+      "reason": "syntax",
+      "sole": true,
+      "source": "export function* g(){ yield 1; }\n"
+    },
+    {
+      "id": "node-tag",
+      "expect": "refuse",
+      "rule": "node",
+      "reason": "syntax",
+      "sole": true,
+      "source": "export function f(){ return tag`a`; }\n"
+    },
+    {
+      "id": "import",
+      "expect": "refuse",
+      "rule": "import",
+      "reason": "syntax",
+      "sole": true,
+      "branch": "import",
+      "source": "export function f(){ return import('./x.js'); }\n"
+    },
+    {
+      "id": "meta",
+      "expect": "refuse",
+      "rule": "meta",
+      "reason": "env",
+      "sole": true,
+      "branch": "meta",
+      "source": "export function f(){ return import.meta.url; }\n"
+    },
+    {
+      "id": "bytes",
+      "expect": "refuse",
+      "rule": "bytes",
+      "reason": "too large",
+      "sole": true,
+      "branch": "bytes",
+      "source": "export const x = 1;\n                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                "
+    },
+    {
+      "id": "parse",
+      "expect": "refuse",
+      "rule": "parse",
+      "reason": "parse",
+      "sole": true,
+      "branch": "parse",
+      "source": "export function ("
+    },
+    {
+      "id": "pass-at",
+      "expect": "pass",
+      "source": "export function f(input) {\n  let total = 0;\n  for (let i = 0; i < input.n; i += 1) total += input.y.at(i);\n  return total;\n}\n"
+    },
+    {
+      "id": "pass-values-zip",
+      "expect": "pass",
+      "source": "export function f(input) {\n  const ys = input.y.values();\n  let total = 0;\n  for (const xv of input.x) {\n    const yv = ys.next().value;\n    total += xv + yv;\n  }\n  return total;\n}\n"
+    },
+    {
+      "id": "pass-pairs",
+      "expect": "pass",
+      "source": "export function f(input) {\n  let total = 0;\n  for (const pair of [['xBar', input.xBar], ['mu0', input.mu0]]) total += pair[1];\n  return total;\n}\n"
+    },
+    {
+      "id": "pass-means-at",
+      "expect": "pass",
+      "source": "export function f(input) {\n  const means = [];\n  input.groups.forEach((group, index) => { means.push(group.at(index)); });\n  return means.length;\n}\n"
+    },
+    {
+      "id": "pass-spread-shell",
+      "expect": "pass",
+      "source": "export function f(input) {\n  const out = { ...shell(input), grandMean: 1 };\n  out.x = 2;\n  return out.x;\n}\n"
+    },
+    {
+      "id": "pass-hasown-input",
+      "expect": "pass",
+      "source": "export function f(input) {\n  if (!Object.hasOwn(input, 'tCrit')) return null;\n  return input.tCrit;\n}\n"
+    },
+    {
+      "id": "pass-guard-for-of",
+      "expect": "pass",
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  for (const k of input.keys) {\n    if (typeof k !== 'string' && typeof k !== 'number') continue;\n    if (!Object.hasOwn(P, k)) continue;\n    return P[k];\n  }\n  return 0;\n}\n"
+    },
+    {
+      "id": "guard-member",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const FACTORS = Object.freeze({\n  __proto__: null,\n  2: Object.freeze({ __proto__: null, A2: 1.88 }),\n  evil: Object.freeze({ __proto__: null, A2: 999 })\n});\nexport function f(input) {\n  if (!Object.hasOwn(FACTORS, input.n)) return null;\n  return FACTORS[input.n].A2;\n}\n"
+    },
+    {
+      "id": "guard-let",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const FACTORS = Object.freeze({\n  __proto__: null,\n  2: Object.freeze({ __proto__: null, A2: 1.88 }),\n  evil: Object.freeze({ __proto__: null, A2: 999 })\n});\nexport function f(input) {\n  let k = input.n;\n  if (!Object.hasOwn(FACTORS, k)) return null;\n  k = input.alt;\n  return FACTORS[k].A2;\n}\n"
+    },
+    {
+      "id": "guard-param",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(k) {\n  if (!Object.hasOwn(P, k)) return null;\n  return P[k];\n}\n"
+    },
+    {
+      "id": "guard-call-key",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  if (!Object.hasOwn(P, input.k())) return null;\n  return P[input.k()];\n}\n"
+    },
+    {
+      "id": "guard-other-key",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const n = String(input.n);\n  const m = String(input.m);\n  if (!Object.hasOwn(P, n)) return null;\n  return P[m];\n}\n"
+    },
+    {
+      "id": "guard-shadow-key",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const k = String(input.k);\n  if (!Object.hasOwn(P, k)) return null;\n  {\n    const k = String(input.evil);\n    return P[k];\n  }\n}\n"
+    },
+    {
+      "id": "guard-other-table",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nconst Q = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const k = String(input.k);\n  if (!Object.hasOwn(Q, k)) return null;\n  return P[k];\n}\n"
+    },
+    {
+      "id": "guard-negated-read",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const k = String(input.k);\n  if (!Object.hasOwn(P, k)) return P[k];\n  return 0;\n}\n"
+    },
+    {
+      "id": "guard-positive-early",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const k = String(input.k);\n  if (Object.hasOwn(P, k)) return 0;\n  return P[k];\n}\n"
+    },
+    {
+      "id": "guard-closure",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const k = String(input.k);\n  if (!Object.hasOwn(P, k)) return null;\n  const g = () => P[k];\n  return g();\n}\n"
+    },
+    {
+      "id": "guard-or-wrong",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const k = String(input.k);\n  return Object.hasOwn(P, k) || P[k];\n}\n"
+    },
+    {
+      "id": "guard-and-wrong",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const k = String(input.k);\n  return !Object.hasOwn(P, k) && P[k];\n}\n"
+    },
+    {
+      "id": "guard-ternary-else",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const k = String(input.k);\n  return Object.hasOwn(P, k) ? 0 : P[k];\n}\n"
+    },
+    {
+      "id": "guard-no-abrupt",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const k = String(input.k);\n  if (!Object.hasOwn(P, k)) { const x = 1; }\n  return P[k];\n}\n"
+    },
+    {
+      "id": "guard-fake-is",
+      "expect": "refuse",
+      "rule": "table",
+      "reason": "module state",
+      "sole": false,
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const k = String(input.k);\n  if (!Object.is(P, k)) return null;\n  return P[k];\n}\n"
+    },
+    {
+      "id": "table-no-null-proto",
+      "expect": "refuse",
+      "rule": "module",
+      "reason": "module state",
+      "sole": false,
+      "source": "const T = Object.freeze({ a: 1, b: 2 });\nexport function f(input) {\n  const k = String(input.k);\n  if (!Object.hasOwn(T, k)) return null;\n  return T[k];\n}\n"
+    },
+    {
+      "id": "table-seal",
+      "expect": "refuse",
+      "rule": "intrinsic",
+      "reason": "intrinsic",
+      "sole": false,
+      "source": "const T = Object.seal({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const k = String(input.k);\n  if (!Object.hasOwn(T, k)) return null;\n  return T[k];\n}\n"
+    },
+    {
+      "id": "table-row-bind",
+      "expect": "refuse",
+      "rule": "table",
+      "reason": "module state",
+      "sole": false,
+      "source": "const T = Object.freeze({\n  __proto__: null,\n  a: Object.freeze({ __proto__: null, A2: 1 }),\n  b: Object.freeze({ __proto__: null, A2: 2 })\n});\nexport function f(input) {\n  const k = String(input.k);\n  if (!Object.hasOwn(T, k)) return null;\n  const r = T[k];\n  return r;\n}\n"
+    },
+    {
+      "id": "table-freeze-value",
+      "expect": "refuse",
+      "rule": "module",
+      "reason": "module state",
+      "sole": false,
+      "source": "const T = Object.freeze(input);\nexport function f() { return 1; }\n"
+    },
+    {
+      "id": "table-array-dynamic",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const T = Object.freeze([1, 2, 3]);\nexport function f(input) {\n  const k = String(input.k);\n  if (!Object.hasOwn(T, k)) return null;\n  return T[k];\n}\n"
+    },
+    {
+      "id": "intrinsic-keys",
+      "expect": "refuse",
+      "rule": "intrinsic",
+      "reason": "intrinsic",
+      "sole": false,
+      "source": "export function f(x) { return Object.keys(x); }\n"
+    },
+    {
+      "id": "intrinsic-assign",
+      "expect": "refuse",
+      "rule": "intrinsic",
+      "reason": "intrinsic",
+      "sole": false,
+      "source": "export function f(x) { return Object.assign({}, x); }\n"
+    },
+    {
+      "id": "computed-constructor",
+      "expect": "refuse",
+      "rule": "constructor",
+      "reason": "Function",
+      "sole": false,
+      "source": "export function f(o) { return o['constructor']; }\n"
+    },
+    {
+      "id": "computed-template-interp",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "export function f(values) {\n  const k = `0${''}`;\n  return values[k];\n}\n"
+    },
+    {
+      "id": "new-error-shadow",
+      "expect": "refuse",
+      "rule": "new",
+      "reason": "module state",
+      "sole": false,
+      "source": "export function f(Error) { return new Error('x'); }\n"
+    },
+    {
+      "id": "regexp-dollar",
+      "expect": "refuse",
+      "rule": "intrinsic",
+      "reason": "intrinsic",
+      "sole": false,
+      "source": "export function f() { return RegExp.$1; }\n"
+    },
+    {
+      "id": "regexp-last",
+      "expect": "refuse",
+      "rule": "intrinsic",
+      "reason": "intrinsic",
+      "sole": false,
+      "source": "export function f() { return RegExp.lastMatch; }\n"
+    },
+    {
+      "id": "member-shell",
+      "expect": "refuse",
+      "rule": "member",
+      "reason": "module state",
+      "sole": false,
+      "source": "export function f(input) {\n  const out = shell(input);\n  out.x = 1;\n  return out;\n}\n"
+    },
+    {
+      "id": "callbind-hasown",
+      "expect": "refuse",
+      "rule": "callbind",
+      "reason": "module state",
+      "sole": false,
+      "source": "export function f(input) {\n  return Object.prototype.hasOwnProperty.call(input, 'tCrit');\n}\n"
+    },
+    {
+      "id": "guard-other-member",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const FACTORS = Object.freeze({\n  __proto__: null,\n  2: Object.freeze({ __proto__: null, A2: 1.88 }),\n  evil: Object.freeze({ __proto__: null, A2: 999 })\n});\nexport function f(input) {\n  if (!Object.hasOwn(FACTORS, input.n)) return null;\n  return FACTORS[input.m].A2;\n}\n"
+    },
+    {
+      "id": "pass-guard-number",
+      "expect": "pass",
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const n = Number(input.n);\n  if (!Object.hasOwn(P, n)) return 0;\n  return P[n];\n}\n"
+    },
+    {
+      "id": "pass-guard-typeof",
+      "expect": "pass",
+      "source": "const FACTORS = Object.freeze({\n  __proto__: null,\n  2: Object.freeze({ __proto__: null, A2: 1.88 }),\n  evil: Object.freeze({ __proto__: null, A2: 999 })\n});\nexport function controlLimits(input) {\n  const n = input.n;\n  if (typeof n !== 'string' && typeof n !== 'number') return null;\n  if (!Object.hasOwn(FACTORS, n)) return null;\n  return FACTORS[n].A2;\n}\n"
+    },
+    {
+      "id": "pass-guard-typeof-if",
+      "expect": "pass",
+      "source": "const P = Object.freeze({ __proto__: null, a: 1, b: 2 });\nexport function f(input) {\n  const n = input.n;\n  if (typeof n === 'string' || typeof n === 'number') {\n    if (!Object.hasOwn(P, n)) return 0;\n    return P[n];\n  }\n  return 0;\n}\n"
+    },
+    {
+      "id": "guard-object-key",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const FACTORS = Object.freeze({\n  __proto__: null,\n  2: Object.freeze({ __proto__: null, A2: 1.88 }),\n  evil: Object.freeze({ __proto__: null, A2: 999 })\n});\nexport function f(input) {\n  const k = input.key;\n  if (!Object.hasOwn(FACTORS, k)) return null;\n  return FACTORS[k].A2;\n}\n"
+    },
+    {
+      "id": "guard-tostring-key",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const FACTORS = Object.freeze({\n  __proto__: null,\n  2: Object.freeze({ __proto__: null, A2: 1.88 }),\n  evil: Object.freeze({ __proto__: null, A2: 999 })\n});\nexport function f(input) {\n  const key = { toString() { return input.alt ? 'evil' : '2'; } };\n  const k = key;\n  if (!Object.hasOwn(FACTORS, k)) return null;\n  return FACTORS[k].A2;\n}\n"
+    },
+    {
+      "id": "guard-toprimitive",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const FACTORS = Object.freeze({\n  __proto__: null,\n  2: Object.freeze({ __proto__: null, A2: 1.88 }),\n  evil: Object.freeze({ __proto__: null, A2: 999 })\n});\nexport function f(input) {\n  // input.key may implement Symbol.toPrimitive and return 2, then 'evil'\n  const k = input.key;\n  if (!Object.hasOwn(FACTORS, k)) return null;\n  return FACTORS[k].A2;\n}\n"
+    },
+    {
+      "id": "guard-boxed-string",
+      "expect": "refuse",
+      "rule": "new",
+      "reason": "module state",
+      "sole": false,
+      "source": "const FACTORS = Object.freeze({\n  __proto__: null,\n  2: Object.freeze({ __proto__: null, A2: 1.88 }),\n  evil: Object.freeze({ __proto__: null, A2: 999 })\n});\nexport function f(input) {\n  const k = new String(input.n);\n  if (!Object.hasOwn(FACTORS, k)) return null;\n  return FACTORS[k].A2;\n}\n"
+    },
+    {
+      "id": "guard-typeof-object",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const FACTORS = Object.freeze({\n  __proto__: null,\n  2: Object.freeze({ __proto__: null, A2: 1.88 }),\n  evil: Object.freeze({ __proto__: null, A2: 999 })\n});\nexport function f(input) {\n  const k = input.key;\n  if (typeof k !== 'object') return null;\n  if (!Object.hasOwn(FACTORS, k)) return null;\n  return FACTORS[k].A2;\n}\n"
+    },
+    {
+      "id": "locale-tostring",
+      "expect": "refuse",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": true,
+      "source": "export function f(n) { return (1234.5).toLocaleString(); }\n",
+      "branch": "locale"
+    },
+    {
+      "id": "locale-compare",
+      "expect": "refuse",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false,
+      "source": "export function f(a, b) { return a.localeCompare(b); }\n"
+    },
+    {
+      "id": "locale-date",
+      "expect": "refuse",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false,
+      "source": "export function f(d) { return d.toLocaleDateString(); }\n"
+    },
+    {
+      "id": "locale-time",
+      "expect": "refuse",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false,
+      "source": "export function f(d) { return d.toLocaleTimeString(); }\n"
+    },
+    {
+      "id": "buffer-alloc",
+      "expect": "refuse",
+      "rule": "Buffer",
+      "reason": "memory",
+      "sole": true,
+      "source": "export function f() { return Buffer.allocUnsafe(8); }\n"
+    },
+    {
+      "id": "freeze-not-object",
+      "expect": "refuse",
+      "rule": "intrinsic",
+      "reason": "intrinsic",
+      "sole": false,
+      "source": "const T = JSON.freeze({ __proto__: null, a: 1 });\nexport function f() { return 1; }\n"
+    },
+    {
+      "id": "guard-typeof-let",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const F=Object.freeze({__proto__:null, 2:Object.freeze({__proto__:null,A2:1.88}), evil:Object.freeze({__proto__:null,A2:999})});\nexport function g(x){ let k=x.key; if(typeof k!=='string') return null; k=x.key2; if(!Object.hasOwn(F,k)) return null; return F[k].A2; }\n"
+    },
+    {
+      "id": "guard-typeof-param",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const F=Object.freeze({__proto__:null, 2:Object.freeze({__proto__:null,A2:1.88}), evil:Object.freeze({__proto__:null,A2:999})});\nexport function g(k){ if(typeof k!=='string') return null; if(!Object.hasOwn(F,k)) return null; return F[k].A2; }\n"
+    },
+    {
+      "id": "guard-shadow-string",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const F=Object.freeze({__proto__:null,2:Object.freeze({__proto__:null,A2:1})}); export function g(x, String){ const k=String(x.key); if(!Object.hasOwn(F,k)) return null; return F[k].A2; }\n"
+    },
+    {
+      "id": "guard-typeof-or",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const F=Object.freeze({__proto__:null, 2:Object.freeze({__proto__:null,A2:1.88}), evil:Object.freeze({__proto__:null,A2:999})});\nexport function g(x){ const k=x.key; if(typeof k!=='string' || typeof k!=='number') return null; if(!Object.hasOwn(F,k)) return null; return F[k].A2; }\n"
+    },
+    {
+      "id": "guard-typeof-no-abrupt",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const F=Object.freeze({__proto__:null, 2:Object.freeze({__proto__:null,A2:1.88}), evil:Object.freeze({__proto__:null,A2:999})});\nexport function g(x){ const k=x.key; if(typeof k!=='string') x.z; if(!Object.hasOwn(F,k)) return null; return F[k].A2; }\n"
+    },
+    {
+      "id": "guard-typeof-closure",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "const F=Object.freeze({__proto__:null, 2:Object.freeze({__proto__:null,A2:1.88}), evil:Object.freeze({__proto__:null,A2:999})});\nexport function g(x){ const k=x.key; if(typeof k!=='string') return null; return (()=>{ if(!Object.hasOwn(F,k)) return null; return F[k].A2; })(); }\n"
+    },
+    {
+      "id": "locale-upper",
+      "expect": "refuse",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false,
+      "source": "export function g(x){ return 'i'.toLocaleUpperCase(); }\n"
+    },
+    {
+      "id": "locale-lower",
+      "expect": "refuse",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false,
+      "source": "export function g(x){ return 'I'.toLocaleLowerCase(); }\n"
+    },
+    {
+      "id": "locale-destructure",
+      "expect": "refuse",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false,
+      "source": "export function g(x){ const {toLocaleString:f}=[1]; return typeof f; }\n"
+    },
+    {
+      "id": "dk-input",
+      "expect": "refuse",
+      "source": "export function g(x){ const {[x.k]: c} = ()=>{}; return c('return this')(); }\n",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false
+    },
+    {
+      "id": "dk-concat",
+      "expect": "refuse",
+      "source": "export function g(x){ const {['constr'+'uctor']: c} = ()=>{}; return c('return this')(); }\n",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false
+    },
+    {
+      "id": "dk-param",
+      "expect": "refuse",
+      "source": "export function g({[\"cons\"+\"tructor\"]: c}){ return c('return this')(); }\n",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false
+    },
+    {
+      "id": "dk-assign",
+      "expect": "refuse",
+      "source": "export function g(x){ let c; ({[x.k]: c} = ()=>{}); return c('return this')(); }\n",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false
+    },
+    {
+      "id": "dk-locale",
+      "expect": "refuse",
+      "source": "export function g(x){ const {[x.m]: f}=[1]; const o={0:1234567.5,length:1,f}; return o.f(); }\n",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false
+    },
+    {
+      "id": "l-nested",
+      "expect": "refuse",
+      "source": "export function g(x){ const {a:{toLocaleString:f}}={a:[1]}; return typeof f; }\n",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false
+    },
+    {
+      "id": "l-default",
+      "expect": "refuse",
+      "source": "export function g(x){ const {toLocaleString:f=0}=[1]; return typeof f; }\n",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false
+    },
+    {
+      "id": "l-rest",
+      "expect": "refuse",
+      "source": "export function g(x){ const {...r}=[1]; return typeof r.toLocaleString; }\n",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false
+    },
+    {
+      "id": "l-computed-lit",
+      "expect": "refuse",
+      "source": "export function g(x){ const {['toLocaleString']:f}=[1]; return typeof f; }\n",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false
+    },
+    {
+      "id": "l-const-key",
+      "expect": "refuse",
+      "source": "export function g(x){ const m='toLocaleString'; const {[m]:f}=[1]; return typeof f; }\n",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false
+    },
+    {
+      "id": "l-assign-pattern",
+      "expect": "refuse",
+      "source": "export function g(x){ let f; ({toLocaleString:f}=[1]); return typeof f; }\n",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false
+    },
+    {
+      "id": "l-param",
+      "expect": "refuse",
+      "source": "export function g({toLocaleString:f}){ return typeof f; }\n",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false
+    },
+    {
+      "id": "l-param-arr",
+      "expect": "refuse",
+      "source": "export function g(x){ return [[1]].map(({toLocaleString:f})=>typeof f)[0]; }\n",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false
+    },
+    {
+      "id": "l-shorthand",
+      "expect": "refuse",
+      "source": "export function g(x){ const {toLocaleString}=[1]; return typeof toLocaleString; }\n",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false
+    },
+    {
+      "id": "l-upper",
+      "expect": "refuse",
+      "source": "export function g(x){ return 'i'.toLocaleUpperCase(); }\n",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false
+    },
+    {
+      "id": "l-lower",
+      "expect": "refuse",
+      "source": "export function g(x){ return 'I'.toLocaleLowerCase(); }\n",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false
+    },
+    {
+      "id": "l-concat-method",
+      "expect": "pass",
+      "source": "export function g(x){ const a=[].concat([1234567.5]); return a.join(); }\n"
+    },
+    {
+      "id": "l-object-values",
+      "expect": "refuse",
+      "source": "export function g(x){ return Object.values([1]); }\n",
+      "rule": "intrinsic",
+      "reason": "intrinsic",
+      "sole": false
+    },
+    {
+      "id": "l-entries-for",
+      "expect": "pass",
+      "source": "export function g(x){ for (const [k,v] of [[1]].entries()) return typeof v; }\n"
+    },
+    {
+      "id": "l-arr-destr-method",
+      "expect": "refuse",
+      "source": "export function g(x){ const [f]=[ [1].toLocaleString ]; return 1; }\n",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false
+    },
+    {
+      "id": "l-catch-destr",
+      "expect": "refuse",
+      "source": "export function g(x){ try{ throw [1] }catch({toLocaleString:f}){ return typeof f; } }\n",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false
+    },
+    {
+      "id": "l-forof-destr",
+      "expect": "refuse",
+      "source": "export function g(x){ for (const {toLocaleString:f} of [[1]]) return typeof f; }\n",
+      "rule": "locale",
+      "reason": "intl",
+      "sole": false
+    },
+    {
+      "id": "dk-nested",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "export function g(x){ const {a:{[x.k]:c}}={a:()=>{}}; return typeof c; }\n"
+    },
+    {
+      "id": "dk-default",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "export function g({[x.k]:c}=()=>{}){ return typeof c; }\n"
+    },
+    {
+      "id": "dk-catch",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "export function g(x){ try { throw ()=>{} } catch ({[x.k]: c}) { return typeof c; } }\n"
+    },
+    {
+      "id": "dk-forof",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "export function g(x){ for (const {[x.k]: c} of [()=>{}]) return typeof c; }\n"
+    },
+    {
+      "id": "dk-lit-ctor",
+      "expect": "refuse",
+      "rule": "constructor",
+      "reason": "Function",
+      "sole": false,
+      "source": "export function g(x){ const {[\"constructor\"]: c} = ()=>{}; return typeof c; }\n"
+    },
+    {
+      "id": "call-computed",
+      "expect": "refuse",
+      "rule": "callbind",
+      "reason": "module state",
+      "sole": false,
+      "source": "export function f(m){ return m[\"call\"](null); }\n"
+    },
+    {
+      "id": "pattern-proto",
+      "expect": "refuse",
+      "rule": "prototype",
+      "reason": "prototype",
+      "sole": false,
+      "source": "export function f(){ const {__proto__: p} = {}; return p; }\n"
+    },
+    {
+      "id": "write-input-key",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "export function f(input){ const o = {}; o[input.k] = 1; return o; }\n"
+    },
+    {
+      "id": "computed-bigint",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "export function f(o){ return o[1n]; }\n"
+    },
+    {
+      "id": "import-fs",
+      "expect": "refuse",
+      "rule": "specifier",
+      "reason": "specifier not allowed",
+      "sole": false,
+      "source": "import fs from 'fs';\nexport const y = 1;\n"
+    },
+    {
+      "id": "import-node-child",
+      "expect": "refuse",
+      "rule": "specifier",
+      "reason": "specifier not allowed",
+      "sole": false,
+      "source": "import * as cp from 'node:child_process';\nexport const y = 1;\n"
+    },
+    {
+      "id": "import-node-fs",
+      "expect": "refuse",
+      "rule": "specifier",
+      "reason": "specifier not allowed",
+      "sole": false,
+      "source": "import * as fs from 'node:fs';\nexport const y = 1;\n"
+    },
+    {
+      "id": "import-node-vm",
+      "expect": "refuse",
+      "rule": "specifier",
+      "reason": "specifier not allowed",
+      "sole": false,
+      "via": "gate",
+      "source": "import * as vm from 'node:vm';\nexport const y = 1;\n"
+    },
+    {
+      "id": "import-emet",
+      "expect": "refuse",
+      "rule": "specifier",
+      "reason": "emet/rune",
+      "sole": false,
+      "via": "gate",
+      "source": "import { read } from 'emet/rune';\nexport const y = 1;\n"
+    },
+    {
+      "id": "import-url",
+      "expect": "refuse",
+      "rule": "specifier",
+      "reason": "specifier not allowed",
+      "sole": false,
+      "source": "import x from 'https://example.com/x.js';\nexport const y = 1;\n"
+    },
+    {
+      "id": "import-bare",
+      "expect": "refuse",
+      "rule": "specifier",
+      "reason": "specifier not allowed",
+      "sole": true,
+      "source": "import x from 'left-pad';\nexport const y = 1;\n"
+    },
+    {
+      "id": "import-escape",
+      "expect": "refuse",
+      "rule": "specifier",
+      "reason": "specifier not allowed",
+      "sole": false,
+      "source": "import x from '../../outside.js';\nexport const y = 1;\n"
+    },
+    {
+      "id": "import-dotdot",
+      "expect": "refuse",
+      "rule": "specifier",
+      "reason": "specifier not allowed",
+      "sole": false,
+      "via": "gate",
+      "source": "import x from '../secret.js';\nexport const y = 1;\n"
+    },
+    {
+      "id": "import-unlisted",
+      "expect": "refuse",
+      "rule": "specifier",
+      "reason": "specifier not allowed",
+      "sole": false,
+      "via": "gate",
+      "from": "runes/look.js",
+      "files": ["runes/look.js"],
+      "source": "import { a } from './helper.js';\nexport const y = a;\n"
+    },
+    {
+      "id": "import-outside-runes",
+      "expect": "refuse",
+      "rule": "specifier",
+      "reason": "specifier not allowed",
+      "sole": false,
+      "via": "gate",
+      "from": "runes/calc.js",
+      "files": ["runes/calc.js", "lib/h.js"],
+      "source": "import { h } from '../lib/h.js';\nexport const y = h;\n"
+    },
+    {
+      "id": "import-symlink",
+      "expect": "refuse",
+      "rule": "specifier",
+      "reason": "specifier not allowed",
+      "sole": false,
+      "via": "gate",
+      "from": "runes/calc.js",
+      "files": ["runes/calc.js", "runes/h.js"],
+      "resolved": { "runes/h.js": "lib/h.js" },
+      "source": "import { h } from './h.js';\nexport const y = h;\n"
+    },
+    {
+      "id": "rune-txt",
+      "expect": "refuse",
+      "rule": "extension",
+      "reason": "rune extension",
+      "sole": true,
+      "via": "gate",
+      "path": "runes/calc.txt",
+      "source": "export const x = 1;\n"
+    },
+    {
+      "id": "pattern-bigint",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "export function f(){ const {1n:c}={}; return c; }\n"
+    },
+    {
+      "id": "delete-input-key",
+      "expect": "refuse",
+      "rule": "computed",
+      "reason": "computed key",
+      "sole": false,
+      "source": "export function f(input){ const o = {}; delete o[input.k]; return o; }\n"
+    }
+  ]
+}

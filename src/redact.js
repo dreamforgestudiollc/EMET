@@ -11,14 +11,14 @@
  * carry it verbatim was minutes away from being written to the store. A rule
  * that says "do not paste secrets" is an instruction; a scrubber the content
  * passes through before it lands anywhere is a control. This module is the
- * control. It sits inside the single write path (THE DOOR, a decision record):
+ * control. It sits inside the single write path (THE DOOR, procedural ref 280):
  * memory saves, transcript saves, document writes, and log output all pass
  * through it, so an instance cannot opt out by forgetting.
  *
  * What it masks, in order:
  *   1. Literal values of secret-bearing environment variables (anything whose
  *      name contains PASSPHRASE, PASSWORD, SECRET, TOKEN, API_KEY, PRIVATE_KEY,
- *      or MONGODB_URI), plus the user:password pair inside any URI among them.
+ *      PEPPER, or MONGODB_URI), plus the user:password pair inside any URI among them.
  *      These are exact-string matches and cannot false-positive.
  *   2. Credentials embedded in URIs: scheme://user:password@host.
  *   3. Bearer tokens and JWTs.
@@ -38,12 +38,12 @@
  *
  * The hit count reports CHANGES. Text that already carries the mask is matched
  * and left as it is, uncounted - otherwise every read-modify-write of a
- * document re-reports the masks it already held (observed 2026-09-07).
+ * document re-reports the masks it already held (observed 2026-09-07, meta ref 83).
  */
 
 export const MASK = '*****';
 
-const SECRET_ENV_NAME = /(PASSPHRASE|PASSWORD|PASSWD|SECRET|TOKEN|API[_-]?KEY|PRIVATE[_-]?KEY|MONGODB_URI)/i;
+const SECRET_ENV_NAME = /(PASSPHRASE|PASSWORD|PASSWD|SECRET|TOKEN|API[_-]?KEY|PRIVATE[_-]?KEY|PEPPER|MONGODB_URI)/i;
 const MIN_LITERAL_LENGTH = 6;
 
 // Registered literal secrets. A Set so re-registering is a no-op.
@@ -121,6 +121,12 @@ const RULES = [
   // JWT
   { name: 'jwt', pre: (t) => t.includes('eyJ'),
     re: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, sub: () => MASK },
+  // Delegated client sub-keys (EMET-0001). The full key, the session handle
+  // and the claim nonce. A bare key_id (32 hex, no prefix) is an index and
+  // stays visible. Lengths are exact so a shorter hex id is not masked.
+  { name: 'subkey', pre: (t) => t.includes('emk_') || t.includes('emh_') || t.includes('emn_'),
+    re: /(?<![A-Za-z0-9_])(?:emk_[0-9a-f]{32}_[A-Za-z0-9_-]{43}|emh_[A-Za-z0-9_-]{43}|emn_[A-Za-z0-9_-]{43})(?![A-Za-z0-9_-])/g,
+    sub: () => MASK },
   // key: value / key = value / "key": "value"   (key survives, value is masked)
   { name: 'key-value',
     // Every alternative in KEY_NAMES contains one of these substrings, and the

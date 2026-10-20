@@ -4,7 +4,7 @@
  *
  * Licensed under the MIT License - see LICENSE
  *
- * gem-check, revision 2026-10-11. The gate in gem-library/CONFORMANCE.md.
+ * gem-check, revision 2026-10-12. The gate in gem-library/CONFORMANCE.md.
  * The socket runs these same functions. Nothing here imports the store,
  * a GEM's code, or a JSON-schema library. A throw inside a check is a
  * failure of that check. The process exits 1 on any failure.
@@ -24,8 +24,9 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { resolveModulePath } from './module-path.js';
+import { refuseHostAccess, MAX_SOURCE_BYTES, runeSpecifierReason, runeExtensionReason } from './host-reach.js';
 
-export const SPEC_REVISION = '2026-10-11';
+export const SPEC_REVISION = '2026-10-12';
 export const CHECK_IDS = Object.freeze([
   'GC-01', 'GC-02', 'GC-03', 'GC-04', 'GC-05', 'GC-06', 'GC-07', 'GC-08', 'GC-09', 'GC-10',
   'GC-11', 'GC-12', 'GC-13', 'GC-14', 'GC-15', 'GC-16', 'GC-17', 'GC-18', 'GC-19', 'GC-20',
@@ -33,11 +34,7 @@ export const CHECK_IDS = Object.freeze([
 ]);
 
 const CODE_EXT = Object.freeze(['.js', '.mjs', '.cjs', '.wasm', '.sh', '.py', '.exe', '.so', '.dylib', '.dll']);
-const JS_EXT = Object.freeze(['.js', '.mjs', '.cjs']);
-const FORBIDDEN_SPECIFIERS = new Set([
-  'fs', 'node:fs', 'net', 'node:net', 'dgram', 'dns', 'tls', 'http', 'https',
-  'child_process', 'worker_threads', 'cluster', 'vm', 'module', 'mongodb'
-]);
+const JS_EXT = Object.freeze(['.js', '.mjs']);
 const ACCESS_RE = /^(identity|semantic|episodic|procedural|meta|working|doc:[A-Za-z0-9][A-Za-z0-9_./-]{0,80})$/;
 const RANGE_RE = /^(>=|\^|~)?(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$/;
 const VERSION_RE = /^(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$/;
@@ -339,6 +336,13 @@ function schemaError(schema, data, at, root) {
       if (err) return err;
     }
   }
+  if (schema.anyOf) {
+    let matched = false;
+    for (const sub of schema.anyOf) {
+      if (!schemaError(sub, data, at, root)) { matched = true; break; }
+    }
+    if (!matched) return { path: at || '/', message: 'does not match' };
+  }
   if (schema.if) {
     if (!schemaError(schema.if, data, at, root) && schema.then) {
       const err = schemaError(schema.then, data, at, root);
@@ -469,6 +473,13 @@ async function walkFiles(rootReal) {
     for (const ent of ents) {
       const abs = path.join(dir, ent.name);
       if (ent.isSymbolicLink()) {
+        const rel = path.relative(rootReal, abs).split(path.sep).join('/');
+        if (rel === 'runes' || rel.startsWith('runes/')) {
+          const err = new Error('symlink');
+          err.code = 'SYMLINK';
+          err.rel = rel;
+          throw err;
+        }
         const real = await fs.promises.realpath(abs);
         if (!inside(rootReal, real)) {
           const err = new Error('symlink escapes');
@@ -529,20 +540,39 @@ class ScanRefuse extends Error {
 }
 
 /**
- * Walk source as text. Comments are not code. String literals are collected
- * and not executed. A template expression is scanned as its own span.
- * This is not a full ECMAScript parser. node --check is the syntax gate.
- * Anything the walk cannot classify fails closed.
+ * Walk source as text for imports, literals, and the calls this revision
+ * already named. Comments are not code. String literals are collected and
+ * not executed. A template expression is scanned as its own span.
+ * node --check is the syntax gate. refuseHostAccess then parses the same
+ * source with acorn and refuses a host reach. A parse error fails closed.
+ * Input over MAX_SOURCE_BYTES is refused before the walk.
  */
-export function scanModuleSource(source) {
+export function scanModuleSource(source, fromRel) {
   const specifiers = [];
   const literals = [];
+  let dynamicImport = false;
+  let network = false;
   const s = String(source);
+  if (Buffer.byteLength(s) > MAX_SOURCE_BYTES) throw new ScanRefuse('too large');
   const n = s.length;
   let i = 0;
 
   function skipSpace() {
     while (i < n && /[ \t\r\n]/.test(s[i])) i++;
+  }
+  function skipGapIndex(from) {
+    let j = from;
+    for (;;) {
+      while (j < n && /[ \t\r\n]/.test(s[j])) j++;
+      if (s[j] === '/' && s[j + 1] === '/') { j += 2; while (j < n && s[j] !== '\n') j++; continue; }
+      if (s[j] === '/' && s[j + 1] === '*') {
+        j += 2;
+        while (j < n && !(s[j] === '*' && s[j + 1] === '/')) j++;
+        j = Math.min(n, j + 2);
+        continue;
+      }
+      return j;
+    }
   }
   function word(name) {
     if (!s.startsWith(name, i)) return false;
@@ -614,7 +644,7 @@ export function scanModuleSource(source) {
         if (s[i - 1] !== '}' && s[i] !== '}') throw new ScanRefuse('bad template');
         if (s[i] === '}') i++;
         const expr = s.slice(start, i - 1);
-        const nested = scanModuleSource(expr);
+        const nested = scanModuleSource(expr, fromRel);
         specifiers.push(...nested.specifiers);
         literals.push(...nested.literals);
         continue;
@@ -633,16 +663,39 @@ export function scanModuleSource(source) {
     i = saved;
     return end;
   }
+  function noteSpecifier(value) {
+    if (value === 'vm' || value === 'node:vm') throw new ScanRefuse('vm');
+    specifiers.push(value);
+  }
   function expectSpecifier(kind) {
     skipSpace();
     if (s[i] !== "'" && s[i] !== '"' && s[i] !== '`') throw new ScanRefuse('non-literal ' + kind);
     const value = s[i] === '`' ? (readTemplate(), literals[literals.length - 1]) : readQuoted();
-    specifiers.push(value);
+    noteSpecifier(value);
+  }
+  function skipGap() {
+    for (;;) {
+      skipSpace();
+      if (s[i] === '/' && s[i + 1] === '/') { i += 2; while (i < n && s[i] !== '\n') i++; continue; }
+      if (s[i] === '/' && s[i + 1] === '*') { i += 2; while (i < n && !(s[i] === '*' && s[i + 1] === '/')) i++; i = Math.min(n, i + 2); continue; }
+      return;
+    }
   }
   function parseImport() {
     i += 'import'.length;
-    skipSpace();
-    if (s[i] === '(') { i++; expectSpecifier('import'); return; }
+    skipGap();
+    if (s[i] === '(') {
+      i++;
+      skipGap();
+      if (s[i] !== "'" && s[i] !== '"') throw new ScanRefuse('computed import');
+      const value = readQuoted();
+      noteSpecifier(value);
+      skipGap();
+      if (s[i] !== ')') throw new ScanRefuse('computed import');
+      i++;
+      dynamicImport = true;
+      return;
+    }
     if (s[i] === "'" || s[i] === '"' || s[i] === '`') { expectSpecifier('import'); return; }
     let depth = 0;
     while (i < n) {
@@ -698,12 +751,8 @@ export function scanModuleSource(source) {
       while (j < n && /[ \t]/.test(s[j])) j++;
       if (s[j] === '(') throw new ScanRefuse('eval');
     }
-    if (word('Function')) {
-      const at = i + 'Function'.length;
-      let j = at;
-      while (j < n && /[ \t]/.test(s[j])) j++;
-      if (s[j] === '(') throw new ScanRefuse('Function');
-    }
+    if (word('Function') && s[skipGapIndex(i + 'Function'.length)] === '(') throw new ScanRefuse('Function');
+    if (word('fetch') || word('WebSocket') || word('XMLHttpRequest')) network = true;
     if (word('process')) {
       let j = i + 'process'.length;
       while (j < n && /[ \t]/.test(s[j])) j++;
@@ -715,17 +764,35 @@ export function scanModuleSource(source) {
     }
     i++;
   }
-  return { specifiers, literals };
+  const gateOptions = { importMode: 'gc16' };
+  if (typeof fromRel === 'string' && fromRel.length > 0) gateOptions.from = fromRel;
+  refuseHostAccess(s, undefined, gateOptions);
+  return { specifiers, literals, dynamicImport, network };
 }
 
-function specifierAllowed(spec, fileRel, listed) {
-  if (spec === 'emet/rune') return true;
-  if (FORBIDDEN_SPECIFIERS.has(spec) || spec.includes('mongodb') || spec.startsWith('node:')) return false;
-  if (!spec.startsWith('./') && !spec.startsWith('../')) return false;
-  const dir = path.posix.dirname(fileRel);
-  const norm = path.posix.normalize(path.posix.join(dir, spec));
-  if (norm.startsWith('../') || norm === '..' || norm.startsWith('/')) return false;
-  return listed.includes(norm);
+function specifierAllowed(spec, fileRel, listed, resolved) {
+  return runeSpecifierReason(spec, fileRel, listed, 'gc16', resolved) == null;
+}
+
+/**
+ * Real path of each relative import that lexically lands under runes/.
+ * GC-04 refuses a symlink under runes/ before the scan, so checkGem does
+ * not reach this with a link. This is the backstop: a real path outside
+ * runes/ is recorded here, and runeSpecifierReason refuses it.
+ */
+export async function resolvedUnderRunes(rootReal, fileRel, specs) {
+  const resolved = Object.create(null);
+  for (const spec of specs) {
+    if (typeof spec !== 'string' || (!spec.startsWith('./') && !spec.startsWith('../'))) continue;
+    const norm = path.posix.normalize(path.posix.join(path.posix.dirname(fileRel), spec));
+    if (!norm.startsWith('runes/') || norm.split('/').includes('..')) continue;
+    let real;
+    try { real = await fs.promises.realpath(path.resolve(rootReal, ...norm.split('/'))); }
+    catch { resolved[norm] = ''; continue; }
+    if (!inside(rootReal, real)) { resolved[norm] = ''; continue; }
+    resolved[norm] = path.relative(rootReal, real).split(path.sep).join('/');
+  }
+  return resolved;
 }
 
 async function moduleSyntaxOk(buf) {
@@ -807,7 +874,48 @@ function verifySignature(manifest, store) {
  * @param {string} dir
  * @param {{ emetVersion?: string, trustStore?: object|null, schema?: object }} [options]
  */
+const gemCheckCache = new Map();
+
+async function gemCacheKey(dir, options) {
+  let st;
+  try { st = await fs.promises.lstat(dir); }
+  catch { return null; }
+  // A symlink must not share the real directory's cache key. lstat of a
+  // link is not a directory, so the symlink clause is what keeps the key empty.
+  if (st.isSymbolicLink() || !st.isDirectory()) return null;
+  let root;
+  try { root = await fs.promises.realpath(dir); }
+  catch { return null; }
+  const gemPath = path.join(root, 'gem.json');
+  let gemBuf;
+  let manifest;
+  try {
+    gemBuf = await fs.promises.readFile(gemPath);
+    manifest = JSON.parse(gemBuf.toString('utf8'));
+  } catch { return null; }
+  const hash = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
+  const schemaHash = hash(Buffer.from(JSON.stringify(options.schema || null)));
+  // Content, not mtime: a same-size rewrite in the same millisecond must miss.
+  const parts = [root, hash(gemBuf), options.emetVersion || '', schemaHash, JSON.stringify(options.trustStore || null)];
+  const files = manifest && Array.isArray(manifest.files) ? manifest.files : [];
+  for (const file of files) {
+    if (!file || typeof file.path !== 'string') { parts.push('bad'); continue; }
+    try {
+      parts.push(file.path, hash(await fs.promises.readFile(path.join(root, file.path))));
+    } catch { parts.push(file.path, 'missing'); }
+  }
+  return parts.join('\0');
+}
+
 export async function checkGem(dir, options = {}) {
+  const gemKey = await gemCacheKey(dir, options);
+  if (gemKey && gemCheckCache.has(gemKey)) return structuredClone(gemCheckCache.get(gemKey));
+  const result = await checkGemUncached(dir, options);
+  if (gemKey) gemCheckCache.set(gemKey, result);
+  return result;
+}
+
+async function checkGemUncached(dir, options = {}) {
   const ctx = {
     dir,
     rootReal: null,
@@ -835,6 +943,7 @@ export async function checkGem(dir, options = {}) {
   await run('GC-01', async () => {
     let st;
     try { st = await fs.promises.lstat(dir); } catch { return fail('GC-01', 'not a directory'); }
+    if (st.isSymbolicLink()) return fail('GC-01', 'symlink');
     if (!st.isDirectory()) return fail('GC-01', 'not a directory');
     try { ctx.rootReal = await fs.promises.realpath(dir); } catch { return fail('GC-01', 'directory cannot be resolved'); }
     const gemPath = path.join(ctx.rootReal, 'gem.json');
@@ -857,7 +966,7 @@ export async function checkGem(dir, options = {}) {
 
   await run('GC-03', async () => {
     if (!ctx.manifest) return fail('GC-03', 'gem.json did not parse');
-    if (ctx.manifest.spec !== SPEC_REVISION) return fail('GC-03', 'spec is not 2026-10-11');
+    if (ctx.manifest.spec !== SPEC_REVISION) return fail('GC-03', 'spec is not ' + SPEC_REVISION);
     return pass('GC-03');
   });
 
@@ -872,6 +981,7 @@ export async function checkGem(dir, options = {}) {
     try { ctx.walked = await walkFiles(ctx.rootReal); }
     catch (e) {
       if (e && e.code === 'ESCAPE') return fail('GC-04', 'symlink escapes');
+      if (e && e.code === 'SYMLINK') return fail('GC-04', 'symlink');
       return fail('GC-04', 'cannot list files');
     }
     for (const rel of rels) {
@@ -1062,6 +1172,10 @@ export async function checkGem(dir, options = {}) {
 
   await run('GC-16', async () => {
     if (!ctx.rootReal || !ctx.manifest) return fail('GC-16', 'files missing');
+    for (const rel of ctx.files) {
+      const why = runeExtensionReason(rel);
+      if (why) return fail('GC-16', why);
+    }
     const code = ctx.files.filter((rel) => CODE_EXT.includes(extname(rel)));
     const js = code.filter((rel) => JS_EXT.includes(extname(rel)) && rel.startsWith('runes/'));
     const foreign = code.filter((rel) => !JS_EXT.includes(extname(rel)));
@@ -1069,16 +1183,17 @@ export async function checkGem(dir, options = {}) {
     if (!js.length) return skip('GC-16', 'no code');
     for (const rel of js) {
       const buf = ctx.bytes.get(rel);
-      if (!buf || buf.length > 65536) return fail('GC-16', 'code file size');
+      if (!buf || buf.length > MAX_SOURCE_BYTES) return fail('GC-16', 'code file size');
       // Syntax-check a copy named .mjs. The GEM file is not the process
       // argument, and --check does not run it. A .js file outside this
       // package would otherwise be parsed as a script.
       if (!(await moduleSyntaxOk(buf))) return fail('GC-16', 'syntax');
       let scanned;
-      try { scanned = scanModuleSource(buf.toString('utf8')); }
+      try { scanned = scanModuleSource(buf.toString('utf8'), rel); }
       catch (e) { return fail('GC-16', e && e.reason ? e.reason : 'could not scan'); }
+      const resolved = await resolvedUnderRunes(ctx.rootReal, rel, scanned.specifiers);
       for (const spec of scanned.specifiers) {
-        if (!specifierAllowed(spec, rel, ctx.files)) return fail('GC-16', 'specifier not allowed');
+        if (!specifierAllowed(spec, rel, ctx.files, resolved)) return fail('GC-16', 'specifier not allowed');
       }
       for (const lit of scanned.literals) {
         if (/https?:\/\//.test(lit) || /mongodb(?:\+srv)?:\/\//.test(lit)) return fail('GC-16', 'url in code');
@@ -1120,8 +1235,27 @@ export async function checkGem(dir, options = {}) {
   await run('GC-19', async () => {
     if (!ctx.manifest || !Array.isArray(ctx.manifest.runes)) return fail('GC-19', 'runes missing');
     if (ctx.manifest.runes.length === 0 && ctx.manifest.kind !== 'runed-gem') return skip('GC-19', 'no runes');
-    if (ctx.manifest.runes.length === 0) return fail('GC-19', 'sandbox not implemented');
-    return fail('GC-19', 'sandbox not implemented');
+    if (ctx.manifest.runes.length === 0) return fail('GC-19', 'no runes');
+    const prior = checks.find((c) => c.id === 'GC-16');
+    if (prior && prior.status === 'fail') return fail('GC-19', 'static analysis failed');
+    const listed = new Map((ctx.manifest.files || []).filter((f) => f && f.path).map((f) => [f.path, f]));
+    for (const rune of ctx.manifest.runes) {
+      if (!rune || rune.execution !== 'client' || rune.version !== ctx.manifest.version) return fail('GC-19', 'manifest');
+      if (!Array.isArray(rune.reads) || rune.reads.length || !Array.isArray(rune.writes) || rune.writes.length) return fail('GC-19', 'reads and writes empty');
+      if (!rune.annotations || rune.annotations.readOnlyHint !== true || rune.network !== 'none') return fail('GC-19', 'permissions');
+      const pin = listed.get(rune.artifact);
+      const buf = typeof rune.artifact === 'string' ? ctx.bytes.get(rune.artifact) : null;
+      if (!pin || !buf || !String(rune.artifact).startsWith('runes/')) return fail('GC-19', 'artifact');
+      const actual = sha256File(buf);
+      if (!digestEqual(rune.sha256, actual) || !digestEqual(pin.digest, actual)) return fail('GC-19', 'digest');
+      let scanned;
+      try { scanned = scanModuleSource(buf.toString('utf8'), rune.artifact); }
+      catch (e) { return fail('GC-19', e && e.reason ? e.reason : 'load gate'); }
+      if (scanned.specifiers.includes('emet/rune')) return fail('GC-19', 'emet/rune');
+      if (scanned.dynamicImport) return fail('GC-19', 'dynamic import');
+      if (scanned.network) return fail('GC-19', 'network');
+    }
+    return pass('GC-19');
   });
 
   await run('GC-20', async () => {
@@ -1169,6 +1303,7 @@ export async function checkGem(dir, options = {}) {
     lines,
     checks,
     firstFailure: first ? first.id : null,
+    firstDetail: first ? first.reason : null,
     manifest: ctx.manifest,
     floor: ctx.floor,
     floorBytes: ctx.floorTrusted ? ctx.floorBuf.length : 0,

@@ -1,0 +1,606 @@
+{
+  "note": "Exact node JSON.stringify output of each check_runes vector before the load-gate edits to lss_capability, lss_control_limits, and lss_hypothesis.",
+  "cases": [
+    {
+      "name": "cp",
+      "artifact": "runes/lss_capability.js",
+      "payload": {
+        "index": "cp",
+        "sigmaKind": "within",
+        "usl": 10,
+        "lsl": 0,
+        "sigma": 1
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"value\":1.6666666666666667,\"sigmaUsed\":1}"
+    },
+    {
+      "name": "cpk",
+      "artifact": "runes/lss_capability.js",
+      "payload": {
+        "index": "cpk",
+        "sigmaKind": "within",
+        "usl": 10,
+        "lsl": 0,
+        "sigma": 1,
+        "mean": 7
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"value\":1,\"sigmaUsed\":1}"
+    },
+    {
+      "name": "pp",
+      "artifact": "runes/lss_capability.js",
+      "payload": {
+        "index": "pp",
+        "sigmaKind": "overall",
+        "usl": 10,
+        "lsl": 0,
+        "sigma": 1
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"value\":1.6666666666666667,\"sigmaUsed\":1}"
+    },
+    {
+      "name": "ppk",
+      "artifact": "runes/lss_capability.js",
+      "payload": {
+        "index": "ppk",
+        "sigmaKind": "overall",
+        "usl": 10,
+        "lsl": 0,
+        "sigma": 1,
+        "mean": 7
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"value\":1,\"sigmaUsed\":1}"
+    },
+    {
+      "name": "label-mismatch",
+      "artifact": "runes/lss_capability.js",
+      "payload": {
+        "index": "pp",
+        "sigmaKind": "within",
+        "usl": 10,
+        "lsl": 0,
+        "sigma": 1
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"sigma-label-mismatch\",\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"value\":1.6666666666666667,\"sigmaUsed\":1}"
+    },
+    {
+      "name": "sigma-from-range",
+      "artifact": "runes/lss_capability.js",
+      "payload": {
+        "index": "cp",
+        "sigmaKind": "within",
+        "usl": 10,
+        "lsl": 0,
+        "rBar": 1.128,
+        "d2": 1.128
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"value\":1.6666666666666667,\"sigmaUsed\":1}"
+    },
+    {
+      "name": "both-sigma-sources",
+      "artifact": "runes/lss_capability.js",
+      "payload": {
+        "index": "cp",
+        "sigmaKind": "within",
+        "usl": 10,
+        "lsl": 0,
+        "sigma": 1,
+        "rBar": 1.128,
+        "d2": 1.128
+      },
+      "stdout": "{\"ok\":false,\"flags\":[\"missing-input\"],\"missing\":[\"sigma\",\"rBar\",\"d2\"],\"wrote\":false,\"error\":\"Pass sigma or the range pair, not both.\",\"value\":null,\"sigmaUsed\":null}"
+    },
+    {
+      "name": "sigma-not-positive",
+      "artifact": "runes/lss_capability.js",
+      "payload": {
+        "index": "cp",
+        "sigmaKind": "within",
+        "usl": 10,
+        "lsl": 0,
+        "sigma": 0
+      },
+      "stdout": "{\"ok\":false,\"flags\":[\"missing-input\"],\"missing\":[\"sigma\"],\"wrote\":false,\"error\":\"sigma must be greater than 0.\",\"value\":null,\"sigmaUsed\":null}"
+    },
+    {
+      "name": "usl-below-lsl",
+      "artifact": "runes/lss_capability.js",
+      "payload": {
+        "index": "cp",
+        "sigmaKind": "within",
+        "usl": 0,
+        "lsl": 10,
+        "sigma": 1
+      },
+      "stdout": "{\"ok\":false,\"flags\":[],\"missing\":[],\"wrote\":false,\"error\":\"USL is below LSL.\",\"value\":null,\"sigmaUsed\":null}"
+    },
+    {
+      "name": "save-ignored",
+      "artifact": "runes/lss_capability.js",
+      "payload": {
+        "index": "cp",
+        "sigmaKind": "within",
+        "usl": 10,
+        "lsl": 0,
+        "sigma": 1,
+        "save": true,
+        "docId": "doc:lss-project/charter"
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"value\":1.6666666666666667,\"sigmaUsed\":1}"
+    },
+    {
+      "name": "dpmo",
+      "artifact": "runes/lss_dpmo_sigma.js",
+      "payload": {
+        "defects": 10,
+        "units": 100,
+        "opportunitiesPerUnit": 5
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"sigma-not-computed\"],\"missing\":[],\"wrote\":false,\"error\":null,\"dpo\":0.02,\"dpmo\":20000,\"opportunityYield\":0.98}"
+    },
+    {
+      "name": "dpmo-shift-ignored",
+      "artifact": "runes/lss_dpmo_sigma.js",
+      "payload": {
+        "defects": 10,
+        "units": 100,
+        "opportunitiesPerUnit": 5,
+        "shift": 1.5
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"sigma-not-computed\"],\"missing\":[],\"wrote\":false,\"error\":null,\"dpo\":0.02,\"dpmo\":20000,\"opportunityYield\":0.98}"
+    },
+    {
+      "name": "dpmo-yield-out-of-range",
+      "artifact": "runes/lss_dpmo_sigma.js",
+      "payload": {
+        "defects": 500,
+        "units": 1,
+        "opportunitiesPerUnit": 10
+      },
+      "stdout": "{\"ok\":false,\"flags\":[],\"missing\":[],\"wrote\":false,\"error\":\"Opportunity yield is outside 0 to 1.\",\"dpo\":null,\"dpmo\":null,\"opportunityYield\":null}"
+    },
+    {
+      "name": "xbar-r",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 5,
+        "xDoubleBar": 50,
+        "rBar": 4,
+        "a2": 0.577,
+        "d3": 0,
+        "d4": 2.115
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":50,\"ucl\":52.308,\"lcl\":47.692,\"centerR\":4,\"uclR\":8.46,\"lclR\":0,\"constantsUsed\":{\"a2\":0.577,\"d3\":0,\"d4\":2.115,\"fromTable\":false}}"
+    },
+    {
+      "name": "xbar-r-table",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 5,
+        "xDoubleBar": 50,
+        "rBar": 4
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":50,\"ucl\":52.308,\"lcl\":47.692,\"centerR\":4,\"uclR\":8.46,\"lclR\":0,\"constantsUsed\":{\"a2\":0.577,\"d3\":0,\"d4\":2.115,\"fromTable\":true}}"
+    },
+    {
+      "name": "i-mr",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "i-mr",
+        "xBar": 10,
+        "mrBar": 2
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":10,\"ucl\":15.319148936170214,\"lcl\":4.680851063829786,\"centerR\":2,\"uclR\":6.534,\"lclR\":0,\"constantsUsed\":{\"d2\":1.128,\"d4\":3.267,\"fromTable\":true}}"
+    },
+    {
+      "name": "p-chart",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "p",
+        "pBar": 0.1,
+        "n": 100
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":0.1,\"ucl\":0.19,\"lcl\":0.009999999999999995,\"centerR\":null,\"uclR\":null,\"lclR\":null,\"constantsUsed\":null}"
+    },
+    {
+      "name": "np-chart",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "np",
+        "pBar": 0.1,
+        "n": 100
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":10,\"ucl\":19,\"lcl\":1,\"centerR\":null,\"uclR\":null,\"lclR\":null,\"constantsUsed\":null}"
+    },
+    {
+      "name": "c-chart",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "c",
+        "cBar": 16
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":16,\"ucl\":28,\"lcl\":4,\"centerR\":null,\"uclR\":null,\"lclR\":null,\"constantsUsed\":null}"
+    },
+    {
+      "name": "c-chart-lcl-floor",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "c",
+        "cBar": 1
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\",\"lcl-floored-at-zero\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":1,\"ucl\":4,\"lcl\":0,\"centerR\":null,\"uclR\":null,\"lclR\":null,\"constantsUsed\":null}"
+    },
+    {
+      "name": "u-chart",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "u",
+        "uBar": 4,
+        "n": 4
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":4,\"ucl\":7,\"lcl\":1,\"centerR\":null,\"uclR\":null,\"lclR\":null,\"constantsUsed\":null}"
+    },
+    {
+      "name": "lcl-floor",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "p",
+        "pBar": 0.01,
+        "n": 5
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\",\"lcl-floored-at-zero\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":0.01,\"ucl\":0.14349157276772193,\"lcl\":0,\"centerR\":null,\"uclR\":null,\"lclR\":null,\"constantsUsed\":null}"
+    },
+    {
+      "name": "factor-out-of-range",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 11,
+        "xDoubleBar": 50,
+        "rBar": 4
+      },
+      "stdout": "{\"ok\":false,\"flags\":[\"factor-out-of-range\"],\"missing\":[],\"wrote\":false,\"error\":\"Subgroup size is outside the factor table.\",\"center\":null,\"ucl\":null,\"lcl\":null,\"centerR\":null,\"uclR\":null,\"lclR\":null,\"constantsUsed\":null}"
+    },
+    {
+      "name": "xbar-n-2",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 2,
+        "xDoubleBar": 0,
+        "rBar": 1
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":0,\"ucl\":1.88,\"lcl\":-1.88,\"centerR\":1,\"uclR\":3.267,\"lclR\":0,\"constantsUsed\":{\"a2\":1.88,\"d3\":0,\"d4\":3.267,\"fromTable\":true}}"
+    },
+    {
+      "name": "xbar-n-3",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 3,
+        "xDoubleBar": 0,
+        "rBar": 1
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":0,\"ucl\":1.023,\"lcl\":-1.023,\"centerR\":1,\"uclR\":2.575,\"lclR\":0,\"constantsUsed\":{\"a2\":1.023,\"d3\":0,\"d4\":2.575,\"fromTable\":true}}"
+    },
+    {
+      "name": "xbar-n-4",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 4,
+        "xDoubleBar": 0,
+        "rBar": 1
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":0,\"ucl\":0.729,\"lcl\":-0.729,\"centerR\":1,\"uclR\":2.282,\"lclR\":0,\"constantsUsed\":{\"a2\":0.729,\"d3\":0,\"d4\":2.282,\"fromTable\":true}}"
+    },
+    {
+      "name": "xbar-n-5",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 5,
+        "xDoubleBar": 0,
+        "rBar": 1
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":0,\"ucl\":0.577,\"lcl\":-0.577,\"centerR\":1,\"uclR\":2.115,\"lclR\":0,\"constantsUsed\":{\"a2\":0.577,\"d3\":0,\"d4\":2.115,\"fromTable\":true}}"
+    },
+    {
+      "name": "xbar-n-6",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 6,
+        "xDoubleBar": 0,
+        "rBar": 1
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":0,\"ucl\":0.483,\"lcl\":-0.483,\"centerR\":1,\"uclR\":2.004,\"lclR\":0,\"constantsUsed\":{\"a2\":0.483,\"d3\":0,\"d4\":2.004,\"fromTable\":true}}"
+    },
+    {
+      "name": "xbar-n-7",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 7,
+        "xDoubleBar": 0,
+        "rBar": 1
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":0,\"ucl\":0.419,\"lcl\":-0.419,\"centerR\":1,\"uclR\":1.924,\"lclR\":0.076,\"constantsUsed\":{\"a2\":0.419,\"d3\":0.076,\"d4\":1.924,\"fromTable\":true}}"
+    },
+    {
+      "name": "xbar-n-8",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 8,
+        "xDoubleBar": 0,
+        "rBar": 1
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":0,\"ucl\":0.373,\"lcl\":-0.373,\"centerR\":1,\"uclR\":1.864,\"lclR\":0.136,\"constantsUsed\":{\"a2\":0.373,\"d3\":0.136,\"d4\":1.864,\"fromTable\":true}}"
+    },
+    {
+      "name": "xbar-n-9",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 9,
+        "xDoubleBar": 0,
+        "rBar": 1
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":0,\"ucl\":0.337,\"lcl\":-0.337,\"centerR\":1,\"uclR\":1.816,\"lclR\":0.184,\"constantsUsed\":{\"a2\":0.337,\"d3\":0.184,\"d4\":1.816,\"fromTable\":true}}"
+    },
+    {
+      "name": "xbar-n-10",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 10,
+        "xDoubleBar": 0,
+        "rBar": 1
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":0,\"ucl\":0.308,\"lcl\":-0.308,\"centerR\":1,\"uclR\":1.777,\"lclR\":0.223,\"constantsUsed\":{\"a2\":0.308,\"d3\":0.223,\"d4\":1.777,\"fromTable\":true}}"
+    },
+    {
+      "name": "xbar-negative-center",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 5,
+        "xDoubleBar": -5,
+        "rBar": 2
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":-5,\"ucl\":-3.846,\"lcl\":-6.154,\"centerR\":2,\"uclR\":4.23,\"lclR\":0,\"constantsUsed\":{\"a2\":0.577,\"d3\":0,\"d4\":2.115,\"fromTable\":true}}"
+    },
+    {
+      "name": "xbar-mean-minus-one",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "xbar-r",
+        "n": 5,
+        "xDoubleBar": -1,
+        "rBar": 2
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":-1,\"ucl\":0.15399999999999991,\"lcl\":-2.154,\"centerR\":2,\"uclR\":4.23,\"lclR\":0,\"constantsUsed\":{\"a2\":0.577,\"d3\":0,\"d4\":2.115,\"fromTable\":true}}"
+    },
+    {
+      "name": "i-mr-negative",
+      "artifact": "runes/lss_control_limits.js",
+      "payload": {
+        "chart": "i-mr",
+        "xBar": -1,
+        "mrBar": 0.5
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"center\":-1,\"ucl\":0.3297872340425534,\"lcl\":-2.3297872340425534,\"centerR\":0.5,\"uclR\":1.6335,\"lclR\":0,\"constantsUsed\":{\"d2\":1.128,\"d4\":3.267,\"fromTable\":true}}"
+    },
+    {
+      "name": "n-proportion",
+      "artifact": "runes/lss_sample_size.js",
+      "payload": {
+        "kind": "proportion",
+        "z": 2,
+        "e": 0.1,
+        "p": 0.5
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"n\":100,\"marginOfError\":true}"
+    },
+    {
+      "name": "n-mean",
+      "artifact": "runes/lss_sample_size.js",
+      "payload": {
+        "kind": "mean",
+        "z": 2,
+        "e": 1,
+        "sigma": 5
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"n\":100,\"marginOfError\":true}"
+    },
+    {
+      "name": "one-sample-t",
+      "artifact": "runes/lss_hypothesis.js",
+      "payload": {
+        "test": "one-sample-t",
+        "xBar": 10,
+        "mu0": 8,
+        "s": 2,
+        "n": 16
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"t\":4,\"df\":15,\"exceedsCritical\":null,\"chiSquare\":null,\"grandMean\":null,\"groupMeans\":null,\"ssb\":null,\"ssw\":null,\"msb\":null,\"msw\":null,\"f\":null,\"dfBetween\":null,\"dfWithin\":null,\"slope\":null,\"intercept\":null,\"r2\":null,\"low\":null,\"high\":null}"
+    },
+    {
+      "name": "chi-square",
+      "artifact": "runes/lss_hypothesis.js",
+      "payload": {
+        "test": "chi-square-gof",
+        "observed": [
+          10,
+          20,
+          30
+        ],
+        "expected": [
+          20,
+          20,
+          20
+        ],
+        "parametersEstimated": 0
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"t\":null,\"df\":2,\"exceedsCritical\":null,\"chiSquare\":10,\"grandMean\":null,\"groupMeans\":null,\"ssb\":null,\"ssw\":null,\"msb\":null,\"msw\":null,\"f\":null,\"dfBetween\":null,\"dfWithin\":null,\"slope\":null,\"intercept\":null,\"r2\":null,\"low\":null,\"high\":null}"
+    },
+    {
+      "name": "chi-square-missing-m",
+      "artifact": "runes/lss_hypothesis.js",
+      "payload": {
+        "test": "chi-square-gof",
+        "observed": [
+          10,
+          20,
+          30
+        ],
+        "expected": [
+          20,
+          20,
+          20
+        ]
+      },
+      "stdout": "{\"ok\":false,\"flags\":[\"missing-input\"],\"missing\":[\"parametersEstimated\"],\"wrote\":false,\"error\":\"Missing parametersEstimated.\",\"t\":null,\"df\":null,\"exceedsCritical\":null,\"chiSquare\":null,\"grandMean\":null,\"groupMeans\":null,\"ssb\":null,\"ssw\":null,\"msb\":null,\"msw\":null,\"f\":null,\"dfBetween\":null,\"dfWithin\":null,\"slope\":null,\"intercept\":null,\"r2\":null,\"low\":null,\"high\":null}"
+    },
+    {
+      "name": "anova",
+      "artifact": "runes/lss_hypothesis.js",
+      "payload": {
+        "test": "anova-oneway",
+        "groups": [
+          [
+            1,
+            2,
+            3
+          ],
+          [
+            4,
+            5,
+            6
+          ]
+        ]
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"t\":null,\"df\":null,\"exceedsCritical\":null,\"chiSquare\":null,\"grandMean\":3.5,\"groupMeans\":[2,5],\"ssb\":13.5,\"ssw\":4,\"msb\":13.5,\"msw\":1,\"f\":13.5,\"dfBetween\":1,\"dfWithin\":4,\"slope\":null,\"intercept\":null,\"r2\":null,\"low\":null,\"high\":null}"
+    },
+    {
+      "name": "regression",
+      "artifact": "runes/lss_hypothesis.js",
+      "payload": {
+        "test": "simple-regression",
+        "x": [
+          1,
+          2,
+          3
+        ],
+        "y": [
+          2,
+          4,
+          6
+        ]
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"t\":null,\"df\":null,\"exceedsCritical\":null,\"chiSquare\":null,\"grandMean\":null,\"groupMeans\":null,\"ssb\":null,\"ssw\":null,\"msb\":null,\"msw\":null,\"f\":null,\"dfBetween\":null,\"dfWithin\":null,\"slope\":2,\"intercept\":0,\"r2\":1,\"low\":null,\"high\":null}"
+    },
+    {
+      "name": "regression-small-n",
+      "artifact": "runes/lss_hypothesis.js",
+      "payload": {
+        "test": "simple-regression",
+        "x": [
+          1,
+          2
+        ],
+        "y": [
+          2,
+          4
+        ]
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"small-n\",\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"t\":null,\"df\":null,\"exceedsCritical\":null,\"chiSquare\":null,\"grandMean\":null,\"groupMeans\":null,\"ssb\":null,\"ssw\":null,\"msb\":null,\"msw\":null,\"f\":null,\"dfBetween\":null,\"dfWithin\":null,\"slope\":2,\"intercept\":0,\"r2\":1,\"low\":null,\"high\":null}"
+    },
+    {
+      "name": "regression-zero",
+      "artifact": "runes/lss_hypothesis.js",
+      "payload": {
+        "test": "simple-regression",
+        "x": [
+          1,
+          1,
+          1
+        ],
+        "y": [
+          2,
+          4,
+          6
+        ]
+      },
+      "stdout": "{\"ok\":false,\"flags\":[\"zero-variance\"],\"missing\":[],\"wrote\":false,\"error\":\"The x values have no spread.\",\"t\":null,\"df\":null,\"exceedsCritical\":null,\"chiSquare\":null,\"grandMean\":null,\"groupMeans\":null,\"ssb\":null,\"ssw\":null,\"msb\":null,\"msw\":null,\"f\":null,\"dfBetween\":null,\"dfWithin\":null,\"slope\":null,\"intercept\":null,\"r2\":null,\"low\":null,\"high\":null}"
+    },
+    {
+      "name": "z-interval",
+      "artifact": "runes/lss_hypothesis.js",
+      "payload": {
+        "test": "z-interval",
+        "xBar": 10,
+        "sigma": 2,
+        "n": 16,
+        "z": 2
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"t\":null,\"df\":null,\"exceedsCritical\":null,\"chiSquare\":null,\"grandMean\":null,\"groupMeans\":null,\"ssb\":null,\"ssw\":null,\"msb\":null,\"msw\":null,\"f\":null,\"dfBetween\":null,\"dfWithin\":null,\"slope\":null,\"intercept\":null,\"r2\":null,\"low\":9,\"high\":11}"
+    },
+    {
+      "name": "t-interval",
+      "artifact": "runes/lss_hypothesis.js",
+      "payload": {
+        "test": "t-interval",
+        "xBar": 10,
+        "s": 2,
+        "n": 16,
+        "tCrit": 2
+      },
+      "stdout": "{\"ok\":true,\"flags\":[\"assumption-not-checked\"],\"missing\":[],\"wrote\":false,\"error\":null,\"t\":null,\"df\":null,\"exceedsCritical\":null,\"chiSquare\":null,\"grandMean\":null,\"groupMeans\":null,\"ssb\":null,\"ssw\":null,\"msb\":null,\"msw\":null,\"f\":null,\"dfBetween\":null,\"dfWithin\":null,\"slope\":null,\"intercept\":null,\"r2\":null,\"low\":9,\"high\":11}"
+    },
+    {
+      "name": "t-n-too-small",
+      "artifact": "runes/lss_hypothesis.js",
+      "payload": {
+        "test": "one-sample-t",
+        "xBar": 10,
+        "mu0": 8,
+        "s": 2,
+        "n": 1
+      },
+      "stdout": "{\"ok\":false,\"flags\":[\"missing-input\"],\"missing\":[\"n\"],\"wrote\":false,\"error\":\"n must be an integer of 2 or more.\",\"t\":null,\"df\":null,\"exceedsCritical\":null,\"chiSquare\":null,\"grandMean\":null,\"groupMeans\":null,\"ssb\":null,\"ssw\":null,\"msb\":null,\"msw\":null,\"f\":null,\"dfBetween\":null,\"dfWithin\":null,\"slope\":null,\"intercept\":null,\"r2\":null,\"low\":null,\"high\":null}"
+    },
+    {
+      "name": "t-n-not-integer",
+      "artifact": "runes/lss_hypothesis.js",
+      "payload": {
+        "test": "one-sample-t",
+        "xBar": 10,
+        "mu0": 8,
+        "s": 2,
+        "n": 1.5
+      },
+      "stdout": "{\"ok\":false,\"flags\":[\"missing-input\"],\"missing\":[\"n\"],\"wrote\":false,\"error\":\"n must be an integer of 2 or more.\",\"t\":null,\"df\":null,\"exceedsCritical\":null,\"chiSquare\":null,\"grandMean\":null,\"groupMeans\":null,\"ssb\":null,\"ssw\":null,\"msb\":null,\"msw\":null,\"f\":null,\"dfBetween\":null,\"dfWithin\":null,\"slope\":null,\"intercept\":null,\"r2\":null,\"low\":null,\"high\":null}"
+    },
+    {
+      "name": "chi-square-df",
+      "artifact": "runes/lss_hypothesis.js",
+      "payload": {
+        "test": "chi-square-gof",
+        "observed": [
+          10,
+          20
+        ],
+        "expected": [
+          15,
+          15
+        ],
+        "parametersEstimated": 1
+      },
+      "stdout": "{\"ok\":false,\"flags\":[],\"missing\":[],\"wrote\":false,\"error\":\"Degrees of freedom must be greater than 0.\",\"t\":null,\"df\":null,\"exceedsCritical\":null,\"chiSquare\":null,\"grandMean\":null,\"groupMeans\":null,\"ssb\":null,\"ssw\":null,\"msb\":null,\"msw\":null,\"f\":null,\"dfBetween\":null,\"dfWithin\":null,\"slope\":null,\"intercept\":null,\"r2\":null,\"low\":null,\"high\":null}"
+    }
+  ]
+}

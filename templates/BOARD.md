@@ -1,6 +1,6 @@
 # TEMPLATE — BOARD
 
-**Template control:** id `templates/BOARD.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · a decision record · owner: EMET (base) · built to `templates/STANDARD.md` · decision record: the owner's
+**Template control:** id `templates/BOARD.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · procedural ref 311 · owner: EMET (base) · built to `templates/STANDARD.md` · decision record: procedural ref 304
 **Fills:** `STATE.md` — the structured open board. **Replaced in full at every session close; never appended.** The prior revision is archived automatically.
 **Failure it prevents:** a position document that grew by appended addenda until superseded lines sat above current ones; open items that left the record with no one deciding they should (the reference install lost two job-application actions this way in September 2026); a startup that restated this board's counts instead of naming its items, and a dated section migrated rather than rebuilt that missed three calendar items on its first live revision (reference install, 2026-09-10).
 **Completion rules:** `templates/STANDARD.md` §5, unmodified.
@@ -13,7 +13,7 @@
 2. **Rows change status, not membership.** An open row is copied into the next revision unchanged unless something about it changed.
 3. **A row leaves the open sections only through §4 CLOSED THIS REVISION**, with a disposition and evidence. It appears there once; the following revision may drop it, because the archived revision holds it.
 4. **The counts in §0 are derived from the rows.** A count that does not match the rows is a nonconformance.
-5. **A dated row whose date has passed without a recorded outcome moves to §3 as `OPEN`, next action "confirm outcome with the user." It is never closed as `DONE` without evidence.** *Prevents:* a passed date closed on an assumed outcome — the reassuring confabulation (reference install: support-structure confabulation; live instance 2026-09-11, an episode publish date resting on a shoot no one had recorded).
+5. **A dated row whose date has passed without a recorded outcome moves to §3 as `OPEN`, next action "confirm outcome with the user." It is never closed as `DONE` without evidence.** *Prevents:* a passed date closed on an assumed outcome — the reassuring confabulation (reference install, meta ref 16: support-structure confabulation; live instance 2026-09-11, an episode publish date resting on a shoot no one had recorded).
 
 ---
 

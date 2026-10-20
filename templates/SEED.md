@@ -1,6 +1,6 @@
 # TEMPLATE — SEED
 
-**Template control:** id `templates/SEED.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-13 (record control stated once, as front matter — the user's instruction; prior approval 2026-09-11 · a decision record) · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
+**Template control:** id `templates/SEED.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-13 (record control stated once, as front matter — the user's instruction; prior approval 2026-09-11 · procedural ref 311 (board 011)) · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
 **Fills:** `seeds/<name>.md` — an idea that is valid but wrongly timed, parked with the condition that brings it back.
 **Failure it prevents:** a met trigger that sat unsurfaced for weeks because nothing at startup could tell it had fired (reference install, 2026-09-10); triggers that name an event nobody scheduled, so they could never fire (three seeds waiting on a "post-certification review" that was never put on a calendar, same date); a seed that had already been executed still sitting as a seed, read at every startup as live (reference install, supersession work, August 2026).
 **Completion rules:** `templates/STANDARD.md` §5, unmodified.
@@ -13,7 +13,7 @@
 
 1. **Every trigger is testable without asking the user.** It is one of four kinds, and nothing else:
    - `DATE` — a calendar date. Fires on or after it.
-   - `ROW` — a board row id and the change that fires it (`B-001 opens`, `B-002 closes`). The board row must exist when the seed is planted; if it does not, open one.
+   - `ROW` — a board row id and the change that fires it (`board 018 opens`, `board 011 closes`). The board row must exist when the seed is planted; if it does not, open one.
    - `SIGNAL` — something a startup can observe by name: a named document reaching a named state, a named external item closing. **Name where it is checked.**
    - `TOPIC` — the user raises a named subject. **Checked during the session, not at startup:** list the subject words in the trigger so any session that has scanned the seed recognises them when they come up. *Prevents:* outlawing a trigger that works — the reference install's first-run-experience seed fired correctly this way on 2026-09-11.
    A trigger that names an event with no date and no board row ("after the review", "when there is time") is a nonconformance: plant it as `ROW` against a row that schedules the event, or as `DATE`.

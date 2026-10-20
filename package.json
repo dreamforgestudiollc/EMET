@@ -1,12 +1,15 @@
 {
   "name": "@dreamforgestudiollc/emet",
-  "version": "0.2.5",
-  "description": "EMET — Enduring Memory & Epistemic Tiers. An MCP memory server with persistent shared memory for AI agents, bot teams and chats: layered memory, verified writes, and a verbatim transcript tier.",
+  "version": "0.2.6",
+  "description": "EMET 0.2.6 — Enduring Memory & Epistemic Tiers. An MCP memory server with persistent shared memory for AI agents, bot teams and chats: layered memory, verified writes, a verbatim transcript tier, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true.",
   "keywords": [
     "agent-memory",
     "ai-agents",
     "ai-memory",
+    "attribution",
     "claude",
+    "document-control",
+    "gem",
     "grok",
     "llm-memory",
     "long-term-memory",
@@ -30,13 +33,14 @@
     "emet": "src/index.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "publishConfig": {
     "access": "public"
   },
   "files": [
     "src/",
+    "verification/",
     "templates/",
     "guides/",
     "gems/",
@@ -64,8 +68,9 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
-    "mongodb": "^7.1.0",
-    "express": "^5.2.1"
+    "acorn": "8.19.0",
+    "express": "^5.2.1",
+    "mongodb": "^7.1.0"
   },
   "overrides": {
     "proxy-addr": "^2.0.8"

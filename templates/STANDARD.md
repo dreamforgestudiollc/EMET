@@ -1,6 +1,6 @@
 # EMET TEMPLATE STANDARD
 
-**Template control:** id `templates/STANDARD.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · a decision record · owner: EMET (base) · decision record: the owner's
+**Template control:** id `templates/STANDARD.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · procedural ref 311 · owner: EMET (base) · decision record: procedural ref 304
 **Governs:** every base template shipped with EMET, every extension an install adds to one, and every new template an install creates.
 
 ---
@@ -64,23 +64,23 @@ template id and revision used · record revision · session id · source tag · 
 
 ---
 
-## 9. VALIDATION — NOT OPTIONAL (the user, 2026-09-10)
+## 9. VALIDATION — NOT OPTIONAL (the user, 2026-09-10; procedural ref 304)
 
 *"There needs to be a document template validation tool that isn't optional either freestanding or incorporated into established regular processes."*
 
 **Every record from a templated document type is validated against its template. No caller can skip it.**
 
-**Design — priced 2026-09-10; v1 scope APPROVED by the user 2026-09-11; not yet built. Build detail and limits are kept in the owner's store.**
+**Design — priced 2026-09-10; v1 scope APPROVED by the user 2026-09-11; not yet built. Build detail and limits: `staging/template-validation-v1-pricing.md`.**
 - **Where it cannot be skipped:** the write path. Every document write already passes one door (redaction, digests, read-back, receipt). Validation runs there on every write to a templated type.
 - **Which documents are templated:** by the record control block's template id, **and** by a document-id map (`HANDOFF.md` → HANDOFF, `STATE.md` → BOARD, `seeds/*` → SEED, `threads/*` → THREAD, `staging/*` → STAGING, `procedures/*` → PROCEDURE …). The map means leaving out the control block cannot evade validation.
 - **Where it is also visible:** the write receipt carries the verdict; reads carry it per document (as integrity is carried today); session start counts nonconforming documents (as record gaps are counted today).
 - **Freestanding use:** the same check callable on demand — to audit existing records, migrate old ones, and check a new local template against this standard.
 
-**What v1 checks (approved scope):** control block present · a template set IN FORCE carries its approval (who · date · record) · every required section present and in order · no empty required section · no unfilled template placeholder left in the record · `NOT COMPLETED` carries a reason · a template's own checks where it names them (the BOARD's counts must match its rows) · **carry-forward — every item on the previous revision's list is still present or carries a disposition row.** The prior revision is already archived, so this is a comparison, not a judgment. (This check alone would have caught the two board items that were dropped.)
+**What v1 checks (approved scope):** control block present · a template set IN FORCE carries its approval (who · date · record) · every required section present and in order · no empty required section · no unfilled template placeholder left in the record · `NOT COMPLETED` carries a reason · a template's own checks where it names them (the BOARD's counts must match its rows) · **carry-forward — every item on the previous revision's list is still present or carries a disposition row.** The prior revision is already archived, so this is a comparison, not a judgment. (This check alone would have caught the dropped Noctrix and Elbit items.)
 
 **What a machine cannot fully check:** whether a "none" states its scope honestly, or whether an answer is true. Those remain the author's and the reader's. The tool checks form and continuity, not truth.
 
-**DECIDED — the user, 2026-09-10 (a decision record): *"Mark for audit and review."*** A nonconforming write is **not rejected.** It lands, carries a visible nonconformance marker listing what failed, and stays counted and surfaced at session start until it is **reviewed and dispositioned** — either **corrected** by a later revision (which clears the marker by passing), or **accepted** with a written reason recorded on the document. A marker is never cleared silently.
+**DECIDED — the user, 2026-09-10 (procedural ref 304): *"Mark for audit and review."*** A nonconforming write is **not rejected.** It lands, carries a visible nonconformance marker listing what failed, and stays counted and surfaced at session start until it is **reviewed and dispositioned** — either **corrected** by a later revision (which clears the marker by passing), or **accepted** with a written reason recorded on the document. A marker is never cleared silently.
 
 ### 9a. LOCKS — nothing may weaken a template's function (the user, 2026-09-11: *"lock it down and reduce opportunities to weaken it's function as a template"*)
 

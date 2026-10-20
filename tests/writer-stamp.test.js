@@ -12,7 +12,7 @@ testGroup('server stamp', () => {
     const { writeDoc } = await import('../src/tools.js');
     const db = makeStore();
     await withStore(db, async () => {
-      await writeDoc('threads/stamp.md', '# Stamp\n', 'project-host', null, null, { client_id: 'someone-else' });
+      await writeDoc('threads/stamp.md', '# Stamp\n', 'grok-project', null, null, { client_id: 'someone-else' });
       assert.strictEqual(db.doc('threads/stamp.md').client_id, 'stdio');
     });
   });
@@ -21,7 +21,7 @@ testGroup('server stamp', () => {
     const { actorStore } = await import('../src/persons.js');
     const db = makeStore();
     await withStore(db, async () => {
-      await actorStore.run({ personId: 'owner', clientId: 'login-9' }, () => writeDoc('threads/stamp2.md', '# Stamp\n', 'project-host', null, null, { client_id: 'someone-else' }));
+      await actorStore.run({ personId: 'owner', clientId: 'login-9' }, () => writeDoc('threads/stamp2.md', '# Stamp\n', 'grok-project', null, null, { client_id: 'someone-else' }));
       assert.strictEqual(db.doc('threads/stamp2.md').client_id, 'login-9');
     });
   });
@@ -41,7 +41,7 @@ test('an unregistered source may write a new drop and nothing else', async () =>
     const { writeDoc } = await import('../src/tools.js');
     const db = makeStore();
     const prev = process.env.EMET_SOURCE_TAGS;
-    process.env.EMET_SOURCE_TAGS = 'project-host';
+    process.env.EMET_SOURCE_TAGS = 'grok-project';
     try {
       await withStore(db, async () => {
         await assert.rejects(() => writeDoc('threads/nope.md', '# No\n', 'stranger'), /new drop only/);
@@ -59,7 +59,7 @@ test('history shows the session and client stamped on the revision', async () =>
   const db = makeStore();
   await withStore(db, async () => {
     await actorStore.run({ personId: 'owner', clientId: 'login-9' }, () =>
-      writeDoc('threads/hist.md', '# Hist\n', 'project-host', null, null, { session_id: 'sess-1', client_id: 'nope' }));
+      writeDoc('threads/hist.md', '# Hist\n', 'grok-project', null, null, { session_id: 'sess-1', client_id: 'nope' }));
     const live = await readDoc('threads/hist.md');
     assert.strictEqual(live.client_id, 'login-9');
     assert.strictEqual(live.session_id, 'sess-1');
@@ -76,7 +76,7 @@ test('a retire marker carries person, client and session', async () => {
   await withStore(db, async () => {
     await writeDoc('drops/gone.md', 'a note to retire\n');
     await actorStore.run({ personId: 'owner', clientId: 'login-9' }, () =>
-      retireDoc('drops/gone.md', 'moved onto the board', 'project-host', null, { session_id: 'sess-2' }));
+      retireDoc('drops/gone.md', 'moved onto the board', 'grok-project', null, { session_id: 'sess-2' }));
     const row = db.doc('drops/gone.md');
     assert.strictEqual(row.retired_person_id, 'owner');
     assert.strictEqual(row.retired_client_id, 'login-9');
@@ -86,7 +86,7 @@ test('a retire marker carries person, client and session', async () => {
 
 test('an acceptance carries person, client and session', async () => {
   const { buildAcceptance } = await import('../src/conformance.js');
-  const a = buildAcceptance({ reason: 'disposition of record', by: 'project-host', version: 1, person_id: 'owner', client_id: 'login-9', session_id: 'sess-3' });
+  const a = buildAcceptance({ reason: 'disposition of record', by: 'grok-project', version: 1, person_id: 'owner', client_id: 'login-9', session_id: 'sess-3' });
   assert.strictEqual(a.person_id, 'owner');
   assert.strictEqual(a.client_id, 'login-9');
   assert.strictEqual(a.session_id, 'sess-3');

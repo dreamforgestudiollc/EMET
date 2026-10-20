@@ -369,8 +369,8 @@ function idCell(row, idIndex) {
  * a closed row named in a note, an item cross-referenced in a next action -
  * read as a row of its own, so the carry-forward check reported it missing
  * from the next revision. Found by running the validator against the reference
- * install's own board, 2026-09-11: two rows were both closed on the prior
- * revision and appeared only inside another row's text.
+ * install's own board, 2026-09-11: board 012 and board 050 were both closed on the
+ * prior revision and appeared only inside another row's text.
  *
  * The failure direction matters and is recorded so no one "fixes" this by
  * loosening it: the bug made the check NOISY, never permissive. Nothing passed

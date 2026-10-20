@@ -1,6 +1,6 @@
 # TEMPLATE — CHARACTER
 
-**Template control:** id `templates/CHARACTER.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-26 · a decision record · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
+**Template control:** id `templates/CHARACTER.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-26 · procedural ref 361 · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
 **Fills:** `bootstrap/CHARACTER.md` (also accepted: `bootstrap/SOUL.md`, `bootstrap/PERSONALITY.md`) — how the assistant speaks and engages. Authoritative on voice for the whole session. Modifiers on the floor; never a replacement for it.
 **Failure it prevents:** a store that boots flattened because identity loaded and character did not, or a personality document with no standing sections so later sessions cannot find tone, limits, or what the assistant will not do (character payload work 2026-09-05; user 2026-09-26: structure ships, personal voice does not).
 **Completion rules:** `templates/STANDARD.md` §5, unmodified.

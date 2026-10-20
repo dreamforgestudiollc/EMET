@@ -153,13 +153,18 @@ have to. A new store returns a short interview; an established one returns the a
 identity, your profile, and recent context. Requiring a command would have been backwards —
 the one session you would need it is the first one, before you have read any of this.
 
-The interview asks six things, four required and two optional:
+The interview asks eight things, four required and four optional:
 
 - **What the assistant should be called**, and **how it should carry itself.** This becomes
   the identity it speaks from in every session on every host.
 - **Your name**, in the form you actually want used.
 - **What you are using this memory for**, which shapes what gets treated as worth saving.
-- Optionally: how you want to be worked with, and this host's source tag.
+- Optionally: how you want to be worked with, this host's source tag, and whether more than
+  one bot or AI will use this memory. Leaving that one out leaves sub-keys off. The
+  walkthrough is [SUBKEYS.md](SUBKEYS.md).
+- Optionally: whether to turn on bot-team backup. **Yes is the recommended choice.** No, or
+  leaving it out, leaves it off. The answer is recorded. EMET does not copy prompts or
+  settings itself, and secret values are never stored. The recipe is `gems/bot-team-backup/guides/BOT_TEAM_BACKUP.md`.
 
 Your assistant asks these conversationally, one at a time — not as a form — then calls
 `emet_setup_complete`.

@@ -66,7 +66,7 @@ testGroup('What the line carries', () => {
     assert.strictEqual(e.tool, 'save_to_layer');
     assert.ok(!formatRequestLog(e).includes('PRIVATE CONTENT'));
   });
-  // 2026-09-27 (code audit 1.6, the owner): parameter NAMES are logged so their use can be measured; values never.
+  // 2026-09-27 (code audit 1.6, Alex): parameter NAMES are logged so their use can be measured; values never.
   test('an /mcp tool call carries the parameter names, sorted, and none of the values', () => {
     const e = requestLogEntry({ method: 'POST', path: '/mcp', statusCode: 200, ms: 5,
       body: { jsonrpc: '2.0', method: 'tools/call', params: { name: 'save_to_layer', arguments: { metadata: { source: 'SECRET-HOST' }, content: 'PRIVATE CONTENT', layer: 'working' } } } });

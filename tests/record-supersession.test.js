@@ -1,7 +1,7 @@
 /**
  * EMET - records are superseded, never amended (2026-09-26).
  *
- * The owner: "enforce supersession ISO practices". The handoff is a record (ISO 9001
+ * Alex: "enforce supersession ISO practices". The handoff is a record (ISO 9001
  * 7.5.3 / 13485 4.2.5): patch_doc is refused on it (append_doc was retired 2026-09-27), and a new
  * revision must be written whole naming the revision it supersedes. The
  * refusals happen before any database call, so they are testable without one.

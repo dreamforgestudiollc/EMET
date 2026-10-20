@@ -30,7 +30,7 @@ const DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'emet-conformance-'));
 
 const TPL_IN_FORCE = `# TEMPLATE - BOARD
 
-**Template control:** id \`templates/BOARD.md\` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · a decision record · owner: EMET (base)
+**Template control:** id \`templates/BOARD.md\` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · procedural ref 311 · owner: EMET (base)
 
 ## §0 RECORD CONTROL AND COUNTS
 - Template: \`templates/BOARD.md\` rev __
@@ -54,7 +54,7 @@ const TPL_IN_FORCE = `# TEMPLATE - BOARD
 
 const TPL_DRAFT = TPL_IN_FORCE
   .replace('id `templates/BOARD.md`', 'id `templates/SEED.md`')
-  .replace('status: IN FORCE · approved: user · 2026-09-11 · a decision record', 'status: DRAFT, not in force');
+  .replace('status: IN FORCE · approved: user · 2026-09-11 · procedural ref 311', 'status: DRAFT, not in force');
 
 fs.writeFileSync(path.join(DIR, 'BOARD.md'), TPL_IN_FORCE, 'utf8');
 fs.writeFileSync(path.join(DIR, 'SEED.md'), TPL_DRAFT, 'utf8');
@@ -329,7 +329,7 @@ testGroup('L6 - an acceptance covers one revision', () => {
   test('a reason shorter than ten characters is refused', () =>
     assert.throws(() => buildAcceptance({ reason: 'too short' })));
   test('a real reason builds an acceptance bound to a version', () => {
-    const a = buildAcceptance({ reason: 'legacy record, predates the template', by: 'cloud-host', version: 7 });
+    const a = buildAcceptance({ reason: 'legacy record, predates the template', by: 'cowork-cloud', version: 7 });
     assert.strictEqual(a.covers_version, 7);
     assert.ok(a.accepted_at);
   });
@@ -370,7 +370,7 @@ testGroup('the real shipped set - what actually ships with this release', () => 
   });
 });
 
-// --- Validator false positives ----------------------------------------------
+// --- board 066 -----------------------------------------------------------------
 // Two false positives found on the validator's first day, by running it against
 // the reference install's own board. Both made it NOISY, never permissive, and
 // the fixtures below are built from the real shape of each so that a later
@@ -403,13 +403,13 @@ const PREV_BOARD = `# BOARD
 | B-050 | EMET's line |
 `;
 
-/** The next revision. Two rows were closed LAST revision and are gone,
- *  correctly. They survive only inside another row's prose on the previous one. */
+/** The next revision. board 012 and board 050 were closed LAST revision and are gone,
+ *  correctly. They survive only inside B-002's prose on the previous one. */
 const NEXT_BOARD = PREV_BOARD
   .replace('| B-002 | Build block. Carries the work closed under B-012 and B-050 |', '| B-002 | Build block, continuing |')
   .replace('| B-012 | Validation v1 |\n| B-050 | EMET\'s line |\n', '| - | none |\n');
 
-testGroup('False positive (1) - carry-forward reads the id column, not the section body', () => {
+testGroup('board 066 (1) - carry-forward reads the id column, not the section body', () => {
   clearShippedCache();
   const BOARD = loadShipped('templates/BOARD.md', { dir: DIR, cache: false });
   const carry = (r) => (r.failures.find((f) => /no disposition/.test(f)) || null);
@@ -435,12 +435,12 @@ testGroup('False positive (1) - carry-forward reads the id column, not the secti
   });
 });
 
-testGroup('False positive (2) - the control-line id token is bounded', () => {
+testGroup('board 066 (2) - the control-line id token is bounded', () => {
   clearShippedCache();
 
   test('a filename containing the letters "id" is not read as a declared template', () => {
     const withMention = PREV_BOARD.replace('- Template: `templates/BOARD.md` rev 10',
-      '- Template: `templates/BOARD.md` rev 10 · open markers: `staging/validation-pricing-notes.md` v9 (9)');
+      '- Template: `templates/BOARD.md` rev 10 · open markers: `staging/template-validation-v1-pricing.md` v9 (9)');
     const r = validateDocument('STATE.md', withMention, null, { dir: DIR });
     const l4 = r.warnings.find((w) => /record declares/.test(w));
     assert.strictEqual(l4, undefined, `spurious L4 warning: ${l4}`);

@@ -22,7 +22,7 @@ import assert from 'assert';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { privateWordsIn, digest, PRIVATE_RECORD_REF, BARE_RECORD_REF, PRIVATE_PR_REF, APPROVAL_TIME, NAMED_SERVICE, SHORT_HEX, ALLOWED_HEX, BOARD_ID, boardIdLines, STAGING_STORE_PATH, SHORT_STORE_REF, INTERNAL_PAPER_REF, shippedTextFiles, shippedPublishFiles, siteImageRefs, isPrivateTree } from './scrub-tokens.js';
+import { privateWordsIn, digest, PRIVATE_RECORD_REF, BARE_RECORD_REF, PRIVATE_PR_REF, APPROVAL_TIME, NAMED_SERVICE, SHORT_HEX, ALLOWED_HEX, BOARD_ID, boardIdLines, STAGING_STORE_PATH, SHORT_STORE_REF, INTERNAL_PAPER_REF, PRIVATE_TREE_PATHS, shippedTextFiles, shippedPublishFiles, siteImageRefs, isPrivateTree } from './scrub-tokens.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const files = shippedTextFiles(ROOT);
@@ -72,7 +72,9 @@ function readmePublicParts(text) {
   const shared = text.indexOf('\n## Shared memory across hosts\n');
   const opening = shared >= 0 ? text.slice(0, shared) : text;
   const originAt = text.indexOf('\n## Origin\n');
-  const licenseAt = text.indexOf('\n## License\n');
+  const licenseAt = text.indexOf('\n## License and access\n') >= 0
+    ? text.indexOf('\n## License and access\n')
+    : text.indexOf('\n## License\n');
   const origin = originAt >= 0 && licenseAt > originAt ? text.slice(originAt, licenseAt) : '';
   return `${opening}\n${origin}`;
 }
@@ -99,6 +101,14 @@ testGroup('the shipped tree is scrubbed', () => {
     assert.ok(files.includes('.github/workflows/pages.yml'));
     assert.ok(files.includes('glama.json'));
     for (const rel of ['site/sitemap.xml', 'site/robots.txt', 'site/.nojekyll']) assert.ok(files.includes(rel), rel);
+    for (const rel of [
+      'gems/lean-six-sigma/gem.json',
+      'gems/lean-six-sigma/runes/lss_capability.js',
+      'gems/lean-six-sigma/guides/FORMULAS.md',
+      'gems/lean-six-sigma/guides/BELTS.md',
+      'tests/fixtures/emet-gems-9b5191a/lean-six-sigma/gem.json',
+      'tests/fixtures/emet-gems-9b5191a/verification/golden-outputs.json'
+    ]) assert.ok(files.includes(rel), rel);
   });
   test('the Pages deploy job if is exactly the public repository and main', () => {
     const pages = read('.github/workflows/pages.yml');
@@ -212,6 +222,23 @@ testGroup('the shipped tree is scrubbed', () => {
     assert.ok(NAMED_SERVICE.test('railway run --service app node x'));
     assert.ok(!NAMED_SERVICE.test('railway run --service <service> node x'));
     assert.deepStrictEqual('fixed in 1a2b3c4.'.match(SHORT_HEX), ['1a2b3c4']);
+  });
+  test('private paths and family names are caught when planted, and the tree has none', () => {
+    // Assembled at runtime so this file does not contain the words or the paths.
+    const family = [
+      String.fromCharCode(111, 116, 116, 111),
+      String.fromCharCode(107, 101, 110, 110),
+      String.fromCharCode(107, 108, 105, 99, 107)
+    ];
+    for (const word of family) assert.deepStrictEqual(privateWordsIn(word), [word]);
+    const workspace = '/' + 'workspace' + '/emet';
+    const stores = '/' + 'cursor' + '/' + 'stores' + '/bot';
+    assert.ok(PRIVATE_TREE_PATHS[0].test(workspace));
+    assert.ok(PRIVATE_TREE_PATHS[1].test(stores));
+    assert.ok(!PRIVATE_TREE_PATHS[0].test('workspace only'));
+    const nameFiles = privateTree ? checked : files;
+    const bad = nameFiles.filter((f) => PRIVATE_TREE_PATHS.some((re) => re.test(scrubText(f))));
+    assert.deepStrictEqual(bad, []);
   });
 });
 

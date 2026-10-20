@@ -113,7 +113,7 @@ async function boot() {
       version: 1,
       retired: true,
       retired_at: retiredAt,
-      retired_reason: 'board guard merged, 0.2.2 released 2026-10-04',
+      retired_reason: 'board-guard PR 10 merged, 0.2.2 released 2026-10-04',
       updated_at: new Date(retiredAt)
     });
   }
