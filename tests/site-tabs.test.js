@@ -127,9 +127,17 @@ function proseOutsideCode(text) {
     exposed.push(body);
     return ' ';
   });
-  markup = markup.replace(/[^\s=<>`/]+\s*=\s*("([^"]*)"|'([^']*)')/g, (_, __, dq, sq) => {
-    exposed.push(dq !== undefined ? dq : sq);
-    return ' ';
+  markup = markup.replace(
+    /[^\s=<>`/]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/g,
+    (_, dq, sq, uq) => {
+      exposed.push(dq !== undefined ? dq : sq !== undefined ? sq : uq);
+      return ' ';
+    },
+  );
+  // HTML ignores a trailing slash, so <code /> is an opening tag, not an empty element.
+  markup = markup.replace(/<code\b([^>]*)>/gi, (full, attrs) => {
+    const bare = attrs.replace(/"[^"]*"|'[^']*'/g, '');
+    return /\/\s*$/.test(bare) ? ' ' : full;
   });
   let previous;
   do {
@@ -598,6 +606,8 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
       'RU\u00ADNE',
       'RU&shy;NE',
       'RU\u200BNE',
+      '<span title=RUNE>',
+      '<code /> RUNE </code>',
     ]) {
       const prose = proseOutsideCode(sample);
       const caught = sample === 'renamed from' ? /\brenamed\s+from\b/i.test(sample) : BARE_RUNE.test(prose);
