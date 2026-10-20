@@ -1,4 +1,4 @@
-Source: lss-0.9.0. The fixture is the public Lean Six Sigma copy the socket tests load.
+Source: lss-source. The fixture is the public Lean Six Sigma copy the socket tests load. Its manifest stays version 1.0.0.
 Scrub: guides/BELTS.md dropped one sentence that named a person. The guides/BELTS.md digest and size in gem.json were updated to match. released stays false. requires.emet stays >=0.3.0. version stays 1.0.0.
 Golden: verification/golden-outputs.json is vendored unmodified. It has 49 cases. None names a person or a private path, so the expected outputs are unchanged.
-Digests: DIGESTS.json records the sha256 of the shipped gem.json and CHANGELOG.md for lss-0.9.0. Those two files are that copy. Every other vendored file is unchanged.
+Digests: DIGESTS.json records the sha256 of the shipped gem.json and CHANGELOG.md. Those two shipped files are the 0.9.0 copy. Every other vendored file is unchanged.

@@ -1,0 +1,7 @@
+{
+  "note": "Recorded sha256 of the shipped Lean Six Sigma gem.json and CHANGELOG.md. The fixture directory is lss-source. Every other vendored file is unchanged. Expected outputs in the golden cases are not part of this record.",
+  "files": {
+    "gem.json": "sha256:5f9da0caf7719a73f19bfbff211002eb66dbd0f988fd094131b56c4ecf438b31",
+    "CHANGELOG.md": "sha256:d07810bd35e71952cea36212b878d8762a43b4f7b8e5f710b41a4190308d86fc"
+  }
+}

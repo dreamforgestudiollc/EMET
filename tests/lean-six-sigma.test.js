@@ -1,9 +1,9 @@
 /**
  * Lean Six Sigma ships as gems/lean-six-sigma. The rune files are the attached
  * bytes. requires.emet is >=0.2.6 and released is true, so 0.2.6 seats it.
- * The lss-0.9.0 fixture keeps requires.emet >=0.3.0 and released false.
+ * The lss-source fixture keeps requires.emet >=0.3.0 and released false.
  * FORMULAS.md in the attachment has 30 "Test vector" lines. The 49 golden
- * cases are tests/fixtures/lss-0.9.0/verification/golden-outputs.json.
+ * cases are tests/fixtures/lss-source/verification/golden-outputs.json.
  * This file runs those cases on the shipped runes, plus every rune-backed
  * worked example, including the negative-limit examples beside the vectors.
  */
@@ -19,9 +19,9 @@ const { seatGems } = await import('../src/socket.js');
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const GEM = path.join(ROOT, 'gems/lean-six-sigma');
-const FIXTURE = path.join(ROOT, 'tests/fixtures/lss-0.9.0/lean-six-sigma');
-const GOLDEN = path.join(ROOT, 'tests/fixtures/lss-0.9.0/verification/golden-outputs.json');
-const DIGESTS = path.join(ROOT, 'tests/fixtures/lss-0.9.0/DIGESTS.json');
+const FIXTURE = path.join(ROOT, 'tests/fixtures/lss-source/lean-six-sigma');
+const GOLDEN = path.join(ROOT, 'tests/fixtures/lss-source/verification/golden-outputs.json');
+const DIGESTS = path.join(ROOT, 'tests/fixtures/lss-source/DIGESTS.json');
 const RUNE_DIGESTS = {
   'runes/lss_capability.js': 'sha256:572c51f83006d798ce6e6b2c5752e74d78c07253683b87203bf09cf1493db9fb',
   'runes/lss_control_limits.js': 'sha256:28367f8f0bf588ffabf3c7a7b7238e462fdabd0ef4a6bb8e3498bd092f3cf532',
