@@ -8,9 +8,10 @@
  * Noun and verb families of certify, comply, conform, and accredit fail
  * anywhere in site/index.html, including visible text, meta, and JSON-LD.
  * Exact allowlisted phrases pass. The patterns are not narrowed to spare them.
- * Matching uses the same normalization as the RUNE guard in site-tabs.test.js:
- * decode numeric and named entities, drop soft hyphens and zero-width characters,
- * and remove inline tags so a split word is one word.
+ * Before matching, comments are removed entirely, inline and non-breaking tags
+ * (including wbr and code) leave no space, and only block-level tags and br
+ * become a space. Numeric entities and the named entities for Unicode format
+ * characters are decoded, then every format character is removed.
  */
 import { test, testGroup, summary } from './harness.js';
 import assert from 'assert';
@@ -56,7 +57,30 @@ const DISGUISED = [
   ['<b>cert</b>ified', '<b>cert</b>ified'],
   ['&#99;ompliant', '&#99;ompliant'],
 ];
-const PHRASING = /^(?:a|abbr|b|bdi|bdo|cite|data|dfn|em|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|time|u|var)$/i;
+const BREAK = new Set([
+  'address', 'article', 'aside', 'audio', 'blockquote', 'body', 'br', 'canvas', 'caption',
+  'center', 'dd', 'details', 'dialog', 'dir', 'div', 'dl', 'dt', 'embed', 'fieldset',
+  'figcaption', 'figure', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head',
+  'header', 'hgroup', 'hr', 'html', 'iframe', 'img', 'image', 'input', 'legend', 'li',
+  'main', 'math', 'menu', 'nav', 'object', 'ol', 'optgroup', 'option', 'p', 'picture',
+  'pre', 'search', 'section', 'select', 'summary', 'svg', 'table', 'tbody', 'td',
+  'textarea', 'tfoot', 'th', 'thead', 'title', 'tr', 'ul', 'video',
+]);
+const LIFTED = new Set(['script', 'style', 'template']);
+const NAMED = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00A0',
+  ApplyFunction: '\u2061', InvisibleComma: '\u2063', InvisibleTimes: '\u2062',
+  NegativeMediumSpace: '\u200B', NegativeThickSpace: '\u200B', NegativeThinSpace: '\u200B',
+  NegativeVeryThinSpace: '\u200B', NoBreak: '\u2060', ZeroWidthSpace: '\u200B',
+  af: '\u2061', ic: '\u2063', it: '\u2062', lrm: '\u200E', rlm: '\u200F', shy: '\u00AD',
+  zwj: '\u200D', zwnj: '\u200C',
+};
+const PAGE_JOINS = [
+  ['cert<!-- -->ified', 'cert<!-- -->ified'],
+  ['cert<wbr>ified', 'cert<wbr>ified'],
+  ['cert&ZeroWidthSpace;ified', 'cert&ZeroWidthSpace;ified'],
+  ['<code>certified</code>', '<code>certified</code>'],
+];
 const LEDE = 'An MCP memory server built for ISO 9001 / ISO 13485 document control: persistent, shared memory.';
 const SHARED = 'EMET 0.2.6 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
 const JSONLD = 'EMET 0.2.6 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
@@ -85,17 +109,16 @@ function decodeEntities(text) {
   return text
     .replace(/&#x([0-9a-f]+);/gi, (_, hex) => char(parseInt(hex, 16)))
     .replace(/&#(\d+);/g, (_, dec) => char(Number(dec)))
-    .replace(/&shy;/gi, '\u00AD')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/&quot;/gi, '"')
-    .replace(/&apos;|&#39;/gi, "'")
-    .replace(/&lt;/gi, '<')
-    .replace(/&gt;/gi, '>')
-    .replace(/&amp;/gi, '&');
+    .replace(/&([A-Za-z][A-Za-z0-9]*);/g, (all, name) => (Object.hasOwn(NAMED, name) ? NAMED[name] : all))
+    .replace(/&shy(?![A-Za-z0-9;])/g, '\u00AD');
 }
 
-function stripInvisibles(text) {
-  return text.replace(/[\u00AD\u200B\u200C\u200D\u2060\uFEFF\u180E]/g, '');
+function stripFormat(text) {
+  return text.replace(/\p{Cf}/gu, '');
+}
+
+function stripComments(text) {
+  return text.replace(/<!--[\s\S]*?-->/g, '');
 }
 
 function tagEnd(text, start) {
@@ -134,55 +157,52 @@ function attributesOf(interior) {
   return interior.replace(/^\/?\s*[^\s/>]+/, ' ');
 }
 
-function selfClosing(interior) {
-  return /\/\s*$/.test(interior.replace(/"[^"]*"|'[^']*'/g, ''));
-}
-
-function proseOutsideCode(text) {
-  const exposed = [];
-  let markup = text.replace(/<!--([\s\S]*?)-->/g, (_, body) => {
-    exposed.push(body);
-    return ' ';
-  });
-  let i = 0;
-  while (i < markup.length) {
-    const found = nextTag(markup, i);
-    if (!found) break;
-    const [start, end] = found;
-    const interior = markup.slice(start + 1, end);
-    const name = tagName(interior);
-    const after = markup.slice(end + 1);
-    const plain = /^code$/i.test(name) && interior[0] !== '/' && !selfClosing(interior)
-      ? /^([^<]*)<\/code>/i.exec(after)
-      : null;
-    if (plain) {
-      exposed.push(attributesOf(interior));
-      markup = `${markup.slice(0, start)} ${after.slice(plain[0].length)}`;
-      i = start;
-      continue;
-    }
-    i = end + 1;
-  }
+function splitTags(text) {
+  const side = [];
   let out = '';
-  i = 0;
-  while (i < markup.length) {
-    const found = nextTag(markup, i);
+  let i = 0;
+  while (i < text.length) {
+    const found = nextTag(text, i);
     if (!found) {
-      out += markup.slice(i);
+      out += text.slice(i);
       break;
     }
     const [start, end] = found;
-    const interior = markup.slice(start + 1, end);
-    exposed.push(attributesOf(interior));
-    out += markup.slice(i, start);
-    out += PHRASING.test(tagName(interior)) ? '' : ' ';
+    out += text.slice(i, start);
+    const interior = text.slice(start + 1, end);
+    const name = tagName(interior).toLowerCase();
+    const closing = /^\s*\//.test(interior);
+    if (!closing && LIFTED.has(name)) {
+      side.push(attributesOf(interior));
+      const rest = text.slice(end + 1);
+      const close = new RegExp(`^([\\s\\S]*?)</${name}\\b[^>]*>`, 'i').exec(rest);
+      if (close) {
+        side.push(close[1]);
+        i = end + 1 + close[0].length;
+        continue;
+      }
+    }
+    side.push(attributesOf(interior));
+    out += BREAK.has(name) ? ' ' : '';
     i = end + 1;
   }
-  return stripInvisibles(decodeEntities(`${exposed.join('\n')}\n${out}`));
+  return { flow: out, side };
 }
 
 function normalize(text) {
-  return proseOutsideCode(text);
+  const parts = [];
+  const visit = (src) => {
+    const { flow, side } = splitTags(stripComments(src));
+    parts.push(flow);
+    for (const piece of side) visit(piece);
+  };
+  visit(text);
+  return stripFormat(decodeEntities(parts.join('\n')));
+}
+
+function pageWith(claim) {
+  const at = html.lastIndexOf('</body>');
+  return at < 0 ? html + claim : `${html.slice(0, at)}${claim}${html.slice(at)}`;
 }
 
 function familyHits(text) {
@@ -272,6 +292,31 @@ testGroup('the public site keeps ISO 9001 and ISO 13485', () => {
       assert.ok(uncovered(claim).length > 0, name);
     });
   }
+
+  for (const [name, claim] of PAGE_JOINS) {
+    test(`fails on the page: ${name}`, () => {
+      const hits = uncovered(pageWith(claim));
+      assert.ok(hits.some((hit) => /certified/i.test(hit)), `${name}: ${hits.join(', ')}`);
+    });
+  }
+
+  for (const name of ['NegativeThinSpace', 'zwj', 'zwnj', 'NoBreak', 'shy', 'lrm', 'ApplyFunction']) {
+    test(`fails on the page: cert&${name};ified`, () => {
+      const hits = uncovered(pageWith(`cert&${name};ified`));
+      assert.ok(hits.some((hit) => /certified/i.test(hit)), name);
+    });
+  }
+
+  test('fails on the page: <pre>certified</pre>', () => {
+    const hits = uncovered(pageWith('<pre>certified</pre>'));
+    assert.ok(hits.some((hit) => /certified/i.test(hit)), hits.join(', '));
+  });
+
+  test('nit: a br split does not join cert and ified', () => {
+    assert.deepStrictEqual(uncovered('cert<br>ified'), []);
+    assert.deepStrictEqual(uncovered(pageWith('cert<br>ified')), []);
+    assert.ok(uncovered(pageWith('<br>certified')).some((hit) => /certified/i.test(hit)));
+  });
 
   for (const sentence of DISCLAIMER_SENTENCES) {
     test(`passes: ${sentence}`, () => {
