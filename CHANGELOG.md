@@ -7,6 +7,12 @@ change before 1.0.
 
 ## Unreleased
 
+### Added
+- The public site's subject links open in place as tabs. The hero stays above the tab list. A hash such as `#start` still opens that subject, and the hash updates when the subject changes. With JavaScript disabled, the page is the full document and the header links are anchors. A subject can host a simulator later: the mount stays empty, and demo code loads only when that subject is first shown. Hiding a subject tells a running demo to pause.
+
+### Fixed
+- If the site tab script does not load, the address bar keeps the subject fragment. A demo module path must be same-origin. The subject navigation stays a landmark; the tab list is the list inside it.
+
 ## 0.2.6 - 2026-10-20
 
 ### Added
