@@ -87,7 +87,7 @@ function specTerm(stem) {
 
 const SITE_TEXT = /\.(?:html|css|js|xml|txt|md|json|svg|webmanifest)$/i;
 const BARE_RUNE = /\bRUNEs?(?![A-Za-z])/i;
-const PHRASING_TAG = /<\/?(?:a|abbr|b|bdi|bdo|cite|data|dfn|em|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|time|u|var)\b[^>]*>/gi;
+const PHRASING = /^(?:a|abbr|b|bdi|bdo|cite|data|dfn|em|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|time|u|var)$/i;
 
 function siteTextFiles() {
   const root = path.join(ROOT, 'site');
@@ -121,32 +121,90 @@ function stripInvisibles(text) {
   return text.replace(/[\u00AD\u200B\u200C\u200D\u2060\uFEFF\u180E]/g, '');
 }
 
+function tagEnd(text, start) {
+  let quote = '';
+  for (let i = start + 1; i < text.length; i++) {
+    const c = text[i];
+    if (quote) {
+      if (c === quote) quote = '';
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      quote = c;
+      continue;
+    }
+    if (c === '>') return i;
+  }
+  return -1;
+}
+
+function nextTag(text, from) {
+  let i = text.indexOf('<', from);
+  while (i !== -1) {
+    const end = tagEnd(text, i);
+    if (end !== -1) return [i, end];
+    i = text.indexOf('<', i + 1);
+  }
+  return null;
+}
+
+function tagName(interior) {
+  const name = /^\/?\s*([^\s/>]+)/.exec(interior);
+  return name ? name[1] : '';
+}
+
+function attributesOf(interior) {
+  return interior.replace(/^\/?\s*[^\s/>]+/, ' ');
+}
+
+function selfClosing(interior) {
+  return /\/\s*$/.test(interior.replace(/"[^"]*"|'[^']*'/g, ''));
+}
+
 function proseOutsideCode(text) {
   const exposed = [];
   let markup = text.replace(/<!--([\s\S]*?)-->/g, (_, body) => {
     exposed.push(body);
     return ' ';
   });
-  markup = markup.replace(
-    /[^\s=<>`/]+\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>]+))/g,
-    (_, dq, sq, uq) => {
-      exposed.push(dq !== undefined ? dq : sq !== undefined ? sq : uq);
-      return ' ';
-    },
-  );
-  // HTML ignores a trailing slash, so <code /> is an opening tag, not an empty element.
-  markup = markup.replace(/<code\b([^>]*)>/gi, (full, attrs) => {
-    const bare = attrs.replace(/"[^"]*"|'[^']*'/g, '');
-    return /\/\s*$/.test(bare) ? ' ' : full;
-  });
-  let previous;
-  do {
-    previous = markup;
-    markup = markup.replace(/<code\b[^>]*>[^<]*<\/code>/gi, ' ');
-  } while (markup !== previous);
-  markup = markup.replace(PHRASING_TAG, '');
-  markup = markup.replace(/<[^>]*>/g, ' ');
-  return stripInvisibles(decodeEntities(`${exposed.join('\n')}\n${markup}`));
+  // A <code> block whose content contains no other tag is removed. <code /> is
+  // not one of those blocks: HTML ignores the slash, and the text after it stays.
+  let i = 0;
+  while (i < markup.length) {
+    const found = nextTag(markup, i);
+    if (!found) break;
+    const [start, end] = found;
+    const interior = markup.slice(start + 1, end);
+    const name = tagName(interior);
+    const after = markup.slice(end + 1);
+    const plain = /^code$/i.test(name) && interior[0] !== '/' && !selfClosing(interior)
+      ? /^([^<]*)<\/code>/i.exec(after)
+      : null;
+    if (plain) {
+      exposed.push(attributesOf(interior));
+      markup = `${markup.slice(0, start)} ${after.slice(plain[0].length)}`;
+      i = start;
+      continue;
+    }
+    i = end + 1;
+  }
+  // Every remaining tag is checked in full, attributes included. The tag name is not.
+  let out = '';
+  i = 0;
+  while (i < markup.length) {
+    const found = nextTag(markup, i);
+    if (!found) {
+      out += markup.slice(i);
+      break;
+    }
+    const [start, end] = found;
+    const interior = markup.slice(start + 1, end);
+    exposed.push(attributesOf(interior));
+    out += markup.slice(i, start);
+    out += PHRASING.test(tagName(interior)) ? '' : ' ';
+    i = end + 1;
+  }
+  return stripInvisibles(decodeEntities(`${exposed.join('\n')}\n${out}`));
 }
 
 function factBlock(panel, manifest) {
@@ -609,6 +667,7 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
       '<span title=RUNE>',
       'title=`RUNE`',
       '<code /> RUNE </code>',
+      '<span data-x=`a RUNE b`></span>',
     ]) {
       const prose = proseOutsideCode(sample);
       const caught = sample === 'renamed from' ? /\brenamed\s+from\b/i.test(sample) : BARE_RUNE.test(prose);
@@ -619,11 +678,13 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
     }
     for (const file of files) {
       const text = fs.readFileSync(file, 'utf8');
+      const prose = proseOutsideCode(text);
       const where = path.relative(ROOT, file);
       for (const pattern of retired) {
         assert.equal(pattern.test(text), false, `${where} matches ${pattern}`);
+        assert.equal(pattern.test(prose), false, `${where} matches ${pattern} after tags are read`);
       }
-      assert.equal(BARE_RUNE.test(proseOutsideCode(text)), false, `${where} uses the bare name RUNE`);
+      assert.equal(BARE_RUNE.test(prose), false, `${where} uses the bare name RUNE`);
     }
     const gem = panelHtml('gem');
     assert.ok(gem.includes('The name marks the golem legend: the word <span lang="he">אמת</span>, truth, animates the figure.'));
