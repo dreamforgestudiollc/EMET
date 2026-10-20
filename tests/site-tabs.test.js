@@ -87,7 +87,7 @@ function specTerm(stem) {
 
 const SITE_TEXT = /\.(?:html|css|js|xml|txt|md|json|svg|webmanifest)$/i;
 const BARE_RUNE = /\bRUNEs?(?![A-Za-z])/i;
-const INLINE_TAG = /<\/?(?:a|abbr|b|bdi|bdo|br|cite|data|dfn|em|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|time|u|var|wbr)\b[^>]*>/gi;
+const PHRASING_TAG = /<\/?(?:a|abbr|b|bdi|bdo|cite|data|dfn|em|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|time|u|var)\b[^>]*>/gi;
 
 function siteTextFiles() {
   const root = path.join(ROOT, 'site');
@@ -108,6 +108,7 @@ function decodeEntities(text) {
   return text
     .replace(/&#x([0-9a-f]+);/gi, (_, hex) => char(parseInt(hex, 16)))
     .replace(/&#(\d+);/g, (_, dec) => char(Number(dec)))
+    .replace(/&shy;/gi, '\u00AD')
     .replace(/&nbsp;/gi, ' ')
     .replace(/&quot;/gi, '"')
     .replace(/&apos;|&#39;/gi, "'")
@@ -116,9 +117,28 @@ function decodeEntities(text) {
     .replace(/&amp;/gi, '&');
 }
 
+function stripInvisibles(text) {
+  return text.replace(/[\u00AD\u200B\u200C\u200D\u2060\uFEFF\u180E]/g, '');
+}
+
 function proseOutsideCode(text) {
-  const withoutCode = text.replace(/<code\b[^>]*>[\s\S]*?<\/code>/gi, ' ');
-  return decodeEntities(withoutCode).replace(INLINE_TAG, '');
+  const exposed = [];
+  let markup = text.replace(/<!--([\s\S]*?)-->/g, (_, body) => {
+    exposed.push(body);
+    return ' ';
+  });
+  markup = markup.replace(/[^\s=<>`/]+\s*=\s*("([^"]*)"|'([^']*)')/g, (_, __, dq, sq) => {
+    exposed.push(dq !== undefined ? dq : sq);
+    return ' ';
+  });
+  let previous;
+  do {
+    previous = markup;
+    markup = markup.replace(/<code\b[^>]*>[^<]*<\/code>/gi, ' ');
+  } while (markup !== previous);
+  markup = markup.replace(PHRASING_TAG, '');
+  markup = markup.replace(/<[^>]*>/g, ' ');
+  return stripInvisibles(decodeEntities(`${exposed.join('\n')}\n${markup}`));
 }
 
 function factBlock(panel, manifest) {
@@ -561,7 +581,24 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
       assert.equal(SITE_TEXT.test(name), true, name);
     }
     assert.equal(SITE_TEXT.test('portrait.webp'), false);
-    for (const sample of ['Rune', 'rune', 'RUNEs', 'runes', 'RU<b>NE</b>', '&#82;UNE', 'renamed from']) {
+    for (const sample of [
+      'Rune',
+      'rune',
+      'RUNEs',
+      'runes',
+      'RU<b>NE</b>',
+      '&#82;UNE',
+      'renamed from',
+      '<code>x RUNE prose</p><code>kept</code>',
+      '<!-- <code>RUNE</code> -->',
+      '<!-- <code> -->RUNE<!-- </code> -->',
+      '<img alt="<code>RUNE</code>">',
+      '<img alt="<code>">RUNE<img alt="</code>">',
+      'Use<br>RUNE',
+      'RU\u00ADNE',
+      'RU&shy;NE',
+      'RU\u200BNE',
+    ]) {
       const prose = proseOutsideCode(sample);
       const caught = sample === 'renamed from' ? /\brenamed\s+from\b/i.test(sample) : BARE_RUNE.test(prose);
       assert.equal(caught, true, sample);
