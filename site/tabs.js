@@ -53,7 +53,7 @@
  */
 
 export const TAB_IDS = Object.freeze([
-  'what', 'hosts', 'access', 'record', 'start', 'origin', 'project',
+  'what', 'hosts', 'access', 'record', 'start', 'origin', 'gem', 'project',
 ]);
 
 export const SHOW_EVENT = 'emet-tab-show';

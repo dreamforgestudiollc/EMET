@@ -227,13 +227,14 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
     assert.ok(html.includes('EMET 0.2.6'));
     assert.ok(html.includes('"version": "0.2.6"'));
     assert.ok(!html.includes('0.2.7'));
-    const outsideOrigin = html.replace(panelHtml('origin'), '');
-    assert.ok(!outsideOrigin.includes('0.2.5'));
+    const outsideCredits = html.replace(panelHtml('origin'), '').replace(panelHtml('gem'), '');
+    assert.ok(!outsideCredits.includes('0.2.5'));
+    assert.ok(panelHtml('gem').includes('The 0.2.5 changelog added it.'));
   });
 
   test('header anchors are the original subjects and every section is in the page', () => {
     const header = html.slice(html.indexOf('class="header-nav"'), html.indexOf('</header>'));
-    for (const [id, label] of [['what', 'What it is'], ['hosts', 'Hosts'], ['access', 'Access'], ['record', 'Record'], ['start', 'Start'], ['origin', 'Origin']]) {
+    for (const [id, label] of [['what', 'What it is'], ['hosts', 'Hosts'], ['access', 'Access'], ['record', 'Record'], ['start', 'Start'], ['origin', 'Origin'], ['gem', 'GEM']]) {
       assert.ok(header.includes(`href="#${id}">${label}</a>`), label);
       assert.ok(html.includes(`id="${id}"`), id);
     }
@@ -264,13 +265,90 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
       assert.ok(!/data-demo-src=/.test(panel), id);
       assert.equal((panel.match(/data-demo-mount=/g) || []).length, 0, id);
     }
-    for (const id of ['hosts', 'access', 'record', 'start', 'origin', 'project']) {
+    for (const id of ['hosts', 'access', 'record', 'start', 'origin', 'gem', 'project']) {
       const panel = panelHtml(id);
       assert.ok((panel.match(/<h3\b/g) || []).length >= 4, `${id} headings`);
       assert.ok(panel.includes('<h3>Limits</h3>'), `${id} limits`);
       assert.ok(panel.includes('<h3>Read more</h3>'), `${id} links`);
       assert.ok(panel.includes(docs), `${id} doc link`);
     }
+  });
+
+  test('What it is links to every other tab and keeps the workshop image', () => {
+    const what = panelHtml('what');
+    for (const id of TAB_IDS) {
+      if (id === 'what') continue;
+      assert.ok(what.includes(`href="#${id}"`), `#${id}`);
+    }
+    assert.ok(what.includes('Golem Expertise Module (GEM)'));
+    assert.ok(what.includes('RUNED (Registered Utility Node Executable Directive)'));
+    assert.ok(what.includes('gems of knowledge'));
+    assert.ok(what.includes('explicitly marked it released'));
+    assert.ok(!what.includes('legacy'));
+    assert.ok(!what.includes('boolean'));
+    assert.ok(!what.includes('<figcaption'));
+    assert.ok(!what.includes('The full workshop scene'));
+    assert.ok(what.includes('alt="Sepia biomechanical sculpture of a woman seated in a Dreamforge Studio workshop, with tools and gears around her and the Hebrew word אמת on her headband."'));
+    assert.ok(!html.includes('<figcaption'));
+    assert.ok(!css.includes('figcaption'));
+    const iso = what.slice(what.indexOf('<dt>Document control'), what.indexOf('</dd>', what.indexOf('<dt>Document control')) + 5);
+    assert.ok(iso.includes(`<dt>${ISO_DT}</dt>`));
+    assert.ok(iso.includes(`<dd>${ISO_DD}</dd>`));
+  });
+
+  test('the GEM panel uses the pinned names and the bundled facts', () => {
+    const gem = panelHtml('gem');
+    const spec = read('gem-library/SPEC.md');
+    const v025 = changelogSection('## 0.2.5 - 2026-10-14');
+    assert.ok(spec.startsWith('# Golem Expertise Module (GEM) specification'));
+    assert.ok(spec.includes('**RUNED (Registered Utility Node Executable Directive).**'));
+    assert.ok(gem.includes('Golem Expertise Module (GEM)'));
+    assert.ok(gem.includes('RUNED (Registered Utility Node Executable Directive)'));
+    assert.ok(gem.includes('gems of knowledge'));
+    assert.ok(!gem.includes('Golem Expansion Module'));
+    assert.ok(!html.includes('Golem Expansion Module'));
+    assert.ok(!/<h3>[^<]*(?:[Rr]eleased|[Bb]yte|[Ll]egacy)/.test(gem));
+    assert.ok(gem.includes('Only the boolean <code>true</code> counts.'));
+    assert.ok(gem.includes('Neurendipity 1.2.3 and Fieldnote 1.0.1'));
+    assert.ok(v025.includes('Neurendipity, the bundled GEM at `gems/neurendipity`'));
+    assert.ok(gem.includes('16,384 bytes'));
+    assert.ok(read('src/socket.js').includes('MAX_ACTIVE_FLOOR_BYTES = 16384'));
+    assert.ok(read('src/socket.js').includes('MAX_INSTALLED = 16'));
+    assert.ok(read('src/socket.js').includes('MAX_ACTIVE = 4'));
+    const seated = gem.slice(gem.indexOf('<h3>How a GEM is checked and seated</h3>'), gem.indexOf('<h3>The bundled GEMs</h3>'));
+    assert.ok(seated.includes('Only the boolean <code>true</code> counts.'));
+    assert.ok(seated.includes('legacy') === false);
+    assert.ok(seated.includes('Neurendipity 1.2.3 and Fieldnote 1.0.1'));
+    for (const [dir, version, kind] of [
+      ['neurendipity', '1.2.3', 'gem'],
+      ['lean-six-sigma', '0.9.0', 'runed-gem'],
+      ['bot-team-backup', '1.0.0', 'gem'],
+      ['fieldnote', '1.0.1', 'runed-gem'],
+    ]) {
+      const manifest = JSON.parse(read(`gems/${dir}/gem.json`));
+      assert.strictEqual(manifest.version, version);
+      assert.strictEqual(manifest.kind, kind);
+      assert.strictEqual(manifest.license, 'MIT');
+      assert.deepStrictEqual(manifest.authors, ['Dreamforge Studio LLC']);
+      assert.ok(gem.includes(version), version);
+    }
+    assert.strictEqual(JSON.parse(read('gem-library/examples/neurendipity/gem.json')).license, 'MIT');
+    assert.ok(read('gem-library/SPEC.md').includes('| `authors`, `license` | Required. |'));
+    assert.ok(read('gem-library/gem.schema.json').includes('"license"'));
+    for (const sentence of [
+      'The GEM specification requires <code>authors</code> and <code>license</code> on every manifest.',
+      '<code>license</code> is a string of 1 to 40 characters. The specification does not name which licenses that string may hold.',
+      'Each bundled GEM in this release sets <code>license</code> to <code>MIT</code> and <code>authors</code> to Dreamforge Studio LLC',
+      'The repository <code>LICENSE</code> is the MIT License for this software. The copyright lines are C.I.P.S. LLC and Dreamforge Studio LLC.',
+      'The pin that allows a missing <code>released</code> flag does not cover the <code>license</code> field.',
+      'GEMs may be offered as licensed add-ons. This repository does not state prices, license terms for that offer, or a marketplace.',
+    ]) {
+      assert.ok(gem.includes(sentence), sentence);
+    }
+    assert.ok(read('gems/lean-six-sigma/CHANGELOG.md').includes('Pre-release 0.9.0'));
+    assert.ok(gem.includes('calls 0.9.0 a pre-release'));
+    assert.ok(read('gem-library/SPEC.md').includes('cannot be lost, edited away, or forked per install') || read('src/floor.js').includes('cannot be lost, edited away, or forked per install'));
+    assert.ok(gem.includes('forked per install'));
   });
 
   test('origin credits goal_check and no_rapport_mirroring to 0.2.5', () => {

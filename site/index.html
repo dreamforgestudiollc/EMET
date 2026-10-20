@@ -37,7 +37,7 @@
   <link rel="stylesheet" href="styles.css">
   <script>
     (function () {
-      var ids = { what: 1, hosts: 1, access: 1, record: 1, start: 1, origin: 1, project: 1 };
+      var ids = { what: 1, hosts: 1, access: 1, record: 1, start: 1, origin: 1, gem: 1, project: 1 };
       var hash = (location.hash || '').replace(/^#/, '');
       var root = document.documentElement;
       root.classList.add('js');
@@ -87,6 +87,7 @@
           <li><a href="#record">Record</a></li>
           <li><a href="#start">Start</a></li>
           <li><a href="#origin">Origin</a></li>
+          <li><a href="#gem">GEM</a></li>
         </ul>
       </nav>
     </div>
@@ -129,6 +130,7 @@
           <li><a href="#record" id="tab-record">Record</a></li>
           <li><a href="#start" id="tab-start">Start</a></li>
           <li><a href="#origin" id="tab-origin">Origin</a></li>
+          <li><a href="#gem" id="tab-gem">GEM</a></li>
           <li><a href="#project" id="tab-project">The project</a></li>
         </ul>
       </div>
@@ -142,47 +144,55 @@
         <dl class="facts">
           <div>
             <dt>Layered memory</dt>
-            <dd>Six layers — identity, semantic, episodic, procedural, meta, and working — hold curated claims, split by what kind of thing an entry is.</dd>
+            <dd>Six layers — identity, semantic, episodic, procedural, meta, and working — hold curated claims, split by what kind of thing an entry is. A correction writes a new entry, and the earlier one stays. <a href="#record">Record</a>.</dd>
           </div>
           <div>
             <dt>Verified writes</dt>
-            <dd>Every write is read back and compared before it is reported as saved.</dd>
+            <dd>Every write is read back and compared before it is reported as saved. <a href="#record">Record</a>.</dd>
           </div>
           <div>
             <dt>Word-for-word transcript</dt>
-            <dd>A separate tier stores the conversation as it was written, so a summary cannot overwrite the record it came from.</dd>
+            <dd>A separate tier stores the conversation as it was written, so a summary cannot overwrite the record it came from. <a href="#record">Record</a>.</dd>
           </div>
           <div>
             <dt>stdio and remote HTTP</dt>
-            <dd>The same server runs locally over stdio, and remotely over HTTP with OAuth. The transport changes. The store does not.</dd>
+            <dd>Several hosts share one store: locally over stdio, and remotely over HTTP with OAuth. The transport changes and the store does not. <a href="#hosts">Hosts</a>.</dd>
           </div>
           <div>
             <dt>MongoDB</dt>
-            <dd>Atlas, or MongoDB you run yourself. A one-machine trial can use MongoDB 6 or newer. Only the semantic_recall tool needs Atlas.</dd>
+            <dd>Atlas, or MongoDB you run yourself. A one-machine trial can use MongoDB 6 or newer, and only the semantic_recall tool needs Atlas. <a href="#hosts">Hosts</a>.</dd>
           </div>
           <div>
             <dt>Document control (ISO 9001 7.5.3 / ISO 13485 4.2.5)</dt>
             <dd>No delete, on any store, by design. Corrections are made by adding: entries are superseded, documents are revised or retired, and retired means obsolete, not gone. Prior versions are retained, and templates are controlled documents. EMET supports that work; it holds no certification and claims no conformity.</dd>
           </div>
           <div>
-            <dt>GEM socket</dt>
-            <dd>Add-on behavior ships as GEMs, checked by gem-check against the GEM standard. A GEM ranks below the core floor and the user's current word. The bundled Neurendipity GEM is off unless you turn it on.</dd>
+            <dt>Golem Expertise Module (GEM)</dt>
+            <dd>GEMs are gems of knowledge: a way for experts and others to package and share their knowledge and skills. A GEM extends EMET without changing the core. <a href="#gem">GEM</a>.</dd>
           </div>
           <div>
-            <dt>Client-side GEM execution</dt>
-            <dd>A GEM may declare a tool. EMET does not run that computation. EMET verifies the record, not the computation. The client runs the tool, and what is written back is checked the same way as any other write.</dd>
+            <dt>RUNED GEM</dt>
+            <dd>A RUNED (Registered Utility Node Executable Directive) GEM carries tools the client runs. EMET records the result and does not run the tool. <a href="#gem">GEM</a>.</dd>
           </div>
           <div>
-            <dt>Released flag</dt>
-            <dd>A GEM is seated only when its released flag is the boolean true. A missing flag is refused except for a legacy manifest pinned by id, version, and file digests.</dd>
+            <dt>Released check</dt>
+            <dd>EMET seats a GEM only when its author has explicitly marked it released, so an unfinished or test GEM cannot switch on by accident. <a href="#gem">GEM</a>.</dd>
           </div>
           <div>
             <dt>Per-client attribution</dt>
-            <dd>Every write is attributed to the client that made it. A new client is read-limited until it is approved, and the approval is recorded.</dd>
+            <dd>The store has one owner. Every write is attributed to the client that made it, a new client is read-limited until it is approved, and guest, member, and sub-key access stay off unless you turn them on. <a href="#access">Access</a>.</dd>
+          </div>
+          <div>
+            <dt>Start</dt>
+            <dd>The first run needs Node.js 22 or newer and a MongoDB connection, then a short interview. Bot-team backup is off unless that interview records yes. <a href="#start">Start</a>.</dd>
+          </div>
+          <div>
+            <dt>The floor and the charter</dt>
+            <dd>The core floor ships with the server and cannot be switched off. The charter names the architecture those protections come from. <a href="#origin">Origin</a>. <a href="#project">The project</a>.</dd>
           </div>
           <div>
             <dt>MIT license</dt>
-            <dd>Version 0.2.6. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.</dd>
+            <dd>Version 0.2.6. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them. <a href="#project">The project</a>.</dd>
           </div>
         </dl>
 
@@ -196,7 +206,6 @@
             alt="Sepia biomechanical sculpture of a woman seated in a Dreamforge Studio workshop, with tools and gears around her and the Hebrew word אמת on her headband."
             loading="lazy"
             decoding="async">
-          <figcaption>The full workshop scene. The portrait above is her face and shoulders, with the headband in frame.</figcaption>
         </figure>
       </div>
       <div class="demo-mount" data-demo-mount="what"></div>
@@ -677,6 +686,123 @@ save_to_layer</code></pre>
         </ul>
       </div>
       <div class="demo-mount" data-demo-mount="origin"></div>
+    </section>
+
+    <section class="block" id="gem" aria-labelledby="gem-title">
+      <div class="wrap">
+        <h2 id="gem-title">Golem Expertise Module (GEM)</h2>
+        <p class="prose">GEMs are gems of knowledge: a way for experts and others to package and share their knowledge and skills. They extend EMET without compromising the core architecture.</p>
+        <p class="prose">A Golem Expertise Module (GEM) is optional guidance that seats in the socket. The name marks the golem legend: the word <span lang="he">אמת</span>, truth, animates the figure. The 2026-09-08 expansion Guided Engagement Module is superseded. The core floor stays the memory minimum and cannot be switched off. Behavioral guidance lives in the GEM. The floor ships in server code. Setup cannot write it, and it cannot be lost, edited away, or forked per install. An active GEM ranks below that floor and below the user's current word. It may add lines. It cannot remove a protected floor line.</p>
+
+        <h3>How a GEM sits on the core</h3>
+        <p class="prose">The socket is that seat, not a host connector and not a network socket. It seats bundled GEMs from the <code>gems/</code> directory inside a release, and nothing else. A folder someone drops in, a document in the store, or a fetch from the network is not loaded. The socket does not discover a user-supplied path.</p>
+        <p class="prose">When the core floor, the user's current word, a GEM, and a character modifier speak to the same point, they rank in that order, highest first. The user can ask for more care, more explanation, or a different pace. The user cannot turn off honesty, persistence, or fact-checking.</p>
+        <p class="prose">A GEM adds its own sections. It must not use the core keys <code>voice</code>, <code>engagement</code>, <code>persistence</code>, <code>corpus_discipline</code>, or <code>operating_discipline</code>. An override of a core protection path fails <code>gem-check</code>. Text that tells the model to ignore the floor fails the floor-negation lint, and a line that passes the lint still loses to the core floor. The lines that moved into Neurendipity were not copied into a second always-on document.</p>
+        <p class="prose">A person may write a GEM. That person may not change the standard, the schema, or the socket rules. Those change only by a GEM Enhancement Proposal.</p>
+
+        <h3>A plain GEM and a RUNED GEM</h3>
+        <p class="prose">RUNED (Registered Utility Node Executable Directive) is one declared, registered tool built into a GEM. The 2026-09-08 expansion Registered Utility Node Extension is superseded. Where an older note says RUNE, read RUNED. A RUNED GEM is a GEM whose manifest contains one or more of those directives.</p>
+        <dl class="facts">
+          <div>
+            <dt><code>kind</code> <code>gem</code></dt>
+            <dd>Engagement lines and guides. <code>runes</code> is empty. No code file is listed.</dd>
+          </div>
+          <div>
+            <dt><code>kind</code> <code>runed-gem</code></dt>
+            <dd>The same, plus one to sixteen RUNED directives. Lean Six Sigma is the bundled example. Its directives are calculators.</dd>
+          </div>
+        </dl>
+        <p class="prose">A RUNED directive is client-executed code. The socket serves it while the GEM is on and does not run it. There is no fallback that runs it for a client that has no sandbox. That client gets no result and must say so. One read-only tool per directive is named <code>gem_&lt;gem&gt;__&lt;rune&gt;</code>. A call returns the code, the description, the inputs, the outputs, the runtime, and the served sha256. The client runs the code. A kept result goes back through the same write path as any other write. EMET verifies the record, not the computation. It does not re-execute the tool.</p>
+        <p class="prose">The five Lean Six Sigma calculators, each a RUNED directive that does not write, are:</p>
+        <ul class="limits">
+          <li><code>lss_capability</code> computes Cp, Cpk, Pp, or Ppk from the mean, sigma, and specs on the call, and returns assumption flags.</li>
+          <li><code>lss_dpmo_sigma</code> computes DPO, DPMO, and opportunity yield from defect counts. It does not invent a sigma level.</li>
+          <li><code>lss_control_limits</code> computes three-sigma control limits for xbar-r, i-mr, p, np, c, or u.</li>
+          <li><code>lss_sample_size</code> computes a normal-approximation sample size for a mean or a proportion. The result says it is a margin-of-error figure.</li>
+          <li><code>lss_hypothesis</code> computes a one-sample t, a chi-square goodness of fit, a one-way ANOVA, a simple regression, or a confidence interval. It does not return a p-value.</li>
+        </ul>
+
+        <h3>How a GEM is checked and seated</h3>
+        <p class="prose"><code>gem-check</code> takes the GEM directory. It reads <code>gem.schema.json</code> from the checker, not from the GEM. This revision accepts spec <code>2026-10-12</code> only. Exit 0 means every required check passed or was skipped as specified. A failure refuses that GEM. <code>emet_initialize</code> still returns, and <code>gems_available</code> lists the GEM with <code>loadable: false</code> and the check id.</p>
+        <ol class="steps">
+          <li>Discover child directories of the release's <code>gems/</code>. Do not discover the document store, the network, or a user-supplied path.</li>
+          <li>Validate with the checks in the conformance list.</li>
+          <li>Load the floor of each GEM that validated. Do not register tools yet.</li>
+          <li>Activate a GEM whose <code>defaultOn</code> is true, or that the install asked for, subject to the caps. Register RUNED tools only while that GEM is on.</li>
+        </ol>
+        <p class="prose">EMET only seats a GEM its author has explicitly marked released, so an unfinished or test GEM cannot switch on by accident. Only the boolean <code>true</code> counts. <code>false</code>, the string <code>"true"</code>, <code>1</code>, and <code>null</code> fail. A missing field is allowed only for Neurendipity 1.2.3 and Fieldnote 1.0.1 when the id, the version, and every file digest match the pin. A shorter file list does not match. The pin covers the id, the version, and the file digests. It does not cover the other manifest fields. Any other GEM missing the field is refused, including a bumped version of those two. The check runs on every boot.</p>
+
+        <h3>The bundled GEMs</h3>
+        <p class="prose">Four GEMs ship in <code>gems/</code>. Each has <code>defaultOn</code> false. The example at <code>gem-library/examples/neurendipity/</code> is a shape, version 1.0.0, and <code>requires.emet</code> <code>&gt;=0.3.0</code>. The server does not load that directory.</p>
+        <dl class="facts">
+          <div>
+            <dt>Neurendipity 1.2.3</dt>
+            <dd><code>kind</code> <code>gem</code>. <code>requires.emet</code> is <code>&gt;=0.2.4</code>. The 0.2.5 changelog added it. Neurodivergent engagement and autistic burnout support. Support only, not counseling or treatment. Guides: <code>guides/NEURODIVERGENT_SUPPORT.md</code> and <code>guides/AUTISTIC_BURNOUT.md</code>. No RUNED directives. It has no <code>released</code> field. The legacy pin above is what lets it seat. Off unless <code>EMET_ACTIVE_GEMS=neurendipity</code>.</dd>
+          </div>
+          <div>
+            <dt>Lean Six Sigma 0.9.0</dt>
+            <dd><code>kind</code> <code>runed-gem</code>. <code>released</code> is true. <code>requires.emet</code> is <code>&gt;=0.2.6</code>. DMAIC and DMADV guidance, blank templates, formulas, and the five calculators above. Its changelog calls 0.9.0 a pre-release. Its floor file is 1,790 bytes. Off unless <code>EMET_ACTIVE_GEMS=lean-six-sigma</code>.</dd>
+          </div>
+          <div>
+            <dt>Bot-team backup 1.0.0</dt>
+            <dd><code>kind</code> <code>gem</code>. <code>released</code> is true. <code>requires.emet</code> is <code>&gt;=0.2.6</code>. No RUNED directives. The recipe writes each bot's name, prompt, settings, routines, and skills as controlled documents. The practice is off unless the first-run interview records yes. Yes is stored on <code>bootstrap/USER.md</code>. EMET does not copy prompts or settings itself. Secret values are never stored. The manifest stays <code>defaultOn</code> false, so the socket still turns the floor on only when <code>EMET_ACTIVE_GEMS</code> names <code>bot-team-backup</code>.</dd>
+          </div>
+          <div>
+            <dt>Fieldnote 1.0.1</dt>
+            <dd><code>kind</code> <code>runed-gem</code>. <code>requires.emet</code> is <code>&gt;=0.2.4</code>. A reference directive that counts rows the caller passes in. It is a developer case-study, not a user-facing GEM, and it is off by default. It has no <code>released</code> field. The same legacy pin is what lets it seat. <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/gems/fieldnote/gem.json">Fieldnote manifest</a>.</dd>
+          </div>
+        </dl>
+        <p class="prose">A GEM version is <code>MAJOR.MINOR.PATCH</code>. A suffix is refused. A leading zero on a component is refused, so <code>01.2.3</code> fails, and a major version of 0 is allowed, so <code>0.9.0</code> passes. For <code>requires.emet</code>, a leading 0 follows the same semver bounds: <code>^0.3.0</code> means <code>&gt;=0.3.0 &lt;0.4.0</code>. EMET itself is still 0.x. Stored document shapes may change before 1.0. Pin a version if you depend on them.</p>
+
+        <h3>Turning one on</h3>
+        <p class="prose"><code>EMET_ACTIVE_GEMS</code> is a comma-separated list of ids. Unset means only a GEM with <code>defaultOn</code> true is active. Every bundled GEM in this release has <code>defaultOn</code> false, so an unset list leaves them off. <code>emet_floor</code> takes a <code>gem</code> argument and reads an installed GEM's floor without turning it on.</p>
+        <pre><code>EMET_ACTIVE_GEMS=neurendipity
+EMET_ACTIVE_GEMS=lean-six-sigma
+EMET_ACTIVE_GEMS=neurendipity,lean-six-sigma</code></pre>
+        <p class="prose"><code>emet_status</code> reports each GEM's byte cost in <code>gems</code>: installed and active counts, active floor bytes against the cap, headroom, and per-GEM id, version, kind, bytes, and refusal reason. The field is read-only and carries no floor text. A socket failure is reported there and does not fail the status call. The bytes in that report are the trusted floor bytes the socket counts toward the cap. The specification also says the served code counts toward the GEM's byte cost.</p>
+        <p class="prose">The caps the socket enforces are 16 installed GEMs, 4 active GEMs, and 16,384 bytes of active floor files. A floor file is at most 8,192 bytes. One guide is at most 65,536 bytes, at most 16 guides, and the sum of listed file sizes is at most 262,144. Going past the active count or the floor-byte cap refuses that GEM. The others still seat.</p>
+
+        <h3>License</h3>
+        <p class="prose">The GEM specification requires <code>authors</code> and <code>license</code> on every manifest. <code>license</code> is a string of 1 to 40 characters. The specification does not name which licenses that string may hold.</p>
+        <p class="prose">Each bundled GEM in this release sets <code>license</code> to <code>MIT</code> and <code>authors</code> to Dreamforge Studio LLC: Neurendipity 1.2.3, Lean Six Sigma 0.9.0, bot-team backup 1.0.0, and Fieldnote 1.0.1. The example manifest under <code>gem-library/examples/neurendipity/</code> does the same. The repository <code>LICENSE</code> is the MIT License for this software. The copyright lines are C.I.P.S. LLC and Dreamforge Studio LLC.</p>
+        <p class="prose">The pin that allows a missing <code>released</code> flag does not cover the <code>license</code> field.</p>
+        <p class="prose">GEMs may be offered as licensed add-ons. This repository does not state prices, license terms for that offer, or a marketplace.</p>
+
+        <h3>Limits</h3>
+        <ul class="limits">
+          <li>A GEM cannot remove a protected floor line, and it cannot use a core section key.</li>
+          <li>The socket does not run RUNED code, and it does not run the code when the client has no sandbox.</li>
+          <li>With <code>EMET_ACTIVE_GEMS</code> unset, every bundled GEM stays off.</li>
+          <li>A path outside the release <code>gems/</code> directory is not loaded.</li>
+          <li>The public submission repository is not created yet. Until it exists, no outside GEM can be submitted, and this server loads only the bundled GEMs in the release.</li>
+          <li>EMET holds no certification and claims no conformity. An organization that uses a GEM stays responsible for validating it for its own use.</li>
+        </ul>
+
+        <h3>Read more</h3>
+        <ul class="guides">
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/gem/README.md">GEM socket</a>
+            <span>What this release seats, and the rule that the socket does not run RUNED code.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/gem-library/SPEC.md">GEM specification</a>
+            <span>Draft, revision 2026-10-12. Golem Expertise Module (GEM) and RUNED (Registered Utility Node Executable Directive).</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/gem-library/AUTHORING.md">Authoring</a>
+            <span>How to make a plain GEM or a RUNED GEM. The specification wins if they disagree.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/gem-library/CONFORMANCE.md">Conformance</a>
+            <span>The gem-check list, including the floor-negation lint and the released check.</span>
+          </li>
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/gems/fieldnote/gem.json">Fieldnote</a>
+            <span>The developer case-study of a RUNED GEM. Off by default. Not a user-facing GEM.</span>
+          </li>
+        </ul>
+      </div>
+      <div class="demo-mount" data-demo-mount="gem"></div>
     </section>
 
     <section class="block" id="project" aria-labelledby="project-title">

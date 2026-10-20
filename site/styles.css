@@ -264,12 +264,6 @@ h2 {
   height: auto;
 }
 
-.scene figcaption {
-  margin-top: 0.55rem;
-  color: var(--muted);
-  font-size: 0.95rem;
-}
-
 pre {
   max-width: 40rem;
   margin: 0 0 1rem;
@@ -427,6 +421,8 @@ html.js[data-tab="start"] #start,
 html.js[data-tab="start"] [data-subject="start"],
 html.js[data-tab="origin"] #origin,
 html.js[data-tab="origin"] [data-subject="origin"],
+html.js[data-tab="gem"] #gem,
+html.js[data-tab="gem"] [data-subject="gem"],
 html.js[data-tab="project"] #project,
 html.js[data-tab="project"] [data-subject="project"] {
   display: block;
