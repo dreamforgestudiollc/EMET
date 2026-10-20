@@ -85,6 +85,10 @@ function specTerm(stem) {
   return found[1];
 }
 
+const SITE_TEXT = /\.(?:html|css|js|xml|txt|md|json|svg|webmanifest)$/i;
+const BARE_RUNE = /\bRUNEs?(?![A-Za-z])/i;
+const INLINE_TAG = /<\/?(?:a|abbr|b|bdi|bdo|br|cite|data|dfn|em|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|time|u|var|wbr)\b[^>]*>/gi;
+
 function siteTextFiles() {
   const root = path.join(ROOT, 'site');
   const files = [];
@@ -92,15 +96,29 @@ function siteTextFiles() {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (/\.(html|css|js|xml|txt|md|json)$/i.test(entry.name)) files.push(full);
+      else if (SITE_TEXT.test(entry.name)) files.push(full);
     }
   };
   walk(root);
   return files;
 }
 
-function outsideCode(text) {
-  return text.replace(/<code\b[^>]*>[\s\S]*?<\/code>/gi, '');
+function decodeEntities(text) {
+  const char = (code) => (code >= 0 && code <= 0x10FFFF ? String.fromCodePoint(code) : '');
+  return text
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => char(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => char(Number(dec)))
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;|&#39;/gi, "'")
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&');
+}
+
+function proseOutsideCode(text) {
+  const withoutCode = text.replace(/<code\b[^>]*>[\s\S]*?<\/code>/gi, ' ');
+  return decodeEntities(withoutCode).replace(INLINE_TAG, '');
 }
 
 function factBlock(panel, manifest) {
@@ -506,6 +524,7 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
       /\bolder\s+note\s+says\b/i,
       /\bread\s+runed\b/i,
       /2026-09-08\s+expansion/i,
+      /\brenamed\s+from\b/i,
     ];
     const files = siteTextFiles();
     const rels = files.map((file) => path.relative(ROOT, file).split(path.sep).join('/'));
@@ -537,13 +556,26 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
     assert.ok(retired.some((pattern) => pattern.test('Guided Engagement Module is superseded.')));
     assert.ok(retired.some((pattern) => pattern.test('The Registered Utility Node Extension is superseded.')));
     assert.equal(retired.some((pattern) => pattern.test('A record is superseded, never patched.')), false);
+    assert.equal(/\brenamed\s+from\b/i.test('Nothing is renamed or copied.'), false);
+    for (const name of ['page.svg', 'manifest.webmanifest', 'index.html', 'styles.css', 'sitemap.xml']) {
+      assert.equal(SITE_TEXT.test(name), true, name);
+    }
+    assert.equal(SITE_TEXT.test('portrait.webp'), false);
+    for (const sample of ['Rune', 'rune', 'RUNEs', 'runes', 'RU<b>NE</b>', '&#82;UNE', 'renamed from']) {
+      const prose = proseOutsideCode(sample);
+      const caught = sample === 'renamed from' ? /\brenamed\s+from\b/i.test(sample) : BARE_RUNE.test(prose);
+      assert.equal(caught, true, sample);
+    }
+    for (const kept of ['RUNED', 'a runed GEM', '<code>runes</code>', '<code>gem_&lt;gem&gt;__&lt;rune&gt;</code>', '<code>Rune</code>']) {
+      assert.equal(BARE_RUNE.test(proseOutsideCode(kept)), false, kept);
+    }
     for (const file of files) {
       const text = fs.readFileSync(file, 'utf8');
       const where = path.relative(ROOT, file);
       for (const pattern of retired) {
         assert.equal(pattern.test(text), false, `${where} matches ${pattern}`);
       }
-      assert.equal(/\bRUNE(?!D)\b/.test(outsideCode(text)), false, `${where} uses the bare name RUNE`);
+      assert.equal(BARE_RUNE.test(proseOutsideCode(text)), false, `${where} uses the bare name RUNE`);
     }
     const gem = panelHtml('gem');
     assert.ok(gem.includes('The name marks the golem legend: the word <span lang="he">אמת</span>, truth, animates the figure.'));
