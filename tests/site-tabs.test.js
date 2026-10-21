@@ -86,7 +86,7 @@ function specTerm(stem) {
 }
 
 const SITE_TEXT = /\.(?:html|css|js|xml|txt|md|json|svg|webmanifest)$/i;
-const BARE_RUNE = /\bRUNEs?(?![A-Za-z])/i;
+const BARE_RUNE = /(?<![A-Za-z0-9])RUNEs?(?![A-Za-z])/i;
 const PHRASING = /^(?:a|abbr|b|bdi|bdo|cite|data|dfn|em|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|time|u|var)$/i;
 
 function siteTextFiles() {
@@ -153,8 +153,81 @@ function tagName(interior) {
   return name ? name[1] : '';
 }
 
-function attributesOf(interior) {
-  return interior.replace(/^\/?\s*[^\s/>]+/, ' ');
+function pathEnd(value) {
+  for (let i = 0; i < value.length; i++) {
+    if (value[i] !== '&') {
+      if (value[i] === '?' || value[i] === '#') return i;
+      continue;
+    }
+    const entity = /^&(?:#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);/i.exec(value.slice(i));
+    if (entity) i += entity[0].length - 1;
+  }
+  return value.length;
+}
+
+function isPathRef(value) {
+  if (value === '') return true;
+  if (/^https?:\/\//i.test(value)) return true;
+  if (value.startsWith('//')) return true;
+  if (/^(?:\/|\.\.?\/|#|\?)/.test(value)) return true;
+  return !/^[a-z][a-z0-9+.-]*:/i.test(value);
+}
+
+function hrefSrcRemainder(value) {
+  const trimmed = value.trim();
+  if (/\s/.test(trimmed) || !isPathRef(trimmed)) return value;
+  return trimmed.slice(pathEnd(trimmed));
+}
+
+function attributeNameCounts(name) {
+  return BARE_RUNE.test(name.replace(/-/g, 'X'));
+}
+
+function scannedTagParts(interior) {
+  const parts = [];
+  let i = 0;
+  if (interior[i] === '/') i += 1;
+  while (i < interior.length && /\s/.test(interior[i])) i += 1;
+  while (i < interior.length && !/[\s/>]/.test(interior[i])) i += 1;
+  while (i < interior.length) {
+    while (i < interior.length && /\s/.test(interior[i])) i += 1;
+    if (i >= interior.length || interior[i] === '/' || interior[i] === '>') break;
+    const attrStart = i;
+    while (i < interior.length && !/[\s=/>]/.test(interior[i])) i += 1;
+    const attrName = interior.slice(attrStart, i);
+    if (!attrName) {
+      i += 1;
+      continue;
+    }
+    while (i < interior.length && /\s/.test(interior[i])) i += 1;
+    let value = '';
+    let hasValue = false;
+    if (interior[i] === '=') {
+      hasValue = true;
+      i += 1;
+      while (i < interior.length && /\s/.test(interior[i])) i += 1;
+      const quote = interior[i];
+      if (quote === '"' || quote === "'" || quote === '`') {
+        const end = interior.indexOf(quote, i + 1);
+        if (end === -1) {
+          value = interior.slice(i + 1);
+          i = interior.length;
+        } else {
+          value = interior.slice(i + 1, end);
+          i = end + 1;
+        }
+      } else {
+        const valueStart = i;
+        while (i < interior.length && !/\s/.test(interior[i])) i += 1;
+        value = interior.slice(valueStart, i);
+      }
+    }
+    if (attributeNameCounts(attrName)) parts.push(attrName);
+    if (!hasValue) continue;
+    const shown = /^(?:href|src)$/i.test(attrName) ? hrefSrcRemainder(value) : value;
+    if (shown) parts.push(shown);
+  }
+  return parts.join('\n');
 }
 
 function selfClosing(interior) {
@@ -181,14 +254,16 @@ function proseOutsideCode(text) {
       ? /^([^<]*)<\/code>/i.exec(after)
       : null;
     if (plain) {
-      exposed.push(attributesOf(interior));
+      exposed.push(scannedTagParts(interior));
       markup = `${markup.slice(0, start)} ${after.slice(plain[0].length)}`;
       i = start;
       continue;
     }
     i = end + 1;
   }
-  // Every remaining tag is checked in full, attributes included. The tag name is not.
+  // Each remaining tag contributes its attribute values. An attribute name counts
+  // only when it still matches after hyphens are joined, and the tag name does not
+  // count. The path of href and src is omitted; the query and the fragment stay.
   let out = '';
   i = 0;
   while (i < markup.length) {
@@ -199,7 +274,7 @@ function proseOutsideCode(text) {
     }
     const [start, end] = found;
     const interior = markup.slice(start + 1, end);
-    exposed.push(attributesOf(interior));
+    exposed.push(scannedTagParts(interior));
     out += markup.slice(i, start);
     out += PHRASING.test(tagName(interior)) ? '' : ' ';
     i = end + 1;
@@ -668,12 +743,44 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
       'title=`RUNE`',
       '<code /> RUNE </code>',
       '<span data-x=`a RUNE b`></span>',
+      '<span data-rune="RUNE"></span>',
+      'my_RUNE',
+      '<span class="my_RUNE">x</span>',
+      '<span RUNE>',
+      '<span RUNE=1>',
+      '</span RUNE>',
+      '<span\nRUNE>',
+      '<code title="RUNE">ok</code>',
+      '<a href="/docs/runes/x.html">RUNE</a>',
+      '<a href="/docs/page?note=runes">ok</a>',
+      '<a href="#runes">ok</a>',
+      '<a href="/docs/page?q=&#82;UNE">ok</a>',
+      '<a href="javascript:RUNE">ok</a>',
+      '<img src="/img/ok.png" alt="RUNE">',
+      'rune-based',
     ]) {
       const prose = proseOutsideCode(sample);
       const caught = sample === 'renamed from' ? /\brenamed\s+from\b/i.test(sample) : BARE_RUNE.test(prose);
       assert.equal(caught, true, sample);
     }
-    for (const kept of ['RUNED', 'a runed GEM', '<code>runes</code>', '<code>gem_&lt;gem&gt;__&lt;rune&gt;</code>', '<code>Rune</code>']) {
+    for (const kept of [
+      'RUNED',
+      'a runed GEM',
+      '<code>runes</code>',
+      '<code>gem_&lt;gem&gt;__&lt;rune&gt;</code>',
+      '<code>Rune</code>',
+      'my_RUNED',
+      '<rune>x</rune>',
+      '<span data-rune="x"></span>',
+      '<span data-runes="kept">text</span>',
+      '<span runed>',
+      '<a href="/docs/runes/x.html">page</a>',
+      '<a href="https://example.com/docs/runes/x.html#top">page</a>',
+      '<a href="/docs/&#114;unes/x.html">page</a>',
+      '<img src="/assets/runes.png" alt="map">',
+      '<img src="runes/icon.png" alt="">',
+      '<link href="//cdn.example/runes/a.css">',
+    ]) {
       assert.equal(BARE_RUNE.test(proseOutsideCode(kept)), false, kept);
     }
     for (const file of files) {
