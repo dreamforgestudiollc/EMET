@@ -1,6 +1,6 @@
 /**
  * Stage 1 of the ref 358 host-aware startup amendment (2026-10-02; admitted by
- * the tester's design review, conditions S1-S2; the owner's decisions 1 and 2 as
+ * the reviewer's design review, conditions S1-S2; the owner's decisions 1 and 2 as
  * relayed 2026-10-01 the recorded time, procedural ref 407, and answer 5, ref 405 item 8).
  *
  *   S2a  a new store: initialize says setup_required and writes nothing;

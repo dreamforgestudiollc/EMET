@@ -43,6 +43,7 @@ import { COLLECTION_PREFIX } from './database.js';
 import { setting } from './env.js';
 import { InvalidGrantError, InvalidScopeError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { scopesNotGranted } from './scopes.js';
+import { CodedError, assignCode } from './error-codes.js';
 
 const CODE_TTL_MS = 5 * 60 * 1000;              // authorization codes: 5 minutes
 const ACCESS_TTL_S = 60 * 60;                   // access tokens: 1 hour
@@ -122,17 +123,17 @@ export function isCimdClientId(clientId) {
  */
 export function validateCimdDocument(doc, url) {
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) {
-    throw new Error('CIMD document must be a JSON object');
+    throw new CodedError('CIMD document must be a JSON object', { code: 'EMET-AUTH-002' });
   }
   if (doc.client_id !== url) {
-    throw new Error(`CIMD document client_id does not match its URL (expected ${url})`);
+    throw new CodedError(`CIMD document client_id does not match its URL (expected ${url})`, { code: 'EMET-AUTH-003' });
   }
   if (!Array.isArray(doc.redirect_uris) || doc.redirect_uris.length === 0 || !doc.redirect_uris.every(r => typeof r === 'string' && r.length > 0)) {
-    throw new Error('CIMD document must carry a non-empty redirect_uris array of strings');
+    throw new CodedError('CIMD document must carry a non-empty redirect_uris array of strings', { code: 'EMET-AUTH-004' });
   }
   const method = doc.token_endpoint_auth_method === undefined ? 'none' : doc.token_endpoint_auth_method;
   if (method !== 'none') {
-    throw new Error(`CIMD clients are public; token_endpoint_auth_method must be "none" (got ${method})`);
+    throw new CodedError(`CIMD clients are public; token_endpoint_auth_method must be "none" (got ${method})`, { code: 'EMET-AUTH-005' });
   }
   const { client_secret, client_secret_expires_at, ...rest } = doc;
   return {
@@ -216,17 +217,17 @@ export async function assertCimdTargetPublic(url, lookup) {
   const u = new URL(url);
   const host = u.hostname.replace(/^\[|\]$/g, '');
   if (!host || host === 'localhost' || host.endsWith('.localhost') || host === 'metadata.google.internal') {
-    throw new Error('CIMD host is not a public address');
+    throw new CodedError('CIMD host is not a public address', { code: 'EMET-AUTH-006' });
   }
-  if (isBlockedCimdAddress(host)) throw new Error('CIMD host is not a public address');
+  if (isBlockedCimdAddress(host)) throw new CodedError('CIMD host is not a public address', { code: 'EMET-AUTH-006' });
   const fn = lookup || dnsPromises.lookup;
   const found = await fn(host, { all: true, verbatim: true });
   const list = Array.isArray(found) ? found : (found ? [found] : []);
-  if (!list.length) throw new Error('CIMD host did not resolve');
+  if (!list.length) throw new CodedError('CIMD host did not resolve', { code: 'EMET-AUTH-007' });
   const checked = [];
   for (const item of list) {
     const address = typeof item === 'string' ? item : item && item.address;
-    if (isBlockedCimdAddress(address)) throw new Error('CIMD host resolves to a blocked address');
+    if (isBlockedCimdAddress(address)) throw new CodedError('CIMD host resolves to a blocked address', { code: 'EMET-AUTH-008' });
     const family = (item && item.family === 6) || String(address).includes(':') ? 6 : 4;
     checked.push({ address, family });
   }
@@ -535,7 +536,7 @@ export class MongoOAuthProvider {
 
   async _fetchCimdDocument(url) {
     const host = new URL(url).hostname;
-    if (!takeCimdFetchSlot(host)) throw new Error('CIMD fetch rate limit');
+    if (!takeCimdFetchSlot(host)) throw new CodedError('CIMD fetch rate limit', { code: 'EMET-AUTH-009' });
     const checked = await assertCimdTargetPublic(url, this._lookup);
     const chosen = checked[0];
     const controller = new AbortController();
@@ -550,13 +551,13 @@ export class MongoOAuthProvider {
       const res = this._fetch
         ? await this._fetch(url, init)
         : await pinnedHttpsGet(url, init, this._https);
-      if (!res || !res.ok) throw new Error(`HTTP ${res ? res.status : 'no response'}`);
+      if (!res || !res.ok) throw new CodedError(`HTTP ${res ? res.status : 'no response'}`, { code: 'EMET-AUTH-010' });
       const text = await res.text();
       if (typeof text !== 'string' || Buffer.byteLength(text, 'utf8') > CIMD_MAX_BYTES) {
-        throw new Error(`document exceeds ${CIMD_MAX_BYTES} bytes`);
+        throw new CodedError(`document exceeds ${CIMD_MAX_BYTES} bytes`, { code: 'EMET-AUTH-011' });
       }
       try { return JSON.parse(text); }
-      catch { throw new Error('document is not valid JSON'); }
+      catch { throw new CodedError('document is not valid JSON', { code: 'EMET-AUTH-012' }); }
     } finally {
       clearTimeout(timer);
     }
@@ -635,7 +636,7 @@ export class MongoOAuthProvider {
 
   async challengeForAuthorizationCode(client, authorizationCode) {
     const doc = await this.col('codes').findOne({ code: tokenDigest(authorizationCode), client_id: client.client_id });
-    if (!doc) throw new InvalidGrantError('this authorization code is not recognised - start the connection again');
+    if (!doc) throw assignCode(new InvalidGrantError('this authorization code is not recognised - start the connection again'), 'EMET-AUTH-013');
     return doc.code_challenge;
   }
 
@@ -643,15 +644,15 @@ export class MongoOAuthProvider {
     const codes = this.col('codes');
     const digest = tokenDigest(authorizationCode);
     const existing = await codes.findOne({ code: digest, client_id: client.client_id });
-    if (!existing) throw new InvalidGrantError('this authorization code is not recognised - start the connection again');
-    if (existing.expiresAtMs < Date.now()) throw new InvalidGrantError('this authorization code has expired - start the connection again');
-    if (redirectUri && existing.redirect_uri && redirectUri !== existing.redirect_uri) throw new InvalidGrantError('redirect_uri does not match the one this code was issued for');
+    if (!existing) throw assignCode(new InvalidGrantError('this authorization code is not recognised - start the connection again'), 'EMET-AUTH-013');
+    if (existing.expiresAtMs < Date.now()) throw assignCode(new InvalidGrantError('this authorization code has expired - start the connection again'), 'EMET-AUTH-014');
+    if (redirectUri && existing.redirect_uri && redirectUri !== existing.redirect_uri) throw assignCode(new InvalidGrantError('redirect_uri does not match the one this code was issued for'), 'EMET-AUTH-015');
     const claimed = await codes.findOneAndUpdate(
       { code: digest, client_id: client.client_id, used: false },
       { $set: { used: true } }
     );
     const doc = claimed && Object.prototype.hasOwnProperty.call(claimed, 'value') ? claimed.value : claimed;
-    if (!doc) throw new InvalidGrantError('this authorization code has already been used - start the connection again');
+    if (!doc) throw assignCode(new InvalidGrantError('this authorization code has already been used - start the connection again'), 'EMET-AUTH-016');
     return this._issueTokens(client.client_id, doc.scopes || [], doc.resource || (resource ? resource.href : null), doc.subject || null, doc.issued_via || null, null, doc.source_tag || null);
   }
 
@@ -668,21 +669,21 @@ export class MongoOAuthProvider {
     // Every refusal here is an OAuth error the SDK maps to 400 invalid_grant
     // (RFC 6749 section 5.2). A plain Error became a 500 server_error, which
     // told the client the server was broken instead of "sign in again".
-    if (!rt) throw new InvalidGrantError('this refresh token is not recognised (it may have been revoked, or issued to another client) - reconnect to sign in again');
+    if (!rt) throw assignCode(new InvalidGrantError('this refresh token is not recognised (it may have been revoked, or issued to another client) - reconnect to sign in again'), 'EMET-AUTH-017');
     const nowS = Math.floor(Date.now() / 1000);
-    if (rt.expiresAt && rt.expiresAt < nowS) throw new InvalidGrantError('this refresh token has expired - reconnect to sign in again');
+    if (rt.expiresAt && rt.expiresAt < nowS) throw assignCode(new InvalidGrantError('this refresh token has expired - reconnect to sign in again'), 'EMET-AUTH-018');
     // A token issued before source tags were stored must not mint another
     // token with an empty tag. The client signs in again; the new consent
     // binds a registered tag. Expiry is reported first, so an expired
     // legacy token still says it has expired.
     if (!rt.source_tag) {
-      throw new InvalidGrantError('this login has no source tag bound. Sign in again so the new consent binds a registered tag.');
+      throw assignCode(new InvalidGrantError('this login has no source tag bound. Sign in again so the new consent binds a registered tag.'), 'EMET-AUTH-019');
     }
     if (typeof rt.rotated_at === 'number') {
       const withinGrace = (nowS - rt.rotated_at) <= REFRESH_ROTATION_GRACE_S && rt.grace_replacement;
       if (withinGrace) return { ...rt.grace_replacement };
       await this._revokeFamily(rt);
-      throw new InvalidGrantError('this refresh token has already been replaced by a newer one - reconnect to sign in again');
+      throw assignCode(new InvalidGrantError('this refresh token has already been replaced by a newer one - reconnect to sign in again'), 'EMET-AUTH-020');
     }
     // R6: a token minted from an invite stops refreshing while invites are
     // frozen, so a re-freeze ends it within one access-token lifetime instead
@@ -692,10 +693,10 @@ export class MongoOAuthProvider {
     // likewise against EMET_INVITES.
     const door = await this._tokenDoor(rt);
     if (door === 'member' && await this._memberAccessIsFrozen()) {
-      throw new InvalidGrantError('this login came from EMET Member Access, and member access is off on this install - it can no longer be refreshed');
+      throw assignCode(new InvalidGrantError('this login came from EMET Member Access, and member access is off on this install - it can no longer be refreshed'), 'EMET-AUTH-021');
     }
     if (door === 'guest' && await this._invitesAreFrozen()) {
-      throw new InvalidGrantError('this login came from an invite, and invites are off on this install - it can no longer be refreshed');
+      throw assignCode(new InvalidGrantError('this login came from an invite, and invites are off on this install - it can no longer be refreshed'), 'EMET-AUTH-022');
     }
     // Defect 1: a refresh keeps or narrows the scopes granted, never widens
     // them (RFC 6749 section 6: a requested scope not originally granted is
@@ -704,7 +705,7 @@ export class MongoOAuthProvider {
     const granted = rt.scopes || [];
     const wider = scopesNotGranted(granted, requested);
     if (wider.length) {
-      throw new InvalidScopeError(`a refresh cannot widen scope: ${wider.join(', ')} was not granted (granted: ${granted.join(', ')})`);
+      throw assignCode(new InvalidScopeError(`a refresh cannot widen scope: ${wider.join(', ')} was not granted (granted: ${granted.join(', ')})`), 'EMET-AUTH-023');
     }
     const useScopes = requested.length ? requested : granted;
     const family = rt.family || randTok(16);
@@ -722,7 +723,7 @@ export class MongoOAuthProvider {
         return { ...fresh.grace_replacement };
       }
       await this._revokeFamily(fresh || rt);
-      throw new InvalidGrantError('this refresh token has already been replaced by a newer one - reconnect to sign in again');
+      throw assignCode(new InvalidGrantError('this refresh token has already been replaced by a newer one - reconnect to sign in again'), 'EMET-AUTH-020');
     }
     return out;
   }
@@ -817,8 +818,8 @@ export class MongoOAuthProvider {
     // Error here became a 500 server_error for every expired or revoked login.
     // No double quotes in these messages: they are copied into that header.
     const doc = await this._findToken(token, 'access');
-    if (!doc) throw new InvalidTokenError('this access token is not recognised (it may have been revoked or replaced) - sign in again');
-    if (doc.expiresAt && doc.expiresAt * 1000 < Date.now()) throw new InvalidTokenError('this access token has expired - refresh it or sign in again');
+    if (!doc) throw assignCode(new InvalidTokenError('this access token is not recognised (it may have been revoked or replaced) - sign in again'), 'EMET-AUTH-024');
+    if (doc.expiresAt && doc.expiresAt * 1000 < Date.now()) throw assignCode(new InvalidTokenError('this access token has expired - refresh it or sign in again'), 'EMET-AUTH-025');
     return {
       token,
       clientId: doc.client_id,

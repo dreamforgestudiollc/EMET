@@ -24,7 +24,8 @@ export function currentActor() {
       clientId: s.clientId || null,
       scopes: Array.isArray(s.scopes) ? s.scopes : [],
       transport: s.transport || null,
-      authenticated: s.authenticated === true
+      authenticated: s.authenticated === true,
+      sourceTag: typeof s.sourceTag === 'string' ? s.sourceTag : null
     };
   }
   return { personId: null, clientId: null, scopes: [], transport: null, authenticated: false };

@@ -6,7 +6,7 @@
  * from tools.js. Three things can drift apart silently: a tool declared but
  * dispatched on only one transport, a case that names a tool that no longer
  * exists, and a case present on one transport and absent on the other. The
- * `session_id` / `conversation_id` divergence (commit-9e580d5) was this class of
+ * `session_id` / `conversation_id` divergence (an earlier fix) was this class of
  * defect. This test reads both switches and the declared list and fails on
  * any difference.
  */
@@ -95,7 +95,7 @@ testGroup('The dispatch table passes the right arguments to the doors', () => {
       assert.ok(!/source\s*[:=]\s*setting\(/.test(src), `${name} sets source from setting()`);
     }
   });
-  test('query_transcripts passes session_id and no legacy alias (the commit-9e580d5 class; audit 1.5a)', () => {
+  test('query_transcripts passes session_id and no legacy alias (the alias-drift class; audit 1.5a)', () => {
     const i = tableSrc.indexOf("case 'query_transcripts'");
     const line = tableSrc.slice(i, tableSrc.indexOf('\n', i));
     assert.ok(/args\.session_id/.test(line), 'query_transcripts dispatch does not pass session_id');

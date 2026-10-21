@@ -12,6 +12,7 @@
  */
 
 import { IMPORTANCE_BUCKETS } from './layers.js';
+import { isEmetCodeOptions } from './error-codes.js';
 
 // ============================================================================
 // CONSTANTS - Validation Limits
@@ -150,13 +151,21 @@ export const CONTENT_ORIGINS = Object.freeze(['self', 'assistant', 'external']);
  */
 export class ValidationError extends Error {
   constructor(field, message, value = undefined) {
-    // One-argument calls pass the whole message as `field` (the reviewer's fix (b), 2026-10-02): that used to
-    // render "Validation failed for '<message>': undefined".
+    // A trailing { code: 'EMET-...' } is the stable code. It is not a field value
+    // and it is not part of the message. One-argument calls pass the whole message
+    // as `field` (the second reader's fix (b), 2026-10-02): that used to render
+    // "Validation failed for '<message>': undefined".
+    let emetCode;
+    const fourth = arguments.length > 3 ? arguments[3] : undefined;
+    if (isEmetCodeOptions(fourth)) emetCode = fourth.code;
+    if (isEmetCodeOptions(value)) { emetCode = value.code; value = undefined; }
+    if (isEmetCodeOptions(message)) { emetCode = message.code; message = undefined; }
     if (message === undefined) { message = field; field = null; }
     super(field === null ? message : `Validation failed for '${field}': ${message}`);
     this.name = 'ValidationError';
     this.field = field;
     this.validationMessage = message;
+    if (emetCode) this.emetCode = emetCode;
     // Don't expose the actual value in production for security
     this.invalidValue = process.env.DEBUG === 'true' ? value : '[hidden]';
   }
@@ -222,24 +231,24 @@ export function isArray(value) {
  */
 export function validateContent(content, fieldName = 'content') {
   if (content === null || content === undefined) {
-    throw new ValidationError(fieldName, 'Content is required');
+    throw new ValidationError(fieldName, 'Content is required', { code: 'EMET-VAL-001' });
   }
 
   if (!isString(content)) {
-    throw new ValidationError(fieldName, 'Content must be a string', typeof content);
+    throw new ValidationError(fieldName, 'Content must be a string', typeof content, { code: 'EMET-VAL-002' });
   }
 
   const trimmed = content.trim();
 
   if (trimmed.length < CONTENT_LIMITS.MIN_CONTENT_LENGTH) {
-    throw new ValidationError(fieldName, `Content must be at least ${CONTENT_LIMITS.MIN_CONTENT_LENGTH} character(s)`);
+    throw new ValidationError(fieldName, `Content must be at least ${CONTENT_LIMITS.MIN_CONTENT_LENGTH} character(s)`, { code: 'EMET-VAL-003' });
   }
 
   if (trimmed.length > CONTENT_LIMITS.MAX_CONTENT_LENGTH) {
     throw new ValidationError(
       fieldName,
       `Content exceeds maximum length of ${CONTENT_LIMITS.MAX_CONTENT_LENGTH} characters (got ${trimmed.length})`
-    );
+    , { code: 'EMET-VAL-004' });
   }
 
   return trimmed;
@@ -253,24 +262,24 @@ export function validateContent(content, fieldName = 'content') {
  */
 export function validateQuery(query) {
   if (query === null || query === undefined) {
-    throw new ValidationError('query', 'Query is required');
+    throw new ValidationError('query', 'Query is required', { code: 'EMET-VAL-005' });
   }
 
   if (!isString(query)) {
-    throw new ValidationError('query', 'Query must be a string', typeof query);
+    throw new ValidationError('query', 'Query must be a string', typeof query, { code: 'EMET-VAL-006' });
   }
 
   const trimmed = query.trim();
 
   if (trimmed.length < 1) {
-    throw new ValidationError('query', 'Query cannot be empty');
+    throw new ValidationError('query', 'Query cannot be empty', { code: 'EMET-VAL-007' });
   }
 
   if (trimmed.length > CONTENT_LIMITS.MAX_QUERY_LENGTH) {
     throw new ValidationError(
       'query',
       `Query exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH} characters (got ${trimmed.length})`
-    );
+    , { code: 'EMET-VAL-008' });
   }
 
   return trimmed;
@@ -288,14 +297,14 @@ export function validateContext(context) {
   }
 
   if (!isString(context)) {
-    throw new ValidationError('context', 'Context must be a string', typeof context);
+    throw new ValidationError('context', 'Context must be a string', typeof context, { code: 'EMET-VAL-010' });
   }
 
   if (context.length > CONTENT_LIMITS.MAX_CONTEXT_LENGTH) {
     throw new ValidationError(
       'context',
       `Context exceeds maximum length of ${CONTENT_LIMITS.MAX_CONTEXT_LENGTH} characters (got ${context.length})`
-    );
+    , { code: 'EMET-VAL-011' });
   }
 
   return context;
@@ -315,13 +324,13 @@ export function validateContext(context) {
 export function validateLayer(layer, required = false) {
   if (layer === null || layer === undefined || layer === '') {
     if (required) {
-      throw new ValidationError('layer', 'Layer is required');
+      throw new ValidationError('layer', 'Layer is required', { code: 'EMET-VAL-012' });
     }
     return null;
   }
 
   if (!isString(layer)) {
-    throw new ValidationError('layer', 'Layer must be a string', typeof layer);
+    throw new ValidationError('layer', 'Layer must be a string', typeof layer, { code: 'EMET-VAL-013' });
   }
 
   const normalizedLayer = layer.toLowerCase().trim();
@@ -330,7 +339,7 @@ export function validateLayer(layer, required = false) {
     throw new ValidationError(
       'layer',
       `Invalid layer '${normalizedLayer}'. Must be one of: ${VALID_LAYERS.join(', ')}`
-    );
+    , { code: 'EMET-VAL-014' });
   }
 
   return normalizedLayer;
@@ -355,7 +364,7 @@ export function validateNumericRange(value, fieldName, min, max, defaultValue = 
     if (defaultValue !== null) {
       return defaultValue;
     }
-    throw new ValidationError(fieldName, 'Value is required');
+    throw new ValidationError(fieldName, 'Value is required', { code: 'EMET-VAL-015' });
   }
 
   // Handle string numbers (e.g., from JSON parsing edge cases)
@@ -365,14 +374,14 @@ export function validateNumericRange(value, fieldName, min, max, defaultValue = 
   }
 
   if (!isNumber(numValue)) {
-    throw new ValidationError(fieldName, 'Value must be a number', value);
+    throw new ValidationError(fieldName, 'Value must be a number', value, { code: 'EMET-VAL-016' });
   }
 
   if (numValue < min || numValue > max) {
     throw new ValidationError(
       fieldName,
       `Value must be between ${min} and ${max} (got ${numValue})`
-    );
+    , { code: 'EMET-VAL-017' });
   }
 
   return numValue;
@@ -469,7 +478,7 @@ export function validateMetadata(metadata) {
   }
 
   if (!isPlainObject(metadata)) {
-    throw new ValidationError('metadata', 'Metadata must be an object', typeof metadata);
+    throw new ValidationError('metadata', 'Metadata must be an object', typeof metadata, { code: 'EMET-VAL-018' });
   }
 
   // Check total size of metadata JSON
@@ -478,7 +487,7 @@ export function validateMetadata(metadata) {
     throw new ValidationError(
       'metadata',
       `Metadata exceeds maximum size of ${CONTENT_LIMITS.MAX_METADATA_SIZE} bytes (got ${metadataJson.length})`
-    );
+    , { code: 'EMET-VAL-019' });
   }
 
   const sanitized = {};
@@ -537,7 +546,7 @@ export function validateMetadata(metadata) {
           'metadata.session_id is not accepted: supply derived_from {session_id, exchange_start, exchange_end} ' +
           '(a transcript span) or derived_from {entries: [...]} (a consolidation) instead',
           typeof value
-        );
+        , { code: 'EMET-VAL-020' });
 
       case 'category':
         sanitized.category = validateStringField(value, 'category');
@@ -554,7 +563,7 @@ export function validateMetadata(metadata) {
         const aliased = validateTimestamp(value, 'expires_at');
         if (sanitized.valid_until !== undefined && sanitized.valid_until !== null &&
             aliased !== null && sanitized.valid_until !== aliased) {
-          throw new ValidationError('expires_at', `expires_at (${aliased}) disagrees with valid_until (${sanitized.valid_until}); supply one`, typeof value);
+          throw new ValidationError('expires_at', `expires_at (${aliased}) disagrees with valid_until (${sanitized.valid_until}); supply one`, typeof value, { code: 'EMET-VAL-021' });
         }
         if (sanitized.valid_until === undefined || sanitized.valid_until === null) sanitized.valid_until = aliased;
         break;
@@ -588,7 +597,7 @@ export function validateMetadata(metadata) {
         // If expires_at was seen first, valid_until is already set from the alias.
         if (sanitized.valid_until !== undefined && sanitized.valid_until !== null &&
             canonical !== null && sanitized.valid_until !== canonical) {
-          throw new ValidationError('valid_until', `valid_until (${canonical}) disagrees with expires_at (${sanitized.valid_until}); supply one`, typeof value);
+          throw new ValidationError('valid_until', `valid_until (${canonical}) disagrees with expires_at (${sanitized.valid_until}); supply one`, typeof value, { code: 'EMET-VAL-022' });
         }
         sanitized.valid_until = canonical;
         break;
@@ -602,7 +611,7 @@ export function validateMetadata(metadata) {
         if (value === null || value === undefined) {
           sanitized.routing = null;
         } else if (!isPlainObject(value)) {
-          throw new ValidationError('routing', 'Routing must be a plain object', typeof value);
+          throw new ValidationError('routing', 'Routing must be a plain object', typeof value, { code: 'EMET-VAL-023' });
         } else {
           sanitized.routing = value;
         }
@@ -616,7 +625,7 @@ export function validateMetadata(metadata) {
       case 'assertion_origin_missing':
       case 'rune_attested':
         if (typeof value !== 'boolean') {
-          throw new ValidationError(key, 'Value must be a boolean', typeof value);
+          throw new ValidationError(key, 'Value must be a boolean', typeof value, { code: 'EMET-VAL-024' });
         }
         sanitized[key] = value;
         break;
@@ -628,7 +637,7 @@ export function validateMetadata(metadata) {
           throw new ValidationError(
             'assertion_origin',
             `Invalid assertion_origin '${value}'. Must be one of: ${ASSERTION_ORIGINS.join(', ')} (or null)`
-          );
+          , { code: 'EMET-VAL-025' });
         } else {
           sanitized.assertion_origin = value;
         }
@@ -642,7 +651,7 @@ export function validateMetadata(metadata) {
       case 'input_sha256':
       case 'input_ref':
       case 'principal':
-        if (typeof value !== 'string') throw new ValidationError(key, 'Value must be a string', typeof value);
+        if (typeof value !== 'string') throw new ValidationError(key, 'Value must be a string', typeof value, { code: 'EMET-VAL-026' });
         sanitized[key] = value;
         break;
 
@@ -653,7 +662,7 @@ export function validateMetadata(metadata) {
           if (customJson.length <= CONTENT_LIMITS.MAX_METADATA_SIZE / 2) {
             sanitized.custom = { ...sanitized.custom, ...value };
           } else {
-            throw new ValidationError('custom', 'Custom metadata object is too large');
+            throw new ValidationError('custom', 'Custom metadata object is too large', { code: 'EMET-VAL-027' });
           }
         }
         break;
@@ -671,7 +680,7 @@ export function validateMetadata(metadata) {
       throw new ValidationError(
         'valid_from',
         `valid_from (${sanitized.valid_from}) cannot be greater than valid_until (${sanitized.valid_until})`
-      );
+      , { code: 'EMET-VAL-028' });
     }
   }
 
@@ -709,7 +718,7 @@ export function relocatedFields(validated) {
  */
 export function validatePositiveInteger(value, fieldName) {
   if (value === null || value === undefined) {
-    throw new ValidationError(fieldName, 'Value is required');
+    throw new ValidationError(fieldName, 'Value is required', { code: 'EMET-VAL-015' });
   }
 
   let numValue = value;
@@ -718,7 +727,7 @@ export function validatePositiveInteger(value, fieldName) {
   }
 
   if (!isNumber(numValue) || !isInteger(numValue) || numValue < NUMERIC_LIMITS.MIN_ID) {
-    throw new ValidationError(fieldName, 'Value must be a positive integer', value);
+    throw new ValidationError(fieldName, 'Value must be a positive integer', value, { code: 'EMET-VAL-029' });
   }
 
   return numValue;
@@ -736,22 +745,22 @@ export function validateTags(tags) {
   }
 
   if (!isArray(tags)) {
-    throw new ValidationError('tags', 'Tags must be an array', typeof tags);
+    throw new ValidationError('tags', 'Tags must be an array', typeof tags, { code: 'EMET-VAL-030' });
   }
 
   if (tags.length > 50) {
-    throw new ValidationError('tags', 'Too many tags (max 50)');
+    throw new ValidationError('tags', 'Too many tags (max 50)', { code: 'EMET-VAL-031' });
   }
 
   const validatedTags = [];
   for (let i = 0; i < tags.length; i++) {
     const tag = tags[i];
     if (!isString(tag)) {
-      throw new ValidationError(`tags[${i}]`, 'Each tag must be a string', typeof tag);
+      throw new ValidationError(`tags[${i}]`, 'Each tag must be a string', typeof tag, { code: 'EMET-VAL-032' });
     }
     const trimmed = tag.trim();
     if (trimmed.length > 100) {
-      throw new ValidationError(`tags[${i}]`, 'Tag exceeds maximum length of 100 characters');
+      throw new ValidationError(`tags[${i}]`, 'Tag exceeds maximum length of 100 characters', { code: 'EMET-VAL-033' });
     }
     if (trimmed.length > 0) {
       validatedTags.push(trimmed);
@@ -773,11 +782,11 @@ export function validateIdArray(ids) {
   }
 
   if (!isArray(ids)) {
-    throw new ValidationError('related_ids', 'Related IDs must be an array', typeof ids);
+    throw new ValidationError('related_ids', 'Related IDs must be an array', typeof ids, { code: 'EMET-VAL-034' });
   }
 
   if (ids.length > 100) {
-    throw new ValidationError('related_ids', 'Too many related IDs (max 100)');
+    throw new ValidationError('related_ids', 'Too many related IDs (max 100)', { code: 'EMET-VAL-035' });
   }
 
   const validatedIds = [];
@@ -810,14 +819,14 @@ export function validateStringField(value, fieldName) {
   }
 
   if (!isString(value)) {
-    throw new ValidationError(fieldName, 'Value must be a string', typeof value);
+    throw new ValidationError(fieldName, 'Value must be a string', typeof value, { code: 'EMET-VAL-026' });
   }
 
   if (value.length > CONTENT_LIMITS.MAX_STRING_FIELD_LENGTH) {
     throw new ValidationError(
       fieldName,
       `Value exceeds maximum length of ${CONTENT_LIMITS.MAX_STRING_FIELD_LENGTH} characters`
-    );
+    , { code: 'EMET-VAL-036' });
   }
 
   return value;
@@ -873,7 +882,7 @@ export function validateFilters(filters) {
   }
 
   if (!isPlainObject(filters)) {
-    throw new ValidationError('filters', 'Filters must be an object', typeof filters);
+    throw new ValidationError('filters', 'Filters must be an object', typeof filters, { code: 'EMET-VAL-037' });
   }
 
   const validated = {};
@@ -906,7 +915,7 @@ export function validateFilters(filters) {
       throw new ValidationError(
         'filters.importance_bucket',
         `Unknown bucket '${filters.importance_bucket}'. Use constitutive, durable, binding, event, or scratch.`
-      );
+      , { code: 'EMET-VAL-038' });
     }
     validated.importance_bucket = name;
     if (validated.importance_min === undefined) validated.importance_min = spec.range[0];
@@ -950,7 +959,7 @@ export function validateFilters(filters) {
       throw new ValidationError(
         'filters.content_contains',
         `Search term exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH}`
-      );
+      , { code: 'EMET-VAL-039' });
     }
   }
 
@@ -960,7 +969,7 @@ export function validateFilters(filters) {
       throw new ValidationError(
         'filters.context_contains',
         `Search term exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH}`
-      );
+      , { code: 'EMET-VAL-040' });
     }
   }
 
@@ -975,7 +984,7 @@ export function validateFilters(filters) {
       throw new ValidationError(
         'filters',
         'importance_min cannot be greater than importance_max'
-      );
+      , { code: 'EMET-VAL-041' });
     }
   }
 
@@ -984,7 +993,7 @@ export function validateFilters(filters) {
       throw new ValidationError(
         'filters',
         'emotional_intensity_min cannot be greater than emotional_intensity_max'
-      );
+      , { code: 'EMET-VAL-042' });
     }
   }
 
@@ -993,7 +1002,7 @@ export function validateFilters(filters) {
       throw new ValidationError(
         'filters',
         'timestamp_after cannot be greater than timestamp_before'
-      );
+      , { code: 'EMET-VAL-043' });
     }
   }
 
@@ -1016,7 +1025,7 @@ export function validateQueryOptions(options) {
   }
 
   if (!isPlainObject(options)) {
-    throw new ValidationError('options', 'Options must be an object', typeof options);
+    throw new ValidationError('options', 'Options must be an object', typeof options, { code: 'EMET-VAL-044' });
   }
 
   const validated = {};
@@ -1031,7 +1040,7 @@ export function validateQueryOptions(options) {
   // Validate order_by (already sanitized in main code, but validate format here)
   if ('order_by' in options) {
     if (!isString(options.order_by)) {
-      throw new ValidationError('options.order_by', 'order_by must be a string');
+      throw new ValidationError('options.order_by', 'order_by must be a string', { code: 'EMET-VAL-045' });
     }
     validated.order_by = options.order_by.trim();
   }
@@ -1072,7 +1081,7 @@ export function validateQueryOptions(options) {
  */
 export function validateRememberInput(args) {
   if (!isPlainObject(args)) {
-    throw new ValidationError('args', 'Arguments must be an object');
+    throw new ValidationError('args', 'Arguments must be an object', { code: 'EMET-VAL-046' });
   }
 
   return {
@@ -1087,7 +1096,7 @@ export function validateRememberInput(args) {
  */
 export function validateRecallInput(args) {
   if (!isPlainObject(args)) {
-    throw new ValidationError('args', 'Arguments must be an object');
+    throw new ValidationError('args', 'Arguments must be an object', { code: 'EMET-VAL-046' });
   }
 
   return {
@@ -1102,7 +1111,7 @@ export function validateRecallInput(args) {
  */
 export function validateQueryLayerInput(args) {
   if (!isPlainObject(args)) {
-    throw new ValidationError('args', 'Arguments must be an object');
+    throw new ValidationError('args', 'Arguments must be an object', { code: 'EMET-VAL-046' });
   }
 
   return {
@@ -1116,7 +1125,7 @@ export function validateQueryLayerInput(args) {
  */
 export function validateSaveToLayerInput(args) {
   if (!isPlainObject(args)) {
-    throw new ValidationError('args', 'Arguments must be an object');
+    throw new ValidationError('args', 'Arguments must be an object', { code: 'EMET-VAL-046' });
   }
 
   return {

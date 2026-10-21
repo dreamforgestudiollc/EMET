@@ -1,5 +1,5 @@
 /**
- * Per-bot close records (C1, admitted 2026-10-01; the tester's review note
+ * Per-bot close records (C1, admitted 2026-10-01; the reviewer's review note
  * "C1: per-bot close records", the owner's decisions of 3:06, 3:08 and the recorded time).
  *
  * The rule, stated once in the paper: a session written under a bot's source
@@ -14,11 +14,11 @@
  *
  *   M1  a bot close against bots/T/HANDOFF.md is complete, and the main
  *       STATE.md / HANDOFF.md versions are identical before and after
- *       (at commit-92d2b1d: incomplete, "STATE.md was not updated this session" and
+ *       (before the bot rule: incomplete, "STATE.md was not updated this session" and
  *       "HANDOFF.md was not updated this session")
  *   M2  another tag's revisions in the window are not counted for a bot
  *       session, and a host close carries attribution_warnings naming them
- *       (at commit-92d2b1d: counted - a false pass)
+ *       (before the bot rule: counted - a false pass)
  *   2   a host close is unchanged in verdict and receipts (regression guard)
  *   3   a bot receipt naming the main records is blocked, with the message
  *   4   write_doc / patch_doc of the main records under a bot tag are refused
@@ -29,11 +29,11 @@
  *   9   a tag with no bots/T/HANDOFF.md record follows the host path
  *   D4  decision 4: EMET_TEMPLATE_MAP marks a bot handoff's conformance and
  *       never rejects it
- *   F1  (PR 2 review, the tester) retire_doc, rename_doc and
+ *   F1  (PR 2 review, the reviewer) retire_doc, rename_doc and
  *       accept_nonconformance refuse the main records under a bot tag
- *   F2  (PR 2 review, the tester) mixed transcript tags with a bot tag are
+ *   F2  (PR 2 review, the reviewer) mixed transcript tags with a bot tag are
  *       incomplete; a main record in thread_docs is dropped with a warning
- *   +   (PR 2 review, the reviewer) the bot handoff receipt: handoff_doc, version,
+ *   +   (PR 2 review, the second reader) the bot handoff receipt: handoff_doc, version,
  *       written last
  * (10: the runner is run in New York time and with TZ=UTC.)
  */
@@ -114,7 +114,7 @@ function seedMainRecords(db, { by = HOST, ageMs = 2 * 86400000 } = {}) {
   const when = new Date(Date.now() - ageMs);
   db.col('documents').docs.push(
     { doc_id: 'STATE.md', version: 7, content: '# Board\n\n## §0 RECORD CONTROL AND COUNTS\n- Template: `templates/BOARD.md` rev none yet\n- Session id: none yet\n- Scope of the session that wrote this revision: provisioned by the server\n\n| Half-state | Dated ≤14 days | Open | Waiting | Parked | Closed this revision | Seed triggers met | Nonconformance markers open |\n|---|---|---|---|---|---|---|---|\n| 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |\n\n## §1 HALF-STATE — highest priority\nNone — checked against: none yet.\n\n## §2 DATED — next 14 days, and hard dates beyond\nNone — checked against: none yet.\n\n## §3 OPEN BOARD\nNone — checked against: none yet.\n\n## §4 CLOSED THIS REVISION\nNone closed this revision.\n\n## §5 SEEDS\n- Last full scan: none yet\n- Triggers met: None met, per the scan above.\n\n## §6 STANDING GUARDS\nNone retired.\n\n## §7 SYSTEM STATE\nactive: hub work\n', updated_at: when, updated_by: by, size: 26 },
-    { doc_id: 'HANDOFF.md', version: 3, content: '# Handoff\nAlex hub session\n', updated_at: when, updated_by: by, size: 27 }
+    { doc_id: 'HANDOFF.md', version: 3, content: '# Handoff\nowner hub session\n', updated_at: when, updated_by: by, size: 27 }
   );
 }
 async function withEnv(vars, fn) {
@@ -257,7 +257,7 @@ testGroup('M2 (test 5): only the session tag\'s own revisions count', () => {
     // handoff, inside this window and after the bot's own writes.
     seedMainRecords(db, { ageMs: -1000 });
     db.col('documents').docs.push({ doc_id: BOT_HANDOFF, version: 1, updated_at: new Date(Date.now() + 1000), updated_by: HOST, size: 5 });
-    // The receipts a host would send (the 8): at commit-92d2b1d this close is complete.
+    // The receipts a host would send (the 8): before the bot rule this close is complete.
     const receipts = { working_docs: [s.intakeId], episodic_id: 77, board_doc: 'STATE.md', board_version: 7,
       transcript_session_id: s.base, transcript_parts: [s.sid], transcript_exchanges: 1, handoff_version: 3 };
     const c = dataOf(await close(db, s, receipts));
@@ -298,7 +298,7 @@ testGroup('M2 (test 5): only the session tag\'s own revisions count', () => {
 });
 
 testGroup('test 2: a host close is unchanged in verdict and receipts (regression guard)', () => {
-  test('a complete host close: same state, missing, receipt problems, speak, receipt fields and checked documents as at commit-92d2b1d; no bot fields, no attribution warnings', async () => {
+  test('a complete host close: same state, missing, receipt problems, speak, receipt fields and checked documents as before the bot rule; no bot fields, no attribution warnings', async () => {
     const db = makeStore();
     const T = new Date();
     const s = await hostSessionReadyToClose(db, 'host-regression', T);
@@ -541,7 +541,7 @@ testGroup('test 8: PR 1 interplay holds for a bot session', () => {
 });
 
 testGroup('test 9: a tag with no bots/<tag>/HANDOFF.md record follows the host path', () => {
-  test('a bot-shaped close under an unlisted tag still requires the main records and the 8 receipts (unchanged from commit-92d2b1d)', async () => {
+  test('a bot-shaped close under an unlisted tag still requires the main records and the 8 receipts (unchanged from before the bot rule)', async () => {
     const db = makeStore();
     const T = new Date();
     const s = await botSessionReadyToClose(db, 'unlisted-bot', T, { tag: 'other-bot' });
@@ -569,7 +569,7 @@ testGroup('decision 4: EMET_TEMPLATE_MAP checks a bot handoff against templates/
   });
 });
 
-// --- PR 2 review fixes (the tester's F1/F2, the reviewer's receipt test) ---------------
+// --- PR 2 review fixes (the reviewer's F1/F2, the second reader's receipt test) ---------------
 testGroup('F1: every other door to the main records refuses a bot tag (retire_doc, rename_doc from/onto, accept_nonconformance)', () => {
   const NC = { verdict: 'nonconforming', failures: ['section 2 missing'], warnings: [], checked_at: new Date().toISOString() };
   const seed = (db, { withState = true } = {}) => {
@@ -660,7 +660,7 @@ testGroup('F2: one session, one tag; a main record in thread_docs is dropped wit
   });
 });
 
-// the reviewer's test check on PR 2: the 7th receipt and the bot handoff's version /
+// the second reader's test check on PR 2: the 7th receipt and the bot handoff's version /
 // written-last checks had no test (mutations m6 and m8 survived).
 testGroup('bot handoff receipts', () => {
   test('bot receipts: handoff_doc missing or naming another handoff, a stale handoff_version, or a handoff not written last -> blocked', async () => {
@@ -686,7 +686,7 @@ testGroup('bot handoff receipts', () => {
   });
 });
 
-// the reviewer's re-check of 3341655: thread_docs sent as text threw a TypeError in a
+// the second reader's re-check of 3341655: thread_docs sent as text threw a TypeError in a
 // bot close. The close path spreads a non-array thread_docs as it always has
 // (host and bot alike); the result must be a reply that is not complete, never
 // a thrown error.

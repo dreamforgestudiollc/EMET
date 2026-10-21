@@ -25,6 +25,7 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { resolveModulePath } from './module-path.js';
 import { refuseHostAccess, MAX_SOURCE_BYTES, runeSpecifierReason, runeExtensionReason } from './host-reach.js';
+import { CodedError } from './error-codes.js';
 
 export const SPEC_REVISION = '2026-10-12';
 export const CHECK_IDS = Object.freeze([
@@ -114,7 +115,7 @@ function loadSchema(explicit) {
   const text = fs.readFileSync(schemaPath(), 'utf8');
   const parsed = JSON.parse(text);
   if (!parsed || parsed.$id !== 'https://github.com/dreamforgestudiollc/EMET-GEMs/raw/main/gem.schema.json') {
-    throw new Error('schema id');
+    throw new CodedError('schema id', { code: 'EMET-GEM-013' });
   }
   schemaCache = parsed;
   return schemaCache;
@@ -134,7 +135,7 @@ export function parseStrictJson(text) {
   }
   function parse() {
     skip();
-    if (i >= n) throw new Error('unexpected end');
+    if (i >= n) throw new CodedError('unexpected end', { code: 'EMET-GEM-014' });
     const c = s[i];
     if (c === '{') return parseObject();
     if (c === '[') return parseArray();
@@ -143,10 +144,10 @@ export function parseStrictJson(text) {
     if (c === 'f') return atom('false', false);
     if (c === 'n') return atom('null', null);
     if (c === '-' || (c >= '0' && c <= '9')) return parseNumber();
-    throw new Error('unexpected character');
+    throw new CodedError('unexpected character', { code: 'EMET-GEM-015' });
   }
   function atom(word, value) {
-    if (s.slice(i, i + word.length) !== word) throw new Error('unexpected token');
+    if (s.slice(i, i + word.length) !== word) throw new CodedError('unexpected token', { code: 'EMET-GEM-016' });
     i += word.length;
     return value;
   }
@@ -155,22 +156,22 @@ export function parseStrictJson(text) {
     if (s[i] === '-') i++;
     if (s[i] === '0') i++;
     else if (s[i] >= '1' && s[i] <= '9') { while (i < n && s[i] >= '0' && s[i] <= '9') i++; }
-    else throw new Error('bad number');
+    else throw new CodedError('bad number', { code: 'EMET-GEM-017' });
     if (i < n && s[i] === '.') {
       i++;
-      if (i >= n || s[i] < '0' || s[i] > '9') throw new Error('bad number');
+      if (i >= n || s[i] < '0' || s[i] > '9') throw new CodedError('bad number', { code: 'EMET-GEM-017' });
       while (i < n && s[i] >= '0' && s[i] <= '9') i++;
     }
     if (i < n && (s[i] === 'e' || s[i] === 'E')) {
       i++;
       if (s[i] === '+' || s[i] === '-') i++;
-      if (i >= n || s[i] < '0' || s[i] > '9') throw new Error('bad number');
+      if (i >= n || s[i] < '0' || s[i] > '9') throw new CodedError('bad number', { code: 'EMET-GEM-017' });
       while (i < n && s[i] >= '0' && s[i] <= '9') i++;
     }
     const lit = s.slice(start, i);
-    if (/^0\d/.test(lit) || /^-0\d/.test(lit)) throw new Error('bad number');
+    if (/^0\d/.test(lit) || /^-0\d/.test(lit)) throw new CodedError('bad number', { code: 'EMET-GEM-017' });
     const num = JSON.parse(lit);
-    if (typeof num !== 'number' || !Number.isFinite(num)) throw new Error('bad number');
+    if (typeof num !== 'number' || !Number.isFinite(num)) throw new CodedError('bad number', { code: 'EMET-GEM-017' });
     return num;
   }
   function parseString() {
@@ -187,14 +188,14 @@ export function parseStrictJson(text) {
           i += 6;
           continue;
         }
-        throw new Error('bad escape');
+        throw new CodedError('bad escape', { code: 'EMET-GEM-018' });
       }
       if (c === '"') { i++; return out; }
-      if (c < ' ') throw new Error('raw control in string');
+      if (c < ' ') throw new CodedError('raw control in string', { code: 'EMET-GEM-019' });
       out += c;
       i++;
     }
-    throw new Error('unterminated string');
+    throw new CodedError('unterminated string', { code: 'EMET-GEM-020' });
   }
   function parseArray() {
     i++;
@@ -204,11 +205,11 @@ export function parseStrictJson(text) {
     while (i < n) {
       arr.push(parse());
       skip();
-      if (s[i] === ',') { i++; skip(); if (s[i] === ']') throw new Error('trailing comma'); continue; }
+      if (s[i] === ',') { i++; skip(); if (s[i] === ']') throw new CodedError('trailing comma', { code: 'EMET-GEM-021' }); continue; }
       if (s[i] === ']') { i++; return arr; }
-      throw new Error('expected comma');
+      throw new CodedError('expected comma', { code: 'EMET-GEM-022' });
     }
-    throw new Error('unterminated array');
+    throw new CodedError('unterminated array', { code: 'EMET-GEM-023' });
   }
   function parseObject() {
     i++;
@@ -218,27 +219,27 @@ export function parseStrictJson(text) {
     if (s[i] === '}') { i++; return obj; }
     while (i < n) {
       skip();
-      if (s[i] !== '"') throw new Error('expected key');
+      if (s[i] !== '"') throw new CodedError('expected key', { code: 'EMET-GEM-024' });
       const key = parseString();
-      if (seen.has(key)) throw new Error('duplicate key');
+      if (seen.has(key)) throw new CodedError('duplicate key', { code: 'EMET-GEM-025' });
       seen.add(key);
-      if (key === '__proto__' || key === 'constructor' || key === 'prototype') throw new Error('forbidden key');
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') throw new CodedError('forbidden key', { code: 'EMET-GEM-026' });
       skip();
-      if (s[i] !== ':') throw new Error('expected colon');
+      if (s[i] !== ':') throw new CodedError('expected colon', { code: 'EMET-GEM-027' });
       i++;
       const value = parse();
       Object.defineProperty(obj, key, { value, enumerable: true, writable: true, configurable: true });
       skip();
-      if (s[i] === ',') { i++; skip(); if (s[i] === '}') throw new Error('trailing comma'); continue; }
+      if (s[i] === ',') { i++; skip(); if (s[i] === '}') throw new CodedError('trailing comma', { code: 'EMET-GEM-021' }); continue; }
       if (s[i] === '}') { i++; return obj; }
-      throw new Error('expected comma');
+      throw new CodedError('expected comma', { code: 'EMET-GEM-022' });
     }
-    throw new Error('unterminated object');
+    throw new CodedError('unterminated object', { code: 'EMET-GEM-028' });
   }
-  if (s.charCodeAt(0) === 0xfeff) throw new Error('bom');
+  if (s.charCodeAt(0) === 0xfeff) throw new CodedError('bom', { code: 'EMET-GEM-029' });
   const value = parse();
   skip();
-  if (i !== n) throw new Error('trailing data');
+  if (i !== n) throw new CodedError('trailing data', { code: 'EMET-GEM-030' });
   return value;
 }
 
@@ -252,7 +253,7 @@ function jcs(value) {
   const t = typeof value;
   if (t === 'boolean') return value ? 'true' : 'false';
   if (t === 'number') {
-    if (!Number.isSafeInteger(value)) throw new Error('number is not a safe integer');
+    if (!Number.isSafeInteger(value)) throw new CodedError('number is not a safe integer', { code: 'EMET-GEM-031' });
     return JSON.stringify(value);
   }
   if (t === 'string') return JSON.stringify(value);
@@ -261,7 +262,7 @@ function jcs(value) {
     const keys = Object.keys(value).sort();
     return '{' + keys.map((k) => JSON.stringify(k) + ':' + jcs(value[k])).join(',') + '}';
   }
-  throw new Error('unsupported value');
+  throw new CodedError('unsupported value', { code: 'EMET-GEM-032' });
 }
 
 function cmpVer(a, b) {

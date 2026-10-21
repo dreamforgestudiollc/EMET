@@ -103,7 +103,7 @@ testGroup('release tag guard', () => {
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
     const server = JSON.parse(fs.readFileSync(path.join(ROOT, 'server.json'), 'utf8'));
     const glama = JSON.parse(fs.readFileSync(path.join(ROOT, 'glama.json'), 'utf8'));
-    assert.strictEqual(pkg.version, '0.2.6');
+    assert.strictEqual(pkg.version, '0.3.0');
     assert.strictEqual(server.version, pkg.version);
     assert.strictEqual(server.packages[0].version, pkg.version);
     assert.strictEqual(glama.version, pkg.version);

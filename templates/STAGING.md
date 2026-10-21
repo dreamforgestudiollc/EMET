@@ -1,6 +1,6 @@
 # TEMPLATE — STAGING
 
-**Template control:** id `templates/STAGING.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · procedural ref 311 (board 011) · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
+**Template control:** id `templates/STAGING.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · procedural ref 311 (board 11) · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
 **Fills:** `staging/<name>-<yyyy-mm>.md` — work lists, proposals, pricings, research notes: anything that is worked on before it is decided.
 **Failure it prevents:** an instance-authored proposal read later as a decision — a delete tool was specified from a staging note nobody had approved, and the note contradicted itself (reference install, procedural ref 296); drafts with no visible status, so a reader could not tell a priced option from an adopted one.
 **Completion rules:** `templates/STANDARD.md` §5, unmodified.

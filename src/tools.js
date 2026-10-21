@@ -12,6 +12,8 @@
  */
 
 import { connectMongo } from './mongo-connect.js';
+import { newCorrelationId, EMET_INT_001, EMET_CODE_RE, lookupEmetCode } from './error-codes.js';
+import { recordError } from './error-log.js';
 import { resolveModulePath } from './module-path.js';
 import { replacedByOf } from './setup.js';
 import { currentActor, rawActor, writerStamp, boundSourceTag, declaredAttribution, LOCAL_SUBJECT } from './persons.js';
@@ -21,7 +23,7 @@ import { sealAttestation, frozenAttestation } from './rune-dispatch.js';
 /** Approvals record io for attribution.js (server-kept doc, written as emet-server). */
 export const approvalsDeps = {
   readDoc: (id) => readDoc(id),
-  // Compare-and-set on the stored version (the reviewer 3). mutateApprovals serializes
+  // Compare-and-set on the stored version (the second reader 3). mutateApprovals serializes
   // writers in this process; this check catches a writer elsewhere.
   writeDoc: async (id, content, expectedVersion) => {
     // Atomic across processes: writeDoc filters the update on { doc_id, version: expected }.
@@ -129,6 +131,7 @@ export class RateLimitError extends Error {
     this.name = 'RateLimitError';
     this.retryAfterMs = retryAfterMs;
     this.statusCode = 429;
+    this.emetCode = 'EMET-RATE-001';
   }
 }
 
@@ -361,6 +364,18 @@ export function handleError(error, toolName, logger = null) {
   }
 
   errorResponse.error.tool = toolName;
+  const stamped = error && typeof error.emetCode === 'string' && EMET_CODE_RE.test(error.emetCode) && lookupEmetCode(error.emetCode)
+    ? error.emetCode
+    : EMET_INT_001;
+  const correlationId = newCorrelationId();
+  errorResponse.error.emet_code = stamped;
+  errorResponse.error.correlation_id = correlationId;
+  void recordError({
+    emet_code: stamped,
+    class_code: errorResponse.error.code,
+    tool: toolName,
+    correlation_id: correlationId
+  });
 
   // Read at call time. Never attach a stack on the HTTP server.
   if (process.env.DEBUG === 'true' && error?.stack && currentActor().transport !== 'http') {
@@ -514,7 +529,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     {
       const { checkLessonFields } = await import('./lessons-to-checks.js');
       const lessonProblem = checkLessonFields(targetLayer, incoming);
-      if (lessonProblem) throw new ValidationError('metadata.lesson', `${lessonProblem} Nothing was written.`);
+      if (lessonProblem) throw new ValidationError('metadata.lesson', `${lessonProblem} Nothing was written.`, { code: 'EMET-MEM-005' });
     }
     if (!validatedLayer) {
       warnings.push(
@@ -608,8 +623,8 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     let provenanceStamped = false;
     if (!provenance && options && options.session_id !== undefined && options.session_id !== null) {
       const sid = typeof options.session_id === 'string' ? options.session_id.trim() : '';
-      if (!sid || sid.length > 200) throw new ValidationError('session_id', 'must be the non-empty transcript session id from emet_session_open. Nothing was written.');
-      if (typeof dbManager.transcriptPosition !== 'function') throw new ValidationError('session_id', 'this store cannot read transcript positions, so the pointer cannot be stamped - pass derived_from instead. Nothing was written.');
+      if (!sid || sid.length > 200) throw new ValidationError('session_id', 'must be the non-empty transcript session id from emet_session_open. Nothing was written.', { code: 'EMET-MEM-006' });
+      if (typeof dbManager.transcriptPosition !== 'function') throw new ValidationError('session_id', 'this store cannot read transcript positions, so the pointer cannot be stamped - pass derived_from instead. Nothing was written.', { code: 'EMET-MEM-007' });
       const pos = await dbManager.transcriptPosition(sid);
       const ex = pos.highest + 1;
       provenance = validateProvenance({ session_id: pos.base, exchange_start: ex, exchange_end: ex });
@@ -620,7 +635,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       throw new ValidationError('derived_from',
         `${targetLayer} entries must carry their source. Pass session_id (your transcript session from ` +
         `emet_session_open - the server stamps the exchange), or derived_from {session_id, exchange_start, ` +
-        `exchange_end}, or derived_from {entries: [ids]} for an entry consolidated from other entries. Nothing was written.`);
+        `exchange_end}, or derived_from {entries: [ids]} for an entry consolidated from other entries. Nothing was written.`, { code: 'EMET-MEM-008' });
     }
     if (!provenance && provenancePolicy === 'encouraged') {
       validatedMetadata.provenance_missing = true;
@@ -760,7 +775,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     if (validatedMetadata.corrects !== undefined && validatedMetadata.corrects !== null) {
       const parent = await dbManager.readMemory(targetLayer, validatedMetadata.corrects);
       if (!parent) {
-        throw new ValidationError('corrects', `No entry with id ${validatedMetadata.corrects} in layer '${targetLayer}' - a correction names an entry in its own layer. Nothing was written.`);
+        throw new ValidationError('corrects', `No entry with id ${validatedMetadata.corrects} in layer '${targetLayer}' - a correction names an entry in its own layer. Nothing was written.`, { code: 'EMET-MEM-009' });
       }
     }
 
@@ -777,7 +792,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     const correction = (validatedMetadata.corrects !== undefined && validatedMetadata.corrects !== null)
       ? await markCorrectedBy(dbManager, targetLayer, validatedMetadata.corrects, memoryId)
       : null;
-    // the reviewer N4: a correction whose parent could not be marked is still saved,
+    // the second reader N4: a correction whose parent could not be marked is still saved,
     // but the caller is told in words, not only by a boolean.
     if (correction && correction.marked !== true) {
       warnings.push(`corrects: ${correction.parent_id} - the parent entry was not marked corrected_by (missing in ${targetLayer}, or the mark did not hold); the correction is saved, the link is one-sided until the parent is marked`);
@@ -879,7 +894,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       'Failed to save memory',
       'save_memory',
       { layer: layer || 'auto' }
-    );
+    , { code: 'EMET-DB-013' });
   }
 }
 
@@ -970,7 +985,7 @@ export async function resolveSupersessionChain(read, entry, maxHops = 50) {
 }
 
 /**
- * Option A correction back-pointer (Alex, 2026-10-02, procedural ref 405 item 4; the tester's sketch in his
+ * Option A correction back-pointer (Alex, 2026-10-02, procedural ref 405 item 4; the reviewer's sketch in his
  * second read of episodic ref 604). Episodic entries are immutable events, so a PARTIAL correction cannot
  * supersede its parent: supersession would put an end date on the whole parent and present every item
  * in it as replaced. Instead the new entry carries metadata.corrects = <parent id>, and the parent is MARKED:
@@ -984,7 +999,7 @@ export async function resolveSupersessionChain(read, entry, maxHops = 50) {
  * corrected_by mark): the new metadata digest and, when a signing key is set
  * and the row's existing signature verifies against its metadata before the
  * marks (aleph.js signatureCoversPriorMetadata), a fresh signature over the
- * same content digest and the new metadata digest (2026-10-02, the tester's
+ * same content digest and the new metadata digest (2026-10-02, the reviewer's
  * finding: the marks left signed:false behind). With no key, or a signature
  * that does not verify, the signature is left exactly as it is: never re-signed
  * blindly, so a row changed outside the sanctioned path keeps reading
@@ -1004,7 +1019,7 @@ export async function markCorrectedBy(dbManager, layer, parentId, childId) {
   const parent = await col.findOne({ id: parentId });
   if (!parent) return { parent_id: parentId, marked: false };
   const cid = Number(childId);
-  // Race-safe (the reviewer N3 / the tester, 2026-10-02): the id is ADDED atomically
+  // Race-safe (the second reader N3 / the reviewer, 2026-10-02): the id is ADDED atomically
   // ($addToSet on the column and on the metadata copy), never written back
   // from a stale read, so two simultaneous corrections of one parent both
   // land. A legacy string-metadata row falls back to read-modify-write.
@@ -1020,7 +1035,7 @@ export async function markCorrectedBy(dbManager, layer, parentId, childId) {
   // Re-attest from what is actually stored. The digest is set only if the
   // stored metadata is still exactly the metadata it was computed from: the
   // compare-and-set filter is the WHOLE metadata value, not only corrected_by
-  // (the tester, 2026-10-02), so a concurrent change to any metadata field in
+  // (the reviewer, 2026-10-02), so a concurrent change to any metadata field in
   // between (another mark, a superseded_by, anything) makes the filter miss,
   // and the loop re-reads and re-digests. The last re-attest therefore always
   // covers what is stored. The value compared is the one just read back, so
@@ -1054,29 +1069,29 @@ export async function reviseMemory(dbManager, layer, target_id, content, metadat
     // Which layers may be revised is the charter's call (layers.js), not a
     // string comparison here. Today only episodic says false.
     if (policyFor(validatedLayer).revisable === false) {
-      throw new ValidationError('layer', 'Episodic revision is prohibited - events are immutable history. Save a new episodic entry instead.');
+      throw new ValidationError('layer', 'Episodic revision is prohibited - events are immutable history. Save a new episodic entry instead.', { code: 'EMET-MEM-010' });
     }
     const targetId = Number(target_id);
     if (!Number.isFinite(targetId) || !Number.isInteger(targetId) || targetId <= 0) {
-      throw new ValidationError('target_id', 'target_id must be a positive integer');
+      throw new ValidationError('target_id', 'target_id must be a positive integer', { code: 'EMET-MEM-011' });
     }
     const validatedContent = validateContent(content);
     // A7: metadata is validated exactly ONCE, inside saveMemory, with
     // `supersedes` already present as a first-class field. Validating here and
     // again there is what used to relocate it under custom on the second pass.
     if (metadata !== null && metadata !== undefined && !isPlainObject(metadata)) {
-      throw new ValidationError('metadata', 'Metadata must be an object', typeof metadata);
+      throw new ValidationError('metadata', 'Metadata must be an object', typeof metadata, { code: 'EMET-VAL-018' });
     }
     await dbManager.getConnection(validatedLayer);
     const col = dbManager.collectionFor(validatedLayer);
 
     const target = await col.findOne({ id: targetId });
     if (!target) {
-      throw new ValidationError('target_id', `No entry with id ${targetId} in layer '${validatedLayer}'`);
+      throw new ValidationError('target_id', `No entry with id ${targetId} in layer '${validatedLayer}'`, { code: 'EMET-MEM-012' });
     }
     const targetMd = parseMetadata(target.metadata);
     if (isMemorySuperseded(targetMd)) {
-      throw new ValidationError('target_id', `Entry ${targetId} is already superseded by ${targetMd.superseded_by} - revise the CURRENT entry, not the archived one`);
+      throw new ValidationError('target_id', `Entry ${targetId} is already superseded by ${targetMd.superseded_by} - revise the CURRENT entry, not the archived one`, { code: 'EMET-MEM-013' });
     }
     // 2026-09-29 (procedural ref 398): a revision with no source of its own cites
     // the entry it revises, so revising a semantic or procedural entry is never
@@ -1141,7 +1156,7 @@ export async function reviseMemory(dbManager, layer, target_id, content, metadat
     };
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed to revise memory: ${error.message}`, 'revise_memory');
+    throw new DatabaseError(`Failed to revise memory: ${error.message}`, 'revise_memory', { code: 'EMET-DB-014' });
   }
 }
 
@@ -1389,19 +1404,19 @@ export async function recallMemories(dbManager, query, layer = null, limit = 10,
 
   try {
     if (query === null || query === undefined || (typeof query === 'string' && query.trim() === '')) {
-      throw new ValidationError('query', 'Query is required');
+      throw new ValidationError('query', 'Query is required', { code: 'EMET-VAL-005' });
     }
     if (typeof query !== 'string') {
-      throw new ValidationError('query', 'Query must be a string');
+      throw new ValidationError('query', 'Query must be a string', { code: 'EMET-VAL-006' });
     }
     if (query.length > CONTENT_LIMITS.MAX_QUERY_LENGTH) {
-      throw new ValidationError('query', `Query exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH} characters`);
+      throw new ValidationError('query', `Query exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH} characters`, { code: 'EMET-VAL-008' });
     }
     const validatedQuery = query.trim();
     const validatedLayer = layer ? validateLayer(layer) : null;
     const validatedLimit = validateLimit(limit);
     if (options && options.order != null && options.order !== 'latest') {
-      throw new ValidationError('order', "order must be 'latest' when it is set");
+      throw new ValidationError('order', "order must be 'latest' when it is set", { code: 'EMET-MEM-014' });
     }
 
     logger?.debug('Recalling memories', {
@@ -1517,7 +1532,7 @@ export async function recallMemories(dbManager, query, layer = null, limit = 10,
       'Failed to recall memories',
       'recall_memories',
       { layer: layer || 'all' }
-    );
+    , { code: 'EMET-DB-015' });
   }
 }
 
@@ -1572,7 +1587,7 @@ export async function queryLayer(dbManager, layer, options = {}, logger = null, 
       const searchTerm = validatedOptions.params[0];
       if (typeof searchTerm === 'string') {
         if (searchTerm.length > CONTENT_LIMITS.MAX_QUERY_LENGTH) {
-          throw new ValidationError('params[0]', `Search term exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH}`);
+          throw new ValidationError('params[0]', `Search term exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH}`, { code: 'EMET-MEM-015' });
         }
         filter = { $or: [{ content: containsRegex(searchTerm) }, { context: containsRegex(searchTerm) }] };
       }
@@ -1694,7 +1709,7 @@ export async function queryLayer(dbManager, layer, options = {}, logger = null, 
       'Failed to query layer',
       'query_layer',
       { layer: layer || 'unknown' }
-    );
+    , { code: 'EMET-DB-016' });
   }
 }
 
@@ -1743,7 +1758,7 @@ export async function getStatus(dbManager, logger = null) {
     throw new DatabaseError(
       'Failed to get system status',
       'emet_status'
-    );
+    , { code: 'EMET-DB-017' });
   }
 }
 
@@ -1766,14 +1781,14 @@ export async function queryTranscripts(timestamp_start, timestamp_end, session_i
   const startTime = Date.now();
   try {
     if (typeof timestamp_start !== 'number' || typeof timestamp_end !== 'number')
-      throw new ValidationError('timestamp_start and timestamp_end must be numbers (Unix timestamps)');
+      throw new ValidationError('timestamp_start and timestamp_end must be numbers (Unix timestamps)', { code: 'EMET-SESS-002' });
     if (timestamp_start >= timestamp_end)
-      throw new ValidationError('timestamp_start must be less than timestamp_end');
+      throw new ValidationError('timestamp_start must be less than timestamp_end', { code: 'EMET-SESS-003' });
     // Security audit 2026-09-29: session_id reached the query unchecked, so an
     // object such as {"$ne": null} was an operator, not an id. Every other
     // doc_id / session_id door already refused a non-string.
     if (session_id !== null && session_id !== undefined && typeof session_id !== 'string')
-      throw new ValidationError('session_id', 'must be a string');
+      throw new ValidationError('session_id', 'must be a string', { code: 'EMET-SESS-004' });
     const effectiveLimit = Math.min(Math.max(1, limit || 50), 500);
     const client = await connectMongo(MONGODB_URI, { serverSelectionTimeoutMS: 5000, maxPoolSize: 10 });
     const db = client.db(MONGODB_DB);
@@ -1807,7 +1822,7 @@ export async function queryTranscripts(timestamp_start, timestamp_end, session_i
     };
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed to query transcripts: ${error.message}`, 'query_transcripts');
+    throw new DatabaseError(`Failed to query transcripts: ${error.message}`, 'query_transcripts', { code: 'EMET-DB-018' });
   }
 }
 
@@ -1874,12 +1889,12 @@ export function assertExchangeBudget(parts) {
   for (const part of parts) {
     const text = String(part ?? '');
     if (text.length > EXCHANGE_FIELD_MAX) {
-      throw new ValidationError(`an exchange field exceeds ${EXCHANGE_FIELD_MAX} characters. Nothing was written.`);
+      throw new ValidationError(`an exchange field exceeds ${EXCHANGE_FIELD_MAX} characters. Nothing was written.`, { code: 'EMET-TRN-001' });
     }
     total += text.length;
   }
   if (total > EXCHANGE_REQUEST_MAX) {
-    throw new ValidationError(`this transcript request exceeds ${EXCHANGE_REQUEST_MAX} characters. Nothing was written.`);
+    throw new ValidationError(`this transcript request exceeds ${EXCHANGE_REQUEST_MAX} characters. Nothing was written.`, { code: 'EMET-TRN-002' });
   }
 }
 
@@ -1895,15 +1910,15 @@ export async function saveTranscript(session_id, session_start, session_end, exc
 
   try {
     if (!session_id || typeof session_id !== 'string') {
-      throw new ValidationError('session_id must be a non-empty string');
+      throw new ValidationError('session_id must be a non-empty string', { code: 'EMET-TRN-003' });
     }
     if (typeof session_start !== 'number') {
-      throw new ValidationError('session_start must be a Unix timestamp (number)');
+      throw new ValidationError('session_start must be a Unix timestamp (number)', { code: 'EMET-TRN-004' });
     }
 
     const resolvedChannel = channel || 'claude_project';
     if (!Array.isArray(exchanges) || exchanges.length === 0) {
-      throw new ValidationError('exchanges must be a non-empty array');
+      throw new ValidationError('exchanges must be a non-empty array', { code: 'EMET-TRN-005' });
     }
     assertExchangeBudget(exchanges.flatMap((ex) => [ex && ex.user_message, ex && ex.assistant_message]));
     const resolvedExchanges = exchanges;
@@ -1957,7 +1972,7 @@ export async function saveTranscript(session_id, session_start, session_end, exc
 
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed to save session transcript: ${error.message}`, 'save_transcript');
+    throw new DatabaseError(`Failed to save session transcript: ${error.message}`, 'save_transcript', { code: 'EMET-DB-019' });
   }
 }
 
@@ -2050,7 +2065,7 @@ export async function dropsSeenForOpen(load_id) {
     throw new DatabaseError(
       `emet_session_open could not load unhandled drops from the store, so no session was opened: ${e && e.message}. Nothing was stamped.`,
       'emet_session_open'
-    );
+    , { code: 'EMET-DB-020' });
   }
 }
 
@@ -2067,9 +2082,9 @@ export async function sessionOpen({ slug, load_id } = {}, logger = null, dbManag
   try {
     resolved = await firstUnclosedBase(requested, (b) => sessionStatus(b, dbManager));
   } catch (e) {
-    if (e && e.allClosed) throw new ValidationError('slug', `${e.message} Nothing was opened.`);
+    if (e && e.allClosed) throw new ValidationError('slug', `${e.message} Nothing was opened.`, { code: 'EMET-MEM-016' });
     throw new DatabaseError(`emet_session_open could not check whether ${requested} is already closed, so no session was opened: ${e && e.message}. ` +
-      'Call emet_session_open again with the same slug and load_id.', 'emet_session_open');
+      'Call emet_session_open again with the same slug and load_id.', 'emet_session_open', { code: 'EMET-DB-021' });
   }
   const base = resolved.base;
   const session_id = partId(base, 1);
@@ -2169,7 +2184,7 @@ async function subkeyHandleForOpen(actor, base, now) {
   try {
     return await commitLiveSession(approvalsDeps, actor, base, now);
   } catch (e) {
-    if (e && e.attributionRefusal) throw new ValidationError('subkey', e.message);
+    if (e && e.attributionRefusal) throw new ValidationError('subkey', e.message, { code: 'EMET-AUTH-028' });
     throw e;
   }
 }
@@ -2183,10 +2198,10 @@ export async function transcriptAppend(args = {}, logger = null) {
   const channel = args.channel;
   redactWithReport(String(user_message || '') + String(assistant_message || ''));
   if (!session_id || typeof session_id !== 'string') {
-    throw new ValidationError('session_id is required');
+    throw new ValidationError('session_id is required', { code: 'EMET-MEM-017' });
   }
   if (typeof user_message !== 'string' || typeof assistant_message !== 'string') {
-    throw new ValidationError('user_message and assistant_message must be strings');
+    throw new ValidationError('user_message and assistant_message must be strings', { code: 'EMET-TRN-006' });
   }
   assertExchangeBudget([user_message, assistant_message]);
   const {
@@ -2243,7 +2258,7 @@ export async function transcriptAppend(args = {}, logger = null) {
       const notes = await client.db(MONGODB_DB).collection('documents')
         .findOne({ doc_id: installDoc(), retired: { $ne: true } }, { projection: { content: 1 } });
       machineCheck = machineLineCheck(assistant_message, knownMachinesFromInstallNotes(notes && notes.content));
-      if (!machineCheck.ok) throw new ValidationError(machineCheck.reason);
+      if (!machineCheck.ok) throw new ValidationError(machineCheck.reason, { code: 'EMET-MEM-018' });
     }
 
     if (!live) {
@@ -2300,11 +2315,11 @@ export async function reviseTranscript(session_id, exchanges, reason, session_st
   const startTime = Date.now();
   try {
     if (!session_id || typeof session_id !== 'string')
-      throw new ValidationError('session_id must be a non-empty string');
+      throw new ValidationError('session_id must be a non-empty string', { code: 'EMET-TRN-003' });
     if (!Array.isArray(exchanges) || exchanges.length === 0)
-      throw new ValidationError('exchanges must be a non-empty array - a revision replaces the whole part, not a field within it');
+      throw new ValidationError('exchanges must be a non-empty array - a revision replaces the whole part, not a field within it', { code: 'EMET-TRN-007' });
     if (!reason || typeof reason !== 'string' || reason.trim().length < 10)
-      throw new ValidationError('reason is required and must describe what was wrong - at least 10 characters. An unexplained correction is a silent rewrite.');
+      throw new ValidationError('reason is required and must describe what was wrong - at least 10 characters. An unexplained correction is a silent rewrite.', { code: 'EMET-TRN-008' });
 
     const client = await connectMongo(MONGODB_URI, { serverSelectionTimeoutMS: 5000, maxPoolSize: 10 });
     const db = client.db(MONGODB_DB);
@@ -2315,7 +2330,7 @@ export async function reviseTranscript(session_id, exchanges, reason, session_st
       || await col.findOne({ session_id });
     if (!parent) {
       await client.close();
-      throw new ValidationError(`No transcript found under session_id "${session_id}". Use save_transcript to write a new part; revise_transcript only corrects one that exists.`);
+      throw new ValidationError(`No transcript found under session_id "${session_id}". Use save_transcript to write a new part; revise_transcript only corrects one that exists.`, { code: 'EMET-TRN-009' });
     }
 
     const revision = (typeof parent.revision === 'number' ? parent.revision : 1) + 1;
@@ -2375,7 +2390,7 @@ export async function reviseTranscript(session_id, exchanges, reason, session_st
     };
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed to revise transcript: ${error.message}`, 'revise_transcript');
+    throw new DatabaseError(`Failed to revise transcript: ${error.message}`, 'revise_transcript', { code: 'EMET-DB-022' });
   }
 }
 
@@ -2511,7 +2526,7 @@ export function checkReadPin(doc_id, current, opts = {}) {
   const hasS = typeof wantS === 'string' && wantS.trim() !== '';
   if (!hasV && !hasS) return;
   if (hasV && !(Number.isInteger(Number(wantV)) && Number(wantV) >= 1)) {
-    throw new ValidationError('expected_version', 'expected_version is the whole-number `version` an earlier page of this document returned.');
+    throw new ValidationError('expected_version', 'expected_version is the whole-number `version` an earlier page of this document returned.', { code: 'EMET-DOC-004' });
   }
   const vChanged = hasV && current.version !== undefined && current.version !== null && Number(wantV) !== Number(current.version);
   const sChanged = hasS && String(current.sha256 || '').toLowerCase() !== wantS.trim().toLowerCase();
@@ -2522,12 +2537,12 @@ export function checkReadPin(doc_id, current, opts = {}) {
   throw new ValidationError('expected_version',
     `${doc_id}: document changed - restart from offset 0. You read earlier pages of ${was}; it is now ${now}. ` +
     'Pages of two versions are never joined, so nothing was returned. Call read_doc again with offset 0 and no expected_version, ' +
-    'discard the pages you already have, and read every page of the new version.');
+    'discard the pages you already have, and read every page of the new version.', { code: 'EMET-DOC-005' });
 }
 
 export async function readDoc(doc_id, logger = null, opts = {}) {
   try {
-    if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string');
+    if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string', { code: 'EMET-DOC-001' });
     const guide = readShippedGuide(doc_id);
     if (guide) {
       checkReadPin(doc_id, guide, opts);
@@ -2537,7 +2552,7 @@ export async function readDoc(doc_id, logger = null, opts = {}) {
     const { client, col } = await _docsClient();
     try {
       const doc = await col.findOne({ doc_id });
-      if (!doc) throw new ValidationError(`Document not found: ${doc_id}`);
+      if (!doc) throw new ValidationError(`Document not found: ${doc_id}`, { code: 'EMET-DOC-002' });
       checkReadPin(doc_id, doc, opts);
       const { content, page } = pageContent(doc.content, opts.offset ?? 0, opts.limit ?? null);
       // A retired document is still returned in full - retain and mark, never
@@ -2567,7 +2582,7 @@ export async function readDoc(doc_id, logger = null, opts = {}) {
     } finally { await client.close(); }
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed to read document: ${error.message}`, 'read_doc');
+    throw new DatabaseError(`Failed to read document: ${error.message}`, 'read_doc', { code: 'EMET-DB-023' });
   }
 }
 
@@ -2581,8 +2596,8 @@ export async function readDoc(doc_id, logger = null, opts = {}) {
  */
 export async function readDocHistory(doc_id, version = null, logger = null) {
   try {
-    if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string');
-    if (version !== null && version !== undefined && (!Number.isInteger(version) || version < 1)) throw new ValidationError('version must be a positive integer');
+    if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string', { code: 'EMET-DOC-001' });
+    if (version !== null && version !== undefined && (!Number.isInteger(version) || version < 1)) throw new ValidationError('version must be a positive integer', { code: 'EMET-DOC-006' });
     const { client, col, hist } = await _docsClient();
     try {
       const current = await col.findOne({ doc_id });
@@ -2607,7 +2622,7 @@ export async function readDocHistory(doc_id, version = null, logger = null) {
       // More than one archived row can carry a version when a write was retried;
       // the most recently archived is the one the store last held at that number.
       const row = await hist.find({ doc_id, version }).sort({ archived_at: -1 }).limit(1).next();
-      if (!row) throw new ValidationError(`No retained revision ${version} of ${doc_id}`);
+      if (!row) throw new ValidationError(`No retained revision ${version} of ${doc_id}`, { code: 'EMET-DOC-003' });
       const integrity = row.sha256 ? (digest(row.content) === row.sha256) : 'unattested';
       return { doc_id, version, is_current: false, content: row.content, sha256: row.sha256 || null, size: row.content.length,
                updated_at: row.updated_at || null, updated_by: row.updated_by || null, archived_at: row.archived_at || null,
@@ -2621,7 +2636,7 @@ export async function readDocHistory(doc_id, version = null, logger = null) {
     } finally { await client.close(); }
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed to read document history: ${error.message}`, 'read_doc_history');
+    throw new DatabaseError(`Failed to read document history: ${error.message}`, 'read_doc_history', { code: 'EMET-DB-024' });
   }
 }
 
@@ -2658,7 +2673,7 @@ function _refuseRecordAmendment(doc_id, tool) {
       `${tool}: ${doc_id} is a record. Records are superseded, not amended (ISO 9001 7.5.3 / 13485 4.2.5). ` +
       `Issue a new revision with write_doc - the whole record, with \`supersedes\` set to the version now in force. ` +
       `The prior revision is retained and marked obsolete. Nothing was changed.`
-    );
+    , { code: 'EMET-DOC-007' });
   }
 }
 
@@ -2667,14 +2682,14 @@ function _refuseRecordAmendment(doc_id, tool) {
  * 3.5). write_doc and patch_doc refuse the main HANDOFF.md or STATE.md when the
  * write's source is a bot tag (bots/<tag>/HANDOFF.md listed in
  * EMET_RECORD_DOCS), and nothing is written. So do the other doors that can
- * change a main record (the tester's F1 on PR 2): retire_doc, rename_doc (from
+ * change a main record (the reviewer's F1 on PR 2): retire_doc, rename_doc (from
  * or onto one) and accept_nonconformance - retire and rename set retired_by,
  * not updated_by, so the close alone could not see them. The source is the one the door
  * stamps as updated_by: the caller's, else EMET_SOURCE_TAG. A records rule like
  * the record-amendment refusal above, so it applies in every graph mode.
  *
  * Two further guards on the same doors (2026-10-01, the owner's 4:17 PM approval to
- * make the bot tags fully functional; the tester's review of PR 3):
+ * make the bot tags fully functional; the reviewer's review of PR 3):
  *   - REGISTERED HOSTS ONLY on the main records. With a source registry
  *     configured (EMET_SOURCE_TAGS, parsed as save_to_layer parses it), the
  *     main handoff and board take writes only from a registered tag. An
@@ -2695,7 +2710,7 @@ export function sourceRegistry() {
 }
 
 /**
- * Attribution v2 (the reviewer A3): a declared tag never gains rights beyond the login's
+ * Attribution v2 (the second reader A3): a declared tag never gains rights beyond the login's
  * tag. A guard is run for every tag returned here and the write must pass all.
  */
 export function rightsTags(tag) {
@@ -2730,14 +2745,14 @@ export function resolvedSourceTag(caller) {
   return { tag: null, from: 'legacy' };
 }
 
-// Look-alike doc ids (the reviewer's recheck d1-d5, 2026-10-02): a `.` or `..` segment,
+// Look-alike doc ids (the second reader's recheck d1-d5, 2026-10-02): a `.` or `..` segment,
 // a leading `/`, or a `bots/` prefix in the wrong case would let a write pass
 // the prefix checks below while naming a record they are meant to fence (d1:
-// bots/reviewer-bot/../intake-bot/HANDOFF.md passed the own-dir check). Doc
+// bots/tester-bot/../intake-bot/HANDOFF.md passed the own-dir check). Doc
 // ids are flat strings, never resolved as paths, so these shapes are refused
 // outright, before any guard, on every door that calls this.
 //
-// Hardening (the tester's scope on the doc-id fix, 2026-10-02): also refused are
+// Hardening (the reviewer's scope on the doc-id fix, 2026-10-02): also refused are
 // control and invisible-format characters (\p{Cc}, \p{Cf}) anywhere; leading or
 // trailing whitespace on the id or on any segment; a backslash; the `/`, `.`/`..`
 // and `bots/` checks run on the NFKC form too (so full-width dots and slashes,
@@ -2780,11 +2795,11 @@ export function refuseLookalikeDocId(doc_id, tool) {
     throw new ValidationError(
       `${tool}: doc_id ${JSON.stringify(doc_id)} ${why}. Doc ids are not paths and are not resolved; write the id ` +
       `exactly as it is meant to be stored. Nothing was written.`
-    );
+    , { code: 'EMET-DOC-008' });
   }
 }
 
-// Cleanup path (the tester's scope): a look-alike id may already exist in a store
+// Cleanup path (the reviewer's scope): a look-alike id may already exist in a store
 // written before these checks. retire_doc, and rename_doc FROM such an id, are let
 // through for a registered host tag only: EMET_SOURCE_TAGS set, the tag listed,
 // and not a bot tag. Never for a write, a patch, a rename onto it, or a bot.
@@ -2798,12 +2813,12 @@ export function refuseBotMainRecord(doc_id, updated_by, tool, options = {}) {
 }
 function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
   const tag = updated_by || setting('SOURCE_TAG') || null;
-  // The client-approvals record is server-only (the reviewer 4): no host writes,
+  // The client-approvals record is server-only (the second reader 4): no host writes,
   // patches, retires, renames, restores or accepts it.
   if (typeof doc_id === 'string' && FOLD(doc_id.normalize('NFKC')) === FOLD(APPROVALS_DOC) && !(options && options.approvalsRecord === true)) {
-    throw new ValidationError(`${tool}: ${doc_id} is kept by the server (client approvals). Decide clients with emet_client_approve. Nothing was written.`);
+    throw new ValidationError(`${tool}: ${doc_id} is kept by the server (client approvals). Decide clients with emet_client_approve. Nothing was written.`, { code: 'EMET-DOC-009' });
   }
-  // A3 without a registry (the reviewer re-review): a declared or generated tag writes
+  // A3 without a registry (the second reader re-review): a declared or generated tag writes
   // under bots/ only inside bots/<its own tag>/ and only once approved.
   {
     const d = declaredAttribution();
@@ -2811,7 +2826,7 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
         typeof doc_id === 'string' && doc_id.startsWith('bots/')) {
       const approved = approvedTags().includes(tag) || sourceRegistry().includes(tag);
       if (!doc_id.startsWith(botRecordDir(tag)) || !approved) {
-        throw new ValidationError(`${tool}: ${doc_id} is a bot record and "${tag}" is a ${approved ? 'declared tag outside its own folder' : 'declared tag not yet approved'} - a declared tag writes only bots/${tag}/ once approved. Nothing was written.`);
+        throw new ValidationError(`${tool}: ${doc_id} is a bot record and "${tag}" is a ${approved ? 'declared tag outside its own folder' : 'declared tag not yet approved'} - a declared tag writes only bots/${tag}/ once approved. Nothing was written.`, { code: 'EMET-DOC-010' });
       }
     }
   }
@@ -2822,9 +2837,9 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
       `${tool}: ${doc_id} is outside ${botRecordDir(tag)} and ${tag} is a bot tag - a bot writes only its own ` +
       `${botRecordDir(tag)} records; other bots' records and the roster are not its to change. ` +
       `Hand it to the hub instead. Nothing was written.`
-    );
+    , { code: 'EMET-DOC-011' });
   }
-  // Registry guard on bots/ too (the tester's PR 5 review; the reviewer's fix (a), 2026-10-02): with EMET_SOURCE_TAGS
+  // Registry guard on bots/ too (the reviewer's PR 5 review; the second reader's fix (a), 2026-10-02): with EMET_SOURCE_TAGS
   // set, a non-bot write under bots/ is refused unless its tag is registered; a missing source counts as
   // unregistered. Without this, a misspelled or unregistered tag is not a bot tag, so the cross-bot guard
   // above never fires and it can write any bot's records or the roster. A listed bot is already fenced to
@@ -2834,7 +2849,7 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
     throw new ValidationError(
       `${tool}: ${doc_id} is a bot record and ${tag ? `"${tag}" is not a registered source tag` : 'this write names no source tag'} - ` +
       `only a registered host or the bot itself writes under bots/. Nothing was written.`
-    );
+    , { code: 'EMET-DOC-012' });
   }
   if (!mainRecordIds().includes(doc_id)) return;
   if (bot) {
@@ -2842,7 +2857,7 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
       `${tool}: ${doc_id} is a main record and ${tag} is a bot tag - a bot session closes against ` +
       `${botRecordDir(tag)} records; the main handoff and board are the hub's. Write the bot's own ` +
       `${botRecordDir(tag)}HANDOFF.md instead. Nothing was written.`
-    );
+    , { code: 'EMET-DOC-013' });
   }
   if (options && options.serverProvision === true) return;
   if (registry.length && !(tag && registry.includes(tag))) {
@@ -2850,15 +2865,15 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
       `${tool}: ${doc_id} is a main record and ` +
       `${tag ? `"${tag}" is not a registered source tag` : 'this write names no source tag'} - only a registered ` +
       `host writes the main handoff and board. Pass the host's registered \`source\` (EMET_SOURCE_TAGS). Nothing was written.`
-    );
+    , { code: 'EMET-DOC-014' });
   }
 }
 
 /**
  * retire_doc and rename_doc are not bot tools at all (Alex, 2026-10-01 4:27 PM
  * ET, decision 1, as relayed: "retire_doc isn't needed for bots: keep it
- * owner/hub only and out of every bot profile"; procedural ref 407; stage 1 of the
- * ref 358 startup amendment, admitted by the tester 2026-10-02). A profile is not a
+ * Alex/hub only and out of every bot profile"; procedural ref 407; stage 1 of the
+ * ref 358 startup amendment, admitted by the reviewer 2026-10-02). A profile is not a
  * security boundary, so the door refuses them under ANY bot tag, for every
  * doc_id - not only the main records refuseBotMainRecord covers. ref 407(1)
  * covers retire_doc only; rename_doc stays owner-only under procedural ref 409
@@ -2874,23 +2889,29 @@ export function refuseBotRetireRename(tag, tool) {
 function refuseBotRetireRenameOne(tag, tool) {
   const t = tag || setting('SOURCE_TAG') || null;
   if (!t || !isBotTag(t)) return;
+  if (tool === 'retire_doc') {
+    throw new ValidationError(
+      'source',
+      `${tool} is not a bot tool: ${t} is a bot tag, and ` +
+      `retiring documents is the owner's and the hub's (decision 1, procedural ref 407 item 1)` +
+      `. Ask the hub. Nothing was changed.`
+    , { code: 'EMET-MEM-019' });
+  }
   throw new ValidationError(
     'source',
     `${tool} is not a bot tool: ${t} is a bot tag, and ` +
-    (tool === 'retire_doc'
-      ? `retiring documents is the owner's and the hub's (decision 1, procedural ref 407 item 1)`
-      : `renaming documents stays owner-only (procedural ref 409)`) +
+    `renaming documents stays owner-only (procedural ref 409)` +
     `. Ask the hub. Nothing was changed.`
-  );
+  , { code: 'EMET-MEM-020' });
 }
 
 export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint = null, logger = null, options = {}) {
   try {
-    if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string');
+    if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string', { code: 'EMET-DOC-001' });
     // write_doc, patch_doc (which lands here) and rename_doc's copy (reissued_from).
     refuseBotMainRecord(doc_id, updated_by, options && options.reissued_from ? 'rename_doc' : 'write_doc', options && options.serverProvision === true ? { serverProvision: true, ...(options.approvalsRecord === true ? { approvalsRecord: true } : {}) } : {});
-    if (typeof rawContent !== 'string' || rawContent.length === 0) throw new ValidationError('content must be a non-empty string');
-    if (rawContent.length > 2000000) throw new ValidationError('content exceeds 2MB limit');
+    if (typeof rawContent !== 'string' || rawContent.length === 0) throw new ValidationError('content must be a non-empty string', { code: 'EMET-DOC-015' });
+    if (rawContent.length > 2000000) throw new ValidationError('content exceeds 2MB limit', { code: 'EMET-DOC-016' });
     // patch_doc lands here too, so one
     // scrub covers every document write. The digest is of the stored text.
     const redaction = redactWithReport(rawContent);
@@ -2900,9 +2921,13 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
     const signature = signDigests(sha256, '', signingKey);
     const { client, col, hist } = await _docsClient();
     try {
+      if (typeof doc_id === 'string' && doc_id.startsWith('areas/')) {
+        const { assertAreaOwner } = await import('./pages.js');
+        await assertAreaOwner(client.db(MONGODB_DB), 'write_doc');
+      }
       const prev = await col.findOne({ doc_id });
       const version = (prev && prev.version ? prev.version : 0) + 1;
-      // Compare-and-set for the client-approvals record (the reviewer round 3): checked
+      // Compare-and-set for the client-approvals record (the second reader round 3): checked
       // here before anything is archived, and again atomically in the update filter.
       const casOn = options && options.approvalsRecord === true && Object.prototype.hasOwnProperty.call(options, 'expectedVersion');
       const casConflict = () => { const e = new ValidationError(`${doc_id} changed under this write (compare-and-set). Nothing was written.`); e.versionConflict = true; return e; };
@@ -2918,19 +2943,19 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
           throw new ValidationError(
             `write_doc: ${doc_id} is a record and v${prev.version} is in force. A new revision must name what it ` +
             `supersedes - pass supersedes: ${prev.version}. Nothing was changed.`
-          );
+          , { code: 'EMET-DOC-017' });
         }
         if (Number(named) !== prev.version) {
           throw new ValidationError(
             `write_doc: ${doc_id} - supersedes names v${named}, but v${prev.version} is in force. Re-read the record ` +
             `and supersede the current revision. Nothing was changed.`
-          );
+          , { code: 'EMET-DOC-018' });
         }
         const reason = options && options.reason;
         if (typeof reason !== 'string' || reason.trim().length < 10) {
           throw new ValidationError(
             `write_doc: ${doc_id} is a record. A new revision needs reason (at least 10 characters) as well as supersedes. Nothing was changed.`
-          );
+          , { code: 'EMET-DOC-019' });
         }
       }
       const registry = sourceRegistry();
@@ -2938,35 +2963,36 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       // Attribution v2 (A3): the declared tag and the login's tag must both pass.
       const passes = (t) => registry.length === 0 || registry.includes(t || '') || (isBotTag(t) && doc_id.startsWith(`bots/${t}/`));
       if (!rightsTags(updated_by).every(passes) && !serverProvision && !(isDropDoc(doc_id) && !prev)) {
-        throw new ValidationError(`write_doc: ${updated_by || 'no source'} is not a registered source. This session may read, and may write a new drop only. Nothing was written.`);
+        throw new ValidationError(`write_doc: ${updated_by || 'no source'} is not a registered source. This session may read, and may write a new drop only. Nothing was written.`, { code: 'EMET-DOC-020' });
       }
       if (isDropDoc(doc_id) && !prev) {
         const { writerStamp } = await import('./persons.js');
         const bucket = dropBucket(writerStamp().client_id, updated_by);
         const day = nyDay(new Date());
         const same = (await col.find({ doc_id: { $regex: '^drops/' } }).toArray()).filter((d) => (d.drop_bucket || dropBucket(d.client_id, d.updated_by)) === bucket && nyDay(d.updated_at instanceof Date ? d.updated_at : new Date(d.updated_at || 0)) === day);
-        if (same.length >= 20) throw new ValidationError(`write_doc: this connected app already wrote 20 drops today. Nothing was written.`);
+        if (same.length >= 20) throw new ValidationError(`write_doc: this connected app already wrote 20 drops today. Nothing was written.`, { code: 'EMET-DOC-021' });
         options = { ...options, drop_bucket: bucket };
       }
       const floorExempt = options && options.provision;
       const internal = options && (options.provision || options.edited || options.setupReissue || options.restore_of || (options.approvalsRecord === true && options.serverProvision === true && doc_id === APPROVALS_DOC));
       if (options && options.provision && prev && doc_id === stateDoc()) {
-        throw new ValidationError('The board already exists. Provision does not replace it. Nothing was written.');
+        throw new ValidationError('The board already exists. Provision does not replace it. Nothing was written.', { code: 'EMET-MEM-021' });
       }
       if (doc_id === stateDoc() && !(options && (options.provision || options.edited || options.restore_of))) {
-        throw new ValidationError(prev
-          ? 'The board is never written. Edit it with patch_doc, with `reason` (and `origin` for an added row). Nothing was written.'
-          : 'The board is provisioned by the server at setup (emet_setup_complete). Nothing was written.');
+        if (prev) {
+          throw new ValidationError('The board is never written. Edit it with patch_doc, with `reason` (and `origin` for an added row). Nothing was written.', { code: 'EMET-MEM-022' });
+        }
+        throw new ValidationError('The board is provisioned by the server at setup (emet_setup_complete). Nothing was written.', { code: 'EMET-MEM-023' });
       }
       if (prev && isWorkingDoc(doc_id) && !internal) {
         throw new ValidationError(
           `write_doc: ${doc_id} exists, so it is edited, not rewritten. Use patch_doc with \`reason\`. Nothing was written.`
-        );
+        , { code: 'EMET-DOC-022' });
       }
       if (isDropDoc(doc_id) && (prev || (options && options.restore_of))) {
         throw new ValidationError(
           `write_doc: ${doc_id} is a drop and already exists, retired drops included. A drop is never patched or restored. Use a new id. Nothing was written.`
-        );
+        , { code: 'EMET-DOC-023' });
       }
       if (isGovernedByShippedCopy(doc_id) && !(options && options.provision)) {
         const { readFileSync } = await import('node:fs');
@@ -2974,7 +3000,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         let shipped = '';
         try { shipped = readFileSync(shippedPath, 'utf8'); } catch { shipped = ''; }
         if (content !== shipped) {
-          throw new ValidationError(`write_doc: ${doc_id} is governed by the copy shipped with this release. Only that text may be stored. Nothing was written.`);
+          throw new ValidationError(`write_doc: ${doc_id} is governed by the copy shipped with this release. Only that text may be stored. Nothing was written.`, { code: 'EMET-DOC-024' });
         }
       }
       const sid = (options && options.session_id) || null;
@@ -2990,7 +3016,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         const pct = Math.floor((content.length / baseline) * 100);
         throw new ValidationError(
           `This change would leave ${doc_id} at ${pct}% of its size when this session first touched it. Condensing below half is not done on the EMET server. Nothing was written.`
-        );
+        , { code: 'EMET-DOC-025' });
       }
       // Cross-session floor. The per-session floor is measured from this
       // session's first touch, so a new session can shrink a document once.
@@ -3009,7 +3035,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         const pct = Math.floor((content.length / peak) * 100);
         throw new ValidationError(
           `This change would leave ${doc_id} at ${pct}% of its largest size in the last 24 hours. A write may not fall below half of that peak. Nothing was written.`
-        );
+        , { code: 'EMET-DOC-026' });
       }
       const sizeSamples = recentSamples.slice();
       if (prev) sizeSamples.push({ size: String(prev.content || '').length, at: prev.updated_at || new Date() });
@@ -3071,13 +3097,13 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       if (options && options.provision && doc_id === stateDoc()) {
         const ins = await col.updateOne({ doc_id }, { $setOnInsert: writtenRow }, { upsert: true });
         if (ins && ins.upsertedCount === 0) {
-          throw new ValidationError('The board already exists. Provision does not replace it. Nothing was written.');
+          throw new ValidationError('The board already exists. Provision does not replace it. Nothing was written.', { code: 'EMET-MEM-021' });
         }
       } else if (casOn) {
         let res;
         try {
           res = options.expectedVersion == null
-            // the reviewer delta M1: documents.doc_id has no unique index, so the first
+            // the second reader delta M1: documents.doc_id has no unique index, so the first
             // create keys on a deterministic _id; _id is always unique, so a
             // second racing insert matches it (or hits a duplicate key) and loses.
             ? await col.updateOne({ _id: `${APPROVALS_DOC}#current` }, { $setOnInsert: writtenRow }, { upsert: true })
@@ -3102,7 +3128,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
   } catch (error) {
     if (error && error.versionConflict) throw error;
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed to write document: ${error.message}`, 'write_doc');
+    throw new DatabaseError(`Failed to write document: ${error.message}`, 'write_doc', { code: 'EMET-DB-025' });
   }
 }
 
@@ -3136,7 +3162,7 @@ export async function listDocs(prefix = null, logger = null, include_retired = f
     } finally { await client.close(); }
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed to list documents: ${error.message}`, 'list_docs');
+    throw new DatabaseError(`Failed to list documents: ${error.message}`, 'list_docs', { code: 'EMET-DB-026' });
   }
 }
 
@@ -3179,17 +3205,23 @@ export async function listDocs(prefix = null, logger = null, include_retired = f
  */
 export async function retireDoc(doc_id, reason = null, retired_by = null, logger = null, options = {}) {
   try {
-    if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string');
+    if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string', { code: 'EMET-DOC-001' });
+    if (doc_id.startsWith('areas/')) {
+      const { assertAreaOwner } = await import('./pages.js');
+      const opened = await _docsClient();
+      try { await assertAreaOwner(opened.client.db(MONGODB_DB), 'retire_doc'); }
+      finally { await opened.client.close(); }
+    }
     refuseBotMainRecord(doc_id, retired_by, 'retire_doc', { cleanup: true });
     refuseBotRetireRename(retired_by, 'retire_doc');
-    if (doc_id === stateDoc()) throw new ValidationError('retire_doc: the board is never retired. Edit it with patch_doc and a reason. Nothing was changed.');
-    if (!isDropDoc(doc_id) && !(options && options.fromRename)) throw new ValidationError(`retire_doc: ${doc_id} is not a drop. Working documents are edited, not retired. Nothing was changed.`);
-    if (typeof reason !== 'string' || reason.trim().length < 10) throw new ValidationError('retire_doc needs reason (at least 10 characters), naming where the drop went. Nothing was changed.');
+    if (doc_id === stateDoc()) throw new ValidationError('retire_doc: the board is never retired. Edit it with patch_doc and a reason. Nothing was changed.', { code: 'EMET-DOC-027' });
+    if (!isDropDoc(doc_id) && !(options && options.fromRename)) throw new ValidationError(`retire_doc: ${doc_id} is not a drop. Working documents are edited, not retired. Nothing was changed.`, { code: 'EMET-DOC-028' });
+    if (typeof reason !== 'string' || reason.trim().length < 10) throw new ValidationError('retire_doc needs reason (at least 10 characters), naming where the drop went. Nothing was changed.', { code: 'EMET-DOC-029' });
 
     const { client, col } = await _docsClient();
     try {
       const doc = await col.findOne({ doc_id });
-      if (!doc) throw new ValidationError(`Document not found: ${doc_id}`);
+      if (!doc) throw new ValidationError(`Document not found: ${doc_id}`, { code: 'EMET-DOC-002' });
       if (doc.retired) {
         return { doc_id, retired: true, already_retired: true, verified: true,
                  retired_at: doc.retired_at, retired_reason: doc.retired_reason || null,
@@ -3211,10 +3243,10 @@ export async function retireDoc(doc_id, reason = null, retired_by = null, logger
       // digest are re-checked too - retiring must not touch either.
       const check = await col.findOne({ doc_id });
       if (!check || check.retired !== true) {
-        throw new DatabaseError(`Retirement mark did not persist: ${doc_id}`, 'retire_doc');
+        throw new DatabaseError(`Retirement mark did not persist: ${doc_id}`, 'retire_doc', { code: 'EMET-DB-027' });
       }
       if (check.sha256 !== doc.sha256 || check.version !== doc.version) {
-        throw new DatabaseError(`Retiring altered the document: ${doc_id}`, 'retire_doc');
+        throw new DatabaseError(`Retiring altered the document: ${doc_id}`, 'retire_doc', { code: 'EMET-DB-028' });
       }
 
       // L5 - retirement is not an escape hatch. retireDoc is the one document
@@ -3241,32 +3273,38 @@ export async function retireDoc(doc_id, reason = null, retired_by = null, logger
     } finally { await client.close(); }
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed to retire document: ${error.message}`, 'retire_doc');
+    throw new DatabaseError(`Failed to retire document: ${error.message}`, 'retire_doc', { code: 'EMET-DB-029' });
   }
 }
 
 export async function renameDoc(old_id, new_id, updated_by = null, logger = null, reason = null, options = {}) {
   try {
-    if (!old_id || typeof old_id !== 'string') throw new ValidationError('old_id must be a non-empty string');
-    if (!new_id || typeof new_id !== 'string') throw new ValidationError('new_id must be a non-empty string');
-    if (old_id === new_id) throw new ValidationError('old_id and new_id name the same document');
+    if (!old_id || typeof old_id !== 'string') throw new ValidationError('old_id must be a non-empty string', { code: 'EMET-DOC-030' });
+    if (!new_id || typeof new_id !== 'string') throw new ValidationError('new_id must be a non-empty string', { code: 'EMET-DOC-031' });
+    if (old_id === new_id) throw new ValidationError('old_id and new_id name the same document', { code: 'EMET-DOC-032' });
+    if ((typeof old_id === 'string' && old_id.startsWith('areas/')) || (typeof new_id === 'string' && new_id.startsWith('areas/'))) {
+      const { assertAreaOwner } = await import('./pages.js');
+      const opened = await _docsClient();
+      try { await assertAreaOwner(opened.client.db(MONGODB_DB), 'rename_doc'); }
+      finally { await opened.client.close(); }
+    }
     refuseBotMainRecord(old_id, updated_by, 'rename_doc', { cleanup: true });
     refuseBotMainRecord(new_id, updated_by, 'rename_doc');
     refuseBotRetireRename(updated_by, 'rename_doc');
-    if (typeof reason !== 'string' || reason.trim().length < 10) throw new ValidationError('rename_doc needs reason (at least 10 characters). Nothing was changed.');
-    if (old_id === stateDoc() || new_id === stateDoc()) throw new ValidationError('rename_doc: the board is never renamed. Nothing was changed.');
-    if (isDropDoc(old_id) || isDropDoc(new_id)) throw new ValidationError('rename_doc: a drop is write-once. Use a new id. Nothing was changed.');
+    if (typeof reason !== 'string' || reason.trim().length < 10) throw new ValidationError('rename_doc needs reason (at least 10 characters). Nothing was changed.', { code: 'EMET-DOC-033' });
+    if (old_id === stateDoc() || new_id === stateDoc()) throw new ValidationError('rename_doc: the board is never renamed. Nothing was changed.', { code: 'EMET-DOC-034' });
+    if (isDropDoc(old_id) || isDropDoc(new_id)) throw new ValidationError('rename_doc: a drop is write-once. Use a new id. Nothing was changed.', { code: 'EMET-DOC-035' });
 
     let content, path_hint;
     const { client, col } = await _docsClient();
     try {
       const source = await col.findOne({ doc_id: old_id });
-      if (!source) throw new ValidationError(`Document not found: ${old_id}`);
+      if (!source) throw new ValidationError(`Document not found: ${old_id}`, { code: 'EMET-DOC-002' });
       // Never clobber. A rename onto an occupied id is a MERGE decision, and a
       // merge is not something to guess at on the caller's behalf.
       const occupied = await col.findOne({ doc_id: new_id });
       if (occupied) {
-        throw new ValidationError(`Destination already exists: ${new_id} (version ${occupied.version}). Rename refused; nothing was changed.`);
+        throw new ValidationError(`Destination already exists: ${new_id} (version ${occupied.version}). Rename refused; nothing was changed.`, { code: 'EMET-DOC-036' });
       }
       content = source.content;
       path_hint = source.path_hint || null;
@@ -3296,17 +3334,17 @@ export async function renameDoc(old_id, new_id, updated_by = null, logger = null
     };
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed to rename document: ${error.message}`, 'rename_doc');
+    throw new DatabaseError(`Failed to rename document: ${error.message}`, 'rename_doc', { code: 'EMET-DB-030' });
   }
 }
 
 async function unretiredBootDrops(session_id) {
   if (!session_id || typeof session_id !== 'string' || !String(session_id).trim()) {
-    throw new ValidationError('a board edit or restore needs session_id from emet_session_open, with a verified drop list. Nothing was written.');
+    throw new ValidationError('a board edit or restore needs session_id from emet_session_open, with a verified drop list. Nothing was written.', { code: 'EMET-MEM-024' });
   }
   const base = String(session_id).replace(/_verbatim_part\d+$/, '').trim();
   if (!base) {
-    throw new ValidationError('a board edit or restore needs session_id from emet_session_open, with a verified drop list. Nothing was written.');
+    throw new ValidationError('a board edit or restore needs session_id from emet_session_open, with a verified drop list. Nothing was written.', { code: 'EMET-MEM-024' });
   }
   const { COLLECTION_PREFIX } = await import('./database.js');
   const client = await connectMongo(MONGODB_URI, { serverSelectionTimeoutMS: dropListTimeoutMs(), maxPoolSize: 10 });
@@ -3314,7 +3352,7 @@ async function unretiredBootDrops(session_id) {
     const db = client.db(MONGODB_DB);
     const row = await db.collection(`${COLLECTION_PREFIX}sessions`).findOne({ _id: base });
     if (!row || row.drops_unverified === true || !Array.isArray(row.drops_seen)) {
-      throw new ValidationError('unhandled drops could not be loaded at this session boot, so the board cannot be edited or restored until the list is known. Nothing was written.');
+      throw new ValidationError('unhandled drops could not be loaded at this session boot, so the board cannot be edited or restored until the list is known. Nothing was written.', { code: 'EMET-MEM-025' });
     }
     const listed = row.drops_seen;
     if (!listed.length) return [];
@@ -3326,28 +3364,28 @@ async function unretiredBootDrops(session_id) {
 export async function restoreDoc(doc_id, version, updated_by = null, logger = null, reason = null, options = {}) {
   refuseBotMainRecord(doc_id, updated_by, 'restore_doc');
   refuseBotRetireRename(updated_by, 'restore_doc');
-  if (typeof reason !== 'string' || reason.trim().length < 10) throw new ValidationError('restore_doc needs reason (at least 10 characters). Nothing was written.');
-  if (!updated_by) throw new ValidationError('restore_doc needs a source. Nothing was written.');
-  if (isDropDoc(doc_id)) throw new ValidationError('restore_doc: a drop is never restored. Nothing was written.');
-  if (isRecordDoc(doc_id)) throw new ValidationError('restore_doc: a record is not restored. Records are superseded via revise_memory, not restored. Nothing was written.');
-  if (isGovernedByShippedCopy(doc_id)) throw new ValidationError('restore_doc: a shipped copy is not restored. Nothing was written.');
+  if (typeof reason !== 'string' || reason.trim().length < 10) throw new ValidationError('restore_doc needs reason (at least 10 characters). Nothing was written.', { code: 'EMET-DOC-037' });
+  if (!updated_by) throw new ValidationError('restore_doc needs a source. Nothing was written.', { code: 'EMET-DOC-038' });
+  if (isDropDoc(doc_id)) throw new ValidationError('restore_doc: a drop is never restored. Nothing was written.', { code: 'EMET-DOC-039' });
+  if (isRecordDoc(doc_id)) throw new ValidationError('restore_doc: a record is not restored. Records are superseded via revise_memory, not restored. Nothing was written.', { code: 'EMET-DOC-040' });
+  if (isGovernedByShippedCopy(doc_id)) throw new ValidationError('restore_doc: a shipped copy is not restored. Nothing was written.', { code: 'EMET-DOC-041' });
   const allowed = (setting('RESTORE_TAGS') || setting('SOURCE_TAG') || '').split(',').map((s) => s.trim()).filter(Boolean);
-  if (!allowed.includes(updated_by)) throw new ValidationError(`restore_doc: ${updated_by} is not in EMET_RESTORE_TAGS. Nothing was written.`);
+  if (!allowed.includes(updated_by)) throw new ValidationError(`restore_doc: ${updated_by} is not in EMET_RESTORE_TAGS. Nothing was written.`, { code: 'EMET-DOC-042' });
   const prior = await readDocHistory(doc_id, version, logger);
-  if (!prior || typeof prior.content !== 'string') throw new ValidationError(`No retained revision ${version} of ${doc_id}`);
-  if (prior.integrity !== true) throw new ValidationError(`restore_doc: retained revision ${version} of ${doc_id} does not match its digest. Nothing was written.`);
+  if (!prior || typeof prior.content !== 'string') throw new ValidationError(`No retained revision ${version} of ${doc_id}`, { code: 'EMET-DOC-003' });
+  if (prior.integrity !== true) throw new ValidationError(`restore_doc: retained revision ${version} of ${doc_id} does not match its digest. Nothing was written.`, { code: 'EMET-DOC-043' });
   const verdict = prior.conformance && prior.conformance.verdict;
   const accepted = prior.conformance && prior.conformance.accepted;
   if (!verdict) {
-    if (templateFor(doc_id)) throw new ValidationError(`restore_doc: ${doc_id} is templated and the retained revision has no conformance verdict. Only an untemplated document can be restored without a verdict. Nothing was written.`);
+    if (templateFor(doc_id)) throw new ValidationError(`restore_doc: ${doc_id} is templated and the retained revision has no conformance verdict. Only an untemplated document can be restored without a verdict. Nothing was written.`, { code: 'EMET-DOC-044' });
   } else if (verdict !== 'conforms' && verdict !== 'untemplated' && !accepted) {
-    throw new ValidationError(`restore_doc: retained revision ${version} of ${doc_id} was not conforming. Nothing was written.`);
+    throw new ValidationError(`restore_doc: retained revision ${version} of ${doc_id} was not conforming. Nothing was written.`, { code: 'EMET-DOC-045' });
   }
   const current = await readDoc(doc_id, logger).catch(() => null);
   const checked = validateDocument(doc_id, prior.content, current && current.content);
   const lost = (checked.failures || []).filter((f) => /no disposition/.test(f));
   if (doc_id === stateDoc() && (await unretiredBootDrops(options && options.session_id)).length) {
-    throw new ValidationError('restore_doc: unhandled drops were listed at this session boot and must be retired with retire_doc before the board is restored. Nothing was written.');
+    throw new ValidationError('restore_doc: unhandled drops were listed at this session boot and must be retired with retire_doc before the board is restored. Nothing was written.', { code: 'EMET-MEM-026' });
   }
   const written = await writeDoc(doc_id, prior.content, updated_by, null, logger, { restore_of: version, reason, session_id: options && options.session_id, supersedes: current && current.version });
   return { ...written, rows_lost: lost, restored_from_version: version };
@@ -3368,7 +3406,7 @@ export async function validateDoc(options = {}, logger = null) {
     if (!doc_id && !content) {
       throw new ValidationError(
         'Give a doc_id to check a stored document, or content (with template_id) to check text that is not stored yet.'
-      );
+      , { code: 'EMET-DOC-046' });
     }
 
     if (content) {
@@ -3378,7 +3416,7 @@ export async function validateDoc(options = {}, logger = null) {
                  failures: [], warnings: ['No template_id was given and no map entry matches, so nothing governs this content.'] };
       }
       const template = loadShipped(tpl_id);
-      if (!template) throw new ValidationError(`No template ${tpl_id} ships with this release.`);
+      if (!template) throw new ValidationError(`No template ${tpl_id} ships with this release.`, { code: 'EMET-DOC-047' });
       const r = checkRecord(content, template, { doc_id });
       return { checked: doc_id || '(content)', template: tpl_id, template_status: template.status,
                verdict: r.failures.length ? CONFORMANCE_VERDICT.NONCONFORMING : CONFORMANCE_VERDICT.CONFORMS,
@@ -3389,7 +3427,7 @@ export async function validateDoc(options = {}, logger = null) {
     const { client, col, hist } = await _docsClient();
     try {
       const doc = await col.findOne({ doc_id });
-      if (!doc) throw new ValidationError(`Document not found: ${doc_id}`);
+      if (!doc) throw new ValidationError(`Document not found: ${doc_id}`, { code: 'EMET-DOC-002' });
       // The carry-forward check needs the revision before this one, which is
       // exactly what the history collection archived when this one was written.
       const prior = await hist.find({ doc_id }).sort({ version: -1 }).limit(1).toArray();
@@ -3404,7 +3442,7 @@ export async function validateDoc(options = {}, logger = null) {
     } finally { await client.close(); }
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed to validate document: ${error.message}`, 'validate_doc');
+    throw new DatabaseError(`Failed to validate document: ${error.message}`, 'validate_doc', { code: 'EMET-DB-031' });
   }
 }
 
@@ -3416,24 +3454,30 @@ export async function validateDoc(options = {}, logger = null) {
  */
 export async function acceptNonconformance(doc_id, reason, accepted_by = null, logger = null, options = {}) {
   try {
+    if (typeof doc_id === 'string' && doc_id.startsWith('areas/')) {
+      const { assertAreaOwner } = await import('./pages.js');
+      const opened = await _docsClient();
+      try { await assertAreaOwner(opened.client.db(MONGODB_DB), 'accept_nonconformance'); }
+      finally { await opened.client.close(); }
+    }
     refuseBotMainRecord(doc_id, accepted_by, 'accept_nonconformance');
-    if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string');
+    if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string', { code: 'EMET-DOC-001' });
     if (typeof reason !== 'string' || reason.trim().length < 10) {
       throw new ValidationError(
         'An acceptance needs a written reason of at least 10 characters. It is the disposition of ' +
         'record for a nonconformance and is what an audit reads later - the same rule revise_transcript uses.'
-      );
+      , { code: 'EMET-DOC-048' });
     }
     const { client, col } = await _docsClient();
     try {
       const doc = await col.findOne({ doc_id });
-      if (!doc) throw new ValidationError(`Document not found: ${doc_id}`);
+      if (!doc) throw new ValidationError(`Document not found: ${doc_id}`, { code: 'EMET-DOC-002' });
       const current = doc.conformance;
       if (!current || current.verdict !== CONFORMANCE_VERDICT.NONCONFORMING) {
         throw new ValidationError(
           `${doc_id} version ${doc.version} carries no nonconformance marker, so there is nothing to accept. ` +
           `Its verdict is "${current ? current.verdict : 'not yet checked'}".`
-        );
+        , { code: 'EMET-DOC-050' });
       }
       const { currentPersonId, currentClientId } = await import('./persons.js');
       const accepted = buildAcceptance({
@@ -3447,7 +3491,7 @@ export async function acceptNonconformance(doc_id, reason, accepted_by = null, l
       const check = await col.findOne({ doc_id });
       const stored = check && check.conformance && check.conformance.accepted;
       if (!stored || stored.reason !== accepted.reason || Number(stored.covers_version) !== Number(doc.version)) {
-        throw new DatabaseError(`The acceptance did not persist on ${doc_id}.`, 'accept_nonconformance');
+        throw new DatabaseError(`The acceptance did not persist on ${doc_id}.`, 'accept_nonconformance', { code: 'EMET-DB-032' });
       }
       return {
         doc_id, verified: true, version: doc.version, covers_version: doc.version,
@@ -3457,7 +3501,7 @@ export async function acceptNonconformance(doc_id, reason, accepted_by = null, l
     } finally { await client.close(); }
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed to accept nonconformance: ${error.message}`, 'accept_nonconformance');
+    throw new DatabaseError(`Failed to accept nonconformance: ${error.message}`, 'accept_nonconformance', { code: 'EMET-DB-033' });
   }
 }
 
@@ -3472,7 +3516,7 @@ export async function acceptNonconformance(doc_id, reason, accepted_by = null, l
 
 function _assertStr(v, name) {
   if (typeof v !== 'string' || v.length === 0) {
-    throw new ValidationError(`${name} must be a non-empty string`);
+    throw new ValidationError(`${name} must be a non-empty string`, { code: 'EMET-DOC-051' });
   }
 }
 
@@ -3481,7 +3525,7 @@ function _assertVersion(cur, expected_version, tool) {
   if (cur.version !== expected_version) {
     throw new ValidationError(
       `${tool}: version conflict - document is at v${cur.version}, caller expected v${expected_version}. Re-read and retry.`
-    );
+    , { code: 'EMET-DOC-052' });
   }
 }
 
@@ -3489,11 +3533,11 @@ function _assertVersion(cur, expected_version, tool) {
 function _splitUnique(hay, needle, tool, what, doc_id) {
   const parts = hay.split(needle);
   const n = parts.length - 1;
-  if (n === 0) throw new ValidationError(`${tool}: ${what} not found in ${doc_id}`);
+  if (n === 0) throw new ValidationError(`${tool}: ${what} not found in ${doc_id}`, { code: 'EMET-DOC-053' });
   if (n > 1) {
     throw new ValidationError(
       `${tool}: ${what} matches ${n} times in ${doc_id} - must match exactly once. Add surrounding context to disambiguate.`
-    );
+    , { code: 'EMET-DOC-054' });
   }
   return [parts[0], parts[1]];
 }
@@ -3506,17 +3550,17 @@ export async function patchDoc(doc_id, old_str, new_str, updated_by = null, expe
     if (!(Array.isArray(options.edits) && options.edits.length)) _assertStr(old_str, 'old_str');
     const reason = options && options.reason;
     if (typeof reason !== 'string' || reason.trim().length < 10) {
-      throw new ValidationError('patch_doc needs reason (at least 10 characters). Nothing was written.');
+      throw new ValidationError('patch_doc needs reason (at least 10 characters). Nothing was written.', { code: 'EMET-DOC-055' });
     }
     const cur = await readDoc(doc_id, logger);
     _assertVersion(cur, expected_version, 'patch_doc');
-    if (isDropDoc(doc_id)) throw new ValidationError('patch_doc: a drop is write-once. Use a new id. Nothing was written.');
+    if (isDropDoc(doc_id)) throw new ValidationError('patch_doc: a drop is write-once. Use a new id. Nothing was written.', { code: 'EMET-DOC-056' });
     const edits = Array.isArray(options.edits) && options.edits.length
       ? options.edits
       : [{ old_str, new_str }];
     for (const edit of edits) {
-      if (typeof edit.old_str !== 'string' || edit.old_str.length === 0) throw new ValidationError('old_str must be a non-empty string');
-      if (typeof edit.new_str !== 'string') throw new ValidationError('new_str must be a string (empty string allowed = delete)');
+      if (typeof edit.old_str !== 'string' || edit.old_str.length === 0) throw new ValidationError('old_str must be a non-empty string', { code: 'EMET-DOC-057' });
+      if (typeof edit.new_str !== 'string') throw new ValidationError('new_str must be a string (empty string allowed = delete)', { code: 'EMET-DOC-058' });
       _splitUnique(cur.content, edit.old_str, 'patch_doc', 'old_str', doc_id);
     }
     const spans = edits.map((edit) => {
@@ -3525,18 +3569,18 @@ export async function patchDoc(doc_id, old_str, new_str, updated_by = null, expe
     });
     const ordered = [...spans].sort((a, b) => a.at - b.at);
     for (let i = 1; i < ordered.length; i++) {
-      if (ordered[i].at < ordered[i - 1].at + ordered[i - 1].len) throw new ValidationError('patch_doc: edits overlap. Nothing was written.');
+      if (ordered[i].at < ordered[i - 1].at + ordered[i - 1].len) throw new ValidationError('patch_doc: edits overlap. Nothing was written.', { code: 'EMET-DOC-059' });
     }
     let next = cur.content;
     for (const span of [...spans].sort((a, b) => b.at - a.at)) next = next.slice(0, span.at) + span.new_str + next.slice(span.at + span.len);
     if (doc_id === stateDoc()) {
-      if ((await unretiredBootDrops(options && options.session_id)).length) throw new ValidationError('patch_doc: unhandled drops were listed at this session boot and must be retired with retire_doc before the board is edited. Nothing was written.');
+      if ((await unretiredBootDrops(options && options.session_id)).length) throw new ValidationError('patch_doc: unhandled drops were listed at this session boot and must be retired with retire_doc before the board is edited. Nothing was written.', { code: 'EMET-MEM-027' });
       const ids = (text) => new Set([...String(text || '').matchAll(/\bB-\d+\b/g)].map((m) => m[0]));
       const added = [...ids(next)].filter((id) => !ids(cur.content).has(id));
-      if (added.length && !(options && options.origin)) throw new ValidationError('patch_doc: an added board row needs origin. Nothing was written.');
+      if (added.length && !(options && options.origin)) throw new ValidationError('patch_doc: an added board row needs origin. Nothing was written.', { code: 'EMET-MEM-028' });
       const checked = validateDocument(doc_id, next, cur.content);
       if (checked && checked.verdict === 'nonconforming') {
-        throw new ValidationError(`patch_doc: the board edit is nonconforming. ${(checked.failures || []).join('; ')} Nothing was written.`);
+        throw new ValidationError(`patch_doc: the board edit is nonconforming. ${(checked.failures || []).join('; ')} Nothing was written.`, { code: 'EMET-MEM-029' });
       }
     }
     const res = await writeDoc(doc_id, next, updated_by, null, logger, { edited: true, reason, origin: options.origin || null, session_id: options.session_id || null });
@@ -3544,11 +3588,11 @@ export async function patchDoc(doc_id, old_str, new_str, updated_by = null, expe
              size_delta: next.length - cur.content.length };
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed to patch document: ${error.message}`, 'patch_doc');
+    throw new DatabaseError(`Failed to patch document: ${error.message}`, 'patch_doc', { code: 'EMET-DB-034' });
   }
 }
 
-// Restored 2026-09-19: both constants were dropped in commit-685d822 while the function
+// Restored 2026-09-19: both constants were dropped in an earlier commit while the function
 // kept referencing them, which made every semantic_recall call throw
 // "SEMANTIC_RECALL_LAYERS is not defined".
 const SEMANTIC_RECALL_LAYERS = ['episodic', 'semantic', 'procedural', 'meta', 'identity', 'working'];
@@ -3557,10 +3601,10 @@ const SEMANTIC_RECALL_INDEX = process.env.EMET_VECTOR_INDEX || 'emet_content_aut
 export async function semanticRecall(query, layer = null, limit = 10, logger = null, options = null, dbManager = null) {
   try {
     if (!query || typeof query !== 'string' || query.trim() === '') {
-      throw new ValidationError('query', 'query must be a non-empty string');
+      throw new ValidationError('query', 'query must be a non-empty string', { code: 'EMET-MEM-030' });
     }
     if (query.length > CONTENT_LIMITS.MAX_QUERY_LENGTH) {
-      throw new ValidationError('query', `query exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH}`);
+      throw new ValidationError('query', `query exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH}`, { code: 'EMET-VAL-008' });
     }
     const validatedLimit = validateLimit(limit);
     const layers = layer ? [validateLayer(layer)] : SEMANTIC_RECALL_LAYERS;
@@ -3621,7 +3665,7 @@ export async function semanticRecall(query, layer = null, limit = 10, logger = n
     } finally { if (client) await client.close(); }
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed semantic recall: ${error.message}`, 'semantic_recall');
+    throw new DatabaseError(`Failed semantic recall: ${error.message}`, 'semantic_recall', { code: 'EMET-DB-035' });
   }
 }
 
@@ -3648,15 +3692,15 @@ const CORPUS_VALUES = (process.env.EMET_CORPORA || '').split(',').map(s => s.tri
 export async function corpusRecall(query, corpus = null, limit = 5, logger = null) {
   try {
     if (!query || typeof query !== 'string' || query.trim() === '') {
-      throw new ValidationError('query', 'query must be a non-empty string');
+      throw new ValidationError('query', 'query must be a non-empty string', { code: 'EMET-MEM-030' });
     }
     if (query.length > CONTENT_LIMITS.MAX_QUERY_LENGTH) {
-      throw new ValidationError('query', `query exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH}`);
+      throw new ValidationError('query', `query exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH}`, { code: 'EMET-VAL-008' });
     }
     const validatedLimit = Math.min(Math.max(parseInt(limit) || 5, 1), 25);
     // An empty EMET_CORPORA means "unrestricted", not "nothing allowed".
     if (corpus && CORPUS_VALUES.length && !CORPUS_VALUES.includes(corpus)) {
-      throw new ValidationError('corpus', `corpus must be one of: ${CORPUS_VALUES.join(', ')}`);
+      throw new ValidationError('corpus', `corpus must be one of: ${CORPUS_VALUES.join(', ')}`, { code: 'EMET-MEM-032' });
     }
     const client = await connectMongo(MONGODB_URI, { serverSelectionTimeoutMS: 5000, maxPoolSize: 10 });
     try {
@@ -3701,7 +3745,7 @@ export async function corpusRecall(query, corpus = null, limit = 5, logger = nul
     } finally { await client.close(); }
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
-    throw new DatabaseError(`Failed corpus recall: ${error.message}`, 'corpus_recall');
+    throw new DatabaseError(`Failed corpus recall: ${error.message}`, 'corpus_recall', { code: 'EMET-DB-036' });
   }
 }
 
@@ -3732,35 +3776,36 @@ export {
  * and is the owner. HTTP still requires a loaded person whose role is owner.
  * An in-process actor that names a person is checked the same way.
  */
-async function codeCreator(dbManager, refusal) {
+async function codeCreator(dbManager) {
   const { currentActor, getPerson } = await import('./persons.js');
   const actor = currentActor();
   if (actor.transport === 'stdio' || (actor.transport !== 'http' && !actor.personId)) {
     return actor.personId || LOCAL_SUBJECT;
   }
-  if (!actor.personId) throw new ValidationError(refusal);
+  if (!actor.personId) return null;
   const person = await getPerson(dbManager.db, actor.personId);
-  if (!person || person.role !== 'owner') throw new ValidationError(refusal);
+  if (!person || person.role !== 'owner') return null;
   return actor.personId;
 }
 
 export async function inviteCreate(dbManager, { display_name, scopes, days, source } = {}, logger = null) {
   if (!display_name || !String(display_name).trim()) {
-    throw new ValidationError('display_name is required — the name the guest will be known by');
+    throw new ValidationError('display_name is required — the name the guest will be known by', { code: 'EMET-AUTH-029' });
   }
   await dbManager.getConnection('working');
   const { createInvite, INVITES_FROZEN, INVITES_FROZEN_REASON } = await import('./invites.js');
-  if (INVITES_FROZEN) throw new ValidationError(INVITES_FROZEN_REASON);
+  if (INVITES_FROZEN) throw new ValidationError(INVITES_FROZEN_REASON, { code: 'EMET-AUTH-030' });
   const { registeredSourceTags } = await import('./setup.js');
-  const actor = await codeCreator(dbManager, 'Only the owner can create invites');
+  const actor = await codeCreator(dbManager);
+  if (!actor) throw new ValidationError('Only the owner can create invites', { code: 'EMET-AUTH-036' });
   const requested = Array.isArray(scopes) ? scopes : ['emet.read'];
   if (requested.length !== 1 || requested[0] !== 'emet.read') {
-    throw new ValidationError('A guest invite accepts only emet.read');
+    throw new ValidationError('A guest invite accepts only emet.read', { code: 'EMET-AUTH-031' });
   }
   const registry = registeredSourceTags();
   const tag = typeof source === 'string' ? source.trim() : '';
   if (registry.length && tag && !registry.includes(tag)) {
-    throw new ValidationError('source', 'A guest invite source must be a registered tag. Nothing was created.');
+    throw new ValidationError('source', 'A guest invite source must be a registered tag. Nothing was created.', { code: 'EMET-AUTH-032' });
   }
   const out = await createInvite(dbManager.db, {
     created_by: actor,
@@ -3778,17 +3823,18 @@ export async function inviteCreate(dbManager, { display_name, scopes, days, sour
 
 export async function memberAccessCreate(dbManager, { display_name, days, source } = {}, logger = null) {
   if (!display_name || !String(display_name).trim()) {
-    throw new ValidationError('display_name is required \u2014 the name the member will be known by');
+    throw new ValidationError('display_name is required \u2014 the name the member will be known by', { code: 'EMET-AUTH-033' });
   }
   await dbManager.getConnection('working');
   const { createMemberAccess, MEMBER_ACCESS_FROZEN, MEMBER_ACCESS_FROZEN_REASON } = await import('./invites.js');
-  if (MEMBER_ACCESS_FROZEN) throw new ValidationError(MEMBER_ACCESS_FROZEN_REASON);
+  if (MEMBER_ACCESS_FROZEN) throw new ValidationError(MEMBER_ACCESS_FROZEN_REASON, { code: 'EMET-AUTH-034' });
   const { registeredSourceTags } = await import('./setup.js');
-  const actor = await codeCreator(dbManager, 'Only the owner can create EMET Member Access');
+  const actor = await codeCreator(dbManager);
+  if (!actor) throw new ValidationError('Only the owner can create EMET Member Access', { code: 'EMET-AUTH-037' });
   const registry = registeredSourceTags();
   const tag = typeof source === 'string' ? source.trim() : '';
   if (registry.length && tag && !registry.includes(tag)) {
-    throw new ValidationError('source', 'A member code source must be a registered tag. Nothing was created.');
+    throw new ValidationError('source', 'A member code source must be a registered tag. Nothing was created.', { code: 'EMET-AUTH-035' });
   }
   const out = await createMemberAccess(dbManager.db, { created_by: actor, display_name, days: days || 14, source_tag: tag || null });
   logger?.info?.('EMET Member Access created', { display_name: out.display_name });
@@ -4262,6 +4308,37 @@ const TOOL_DEFINITIONS = [
       limit: { type: "number", description: "Max results (default 10)" },
       history: { type: "boolean", description: "Return ended entries only, up to limit. Default false: current matches come first and ended matches follow until limit, marked with their end date." }
     }, required: ["query"] }
+  },
+  {
+    name: "emet_page",
+    description: "Read one compiled topic page for an area slug (areas/<slug>.md). A page is a view of current records. It is not a record: this tool writes nothing, stores nothing, and the result is never written back and is not returned by recall. Every displayed line cites its source as [mem:<id> · <layer> · <client> · <YYYY-MM-DD>] or [doc:<doc_id>@v<version>]. A line with no source is dropped. Superseded and retired records stay out of the current sections; pass include_history true to show them under History only. A line is marked stale when its source has not been confirmed or revised within the area's staleness window (default 30 days; the area document may set its own). Owner only. Computed on every call, so cache_hit is false.",
+    inputSchema: { type: "object", properties: {
+      area: { type: "string", description: "Area slug, for example health. The selector is the current areas/<slug>.md document." },
+      as_of: { type: "string", description: "Optional ISO date or unix seconds. The page shows records that were current at that moment. A document line cites the revision in force then, from documents_history. A revision that was never archived is absent. A superseded or retired record with no end date is still shown in this past view, labelled \"end date unknown\", and is not a current line. The area selector is the current area document." },
+      include_history: { type: "boolean", description: "When true, superseded and retired records appear under History, labelled as not current. Default false." }
+    }, required: ["area"] }
+  },
+  {
+    name: "emet_pages",
+    description: "List current area documents. For each area: line count, stale count, and the time of the newest source the page read. Read-only. Owner only. Computed on every call. The page body is not stored.",
+    inputSchema: { type: "object", properties: {} }
+  },
+  {
+    name: "emet_error_report",
+    description: "Read the operational error log and show a report the owner can send on. Owner only. Read-only: it writes nothing and sends nothing. EMET has no mail sender and opens no network connection for this tool. The result is the full report, then a mailto link, then a structured email {to, subject, body_text, short_id, version} a calling assistant can pass to its own email tool. The calling assistant may send this report only after showing the report to its user and getting their OK.",
+    inputSchema: { type: "object", properties: {
+      since: { type: "string", description: "ISO date (YYYY-MM-DD) or UTC timestamp. Default is 7 days ago. Cannot be older than 90 days." },
+      codes: { type: "array", items: { type: "string" }, description: "Optional list of EMET codes to include." },
+      correlation_id: { type: "string", description: "16 hex characters from an error response. When set, since is ignored." },
+      limit: { type: "number", description: "How many of the most recent entries to list. Default 50, maximum 200." }
+    } }
+  },
+  {
+    name: "emet_page_lint",
+    description: "Flag problems in topic pages and the records they read. Read-only: it never edits a record. Findings cover contradictions (two current records that share a subject and disagree), superseded or retired records still claimed as current, lines with no source, duplicates, broken links, and statuses unconfirmed longer than the area's staleness window. It builds on the emet_gaps classifiers. A fix is a person's revise_memory, retire_doc, or accept_nonconformance. Owner only. Omit area to lint every area.",
+    inputSchema: { type: "object", properties: {
+      area: { type: "string", description: "Optional area slug. Omit to lint every current area." }
+    } }
   },
   {
     name: "emet_gaps",

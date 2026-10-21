@@ -126,8 +126,8 @@ testGroup('bandFor and policyFor are pure readers of the charter', () => {
     };
     for (const layer of LAYERS) assert.deepStrictEqual(bandFor(layer), midpoints[layer], layer);
   });
-  test('bandFor throws a plain Error for an unknown layer', () => {
-    assert.throws(() => bandFor('nope'), (e) => e instanceof Error && e.constructor === Error && /nope/.test(e.message));
+  test('bandFor throws EMET-MEM-001 for an unknown layer', () => {
+    assert.throws(() => bandFor('nope'), (e) => e instanceof Error && e.emetCode === 'EMET-MEM-001' && /Unknown layer 'nope'/.test(e.message));
   });
   test('policyFor on each layer mirrors its charter entry and names the fallback', () => {
     for (const layer of LAYERS) {
@@ -145,8 +145,8 @@ testGroup('bandFor and policyFor are pure readers of the charter', () => {
     p.aliases.push('impostor');
     assert(!LAYER_CHARTER.identity.aliases.includes('impostor'));
   });
-  test('policyFor throws a plain Error for an unknown layer', () => {
-    assert.throws(() => policyFor('nope'), (e) => e instanceof Error && e.constructor === Error);
+  test('policyFor throws EMET-MEM-001 for an unknown layer', () => {
+    assert.throws(() => policyFor('nope'), (e) => e instanceof Error && e.emetCode === 'EMET-MEM-001' && /Unknown layer 'nope'/.test(e.message));
   });
 });
 

@@ -4,7 +4,7 @@ Status as of 2026-10-11 (last full report: [status/2026-09-29-state-of-the-syste
 
 ## Where things stand
 
-- **Live:** 30 tools (11 read-only); `EMET_SUBKEYS=1` adds four sub-key tools. Layer writes and reads native to MongoDB; server-side checks on session start and close (machine line on the first transcript append, blocked-close cap with scope, pending lessons at startup); receipts required at close; the handoff is a record, superseded and never amended.
+- **Live:** 34 tools (15 read-only); `EMET_SUBKEYS=1` adds four sub-key tools. Layer writes and reads native to MongoDB; server-side checks on session start and close (machine line on the first transcript append, blocked-close cap with scope, pending lessons at startup); receipts required at close; the handoff is a record, superseded and never amended.
 - **The aleph** verifies every write by reading it back before any receipt, and every later read by its digests, signature and place in its layer's hash chain. `emet_gaps` walks the whole chain for any host.
 - **Guardrails & Monorails** ([docs/GUARDRAILS-AND-MONORAILS.md](GUARDRAILS-AND-MONORAILS.md)): the server checks the order of a session's writes. Enforce only since 0.2.1 (deployed 2026-10-03; report mode 2026-09-29 to 2026-10-03): every skipped step is refused with the way to pass, and every check is stored as a timestamped lab result.
 - **The database** login runs under the least-privilege role `emetRecordKeeper`: it can insert and update, never remove the record.
@@ -22,22 +22,22 @@ Status as of 2026-10-11 (last full report: [status/2026-09-29-state-of-the-syste
 
 ## Done since the last revision (2026-09-28)
 
-- SQL translator stage 2: read path native to MongoDB; the translator and the `event` mirror column removed (commit-017c7f3).
-- Test-tree pass: one shared harness; dated suites named by subject (commit-7980e20).
+- SQL translator stage 2: read path native to MongoDB; the translator and the `event` mirror column removed.
+- Test-tree pass: one shared harness; dated suites named by subject.
 - Open questions answered 2026-09-29: the lessons `shadow` block dropped, the lesson key checked at the door; a coverage number published as an input to review; the character document consolidated quarterly (first pass done, SOUL.md v7).
-- Chain verification: one MongoDB connection path with a DNS fallback (6491586), then the chain walk moved into `emet_gaps` so no host needs the repo or a shell (commit-43a5ef6).
-- Security audit, first pass: two findings fixed; nothing open (commit-c2aa70d).
-- Least-privilege Atlas role, scripted and documented for new users (commit-26134e7).
-- Provenance stamped from the transcript; semantic and procedural writes with no source refused (commit-4f6aba8).
-- Guardrails & Monorails and lab results (commit-e7b4ebe through commit-20c39d3).
-- Charter revised 2026-09-29 (the aleph, the monorail, the database boundary, the per-exchange transcript; commit-d98356e) and again 2026-09-30 (the admission test in commitment 6; procedural ref 404).
+- Chain verification: one MongoDB connection path with a DNS fallback, then the chain walk moved into `emet_gaps` so no host needs the repo or a shell.
+- Security audit, first pass: two findings fixed; nothing open.
+- Least-privilege Atlas role, scripted and documented for new users.
+- Provenance stamped from the transcript; semantic and procedural writes with no source refused.
+- Guardrails & Monorails and lab results.
+- Charter revised 2026-09-29 (the aleph, the monorail, the database boundary, the per-exchange transcript) and again 2026-09-30 (the admission test in commitment 6; procedural ref 404).
 
 ## Proposed features and functions
 
 - **GEM socket (phased).** GEM means Golem Expertise Module. A RUNED directive (Registered Utility Node Executable Directive) is a declared, registered tool built into a GEM. The 2026-09-08 expansions (Guided Engagement Module, Registered Utility Node Extension) are superseded. The standard, schema, authoring guide, conformance checks, and GEP-0001 are in [`gem-library/`](../gem-library/README.md), which moves to EMET-GEMs after this revision is approved.
   - PR 2 (in the tree): `src/socket.js` and `gem-check` for a bundled prompt GEM (schema, spec revision, hashes, sizes, path safety, floor-negation lint, secret scan, no code), plus a conformance test. A refused GEM does not stop initialize.
   - PR 3 (in the tree): `gems/neurendipity`. `reading_people`, the neurodivergent lines, the wellbeing corpus lines, the matching reassertion lines, and the guide (the old id aliases for one release). Default off. Set `EMET_ACTIVE_GEMS=neurendipity` to turn it on. Core floor keeps persistence, general epistemic honesty, the epistemic corpus lines, and the honesty protections. `emet_floor` takes a `gem` argument. The available list shows Neurendipity installed and off unless that setting names it.
-  - PR 4 (proposed): each GEM's byte cost in `emet_status` (`gems`: installed and active counts, active floor bytes, headroom, the enforced caps, and per-GEM id, version, kind, bytes and refusal reason; read-only, no floor text). Caps, priority, consent when `overrides` is non-empty, and the available list in the startup text are already enforced. `EMET_ACTIVE_GEMS` is how an install asks for a GEM.
+  - PR 4 (proposed, EMET-private branch `gem-socket/pr4-status-cost`): each GEM's byte cost in `emet_status` (`gems`: installed and active counts, active floor bytes, headroom, the enforced caps, and per-GEM id, version, kind, bytes and refusal reason; read-only, no floor text). Caps, priority, consent when `overrides` is non-empty, and the available list in the startup text are already enforced. `EMET_ACTIVE_GEMS` is how an install asks for a GEM.
   - PR 5 (in the tree): RUNED registration through dispatch, static analysis, and `gems/fieldnote`, bundled and off by default. No GEM from outside the release loads. GEP-0003 supersedes the GEP-0002 sandbox: the sandbox is removed, and the socket serves each RUNE and does not run it.
   - Later, each by its own GEP: the creator keyring and signature checks, the public submission repository and its CI gate, accepting a library GEM onto the load list, and a monorail switch that picks a GEM.
 - **Claim-status grading.** Extend provenance so every recorded claim carries a status: established, deduced, proposed, still owed, or rejected — and rejected routes stay on the record with the reason they failed. (Idea taken from a physics research corpus that grades its own claims this way.)

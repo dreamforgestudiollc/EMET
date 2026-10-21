@@ -36,6 +36,11 @@ let sharedToken = null;
 let sharedConnect = null;
 
 /** The server's Mongo client, reused by stores that would otherwise connect per call. */
+/** The client already opened for this process, or null. Does not connect. */
+export function readySharedClient() {
+  return sharedClient;
+}
+
 export function bindSharedClient(client) {
   if (!client) return;
   sharedClient = client;

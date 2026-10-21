@@ -1,3 +1,4 @@
+import { CodedError } from './error-codes.js';
 /**
  * EMET - Enduring Memory & Epistemic Tiers
  * Copyright (c) 2026 Dreamforge Studio LLC
@@ -238,7 +239,7 @@ export function resolveLayer(name) {
 export function bandFor(layer) {
   const entry = LAYER_CHARTER[layer];
   if (!entry || !Array.isArray(entry.importance_range)) {
-    throw new Error(`Unknown layer '${layer}'. Must be one of: ${LAYERS.join(', ')}`);
+    throw new CodedError(`Unknown layer '${layer}'. Must be one of: ${LAYERS.join(', ')}`, { code: 'EMET-MEM-001' });
   }
   const [min, max] = entry.importance_range;
   // Rounded so 0.3 + 0.6 reads as 0.45, not 0.44999999999999996.
@@ -304,20 +305,20 @@ export function resolveImportance(layer, raw, extras = {}) {
     } else if (IMPORTANCE_DEGREES.includes(parts[0])) {
       degree = parts[0];
     } else {
-      throw new Error(
+      throw new CodedError(
         `Unknown importance bucket '${raw}'. Use one of: ${Object.keys(IMPORTANCE_BUCKETS).join(', ')}` +
         ` (optional :low|:mid|:high).`
-      );
+      , { code: 'EMET-MEM-002' });
     }
   }
 
   if (bucket && !IMPORTANCE_BUCKETS[bucket]) {
-    throw new Error(
+    throw new CodedError(
       `Unknown importance bucket '${bucket}'. Use one of: ${Object.keys(IMPORTANCE_BUCKETS).join(', ')}`
-    );
+    , { code: 'EMET-MEM-003' });
   }
   if (degree && !IMPORTANCE_DEGREES.includes(degree)) {
-    throw new Error(`Unknown importance degree '${degree}'. Use low, mid, or high.`);
+    throw new CodedError(`Unknown importance degree '${degree}'. Use low, mid, or high.`, { code: 'EMET-MEM-004' });
   }
 
   if (typeof raw === 'number' && Number.isFinite(raw)) {
@@ -362,7 +363,7 @@ export function resolveImportance(layer, raw, extras = {}) {
 export function policyFor(layer) {
   const entry = LAYER_CHARTER[layer];
   if (!entry) {
-    throw new Error(`Unknown layer '${layer}'. Must be one of: ${LAYERS.join(', ')}`);
+    throw new CodedError(`Unknown layer '${layer}'. Must be one of: ${LAYERS.join(', ')}`, { code: 'EMET-MEM-001' });
   }
   return {
     revisable: entry.revisable,

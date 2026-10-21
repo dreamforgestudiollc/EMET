@@ -25,6 +25,7 @@ import crypto from 'node:crypto';
 import { setting } from './env.js';
 import { acquireSharedClient, testClientActive } from './mongo-connect.js';
 import { MONGODB_URI, MONGODB_DB, COLLECTION_PREFIX } from './database.js';
+import { CodedError } from './error-codes.js';
 
 const SUBKEYS_COLLECTION = `${COLLECTION_PREFIX}subkeys`;
 const SUBKEYS_HISTORY_COLLECTION = `${COLLECTION_PREFIX}subkeys_history`;
@@ -301,7 +302,7 @@ function mongoStore() {
             const cur = await keys.findOne({ _id: done.id });
             if (!cur || cur.rev !== revOf(done.prev) + 1) owned = false;
           }
-          if (!owned) throw new Error('superseded by a concurrent open; this open was not made live.');
+          if (!owned) throw new CodedError('superseded by a concurrent open; this open was not made live.', { code: 'EMET-AUTH-026' });
           for (const done of applied.reverse()) await revertUpdate(keys, done.id, done.prev);
           continue;
         }
@@ -310,7 +311,7 @@ function mongoStore() {
         }
         return { written: true };
       }
-      throw new Error('sub-key store conflict. Nothing was written.');
+      throw new CodedError('sub-key store conflict. Nothing was written.', { code: 'EMET-AUTH-027' });
     },
     async sweepFlagOff(note) {
       const client = await acquireSharedClient(MONGODB_URI, { serverSelectionTimeoutMS: 8000, maxPoolSize: 10 });

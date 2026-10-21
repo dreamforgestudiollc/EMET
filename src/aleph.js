@@ -33,6 +33,7 @@
 
 import crypto from 'crypto';
 import { EmetError, ErrorCodes, StatusCodes } from './database.js';
+import { isEmetCodeOptions } from './error-codes.js';
 
 /** sha256 of a string, hex. The canonical digest for everything EMET stores. */
 export function digest(text) {
@@ -41,10 +42,15 @@ export function digest(text) {
 
 export class AlephError extends EmetError {
   constructor(message, operation = 'unknown', details = {}) {
-    super(message, ErrorCodes.WRITE_ERROR, StatusCodes.INTERNAL_ERROR, details);
+    let emetCode;
+    let det = details;
+    if (isEmetCodeOptions(arguments[3])) emetCode = arguments[3].code;
+    if (isEmetCodeOptions(det)) { emetCode = det.code; det = {}; }
+    super(message, ErrorCodes.WRITE_ERROR, StatusCodes.INTERNAL_ERROR, det);
     this.name = 'AlephError';
     this.operation = operation;
     this.verified = false;
+    if (emetCode) this.emetCode = emetCode;
   }
 
   toSafeJSON() {
@@ -75,7 +81,7 @@ export function verifyDocument(readBack, expected) {
       `success and the store does not contain it.`,
       'aleph.verifyDocument',
       { doc_id }
-    );
+    , { code: 'EMET-GEM-001' });
   }
   if (readBack.sha256 !== sha256) {
     throw new AlephError(
@@ -84,7 +90,7 @@ export function verifyDocument(readBack, expected) {
       `actually there.`,
       'aleph.verifyDocument',
       { doc_id, expected_sha256: sha256, stored_sha256: readBack.sha256 }
-    );
+    , { code: 'EMET-GEM-002' });
   }
   if (version !== undefined && readBack.version !== version) {
     throw new AlephError(
@@ -92,7 +98,7 @@ export function verifyDocument(readBack, expected) {
       `created. Another writer reached the document between the write and the read.`,
       'aleph.verifyDocument',
       { doc_id, expected_version: version, stored_version: readBack.version }
-    );
+    , { code: 'EMET-GEM-003' });
   }
   return { verified: true, doc_id, sha256, version };
 }
@@ -119,7 +125,7 @@ export function verifyLayerEntry(readBack, expected) {
       `reported success and the store does not contain it.`,
       'aleph.verifyLayerEntry',
       { layer, id }
-    );
+    , { code: 'EMET-GEM-004' });
   }
   const wrote = digest(content);
   const stored = digest(readBack.content !== undefined && readBack.content !== null
@@ -137,7 +143,7 @@ export function verifyLayerEntry(readBack, expected) {
       `The row is internally inconsistent - either the content or the digest was altered after the write.`,
       'aleph.verifyLayerEntry',
       { layer, id, column_sha256: storedColumn, content_sha256: stored }
-    );
+    , { code: 'EMET-GEM-005' });
   }
 
   if (stored !== wrote) {
@@ -148,7 +154,7 @@ export function verifyLayerEntry(readBack, expected) {
       `collection prefix before writing anything else to this store.`,
       'aleph.verifyLayerEntry',
       { layer, id, expected_sha256: wrote, stored_sha256: stored }
-    );
+    , { code: 'EMET-GEM-006' });
   }
   // C1 (2026-09-07): the metadata column, when present, must agree with the
   // metadata it sits beside, and with what the caller says it wrote. Same
@@ -169,7 +175,7 @@ export function verifyLayerEntry(readBack, expected) {
         `The row is internally inconsistent - either the metadata or its digest was altered after the write.`,
         'aleph.verifyLayerEntry',
         { layer, id, column_metadata_sha256: metaColumn, metadata_sha256: storedMeta }
-      );
+      , { code: 'EMET-GEM-007' });
     }
     metadataDigestStored = true;
     metadataSha256 = metaColumn;
@@ -182,7 +188,7 @@ export function verifyLayerEntry(readBack, expected) {
         `Read-back of ${layer} entry ${id} returned different metadata than was written.`,
         'aleph.verifyLayerEntry',
         { layer, id, expected_metadata_sha256: wroteMeta, stored_metadata_sha256: storedMeta }
-      );
+      , { code: 'EMET-GEM-008' });
     }
     metadataSha256 = wroteMeta;
   }
@@ -344,7 +350,7 @@ export function signatureIntegrityOf(row, key) {
 
 /**
  * May a row be RE-SIGNED after one of the sanctioned metadata marks? (2026-10-02,
- * the tester's finding: the marks re-attested metadata_sha256 but left the
+ * the reviewer's finding: the marks re-attested metadata_sha256 but left the
  * signature over the old metadata digest, so every superseded or corrected
  * row read signed:false.)
  *

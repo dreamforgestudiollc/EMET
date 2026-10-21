@@ -428,7 +428,7 @@ testGroup('transcript writes into a closed session (review fix 1; Alex 2026-10-0
   });
 });
 
-testGroup('closed sessions: a retry or an odd id can write nothing (the reviewer review 3 and the tester gate on commit-2a361fd)', () => {
+testGroup('closed sessions: a retry or an odd id can write nothing (second-reader review 3 and review gate on an earlier draft)', () => {
   const CLOSED = '2026-09-30_grok-project-init';
   const P1 = `${CLOSED}_verbatim_part1`;
   const CLOSED_AT = EVENING;
@@ -584,7 +584,7 @@ testGroup('closed sessions: a retry or an odd id can write nothing (the reviewer
     const r = await call(db, 'emet_transcript_append', { session_id: P1, exchange_index: 4, ...msg }, minutesAfter(CLOSED_AT, 4));
     assert.strictEqual(snapshot(db), before, 'the retry wrote after the correction');
     assert.ok(retried(r), text(r).slice(0, 300));
-    // Even where a part already lacks the closing exchange (e.g. a revision made on commit-2a361fd), a retry writes nothing.
+    // Even where a part already lacks the closing exchange (e.g. a revision made on an earlier draft), a retry writes nothing.
     const db2 = await afterClosing();
     db2.transcripts[0].exchanges = db2.transcripts[0].exchanges.filter((e) => e.exchange_index !== 4);
     const before2 = snapshot(db2);
@@ -645,7 +645,7 @@ testGroup('closed sessions: a retry or an odd id can write nothing (the reviewer
     assert.deepStrictEqual(db.transcripts.find((d) => d.session_id === sid).exchanges.map((e) => e.exchange_index), [1, 2, 3]);
   });
 
-  // --- the reviewer's nits 1, 4, 7 -------------------------------------------------------------
+  // --- the second reader's nits 1, 4, 7 -------------------------------------------------------------
   test('monorail wording: the closed gate and next step say "closed and locked" and never "open a new session"', async () => {
     const { evaluate, nextStep } = await import('../src/session-graph.js');
     const next = nextStep({ opened: true, closed: true }, 4);

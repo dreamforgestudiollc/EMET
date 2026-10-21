@@ -36,29 +36,52 @@ when you want a second device to reach the same memory.
 
    | On | Allowed |
    |---|---|
-   | your whole EMET database | find, insert, update, create collection, create index, list collections, list indexes, list search indexes, collection and database stats |
+   | your whole EMET database | find, insert, update, create collection, create index, list collections, list indexes, list search indexes, collection and database stats. Not `REMOVE`. |
    | `<prefix>oauth_tokens` | remove — revoking a sign-in token |
    | `_emet_verify` | remove — the status check deletes its probe document and does not drop the collection |
+   | `error_log` | `REMOVE` — rotation deletes old rows (10,000 entries or 90 days) after a daily summary is kept in `error_log_summary`. The name is not prefixed. It is not the record. |
 
-   Nothing else may be removed or dropped. `tests/atlas-role.test.js` fails if the code ever
-   starts deleting from a collection this role does not allow.
+   `REMOVE` on `error_log` is the rotation privilege. Do not grant `REMOVE` on the database.
+   Do not grant `REMOVE` on any other collection. `error_log_summary` is insert and update only.
+   A document-controlled collection cannot be deleted. Nothing else may be removed or
+   dropped. `tests/atlas-role.test.js` fails if the code ever starts deleting from a
+   collection this role does not allow.
 
    **The quick way (Atlas CLI).** Install it (`winget install MongoDB.MongoDBAtlasCLI`, or
    see mongodb.com/docs/atlas/cli), sign in with `atlas auth login` in your own terminal —
    it asks you to pick options, so it needs a real keyboard — then from the EMET folder:
 
    ```
-   node scripts/atlas-role.mjs --project <projectId> --db <database> --user emet_app
+   node scripts/atlas-role.mjs --project <projectId> --db <database> --user emet_app --prefix <prefix>
+   node scripts/atlas-role.mjs --project <projectId> --db <database> --user emet_app --prefix <prefix> --apply
    ```
 
-   That is a dry run: it prints the commands. Add `--apply` to create the role and move the
-   user onto it; `--rollback` puts the user back on `readWrite@<database>`. Find the project id
-   with `atlas projects list`. A non-default `EMET_COLLECTION_PREFIX` is picked up, or pass
-   `--prefix`.
+   The first command is a dry run. `scripts/atlas-role.mjs` prints the create it will run.
+   The dry run calls the read-only `atlas customDbRoles describe emetRecordKeeper --projectId <id> --output json`. It needs Atlas auth and changes nothing.
+   The `--privilege` value is the full list from `src/atlas-role.js`, which includes `REMOVE@<db>.error_log`.
+   It does not grant `REMOVE` on any other collection. The second command creates the role
+   and moves the user onto it. `--rollback` puts the user back on `readWrite@<database>`.
+   Find the project id with `atlas projects list`. `<db>` is the `MONGODB_DB` you pass as `--db`.
+   `--prefix <prefix>` is `EMET_COLLECTION_PREFIX` (default `emet_`). Pass it for a prefixed install.
+   `--prefix` overrides `EMET_COLLECTION_PREFIX`. The effective prefix is `--prefix`, or else the env. Re-applying replaces prefixed privilege names if the effective prefix doesn't match the install.
+   Do not pass `--privilege` to `customDbRoles update` on its own.
+   That replaces the whole role and drops find, insert, and update.
 
-   **The click way.** Database Access → Custom Roles → Add New Custom Role, name
-   `emetRecordKeeper`, add the actions in the table above against your database and the two
-   collections; then edit the user and set its role to `emetRecordKeeper`.
+   **Atlas UI.** Database Access → Custom Roles → Add New Custom Role, name
+   `emetRecordKeeper`. Add the actions in the table. For `error_log`, set the database to
+   `<db>`, the collection to `error_log` (not blank, not every collection), and enable the
+   action `REMOVE` only. That is `REMOVE@<db>.error_log`. Leave `REMOVE` off the
+   database-wide row. Leave `REMOVE` off every other collection. Then edit the user and
+   set its role to `emetRecordKeeper`.
+
+   **Local MongoDB.** `scripts/atlas-role.mjs` is Atlas only. On a server with users, in the
+   EMET database, `db.createRole` with the same rows. The shell action is lowercase. The
+   log privilege is the resource below, which is the Atlas privilege `REMOVE@<db>.error_log`.
+   Do not grant that action on any other collection.
+
+   ```javascript
+   { resource: { db: "<db>", collection: "error_log" }, actions: ["remove"] }
+   ```
 
    **Prove it.** From any EMET host, run `emet_status` with `probe: true`. It writes, reads
    back and removes a test document, so a role missing something fails there, loudly, instead
@@ -225,6 +248,81 @@ it should come back `ready` with your existing identity, not `setup_required`. I
 `setup_required`, one of the four variables above is wrong; **do not run the setup interview,
 which would write a new identity over your existing one.**
 
+## Upgrading to 0.3.0
+
+0.3.0 rotates `error_log`. The log is capped at 10,000 entries or 90 days, and the daily summaries are kept in `error_log_summary`. Rotation deletes from `error_log`, so an existing `emetRecordKeeper`
+role — or whatever custom role you created at setup — needs the `REMOVE` action on
+`<db>.error_log`. Without it, rotation fails. Add `REMOVE` on `error_log` only. Do not add
+`REMOVE` on the database. Do not add `REMOVE` on any other collection. Memories, controlled
+documents, and transcripts stay non-deletable.
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
+`<db>` is your `MONGODB_DB`. `<id>` is the project id from `atlas projects list`. If the role is
+not named `emetRecordKeeper`, use the name you created.
+
+**Save the role first.**
+
+```
+atlas customDbRoles describe emetRecordKeeper --projectId <id> --output json > role-before.json
+```
+
+Keep `role-before.json`. It is the copy you can read if the next command is wrong.
+
+**Atlas CLI.** This command adds `REMOVE` on `error_log` and leaves the rest of the role in place.
+Passing `--privilege` to `customDbRoles update` on its own replaces the role's privileges, including find, insert, and update.
+
+```
+atlas customDbRoles update emetRecordKeeper --privilege REMOVE@<db>.error_log --append --projectId <id>
+```
+
+**Atlas UI.** Database Access → Custom Roles → edit `emetRecordKeeper` → add a privilege.
+Database `<db>`, collection `error_log`, action `REMOVE`. Do not enable `REMOVE` on the
+database-wide row. Do not enable `REMOVE` on any other collection. Save. Then confirm the
+database user still has that custom role and no broader built-in role.
+
+**Local MongoDB.** In the database where you created the role:
+
+```javascript
+db.grantPrivilegesToRole("emetRecordKeeper", [
+  { resource: { db: "<db>", collection: "error_log" }, actions: ["remove"] }
+])
+```
+
+That shell action is the Atlas privilege `REMOVE@<db>.error_log`.
+
+### Clear a stray DROP_COLLECTION
+
+**Confirm `DROP_COLLECTION` is gone.** Describe the role again:
+
+```
+atlas customDbRoles describe emetRecordKeeper --projectId <id> --output json
+```
+
+`DROP_COLLECTION` must not appear anywhere in that output. An older stray `DROP_COLLECTION` on `_emet_verify` is not cleared by that append command. That append command cannot remove a privilege. Remove it by re-applying the definition, which has no `DROP_COLLECTION`. Dry run first, then apply. The dry run calls the read-only `atlas customDbRoles describe emetRecordKeeper --projectId <id> --output json`. It needs Atlas auth and changes nothing. `--prefix <prefix>` is `EMET_COLLECTION_PREFIX` (default `emet_`). `--prefix` overrides `EMET_COLLECTION_PREFIX`. The effective prefix is `--prefix`, or else the env. Re-applying replaces prefixed privilege names if the effective prefix doesn't match the install.
+
+```
+node scripts/atlas-role.mjs --project <id> --db <db> --user <dbUsername> --prefix <prefix>
+node scripts/atlas-role.mjs --project <id> --db <db> --user <dbUsername> --prefix <prefix> --apply
+```
+
+Or in the Atlas UI: Database Access → Custom Roles → edit `emetRecordKeeper` and clear `DROP_COLLECTION` from `_emet_verify` and from every other resource. Then describe the role again and confirm `DROP_COLLECTION` is still absent.
+
+**Verify `REMOVE`.** The same describe output is the check:
+
+```
+atlas customDbRoles describe emetRecordKeeper --projectId <id> --output json
+```
+
+Pass when all of these are true:
+
+- An `actions` entry has `"action": "REMOVE"` and a resource with `"db"` equal to `<db>` and `"collection": "error_log"`.
+- No `REMOVE` resource has an empty collection. An empty collection is the whole database.
+- Every collection on a `REMOVE` action is either `error_log` or one of the two rows above it in the Stage 1 table. This upgrade adds `error_log` and no other collection.
+
+From a machine that has the server's `MONGODB_URI`, `node scripts/db-privileges.mjs` prints
+`<db>.error_log` with `remove`, and `<db>.*` does not include `remove`. Then, from any EMET
+host, `emet_status` with `probe: true` still passes.
+
 ## Stage 4 — tell your assistant to use it
 
 Setup gives the store an identity. It does not tell your assistant to consult it. See
@@ -249,6 +347,10 @@ the thing is doing its job.
 
 ---
 
+## Error reports
+
+`emet_error_report` is owner-only and read-only. It returns the report and a draft. EMET does not send mail. The draft address is `EMET_REPORT_EMAIL`. When that variable is unset, the address is `reports@example.com`. That address is a placeholder, not a mailbox. Configure `EMET_REPORT_EMAIL` to a real address, or the report is returned and goes nowhere. An empty string, or any value that is not one plain address, returns the report and no email.
+
 ## When it does not work
 
 | Symptom | Cause |
@@ -259,6 +361,7 @@ the thing is doing its job.
 | `semantic entries must carry their source` | Open a session with `emet_session_open` and pass its `session_id` on the save. |
 | `vector_index: not queryable on this deployment tier` | Normal on a local MongoDB or before the Atlas index exists; only `semantic_recall` needs it. |
 | Connect times out | Your IP is not in Atlas Network Access, or the cluster is paused. |
+| Error-log rotation fails, unauthorized to remove | The role has no `REMOVE` on `error_log`. Follow [Upgrading to 0.3.0](#upgrading-to-030) and append `REMOVE@<db>.error_log`. |
 | Auth fails | The password in the URI needs percent-encoding if it contains `@ : / ?` etc. |
 | `semantic_recall` returns nothing, keyword search works | The vector index is missing or was dropped by a tier migration. |
 | Writes land but another device cannot see them | The two hosts point at different `MONGODB_DB` values. |

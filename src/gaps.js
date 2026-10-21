@@ -213,7 +213,7 @@ export function tagFamilies(rows, { minShared = 3, minFamily = 3, maxFamily = 8 
 }
 
 async function connect() {
-  if (!MONGODB_URI) throw new DatabaseError('MONGODB_URI is not set; cannot assess gaps.', 'emet_gaps');
+  if (!MONGODB_URI) throw new DatabaseError('MONGODB_URI is not set; cannot assess gaps.', 'emet_gaps', { code: 'EMET-DB-001' });
   const client = await connectMongo(MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
   return { client, db: client.db(MONGODB_DB) };
 }
@@ -253,7 +253,7 @@ export async function checkCorrectionLinks(corrected, corrections, findRow) {
 
 export async function findGaps({ layer = null, since = null, limit = 50 } = {}) {
   const layers = layer ? [layer] : [...LAYERS];
-  if (layer && !LAYERS.includes(layer)) throw new DatabaseError(`Unknown layer '${layer}'`, 'emet_gaps');
+  if (layer && !LAYERS.includes(layer)) throw new DatabaseError(`Unknown layer '${layer}'`, 'emet_gaps', { code: 'EMET-DB-010' });
   const cap = Math.max(1, Math.min(500, Number(limit) || 50));
   const nowSec = Date.now() / 1000;
   const registry = registeredTags();

@@ -1,3 +1,4 @@
+import { CodedError } from './error-codes.js';
 /**
  * EMET - the least-privilege MongoDB Atlas role for the server's own login
  * (2026-09-29; security audit question 9, staging/emet-security-audit.md).
@@ -18,6 +19,8 @@
  *     are credentials, not the record.
  *   - _emet_verify: the status probe writes one document, reads it back, and
  *     deletes that document (setup.js verifyConnection). The collection stays.
+ *   - error_log: rotation removes old operational rows after a daily summary
+ *     is kept (error-log.js rotateErrorLog). This is bookkeeping, not the record.
  * Everything else - memory layers, documents, their history, transcripts - is
  * find / insert / update only.
  */
@@ -41,13 +44,15 @@ export const DATABASE_ACTIONS = Object.freeze([
  */
 export const DELETE_ALLOWED = Object.freeze({
   '{prefix}oauth_tokens': Object.freeze(['REMOVE']),
-  _emet_verify: Object.freeze(['REMOVE'])
+  _emet_verify: Object.freeze(['REMOVE']),
+  // Unprefixed, like the probe. Operational error log, not the record.
+  error_log: Object.freeze(['REMOVE'])
 });
 
 /** Privileges in the Atlas CLI form ACTION@db or ACTION@db.collection. */
 export function atlasPrivileges(dbName, prefix = 'emet_') {
-  if (!dbName || typeof dbName !== 'string' || /[\s@.]/.test(dbName)) throw new Error('database name must be a plain name');
-  if (typeof prefix !== 'string' || /[\s@.]/.test(prefix)) throw new Error('prefix must be a plain name');
+  if (!dbName || typeof dbName !== 'string' || /[\s@.]/.test(dbName)) throw new CodedError('database name must be a plain name', { code: 'EMET-CFG-001' });
+  if (typeof prefix !== 'string' || /[\s@.]/.test(prefix)) throw new CodedError('prefix must be a plain name', { code: 'EMET-CFG-002' });
   const out = DATABASE_ACTIONS.map((a) => `${a}@${dbName}`);
   for (const [col, actions] of Object.entries(DELETE_ALLOWED)) {
     for (const a of actions) out.push(`${a}@${dbName}.${col.replace('{prefix}', prefix)}`);

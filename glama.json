@@ -3,17 +3,21 @@
   "maintainers": [
     "dreamforgestudiollc"
   ],
-  "description": "EMET 0.2.6 is an MCP memory server: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true. Free and open source under the MIT License; no account, key or payment required to run it.",
-  "version": "0.2.6",
+  "description": "EMET 0.3.0 is an MCP memory server: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true. Free and open source under the MIT License; no account, key or payment required to run it.",
+  "version": "0.3.0",
   "tools": [
     "accept_nonconformance",
     "corpus_recall",
     "emet_client_approve",
+    "emet_error_report",
     "emet_floor",
     "emet_gaps",
     "emet_initialize",
     "emet_invite_create",
     "emet_member_access_create",
+    "emet_page",
+    "emet_page_lint",
+    "emet_pages",
     "emet_session_close",
     "emet_session_open",
     "emet_setup_complete",

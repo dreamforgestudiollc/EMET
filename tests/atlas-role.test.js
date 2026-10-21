@@ -18,8 +18,8 @@ testGroup('the role never grants delete on the record', () => {
   test('no database-wide REMOVE or DROP', () => {
     for (const a of ['REMOVE', 'DROP_COLLECTION', 'DROP_DATABASE']) assert.ok(!DATABASE_ACTIONS.includes(a), a);
   });
-  test('delete is allowed only on the token and probe collections', () =>
-    assert.deepStrictEqual(Object.keys(DELETE_ALLOWED).sort(), ['_emet_verify', '{prefix}oauth_tokens']));
+  test('delete is allowed only on the token, probe, and operational error log collections', () =>
+    assert.deepStrictEqual(Object.keys(DELETE_ALLOWED).sort(), ['_emet_verify', 'error_log', '{prefix}oauth_tokens']));
   test('the token collection follows the install prefix', () => {
     assert.ok(atlasPrivileges('mydb', 'abc_').includes('REMOVE@mydb.abc_oauth_tokens'));
     assert.ok(atlasPrivileges('mydb', 'abc_').includes('REMOVE@mydb._emet_verify'));
@@ -30,6 +30,7 @@ testGroup('the role never grants delete on the record', () => {
   test('the privilege strings are in Atlas CLI form', () => {
     const p = atlasPrivileges('emet');
     assert.ok(p.includes('FIND@emet') && p.includes('REMOVE@emet.emet_oauth_tokens') && p.includes('REMOVE@emet._emet_verify'));
+    assert.ok(p.includes('REMOVE@emet.error_log'));
     assert.ok(!p.includes('DROP_COLLECTION@emet._emet_verify'));
     assert.ok(!p.some((x) => x.startsWith('REMOVE@emet') && !x.includes('.')));
     assert.throws(() => atlasPrivileges('bad name'));
@@ -43,7 +44,8 @@ testGroup('every delete in src/ is covered by the role', () => {
   // named in DELETE_ALLOWED or removed.
   const KNOWN = [
     { file: 'oauth-provider.js', collection: '{prefix}oauth_tokens', count: 6 },
-    { file: 'setup.js', collection: '_emet_verify', count: 1 } // the probe document only; the collection is not dropped
+    { file: 'setup.js', collection: '_emet_verify', count: 1 }, // the probe document only; the collection is not dropped
+    { file: 'error-log.js', collection: 'error_log', count: 1 } // rotation only; the summary collection is never deleted
   ];
   const found = {};
   for (const f of fs.readdirSync(SRC).filter((x) => x.endsWith('.js') && x !== 'atlas-role.js')) {

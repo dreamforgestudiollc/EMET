@@ -179,6 +179,22 @@ EMET_SOURCE_TAG=<this computer's name, e.g. laptop>
 
 **Verify:** `node -e "import('mongodb').then(async ({MongoClient}) => { const c = new MongoClient(process.env.MONGODB_URI); await c.connect(); console.log('ok', (await c.db('emet').command({ping:1})).ok); await c.close(); })"` — run with the `.env` loaded (`node --env-file=.env -e "..."` on Node 20.6+). Expect `ok 1`. If it times out, the access list has not propagated yet; wait a minute and retry once.
 
+**Give `emet_app` EMET's role before the server writes.** `atlas setup` leaves a built-in role that can delete. Replace it with `emetRecordKeeper`, defined in `src/atlas-role.js`. The privilege list includes `REMOVE@<db>.error_log` (`<db>` is `emet`) so error-log rotation can delete from `error_log` only (10,000 entries or 90 days, daily summaries kept). Do not grant `REMOVE` on the database. Do not grant `REMOVE` on any other collection.
+
+```
+atlas projects list
+node scripts/atlas-role.mjs --project <projectId> --db emet --user emet_app --prefix <prefix>
+node scripts/atlas-role.mjs --project <projectId> --db emet --user emet_app --prefix <prefix> --apply
+```
+
+The dry run prints the create `scripts/atlas-role.mjs` will run.
+The dry run calls the read-only `atlas customDbRoles describe emetRecordKeeper --projectId <id> --output json`. It needs Atlas auth and changes nothing.
+The `--privilege` value is the full list from `src/atlas-role.js`, including `REMOVE@<db>.error_log`.
+`--apply` runs that command. `--prefix <prefix>` is `EMET_COLLECTION_PREFIX` (default `emet_`). Pass it for a prefixed install. `--prefix` overrides `EMET_COLLECTION_PREFIX`. The effective prefix is `--prefix`, or else the env. Re-applying replaces prefixed privilege names if the effective prefix doesn't match the install.
+Do not pass `--privilege` to `customDbRoles update` on its own. That replaces the whole role and drops find, insert, and update.
+
+**Atlas UI, if you are not using the script.** Database Access → Custom Roles → Add New Custom Role, name `emetRecordKeeper`. On collection `error_log`, enable `REMOVE` only (`REMOVE@<db>.error_log`). Add the other actions from [SETUP.md](SETUP.md) stage 1 step 2. Leave `REMOVE` off the database-wide row and off every other collection. Edit `emet_app` and set its role to `emetRecordKeeper`.
+
 **Skip the vector index for now.** `semantic_recall` is optional; keyword recall works without
 it, and Atlas Automated Embedding is not available on every tier. It is a later step, in
 [SETUP.md](SETUP.md) stage 1, item 7, once everything else works.

@@ -42,6 +42,7 @@ function callerHoldsWriteScope() {
   return scopes.includes('emet.write') || scopes.includes('emet') || scopes.includes('*');
 }
 import { gapCounts } from './gaps.js';
+import { pageLintDigest } from './pages.js';
 import { registerSecretsFromEnv } from './redact.js';
 import { payloadForLayerCharter } from './startup-payload.js';
 import { namedItemsFrom } from './named-items.js';
@@ -496,7 +497,7 @@ export function readyInstructions(hasCharacter, available) {
 
 async function connect() {
   if (!MONGODB_URI) {
-    throw new ValidationError('MONGODB_URI is not set. Copy .env.example to .env and fill it in.');
+    throw new ValidationError('MONGODB_URI is not set. Copy .env.example to .env and fill it in.', { code: 'EMET-DB-001' });
   }
   const client = await connectMongo(MONGODB_URI, { serverSelectionTimeoutMS: 8000, maxPoolSize: 5 });
   return { client, db: client.db(MONGODB_DB) };
@@ -623,14 +624,14 @@ export function upsertEnvAssignments(text, assignments) {
  */
 export function enableSubkeysAtFirstUse({ envFile = ENV_FILE, env = process.env, startup } = {}) {
   if (!dotenvWritable(envFile, env, startup)) {
-    throw new ValidationError('more_than_one_bot', HOSTED_SUBKEY_STEPS);
+    throw new ValidationError('more_than_one_bot', HOSTED_SUBKEY_STEPS, { code: 'EMET-CFG-004' });
   }
   let raw = '';
   try {
     raw = fs.readFileSync(envFile, 'utf8');
   } catch (e) {
     if (!e || e.code !== 'ENOENT') {
-      throw new ValidationError('more_than_one_bot', 'Could not read .env. Sub-keys were not turned on.');
+      throw new ValidationError('more_than_one_bot', 'Could not read .env. Sub-keys were not turned on.', { code: 'EMET-CFG-005' });
     }
   }
   const fromFile = parseEnvAssignments(raw);
@@ -650,7 +651,7 @@ export function enableSubkeysAtFirstUse({ envFile = ENV_FILE, env = process.env,
     fs.renameSync(tmp, envFile);
   } catch (e) {
     try { fs.unlinkSync(tmp); } catch { /* the temp file may not exist */ }
-    throw new ValidationError('more_than_one_bot', 'Could not write .env. Sub-keys were not turned on.');
+    throw new ValidationError('more_than_one_bot', 'Could not write .env. Sub-keys were not turned on.', { code: 'EMET-CFG-006' });
   }
   // The flag stays off in this process. Tools and /owner/approvals appear together on restart.
   // Register the pepper so a later write that contains it is masked.
@@ -875,7 +876,7 @@ export async function initialize(options = {}, hooks = {}) {
     // A number, or the text of one; anything else (true, "two", 2.5) is refused, never read as page 1.
     k = typeof raw === 'number' ? raw : (typeof raw === 'string' && /^\s*\d+\s*$/.test(raw) ? Number(raw) : NaN);
     if (!Number.isInteger(k) || k < 1) {
-      throw new ValidationError('page', 'page is a whole number from 1 (the startup is served in pages; start with no page, or page 1), or "all" for the whole startup in one result on a host with no size limit.');
+      throw new ValidationError('page', 'page is a whole number from 1 (the startup is served in pages; start with no page, or page 1), or "all" for the whole startup in one result on a host with no size limit.', { code: 'EMET-CFG-007' });
     }
   }
   // Every startup carries a load_id (2026-10-03), so every host can open a
@@ -892,7 +893,7 @@ export async function initialize(options = {}, hooks = {}) {
     // its load_id. A ready startup today never does (~27K minimum).
     if (pages.length === 1) return whole(full, 1);
     if (k > pages.length) {
-      throw new ValidationError('page', `this startup has ${pages.length} pages; page ${k} does not exist.`);
+      throw new ValidationError('page', `this startup has ${pages.length} pages; page ${k} does not exist.`, { code: 'EMET-CFG-008' });
     }
     notePage(pages[k - 1].startup_page.load_id, k, pages.length);
     return pages[k - 1];
@@ -1220,6 +1221,9 @@ async function buildStartup(options = {}) {
       // the same move layers.js made for the silent meta layer. The ids are
       // one emet_gaps call away. A failed assessment is reported, not hidden.
       record_gaps: await gapCounts(),
+      // Topic-page lint, counts only, on the weekly cadence. The page is a view.
+      // This field is the digest. It writes nothing and it is not a record.
+      page_lint: await pageLintDigest(),
       // The rows the board and the handoff already name. The session says them.
       // A section marked unread was not a table, so the document is still read.
       named_items: namedItemsFrom(
@@ -1338,7 +1342,7 @@ function renderUserDoc(a) {
 
 export async function setupComplete(answers = {}, logger = null, options = {}) {
   // First-time setup is the owner's (decision 2, procedural ref 407). Stage 1
-  // guards (2026-10-02, the tester's stage 1 admission, conditions S1-S2):
+  // guards (2026-10-02, the reviewer's stage 1 admission, conditions S1-S2):
   //  - refused under a configured bot tag. The tag is self-declared and
   //    emet_initialize takes no source until stage 2, so this is inert until a
   //    caller declares a bot tag that Alex has configured (stage 3);
@@ -1346,7 +1350,7 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
   //    answer 5): a re-run replaces the user's identity documents with new
   //    versions, so it needs the owner's explicit word. Nothing is written
   //    when either refusal fires.
-  // S1-1 (the tester's re-check of commit-1a215d7): EACH declared value is checked, not
+  // S1-1 (the reviewer's re-check of commit-1a215d7): EACH declared value is checked, not
   // the first non-empty one. The write below takes answers.source_tag first, so
   // checking only `source` let `source: <host>` + `answers.source_tag: <bot>`
   // write the identity documents as the bot. The tag that would be written
@@ -1361,7 +1365,7 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
       throw new ValidationError(
         field,
         `First-time setup is the owner's: ${declared} is a bot tag. Stop and tell the user. Nothing was written.`
-      );
+      , { code: 'EMET-CFG-009' });
     }
   }
   const missing = SETUP_INTERVIEW.filter(q => q.required && !String(answers[q.key] || '').trim())
@@ -1370,25 +1374,25 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
     throw new ValidationError(
       `Setup is missing required answers: ${missing.join(', ')}. ` +
       'Ask the user for them - do not supply them yourself.'
-    );
+    , { code: 'EMET-CFG-010' });
   }
   const multi = parseMoreThanOneBot(answers.more_than_one_bot);
   if (multi === null) {
     throw new ValidationError(
       'more_than_one_bot',
       'Answer yes or no. Yes turns on delegated client sub-keys. No leaves them off. Leaving it out leaves them off. Do not invent the answer. Nothing was written.'
-    );
+    , { code: 'EMET-CFG-011' });
   }
   const backup = parseBotTeamBackup(answers.bot_team_backup);
   if (backup === null) {
     throw new ValidationError(
       'bot_team_backup',
       'Answer yes or no, in your own words. Yes and Yes. record bot-team backup as on. Yes is the recommended choice. No leaves it off. Leaving it out leaves it off. A non-string is refused. Do not invent the answer. Nothing was written.'
-    );
+    , { code: 'EMET-CFG-012' });
   }
   answers = { ...answers, bot_team_backup: backup };
   if (multi && !dotenvWritable(options.envFile || ENV_FILE, process.env, options.startup)) {
-    throw new ValidationError('more_than_one_bot', HOSTED_SUBKEY_STEPS);
+    throw new ValidationError('more_than_one_bot', HOSTED_SUBKEY_STEPS, { code: 'EMET-CFG-004' });
   }
 
   const written = [];
@@ -1404,16 +1408,16 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
     if (pid) {
       const person = await getPerson(conn.db, pid);
       if (!person || person.role !== 'owner') {
-        throw new ValidationError('role', 'emet_setup_complete requires the owner. Nothing was written.');
+        throw new ValidationError('role', 'emet_setup_complete requires the owner. Nothing was written.', { code: 'EMET-CFG-013' });
       }
     } else if (who.transport === 'http') {
-      throw new ValidationError('role', 'emet_setup_complete requires the owner. Nothing was written.');
+      throw new ValidationError('role', 'emet_setup_complete requires the owner. Nothing was written.', { code: 'EMET-CFG-013' });
     }
     const docsCol = conn.db.collection(DOCS_COLLECTION);
     const [hasIdentity, hasUser] = await Promise.all([
       docsCol.findOne({ doc_id: IDENTITY_DOC }), docsCol.findOne({ doc_id: USER_DOC })
     ]);
-    // Set up = BOTH identity documents exist (the reviewer's S-c; the tester: test it,
+    // Set up = BOTH identity documents exist (the second reader's S-c; the reviewer: test it,
     // don't loosen it). A half-set-up store (one of the two) is an interrupted
     // first setup, and completing it needs no reissue.
     if (hasIdentity && hasUser && options.reissue !== true) {
@@ -1422,7 +1426,7 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
         'This store is already set up. Re-running setup writes new versions of the user\'s identity ' +
         'documents (prior versions are archived). Pass reissue: true only on the owner\'s explicit word. ' +
         'Nothing was written.'
-      );
+      , { code: 'EMET-CFG-014' });
     }
     // Both writes below go through the same doors as every other write.
     // Until 2026-09-07 the three setup documents were written by a private

@@ -14,8 +14,11 @@ There are three places, and it is worth being clear about which is which:
   archiving before replacing, checking the order of a session's writes (the monorail) - all here.
 - **The database** decides *what the server's own login may do*. EMET's login runs under the
   least-privilege role `emetRecordKeeper` ([SETUP.md](SETUP.md), `src/atlas-role.js`): it can
-  insert and update, and it has no permission to remove anything from the record. So "nothing is
-  deleted" holds even against a bug in the server, not only against a model's choice.
+  insert and update, and it has no permission to remove anything from the record. Error-log
+  rotation may delete from `error_log` only, so the role includes `REMOVE@<db>.error_log`
+  (10,000 entries or 90 days, daily summaries kept). That action is not granted on a memory,
+  a controlled document, or a transcript. So "nothing is deleted" holds for the record even
+  against a bug in the server, not only against a model's choice.
 
 No layer can widen another. In particular, **a server cannot grant itself permission**. Nothing in
 this repository can stop your host from asking you to approve every call, and nothing in it should
@@ -37,11 +40,11 @@ Every tool carries MCP annotations, declared in one table in `src/annotations.js
 | `idempotentHint` | Calling it again with the same arguments changes nothing further. |
 | `openWorldHint` | It reaches systems outside this server's own store. |
 
-Of the 30 tools (`EMET_SUBKEYS=1` adds the four sub-key tools below; with the flag off they are not registered):
+Of the 34 tools (`EMET_SUBKEYS=1` adds the four sub-key tools below; with the flag off they are not registered):
 
-- **11 are read-only.** `emet_gaps`, `emet_floor`, `recall`, `semantic_recall`,
+- **15 are read-only.** `emet_gaps`, `emet_page`, `emet_pages`, `emet_page_lint`, `emet_error_report`, `emet_floor`, `recall`, `semantic_recall`,
   `corpus_recall`, `query_layer`, `query_transcripts`, `read_doc`, `read_doc_history`, `list_docs`,
-  `validate_doc`. These cannot change the store under any arguments.
+  `validate_doc`. These cannot change the store under any arguments. `emet_page`, `emet_pages`, and `emet_page_lint` are owner-only views: they compute a topic page and never write it back. `emet_error_report` is owner-only and reads the operational error log. It sends nothing.
 - **10 are additive writes.** `emet_initialize` (it provisions a missing board), `save_to_layer`, `revise_memory`, `save_transcript`,
   `revise_transcript`, `emet_session_open`, `emet_transcript_append`, `emet_session_close` (it
   records blocked attempts), `rename_doc`, `accept_nonconformance`. They add; they do not remove or replace.

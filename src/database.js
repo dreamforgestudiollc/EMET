@@ -36,6 +36,7 @@ import {
   validateLimit
 } from './validation.js';
 import { isMetadataPath } from './metadata.js';
+import { isEmetCodeOptions } from './error-codes.js';
 
 // ============================================
 // CONFIGURATION
@@ -171,12 +172,17 @@ export function sanitizeDetails(details) {
 
 export class EmetError extends Error {
   constructor(message, code = ErrorCodes.INTERNAL_ERROR, statusCode = StatusCodes.INTERNAL_ERROR, details = {}) {
+    let emetCode;
+    let det = details;
+    if (isEmetCodeOptions(arguments[4])) emetCode = arguments[4].code;
+    if (isEmetCodeOptions(det)) { emetCode = det.code; det = {}; }
     super(message);
     this.name = 'EmetError';
     this.code = code;
     this.statusCode = statusCode;
-    this.details = details;
+    this.details = det && typeof det === 'object' && !Array.isArray(det) ? det : {};
     this.timestamp = Date.now();
+    if (emetCode) this.emetCode = emetCode;
   }
 
   toSafeJSON() {
@@ -195,9 +201,14 @@ export class EmetError extends Error {
 
 export class DatabaseError extends EmetError {
   constructor(message, operation = 'unknown', details = {}) {
-    super(message, ErrorCodes.DATABASE_ERROR, StatusCodes.INTERNAL_ERROR, details);
+    let emetCode;
+    let det = details;
+    if (isEmetCodeOptions(arguments[3])) emetCode = arguments[3].code;
+    if (isEmetCodeOptions(det)) { emetCode = det.code; det = {}; }
+    super(message, ErrorCodes.DATABASE_ERROR, StatusCodes.INTERNAL_ERROR, det);
     this.name = 'DatabaseError';
     this.operation = operation;
+    if (emetCode) this.emetCode = emetCode;
   }
 
   toSafeJSON() {
@@ -209,8 +220,13 @@ export class DatabaseError extends EmetError {
 
 export class ConfigurationError extends EmetError {
   constructor(message, details = {}) {
-    super(message, ErrorCodes.CONFIGURATION_ERROR, StatusCodes.SERVICE_UNAVAILABLE, details);
+    let emetCode;
+    let det = details;
+    if (isEmetCodeOptions(arguments[2])) emetCode = arguments[2].code;
+    if (isEmetCodeOptions(det)) { emetCode = det.code; det = {}; }
+    super(message, ErrorCodes.CONFIGURATION_ERROR, StatusCodes.SERVICE_UNAVAILABLE, det);
     this.name = 'ConfigurationError';
+    if (emetCode) this.emetCode = emetCode;
   }
 }
 
@@ -356,7 +372,7 @@ export class EmetDatabase {
     }
 
     if (!MONGODB_URI) {
-      throw new ConfigurationError('MONGODB_URI is not set - EMET requires a MongoDB connection');
+      throw new ConfigurationError('MONGODB_URI is not set - EMET requires a MongoDB connection', { code: 'EMET-DB-001' });
     }
 
     this.connectPromise = (async () => {
@@ -375,7 +391,7 @@ export class EmetDatabase {
           `Failed to connect to MongoDB Atlas${fellBack ? ' after DNS fallback' : ''} - check network and cluster state (cluster may be paused)`,
           'connection',
           { reason: error.message }
-        );
+        , { code: 'EMET-DB-002' });
       }
       this.client = client;
       this.db = client.db(MONGODB_DB);
@@ -408,7 +424,7 @@ export class EmetDatabase {
       return (await cursor.toArray()).map(stripMongoId);
     } catch (error) {
       if (error instanceof EmetError) throw error;
-      throw new DatabaseError(`Query failed on layer ${layer}`, 'query', { reason: error.message });
+      throw new DatabaseError(`Query failed on layer ${layer}`, 'query', { reason: error.message }, { code: 'EMET-DB-003' });
     }
   }
 
@@ -423,7 +439,7 @@ export class EmetDatabase {
       return (await col.aggregate(pipeline, { allowDiskUse: true }).toArray()).map(stripMongoId);
     } catch (error) {
       if (error instanceof EmetError) throw error;
-      throw new DatabaseError(`Query failed on layer ${layer}`, 'query', { reason: error.message });
+      throw new DatabaseError(`Query failed on layer ${layer}`, 'query', { reason: error.message }, { code: 'EMET-DB-003' });
     }
   }
 
@@ -433,7 +449,7 @@ export class EmetDatabase {
     try {
       return await this.collectionFor(layer).countDocuments({});
     } catch (error) {
-      throw new DatabaseError(`Count failed on layer ${layer}`, 'query', { reason: error.message });
+      throw new DatabaseError(`Count failed on layer ${layer}`, 'query', { reason: error.message }, { code: 'EMET-DB-004' });
     }
   }
 
@@ -446,7 +462,7 @@ export class EmetDatabase {
    */
   async insertMemory(layer, doc) {
     for (const k of Object.keys(doc)) {
-      if (!FIELD_SET.has(k)) throw new DatabaseError(`Unknown layer field: ${k}`, 'insert_memory', { layer });
+      if (!FIELD_SET.has(k)) throw new DatabaseError(`Unknown layer field: ${k}`, 'insert_memory', { layer }, { code: 'EMET-DB-005' });
     }
     const col = this.collectionFor(layer);
     try {
@@ -457,7 +473,7 @@ export class EmetDatabase {
       return id;
     } catch (error) {
       if (error instanceof EmetError) throw error;
-      throw new DatabaseError('Failed to write to primary storage', 'storage_write', { layer, isPrimary: true, reason: error.message });
+      throw new DatabaseError('Failed to write to primary storage', 'storage_write', { layer, isPrimary: true, reason: error.message }, { code: 'EMET-DB-006' });
     }
   }
 
@@ -516,7 +532,7 @@ export class EmetDatabase {
   async getConnection(layer) {
     const validatedLayer = validateLayer(layer, true);
     if (!MEMORY_LAYERS[validatedLayer]) {
-      throw new ValidationError('layer', `Invalid memory layer: ${layer}`);
+      throw new ValidationError('layer', `Invalid memory layer: ${layer}`, { code: 'EMET-DB-007' });
     }
 
     if (this.readConnections.has(validatedLayer)) {
@@ -560,7 +576,7 @@ export class EmetDatabase {
         `Failed to initialize schema for layer: ${layer}`,
         'schema_creation',
         { layer }
-      );
+      , { code: 'EMET-DB-008' });
     }
   }
 

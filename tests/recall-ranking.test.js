@@ -198,9 +198,9 @@ testGroup('ended memories stay reachable and marked', () => {
 testGroup('revise_memory records an end, it does not hide', () => {
   test('revise_memory records the end date and the new id and does not set is_live false', async () => {
     const db = layerHonouringDb();
-    const SRC = { source: 'reviewer-bot', assertion_origin: 'assistant', derived_from: { session_id: '2026-10-07_a', exchange_start: 1, exchange_end: 1 } };
+    const SRC = { source: 'tester-bot', assertion_origin: 'assistant', derived_from: { session_id: '2026-10-07_a', exchange_start: 1, exchange_end: 1 } };
     const parent = await saveMemory(db, 'The alpha rule as first written.', 'semantic', { ...SRC });
-    const rev = await reviseMemory(db, 'semantic', parent.id, 'The alpha rule as revised.', { source: 'reviewer-bot', assertion_origin: 'assistant' });
+    const rev = await reviseMemory(db, 'semantic', parent.id, 'The alpha rule as revised.', { source: 'tester-bot', assertion_origin: 'assistant' });
     assert.strictEqual(rev.verified, true);
     const stored = db.row('semantic', parent.id);
     assert.strictEqual(Number(stored.superseded_by), Number(rev.id));
