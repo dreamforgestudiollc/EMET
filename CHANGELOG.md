@@ -5,6 +5,14 @@ All notable changes to EMET are listed here, newest first. The format follows
 [Semantic Versioning](https://semver.org/). EMET is still 0.x: the stored data shapes may
 change before 1.0.
 
+## 0.3.1 - 2026-10-21
+
+- Changed: `EMET_REPORT_EMAIL` defaults to `dreamforgestudio@mail.grokbot.com`.
+- Added: `scripts/verify-emet.mjs`, also `npm run verify`. Subcommands are `doctor`, `list`, `run`, and `feature`. `--json` prints one object. `--dry-run` skips a call that replaces stored text or hands out access, and says what it would have called. The command uses a temporary directory and the in-memory test database. It does not read `.env`. A tool that needs a service or setting a plain install does not have is reported as a gap. A run whose only problems are gaps exits 3. A failed tool exits 1.
+- Changed: the Official MCP Registry description in `server.json` stays within the registry's 100-character limit and names stable error codes.
+- Added: `docs/features/` is the feature map, one file per feature, including error codes, the error log, and `emet_error_report`. `tests/feature-map.test.js` fails if a registered tool is missing from the map.
+- Added: `docs/DEVELOPMENT-PRACTICES.md`. Docs ship in the same pull request as the feature. A feature is checked by running `verify-emet`, not by tests alone. The feature map stays current. Every pull request gets two independent reviewers who cross-check each other's verdicts.
+
 ## 0.3.0 - 2026-10-20
 
 ### Added

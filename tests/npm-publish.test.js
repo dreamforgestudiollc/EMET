@@ -81,7 +81,7 @@ function packedTree() {
   const parsed = JSON.parse(r.stdout.slice(start));
   assert.ok(Array.isArray(parsed) && parsed[0], 'npm pack --json did not return a pack result');
   const entry = parsed[0];
-  assert.strictEqual(entry.filename, 'dreamforgestudiollc-emet-0.3.0.tgz');
+  assert.strictEqual(entry.filename, 'dreamforgestudiollc-emet-0.3.1.tgz');
   const tgz = path.join(dir, entry.filename);
   const read = (rel) => {
     const ex = spawnSync('tar', ['-xOf', tgz, `package/${rel}`], { encoding: 'utf8' });
@@ -94,7 +94,7 @@ function packedTree() {
 testGroup('npm publish metadata', () => {
   test('the package name, version, and registry manifest agree', () => {
     assert.strictEqual(pkg.name, '@dreamforgestudiollc/emet');
-    assert.strictEqual(pkg.version, '0.3.0');
+    assert.strictEqual(pkg.version, '0.3.1');
     assert.strictEqual(pkg.mcpName, 'io.github.dreamforgestudiollc/emet');
     assert.strictEqual(server.name, pkg.mcpName);
     assert.strictEqual(server.version, pkg.version);
@@ -102,7 +102,7 @@ testGroup('npm publish metadata', () => {
     assert.strictEqual(server.packages[0].version, pkg.version);
     assert.strictEqual(server.packages[0].registryType, 'npm');
     assert.strictEqual(server.packages[0].transport.type, 'stdio');
-    assert.ok(server.description.length > 0 && server.description.length <= 100);
+    assert.strictEqual(server.description, '0.3.1. Free MIT; no account, key, or payment. Verifies record, not computation. Stable error codes.');
     assert.strictEqual(pkg.license, 'MIT');
     assert.strictEqual(pkg.homepage, 'https://dreamforgestudiollc.github.io/EMET/');
     assert.strictEqual(pkg.bugs.url, 'https://github.com/dreamforgestudiollc/EMET/issues');
@@ -115,6 +115,11 @@ testGroup('npm publish metadata', () => {
     for (const word of ['mcp', 'mcp-server', 'model-context-protocol', 'ai-memory', 'agent-memory', 'persistent-memory']) {
       assert.ok(pkg.keywords.includes(word), word);
     }
+  });
+
+  test('server.json description is 1 to 100 characters', () => {
+    const length = server.description.length;
+    assert.ok(length >= 1 && length <= 100, `description is ${length} characters: ${server.description}`);
   });
 
   test('npm pack --dry-run ships runtime files and docs, and leaves private paths out', () => {

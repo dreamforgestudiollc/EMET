@@ -349,7 +349,7 @@ the thing is doing its job.
 
 ## Error reports
 
-`emet_error_report` is owner-only and read-only. It returns the report and a draft. EMET does not send mail. The draft address is `EMET_REPORT_EMAIL`. When that variable is unset, the address is `reports@example.com`. That address is a placeholder, not a mailbox. Configure `EMET_REPORT_EMAIL` to a real address, or the report is returned and goes nowhere. An empty string, or any value that is not one plain address, returns the report and no email.
+`emet_error_report` is owner-only and read-only. It returns the report and a draft. EMET does not send mail. The draft address is `EMET_REPORT_EMAIL`. When that variable is unset, the address is `dreamforgestudio@mail.grokbot.com`, the project's report inbox. Set it to your own address to keep reports in house. Set it to an empty string, or to anything other than one plain address, and the tool returns the report and no email.
 
 ## When it does not work
 

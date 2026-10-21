@@ -22,11 +22,15 @@ export const PRIVATE_TREE_PATHS = Object.freeze([
 ]);
 export const digest = (w) => crypto.createHash('sha256').update(w).digest('hex').slice(0, 16);
 
+// The public report inbox is a project address, not an install-specific name.
+const PUBLIC_REPORT_INBOX = 'dreamforgestudio@mail.grokbot.com';
+
 /** Install-specific words found in a text (digests only are compared; the words found are returned). */
 export function privateWordsIn(text, digests = PRIVATE_WORD_DIGESTS) {
   const found = new Set();
   // A regex escape (\b, \s) is not part of a word.
-  for (const w of String(text).replace(/\\[a-zA-Z]/g, ' ').toLowerCase().match(/[a-z0-9]+/g) || []) {
+  const scanned = String(text).split(PUBLIC_REPORT_INBOX).join(' ');
+  for (const w of scanned.replace(/\\[a-zA-Z]/g, ' ').toLowerCase().match(/[a-z0-9]+/g) || []) {
     if (digests.has(digest(w))) found.add(w);
   }
   return [...found];

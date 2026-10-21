@@ -12,9 +12,10 @@ import { EMET_VERSION } from '../src/version.js';
 import { ERROR_CODES } from '../src/error-codes.js';
 import { useMemoryErrorLog, recordError, flushErrorLog } from '../src/error-log.js';
 import {
-  SEND_INSTRUCTION, DEFAULT_REPORT_EMAIL,
+  SEND_INSTRUCTION, DEFAULT_REPORT_EMAIL, reportEmailAddress,
   composeErrorReport, runErrorReport, fitReportEmail, plainReportAddress
 } from '../src/error-report.js';
+import { privateWordsIn } from './scrub-tokens.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const store = useMemoryErrorLog();
@@ -466,14 +467,26 @@ testGroup('error report', () => {
     }
   });
 
-  test('the default report address is accepted', async () => {
-    process.env.EMET_REPORT_EMAIL = 'reports@example.com';
+  test('the default report address is the project inbox and EMET_REPORT_EMAIL overrides it', async () => {
+    assert.strictEqual(DEFAULT_REPORT_EMAIL, 'dreamforgestudio@mail.grokbot.com');
+    assert.strictEqual(plainReportAddress(DEFAULT_REPORT_EMAIL), true);
+    assert.deepStrictEqual(privateWordsIn(DEFAULT_REPORT_EMAIL), []);
+    const label = DEFAULT_REPORT_EMAIL.split('@')[1].split('.')[1];
+    assert.deepStrictEqual(privateWordsIn(label), [label]);
     store.entries.length = 0;
     try {
-      const result = await asStdio(() => runErrorReport({}));
-      assert.strictEqual(result.email.to, 'reports@example.com');
-      assert.ok(result.email.mailto.startsWith('mailto:reports@example.com?'));
-      assert.ok(!JSON.stringify(result).includes('email":null'));
+      delete process.env.EMET_REPORT_EMAIL;
+      assert.strictEqual(reportEmailAddress(), DEFAULT_REPORT_EMAIL);
+      const unset = await asStdio(() => runErrorReport({}));
+      assert.strictEqual(unset.email.to, 'dreamforgestudio@mail.grokbot.com');
+      assert.ok(unset.email.mailto.startsWith('mailto:dreamforgestudio@mail.grokbot.com?'));
+      assert.ok(!JSON.stringify(unset).includes('email":null'));
+      process.env.EMET_REPORT_EMAIL = 'reports@example.com';
+      assert.strictEqual(reportEmailAddress(), 'reports@example.com');
+      const overridden = await asStdio(() => runErrorReport({}));
+      assert.strictEqual(overridden.email.to, 'reports@example.com');
+      assert.ok(overridden.email.mailto.startsWith('mailto:reports@example.com?'));
+      assert.notStrictEqual(overridden.email.to, DEFAULT_REPORT_EMAIL);
     } finally {
       restoreEmail();
     }

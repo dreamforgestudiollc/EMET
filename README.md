@@ -10,7 +10,7 @@ EMET is an MCP (Model Context Protocol) memory server, persistent shared memory 
 
 **Website:** <https://dreamforgestudiollc.github.io/EMET/>
 
-See also: [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md) · [SECURITY](SECURITY.md) · [Charter](CHARTER.md)
+See also: [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md) · [SECURITY](SECURITY.md) · [Charter](CHARTER.md) · [Feature map](docs/features/README.md) · [Development practices](docs/DEVELOPMENT-PRACTICES.md)
 
 ## What it does
 
@@ -24,7 +24,9 @@ See also: [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md) · [SECUR
 - **Client-side GEM execution.** A GEM may declare a tool. EMET does not run that computation. EMET verifies the record, not the computation. The client runs the tool, and what is written back is checked the same way as any other write.
 - **Released flag.** A GEM is seated only when its released flag is the boolean true. Any other value is refused. A missing flag is refused except for a legacy manifest pinned by id, version, and file digests.
 - **Per-client attribution and approvals.** Every write is attributed to the client that made it. A new client is read-limited until it is approved. The approval is recorded.
-- **MIT.** Version 0.3.0. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
+- **Error codes and problem reports.** Every error carries a stable `EMET-<AREA>-<NNN>` code. An operational error log keeps 10,000 entries or 90 days, plus daily summaries. The owner-only `emet_error_report` returns the report and an email draft that you send yourself. See [Reporting a problem](#reporting-a-problem).
+- **verify-emet and the feature map.** `npm run verify` runs `scripts/verify-emet.mjs` from a checkout. It starts EMET in a temporary directory on the in-memory test database, with no `.env`, and drives every registered tool. A tool that needs a service a plain install does not have is reported as a gap. A run whose only problems are gaps exits 3. A failed tool exits 1. The map is [docs/features/README.md](docs/features/README.md).
+- **MIT.** Version 0.3.1. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
 
 The store has one owner, and other people can join only through the optional Guest
 (read-only) and Member (read and write) access, both off by default.
@@ -774,7 +776,7 @@ enforcement: what is actually auto-approved is a host-side setting. See
 
 `emet_error_report` is owner-only and read-only. It reads the operational error log and returns the full report, a `mailto:` draft, and a structured email `{to, subject, body_text, short_id, version}`. EMET does not send mail and does not open a network connection for this tool.
 
-Read the report first. The draft is addressed to `EMET_REPORT_EMAIL`. When that variable is unset, the address is `reports@example.com`. That address is a placeholder, not a mailbox: configure `EMET_REPORT_EMAIL` to a real address, or the report is returned and goes nowhere. Set the variable to an empty string, or to anything other than one plain address, and the tool returns the report and no email.
+Read the report first. The draft is addressed to `EMET_REPORT_EMAIL`. When that variable is unset, the address is `dreamforgestudio@mail.grokbot.com`, the project's report inbox. Set it to your own address to keep reports in house. Set it to an empty string, or to anything other than one plain address, and the tool returns the report and no email.
 
 A calling assistant that has its own email address may pass that structured email to its own email tool. The calling assistant may send this report only after showing the report to its user and getting their OK. EMET will not send it. The code table is [docs/ERROR-CODES.md](docs/ERROR-CODES.md), and the behavior is written up in [docs/ERROR-CODES-SPEC.md](docs/ERROR-CODES-SPEC.md).
 
