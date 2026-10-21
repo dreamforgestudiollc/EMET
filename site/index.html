@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>EMET — MCP memory server</title>
-  <meta name="description" content="EMET 0.3.0 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
+  <meta name="description" content="EMET 0.3.1 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
   <link rel="canonical" href="https://dreamforgestudiollc.github.io/EMET/">
   <meta name="robots" content="index, follow">
   <meta name="color-scheme" content="light dark">
@@ -14,7 +14,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="EMET">
   <meta property="og:title" content="EMET — MCP memory server">
-  <meta property="og:description" content="EMET 0.3.0 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
+  <meta property="og:description" content="EMET 0.3.1 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
   <meta property="og:url" content="https://dreamforgestudiollc.github.io/EMET/">
   <meta property="og:image" content="https://dreamforgestudiollc.github.io/EMET/assets/og.jpg">
   <meta property="og:image:width" content="1200">
@@ -25,7 +25,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:url" content="https://dreamforgestudiollc.github.io/EMET/">
   <meta name="twitter:title" content="EMET — MCP memory server">
-  <meta name="twitter:description" content="EMET 0.3.0 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
+  <meta name="twitter:description" content="EMET 0.3.1 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
   <meta name="twitter:image" content="https://dreamforgestudiollc.github.io/EMET/assets/og.jpg">
   <meta name="twitter:image:alt" content="Close view of the EMET sculpture’s face and shoulders, with the Hebrew word אמת on her headband, beside the words EMET, MCP memory server.">
 
@@ -56,11 +56,11 @@
     "@type": "SoftwareSourceCode",
     "name": "EMET",
     "alternateName": "Enduring Memory & Epistemic Tiers",
-    "description": "EMET 0.3.0 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.",
+    "description": "EMET 0.3.1 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.",
     "url": "https://dreamforgestudiollc.github.io/EMET/",
     "codeRepository": "https://github.com/dreamforgestudiollc/EMET",
     "license": "https://github.com/dreamforgestudiollc/EMET/blob/main/LICENSE",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "programmingLanguage": "JavaScript",
     "runtimePlatform": "Node.js",
     "image": "https://dreamforgestudiollc.github.io/EMET/assets/og.jpg",
@@ -183,6 +183,14 @@
             <dd>The store has one owner. Every write is attributed to the client that made it, a new client is read-limited until it is approved, and guest, member, and sub-key access stay off unless you turn them on. <a href="#access">Access</a>.</dd>
           </div>
           <div>
+            <dt>Error codes and problem reports</dt>
+            <dd>Every error carries a stable code, such as <code>EMET-INT-001</code>, next to the existing error field. The owner runs <code>emet_error_report</code> to read recent codes and get an email draft. You read it, and you press Send yourself. EMET never sends mail.</dd>
+          </div>
+          <div>
+            <dt>verify-emet and the feature map</dt>
+            <dd><code>npm run verify</code> drives every registered tool from a checkout, in a temporary directory, and reports a gap when a tool needs a service a plain install does not have. A run whose only problems are gaps exits 3. A failed tool exits 1. The map of every feature is <code>docs/features</code>.</dd>
+          </div>
+          <div>
             <dt>Start</dt>
             <dd>The first run needs Node.js 22 or newer and a MongoDB connection, then a short interview. Bot-team backup is off unless that interview records yes. <a href="#start">Start</a>.</dd>
           </div>
@@ -192,7 +200,7 @@
           </div>
           <div>
             <dt>MIT license</dt>
-            <dd>Version 0.3.0. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them. <a href="#project">The project</a>.</dd>
+            <dd>Version 0.3.1. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them. <a href="#project">The project</a>.</dd>
           </div>
         </dl>
 
@@ -324,7 +332,7 @@ curl https://&lt;host&gt;/.well-known/oauth-authorization-server</code></pre>
         <p class="prose">A new client, a bot or a single-instance assistant, is read-limited until it is approved. The approval is recorded. Every write is attributed to the client that made it. A declared source tag does not gain rights beyond the login it is bound to.</p>
 
         <h3>How joining works</h3>
-        <p class="prose">Three places can say no, and none of them can widen another. The host decides what gets called and what data goes into the call. The server decides what it will do when asked. The database login, the role <code>emetRecordKeeper</code>, can insert and update, and it has no permission to remove anything from the record. A server cannot grant itself permission. Nothing in this repository can stop a host from asking before every call.</p>
+        <p class="prose">Three places can say no, and none of them can widen another. The host decides what gets called and what data goes into the call. The server decides what it will do when asked. The database login, the role <code>emetRecordKeeper</code>, can insert and update. It cannot remove anything from the record. Since 0.3.0 it can remove entries from the operational error log, <code>error_log</code>, and from no other collection. A server cannot grant itself permission. Nothing in this repository can stop a host from asking before every call.</p>
         <p class="prose">Two doors let a second person into this store. Both stay shut on a single-person assistant. Turn a door on only for a household or project store that is meant to be shared. The owner creates the code. The other person pastes it on the connect screen instead of the passphrase. A code expires in 14 days unless <code>days</code> says otherwise.</p>
         <dl class="facts">
           <div>
@@ -359,6 +367,10 @@ curl https://&lt;host&gt;/.well-known/oauth-authorization-server</code></pre>
           <div>
             <dt>11 read-only</dt>
             <dd><code>emet_gaps</code>, <code>emet_floor</code>, <code>recall</code>, <code>semantic_recall</code>, <code>corpus_recall</code>, <code>query_layer</code>, <code>query_transcripts</code>, <code>read_doc</code>, <code>read_doc_history</code>, <code>list_docs</code>, <code>validate_doc</code>. These cannot change the store under any arguments.</dd>
+          </div>
+          <div>
+            <dt><code>emet_error_report</code></dt>
+            <dd>owner-only, read-only. Reads the error log and returns a report and an email draft. Writes nothing, sends nothing.</dd>
           </div>
           <div>
             <dt>10 additive writes</dt>
@@ -468,6 +480,7 @@ curl https://&lt;host&gt;/.well-known/oauth-authorization-server</code></pre>
           <li>Content and metadata are digested into their own columns, read back, and compared before the write is reported as saved. The id is checked by content, not by mere existence, because ids come from a counters collection.</li>
         </ol>
         <p class="prose">That read-back is <code>src/aleph.js</code>. A database error means the store could not be reached and the write probably did not happen. An <code>AlephError</code> means the call succeeded and the store does not contain what it should. It is not flattened into “the save failed,” and it is not retried blindly.</p>
+        <p class="prose">Operational errors go to a separate log, <code>error_log</code>. It is not a controlled record. It keeps up to 10,000 entries or 90 days, whichever is smaller, and a daily summary of each day is kept in <code>error_log_summary</code> with no end date. Rotation removes entries from <code>error_log</code> only. Controlled records are still superseded, retired and retained, never deleted.</p>
         <p class="prose">Later reads ask a second question: is the row still what was recorded? Each row carries content and metadata digests, an HMAC over both when <code>EMET_SIGNING_KEY</code> is set (the key stays on the service; unset means the entry is saved unsigned), and a link in its layer’s hash chain. <code>recall</code>, <code>query_layer</code>, and <code>semantic_recall</code> recompute the digests and attach <code>integrity</code>: <code>true</code>, <code>false</code> (the row is returned and flagged, never dropped), or <code>unattested</code> for a row written before the column existed. <code>emet_gaps</code> walks the chain and counts a row altered after writing (<code>broken_chain</code>) or removed from mid-chain (<code>chain_discontinuities</code>). The expected count for both is zero. <code>emet_gaps</code> identifies holes and never fills them.</p>
         <p class="prose"><code>revise_memory</code> writes a new entry carrying <code>supersedes</code> and marks the parent with <code>superseded_by</code> and <code>superseded_at</code>. Nothing is edited or deleted, and the parent is not hidden. The new content has to stand alone. Episodic is not in the layers <code>revise_memory</code> accepts. When a later entry corrects only part of an earlier one, it carries <code>metadata.corrects</code> set to the parent id, same layer. A missing parent is refused before anything is written. The parent’s content, digest, and liveness stay untouched. Its <code>corrected_by</code> list gains the new id. <code>corrected_by</code> is a door marker. A caller cannot set it.</p>
         <p class="prose"><code>recall</code> ranks by how many of the query’s words match, then by importance. Current entries come first in every order, including time order. Pass <code>order: "latest"</code> for time order. A superseded or expired entry stays in the result, marked with its end date and the id of what replaced it. Pass <code>history: true</code> when current matches fill the limit and you still need the ended ones. The store ranks before it keeps a window of at least 200 rows, or 20 times the page. A word matches as written, so <code>$gt</code> is that text. Capital and lower case match, including <code>École</code> and <code>école</code>. <code>İ</code> matches only itself.</p>
@@ -591,6 +604,13 @@ emet_session_open
 save_to_layer</code></pre>
         <p class="prose"><code>emet_status</code> should report <code>initialized: true</code> after the interview, and <code>false</code> before it. With <code>probe: true</code>, every probe check should pass. A read alone cannot show a broken write path. Then save from one device and <code>recall</code> it from another. A semantic or procedural save without a <code>session_id</code>, or a <code>derived_from</code>, is refused by design.</p>
         <pre><code>curl https://&lt;host&gt;/health</code></pre>
+
+        <h3>Reporting a problem</h3>
+        <p class="prose">Run <code>emet_error_report</code> as the owner. It returns the report and a <code>mailto:</code> link addressed to <code>dreamforgestudio@mail.grokbot.com</code>. Read the report, open the link, check the email in your own mail app, then send it. To send reports somewhere else, set <code>EMET_REPORT_EMAIL</code>. Set it to an empty string and you get the report with no email.</p>
+        <p class="prose">The report holds codes, counts, times and the version. It holds no message text, arguments, document content, names or secrets.</p>
+
+        <h3>Check the tools</h3>
+        <p class="prose">From a checkout, <code>npm run verify</code> runs <code>scripts/verify-emet.mjs</code>. It starts EMET in a temporary directory on the in-memory test database and does not read <code>.env</code>. It drives every registered tool. A tool that needs a service a plain install does not have is reported as a gap. A run whose only problems are gaps exits 3. A failed tool exits 1. The map of those tools, including error codes, the error log, and <code>emet_error_report</code>, is <code>docs/features</code>.</p>
 
         <h3>Limits</h3>
         <ul class="limits">
@@ -808,7 +828,7 @@ EMET_ACTIVE_GEMS=neurendipity,lean-six-sigma</code></pre>
     <section class="block" id="project" aria-labelledby="project-title">
       <div class="wrap">
         <h2 id="project-title">The project</h2>
-        <p class="prose">EMET 0.3.0 is free and open source under the MIT License. No account, key, or payment is required to run it. You run it on infrastructure you control: your host, your MongoDB, your passphrase. The npm package is <code>@dreamforgestudiollc/emet</code>. The command it installs is <code>emet</code>, and <code>bin</code> and <code>main</code> are <code>src/index.js</code>. Node.js 22 or newer.</p>
+        <p class="prose">EMET 0.3.1 is free and open source under the MIT License. No account, key, or payment is required to run it. You run it on infrastructure you control: your host, your MongoDB, your passphrase. The npm package is <code>@dreamforgestudiollc/emet</code>. The command it installs is <code>emet</code>, and <code>bin</code> and <code>main</code> are <code>src/index.js</code>. Node.js 22 or newer.</p>
         <p class="prose">The Official MCP Registry manifest is <code>server.json</code>. Its name is <code>io.github.dreamforgestudiollc/emet</code>, the same value as <code>mcpName</code> in <code>package.json</code>. The package it names is the stdio server. <code>MONGODB_URI</code> is the required secret. This site is the homepage.</p>
         <ul class="project-links">
           <li><a href="https://github.com/dreamforgestudiollc/EMET">Repository</a></li>
@@ -818,7 +838,7 @@ EMET_ACTIVE_GEMS=neurendipity,lean-six-sigma</code></pre>
         </ul>
 
         <h3>What 0.3.0 changed</h3>
-        <p class="prose">Every error EMET returns carries a stable code in a separate field. The existing error code stays as it is. The same meaning keeps the same code. An owner can read a report of recent codes. EMET itself does not send that report. The operational error log is capped at 10,000 entries or 90 days, and daily summaries are kept. Topic pages are views computed on each request. Area selectors are controlled documents checked against <code>templates/AREA.md</code>. Only the owner creates or edits an area, and only the owner can read a page.</p>
+        <p class="prose">Every error EMET returns carries a stable code in a separate field. The existing error code stays as it is. The same meaning keeps the same code. An owner can read a report of recent codes. EMET itself does not send that report. The owner runs <code>emet_error_report</code> to get the report and an email draft to send from their own mail app. The operational error log is capped at 10,000 entries or 90 days, and daily summaries are kept. Topic pages are views computed on each request. Area selectors are controlled documents checked against <code>templates/AREA.md</code>. Only the owner creates or edits an area, and only the owner can read a page.</p>
         <ul class="guides">
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/ERROR-CODES.md">Error codes</a>
@@ -891,7 +911,7 @@ npm run start:http</code></pre>
         <ul class="guides">
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CHANGELOG.md">Changelog</a>
-            <span>0.3.0, then the earlier releases. The format is Keep a Changelog.</span>
+            <span>0.3.1, then the earlier releases. The format is Keep a Changelog.</span>
           </li>
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CONTRIBUTING.md">Contributing</a>
@@ -911,7 +931,7 @@ npm run start:http</code></pre>
           </li>
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/server.json">server.json</a>
-            <span>The registry manifest for 0.3.0.</span>
+            <span>The registry manifest for 0.3.1.</span>
           </li>
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/README.md#known-gaps">Known gaps</a>
@@ -926,7 +946,7 @@ npm run start:http</code></pre>
 
   <footer class="site-footer">
     <div class="wrap">
-      <p>EMET 0.3.0 · <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/LICENSE">MIT License</a></p>
+      <p>EMET 0.3.1 · <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/LICENSE">MIT License</a></p>
       <p>Copyright Dreamforge Studio LLC and C.I.P.S. LLC.</p>
       <ul class="project-links">
         <li><a href="https://github.com/dreamforgestudiollc/EMET">Repository</a></li>

@@ -13,8 +13,8 @@ const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.ur
 const lock = JSON.parse(fs.readFileSync(new URL('../package-lock.json', import.meta.url), 'utf8'));
 
 testGroup('one version', () => {
-  test('src/version.js, package.json and package-lock.json agree on 0.3.0', () => {
-    assert.strictEqual(EMET_VERSION, '0.3.0');
+  test('src/version.js, package.json and package-lock.json agree on 0.3.1', () => {
+    assert.strictEqual(EMET_VERSION, '0.3.1');
     assert.strictEqual(pkg.version, EMET_VERSION);
     assert.strictEqual(lock.version, EMET_VERSION);
     assert.strictEqual(lock.packages[''].version, EMET_VERSION);

@@ -1,7 +1,7 @@
 {
   "name": "@dreamforgestudiollc/emet",
-  "version": "0.3.0",
-  "description": "EMET 0.3.0 — Enduring Memory & Epistemic Tiers. An MCP memory server with persistent shared memory for AI agents, bot teams and chats: layered memory, verified writes, a verbatim transcript tier, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true.",
+  "version": "0.3.1",
+  "description": "EMET 0.3.1 — Enduring Memory & Epistemic Tiers. An MCP memory server with persistent shared memory for AI agents, bot teams and chats: layered memory, verified writes, a verbatim transcript tier, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true. Every error carries a stable code; the owner-only emet_error_report returns a report and an email draft the user sends. npm run verify drives the registered tools from a checkout, and docs/features is the map of every feature.",
   "keywords": [
     "agent-memory",
     "ai-agents",
@@ -65,6 +65,7 @@
     "start": "node src/index.js",
     "start:http": "node src/http-remote.js",
     "test": "node tests/run-all-tests.js",
+    "verify": "node scripts/verify-emet.mjs",
     "coverage": "node scripts/coverage.mjs"
   },
   "dependencies": {

@@ -3,7 +3,7 @@
  * description's phrase, "built for ISO 9001 / ISO 13485 document control".
  * The lede, the meta description, og:description, twitter:description, and
  * the JSON-LD description each fail here if either standard is dropped.
- * Version 0.3.0 stays in the four descriptions.
+ * Version 0.3.1 stays in the four descriptions.
  * The What it is disclaimer stays: no certification or conformity is claimed.
  * Noun and verb families of certify, comply, conform, and accredit fail
  * anywhere in site/index.html, including visible text, meta, and JSON-LD.
@@ -80,8 +80,8 @@ const PAGE_JOINS = [
   ['<code>certified</code>', '<code>certified</code>'],
 ];
 const LEDE = 'An MCP memory server built for ISO 9001 / ISO 13485 document control: persistent, shared memory.';
-const SHARED = 'EMET 0.3.0 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
-const JSONLD = 'EMET 0.3.0 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
+const SHARED = 'EMET 0.3.1 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
+const JSONLD = 'EMET 0.3.1 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
 const CONFORMANCE_LINK = 'Conformance';
 const CONFORMANCE_HREF = 'https://github.com/dreamforgestudiollc/EMET/blob/main/gem-library/CONFORMANCE.md';
 
@@ -522,7 +522,7 @@ testGroup('the public site keeps ISO 9001 and ISO 13485', () => {
     assert.strictEqual(surfaces.lede, LEDE);
   });
 
-  test('the four descriptions keep 0.3.0 and the rest of each sentence', () => {
+  test('the four descriptions keep 0.3.1 and the rest of each sentence', () => {
     assert.strictEqual(surfaces['meta description'], SHARED);
     assert.strictEqual(surfaces['og:description'], SHARED);
     assert.strictEqual(surfaces['twitter:description'], SHARED);

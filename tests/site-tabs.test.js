@@ -2,7 +2,7 @@
  * The public site's subject list is tabs when JavaScript runs, and the same
  * document when it does not. Wording on the page, including the ISO 9001
  * 7.5.3 / ISO 13485 4.2.5 fact, stays as written. The product version stays
- * 0.3.0. A release credit names the changelog section that recorded it.
+ * 0.3.1. A release credit names the changelog section that recorded it.
  * The 0.2.6 list and every 0.2.x mention in Origin, the project, and GEM
  * are closed sets. GEM facts are read from the manifests, the socket, and
  * the specification, and the early hash map names the same subjects as the
@@ -498,9 +498,10 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
     assert.ok(html.includes(`<dd>${ISO_DD}</dd>`));
   });
 
-  test('version marks stay 0.3.0', () => {
-    assert.ok(html.includes('EMET 0.3.0'));
-    assert.ok(html.includes('"version": "0.3.0"'));
+  test('version marks stay 0.3.1', () => {
+    assert.ok(html.includes('EMET 0.3.1'));
+    assert.ok(!html.includes('EMET 0.3.0'));
+    assert.ok(html.includes('"version": "0.3.1"'));
     assert.ok(html.includes('<h3>What 0.2.6 changed</h3>'));
     assert.ok(!html.includes('EMET 0.2.6'));
     assert.ok(!html.includes('0.2.7'));
@@ -868,11 +869,11 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
 
     const pkg = JSON.parse(read('package.json'));
     const server = JSON.parse(read('server.json'));
-    assert.strictEqual(pkg.version, '0.3.0');
-    assert.strictEqual(server.version, '0.3.0');
-    assert.ok(project.includes('EMET 0.3.0'));
-    assert.ok(project.includes('The registry manifest for 0.3.0.'));
-    assert.ok(project.includes('0.3.0, then the earlier releases.'));
+    assert.strictEqual(pkg.version, '0.3.1');
+    assert.strictEqual(server.version, '0.3.1');
+    assert.ok(project.includes('EMET 0.3.1'));
+    assert.ok(project.includes('The registry manifest for 0.3.1.'));
+    assert.ok(project.includes('0.3.1, then the earlier releases.'));
 
     const claims = [
       ['Delegated client sub-keys', 'Delegated client sub-keys (EMET-0001'],
@@ -931,10 +932,10 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
     assert.deepStrictEqual(versionMarks(origin), ['0.2.5', '0.2.6']);
     assert.deepStrictEqual(versionMarks(project), ['0.2.6', '0.2.6']);
     for (const phrase of [
-      'EMET 0.3.0 is free and open source',
+      'EMET 0.3.1 is free and open source',
       '<h3>What 0.2.6 changed</h3>',
-      '0.3.0, then the earlier releases.',
-      'The registry manifest for 0.3.0.',
+      '0.3.1, then the earlier releases.',
+      'The registry manifest for 0.3.1.',
     ]) {
       assert.ok(project.includes(phrase), phrase);
     }
