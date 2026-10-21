@@ -30,6 +30,7 @@
 
 import crypto from 'crypto';
 import { LAYER_CHARTER } from './layers.js';
+import { CodedError } from './error-codes.js';
 
 const sha256 = (s) => crypto.createHash('sha256').update(String(s), 'utf8').digest('hex');
 
@@ -64,7 +65,7 @@ export const ABRIDGED_KEEP = Object.freeze([
   'identity', 'character', 'character_doc_id', 'character_sha256', 'user',
   'install_notes_doc_id',
   'seeds_due', 'seeds_evaluated_on',
-  'record_gaps', 'named_items', 'lessons_pending',
+  'record_gaps', 'page_lint', 'named_items', 'lessons_pending',
   'floor', 'floor_precedence', 'floor_reassertion',
   'gems_available', 'gems_active'
 ]);
@@ -89,7 +90,7 @@ function layerHealthy(h) {
  * @param {string} [opts.reason] startup_reason to report
  */
 export function abridgeReadyPayload(full, opts = {}) {
-  if (!full || full.state !== 'ready') throw new Error('abridgeReadyPayload: only a ready payload can be abridged');
+  if (!full || full.state !== 'ready') throw new CodedError('abridgeReadyPayload: only a ready payload can be abridged', { code: 'EMET-MEM-034' });
   const out = { startup_mode: 'abridged', startup_reason: opts.reason || 'returning configured bot (proven by receipt)' };
   for (const k of ABRIDGED_KEEP) if (k in full) out[k] = full[k];
 

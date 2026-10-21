@@ -1,7 +1,7 @@
 {
   "name": "@dreamforgestudiollc/emet",
-  "version": "0.2.6",
-  "description": "EMET 0.2.6 — Enduring Memory & Epistemic Tiers. An MCP memory server with persistent shared memory for AI agents, bot teams and chats: layered memory, verified writes, a verbatim transcript tier, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true.",
+  "version": "0.3.0",
+  "description": "EMET 0.3.0 — Enduring Memory & Epistemic Tiers. An MCP memory server with persistent shared memory for AI agents, bot teams and chats: layered memory, verified writes, a verbatim transcript tier, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true.",
   "keywords": [
     "agent-memory",
     "ai-agents",
@@ -42,6 +42,7 @@
     "src/",
     "verification/",
     "templates/",
+    "areas/",
     "guides/",
     "gems/",
     "docs/*.md",

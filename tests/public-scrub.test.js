@@ -22,7 +22,7 @@ import assert from 'assert';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { privateWordsIn, digest, PRIVATE_RECORD_REF, BARE_RECORD_REF, PRIVATE_PR_REF, APPROVAL_TIME, NAMED_SERVICE, SHORT_HEX, ALLOWED_HEX, BOARD_ID, boardIdLines, STAGING_STORE_PATH, SHORT_STORE_REF, INTERNAL_PAPER_REF, PRIVATE_TREE_PATHS, shippedTextFiles, shippedPublishFiles, siteImageRefs, isPrivateTree } from './scrub-tokens.js';
+import { privateWordsIn, digest, PRIVATE_WORD_DIGESTS, PRIVATE_RECORD_REF, BARE_RECORD_REF, PRIVATE_PR_REF, APPROVAL_TIME, NAMED_SERVICE, SHORT_HEX, ALLOWED_HEX, BOARD_ID, boardIdLines, STAGING_STORE_PATH, SHORT_STORE_REF, INTERNAL_PAPER_REF, PRIVATE_TREE_PATHS, shippedTextFiles, shippedPublishFiles, siteImageRefs, isPrivateTree } from './scrub-tokens.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const files = shippedTextFiles(ROOT);
@@ -215,22 +215,39 @@ testGroup('the shipped tree is scrubbed', () => {
     assert.ok(SHORT_STORE_REF.test('(observed, meta #83)') && SHORT_STORE_REF.test('EMET #12') && !SHORT_STORE_REF.test('EMET 0.2.1'));
     assert.ok(INTERNAL_PAPER_REF.test('(C1 admission paper §1a)') && INTERNAL_PAPER_REF.test("the admission gate's second read") && INTERNAL_PAPER_REF.test('(paper section 3.5)') && INTERNAL_PAPER_REF.test('(paper 3.2)') && !INTERNAL_PAPER_REF.test('threads, seeds, working papers, bootstrap'));
   });
-  test('the checker itself works: it catches a planted name, record number, service and id', () => {
-    assert.deepStrictEqual(privateWordsIn('The Zebra said so; zebras differ.', new Set([digest('zebra')])), ['zebra']);
+  test('the built-in name digests are the twelve values published on main', () => {
+    const published = [
+      'a8cb1254b7f7a6c6', 'c28ee0bfc3cbf014', '0aefc65b1ba43f88', 'fc5a299cd6cd644f',
+      '960a38ace75a2fe9', 'b00ef262afae566b', 'ca5bcec12f716f44', 'e18ebaabb9f2fba0',
+      '5842a9abe95881a4', '6cb784e0f985cba2', '2961c5a0feb2a8c9', '4991c47202960c57'
+    ];
+    assert.strictEqual(published.length, 12);
+    assert.strictEqual(PRIVATE_WORD_DIGESTS.size, 12);
+    assert.deepStrictEqual([...PRIVATE_WORD_DIGESTS], published);
+  });
+  test('the checker reads the built-in list when no digest set is passed', () => {
+    const word = 'zebra';
+    const pin = digest(word);
+    assert.ok(!PRIVATE_WORD_DIGESTS.has(pin));
+    PRIVATE_WORD_DIGESTS.add(pin);
+    try {
+      assert.deepStrictEqual(privateWordsIn(word), [word]);
+    } finally {
+      PRIVATE_WORD_DIGESTS.delete(pin);
+    }
+    assert.deepStrictEqual(privateWordsIn(word), []);
+  });
+  test('the checker itself works: a nonsense word is caught only through the digests parameter', () => {
+    const line = 'The Zebra said so; zebras differ.';
+    assert.deepStrictEqual(privateWordsIn(line), []);
+    assert.deepStrictEqual(privateWordsIn(line, new Set([digest('zebra')])), ['zebra']);
     assert.ok(PRIVATE_RECORD_REF.test('see procedural #123'));
     assert.ok(!PRIVATE_RECORD_REF.test('episodic 42'));
     assert.ok(NAMED_SERVICE.test('railway run --service app node x'));
     assert.ok(!NAMED_SERVICE.test('railway run --service <service> node x'));
     assert.deepStrictEqual('fixed in 1a2b3c4.'.match(SHORT_HEX), ['1a2b3c4']);
   });
-  test('private paths and family names are caught when planted, and the tree has none', () => {
-    // Assembled at runtime so this file does not contain the words or the paths.
-    const family = [
-      String.fromCharCode(111, 116, 116, 111),
-      String.fromCharCode(107, 101, 110, 110),
-      String.fromCharCode(107, 108, 105, 99, 107)
-    ];
-    for (const word of family) assert.deepStrictEqual(privateWordsIn(word), [word]);
+  test('private paths are caught when planted, and the tree has none', () => {
     const workspace = '/' + 'workspace' + '/emet';
     const stores = '/' + 'cursor' + '/' + 'stores' + '/bot';
     assert.ok(PRIVATE_TREE_PATHS[0].test(workspace));
@@ -239,6 +256,22 @@ testGroup('the shipped tree is scrubbed', () => {
     const nameFiles = privateTree ? checked : files;
     const bad = nameFiles.filter((f) => PRIVATE_TREE_PATHS.some((re) => re.test(scrubText(f))));
     assert.deepStrictEqual(bad, []);
+  });
+  test('a char-code literal does not hide an install name', () => {
+    const call = /String\.fromCharCode\(([^)]*)\)/g;
+    const literal = /^(?:0x[0-9a-f]+|\d+)$/i;
+    const hits = [];
+    for (const rel of files) {
+      const decoded = [];
+      for (const match of scrubText(rel).matchAll(call)) {
+        const args = match[1].split(',').map((part) => part.trim()).filter(Boolean);
+        if (!args.length || !args.every((part) => literal.test(part))) continue;
+        decoded.push(String.fromCharCode(...args.map((part) => Number(part))));
+      }
+      const words = privateWordsIn(decoded.join(''));
+      if (words.length) hits.push(`${rel}: ${words.join(',')}`);
+    }
+    assert.deepStrictEqual(hits, []);
   });
 });
 

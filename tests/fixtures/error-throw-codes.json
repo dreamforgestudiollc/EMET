@@ -1,0 +1,1727 @@
+[
+  {
+    "file": "aleph.js",
+    "message": "throw new AlephError( `Read-back found no ${layer} entry at id ${id} immediately after writing it. The save ` + `reported success and the store does not contain it.`, 'aleph.verifyLayerEntry', { layer, id } )",
+    "code": "EMET-GEM-004"
+  },
+  {
+    "file": "aleph.js",
+    "message": "throw new AlephError( `Read-back found no document at ${doc_id} immediately after writing it. The write reported ` + `success and the store does not contain it.`, 'aleph.verifyDocument', { doc_id } )",
+    "code": "EMET-GEM-001"
+  },
+  {
+    "file": "aleph.js",
+    "message": "throw new AlephError( `Read-back of ${doc_id} does not match what was written: content digest differs. Do not ` + `retry until the stored content has been inspected - a retry would overwrite whatever is ` + `actually there.`, 'aleph.verifyDocument', { doc_id, expected_sha256: sha256, stored_sha256: readBack.sha256 } )",
+    "code": "EMET-GEM-002"
+  },
+  {
+    "file": "aleph.js",
+    "message": "throw new AlephError( `Read-back of ${doc_id} is at version ${readBack.version}, not the ${version} this write ` + `created. Another writer reached the document between the write and the read.`, 'aleph.verifyDocument', { doc_id, expected_version: version, stored_version: readBack.version } )",
+    "code": "EMET-GEM-003"
+  },
+  {
+    "file": "aleph.js",
+    "message": "throw new AlephError( `Read-back of ${layer} entry ${id} carries a metadata_sha256 column that does not match its own metadata. ` + `The row is internally inconsistent - either the metadata or its digest was altered after the write.`, 'aleph.verifyLayerEntry', { layer, id, column_metadata_sha256: metaColumn, metadata_sha256: storedMeta } )",
+    "code": "EMET-GEM-007"
+  },
+  {
+    "file": "aleph.js",
+    "message": "throw new AlephError( `Read-back of ${layer} entry ${id} carries a sha256 column that does not match its own content. ` + `The row is internally inconsistent - either the content or the digest was altered after the write.`, 'aleph.verifyLayerEntry', { layer, id, column_sha256: storedColumn, content_sha256: stored } )",
+    "code": "EMET-GEM-005"
+  },
+  {
+    "file": "aleph.js",
+    "message": "throw new AlephError( `Read-back of ${layer} entry ${id} returned different content than was written. The most ` + `likely cause is an id collision: ids come from a counters collection, and a counter read ` + `from the wrong collection restarts at 1 and overwrites existing entries. Check the ` + `collection prefix before writing anything else to this store.`, 'aleph.verifyLayerEntry', { layer, id, expected_sha256: wrote, stored_sha256: stored } )",
+    "code": "EMET-GEM-006"
+  },
+  {
+    "file": "aleph.js",
+    "message": "throw new AlephError( `Read-back of ${layer} entry ${id} returned different metadata than was written.`, 'aleph.verifyLayerEntry', { layer, id, expected_metadata_sha256: wroteMeta, stored_metadata_sha256: storedMeta } )",
+    "code": "EMET-GEM-008"
+  },
+  {
+    "file": "annotations.js",
+    "message": "throw new Error( `Tools declared with no annotation entry: ${missing.join(', ')}. ` + `Add them to TOOL_ANNOTATIONS in src/annotations.js.` )",
+    "code": "EMET-TOOL-001"
+  },
+  {
+    "file": "atlas-role.js",
+    "message": "throw new Error('database name must be a plain name')",
+    "code": "EMET-CFG-001"
+  },
+  {
+    "file": "atlas-role.js",
+    "message": "throw new Error('prefix must be a plain name')",
+    "code": "EMET-CFG-002"
+  },
+  {
+    "file": "conformance.js",
+    "message": "throw new Error( `An acceptance needs a written reason of at least ${MIN_ACCEPTANCE_REASON} characters. ` + `It is the disposition of record for a nonconformance and is read by whoever audits it later.` )",
+    "code": "EMET-DOC-049"
+  },
+  {
+    "file": "database.js",
+    "message": "throw new ConfigurationError('MONGODB_URI is not set - EMET requires a MongoDB connection')",
+    "code": "EMET-DB-001"
+  },
+  {
+    "file": "database.js",
+    "message": "throw new DatabaseError( `Failed to connect to MongoDB Atlas${fellBack ? ' after DNS fallback' : ''} - check network and cluster state (cluster may be paused)`, 'connection', { reason: error.message } )",
+    "code": "EMET-DB-002"
+  },
+  {
+    "file": "database.js",
+    "message": "throw new DatabaseError( `Failed to initialize schema for layer: ${layer}`, 'schema_creation', { layer } )",
+    "code": "EMET-DB-008"
+  },
+  {
+    "file": "database.js",
+    "message": "throw new DatabaseError('Failed to write to primary storage', 'storage_write', { layer, isPrimary: true, reason: error.message })",
+    "code": "EMET-DB-006"
+  },
+  {
+    "file": "database.js",
+    "message": "throw new DatabaseError(`Count failed on layer ${layer}`, 'query', { reason: error.message })",
+    "code": "EMET-DB-004"
+  },
+  {
+    "file": "database.js",
+    "message": "throw new DatabaseError(`Query failed on layer ${layer}`, 'query', { reason: error.message })",
+    "code": "EMET-DB-003"
+  },
+  {
+    "file": "database.js",
+    "message": "throw new DatabaseError(`Query failed on layer ${layer}`, 'query', { reason: error.message })",
+    "code": "EMET-DB-003"
+  },
+  {
+    "file": "database.js",
+    "message": "throw new DatabaseError(`Unknown layer field: ${k}`, 'insert_memory', { layer })",
+    "code": "EMET-DB-005"
+  },
+  {
+    "file": "database.js",
+    "message": "throw new ValidationError('layer', `Invalid memory layer: ${layer}`)",
+    "code": "EMET-DB-007"
+  },
+  {
+    "file": "dispatch.js",
+    "message": "throw new EmetError(`Unknown tool: ${name}`, ErrorCodes.UNKNOWN_TOOL, StatusCodes.BAD_REQUEST)",
+    "code": "EMET-TOOL-008"
+  },
+  {
+    "file": "dispatch.js",
+    "message": "throw new EmetError(deniedMessage(name, scopes, args), ErrorCodes.VALIDATION_ERROR, StatusCodes.BAD_REQUEST)",
+    "code": "EMET-TOOL-005"
+  },
+  {
+    "file": "dispatch.js",
+    "message": "throw new ValidationError('exchange_index', `${error}. Nothing was written.`)",
+    "code": "EMET-TOOL-006"
+  },
+  {
+    "file": "dispatch.js",
+    "message": "throw new ValidationError('source', `${tool}: pass \"source\" set to a registered tag. A new host adopts one in bootstrap/INSTALL.md first. Source tag \"${echoId(tag)}\" is not registered, so nothing was written.`)",
+    "code": "EMET-TOOL-004"
+  },
+  {
+    "file": "dispatch.js",
+    "message": "throw new ValidationError('source', `${tool}: pass \"source\" set to the registered tag of the host this write comes from. A new host adopts one in bootstrap/INSTALL.md first. No source tag was given and one is required, so nothing was written.`)",
+    "code": "EMET-TOOL-002"
+  },
+  {
+    "file": "dispatch.js",
+    "message": "throw new ValidationError('source', `${tool}: pass \"source\" set to the tag of the host this write comes from. No tags are registered on this server, so any non-empty tag passes: use the one bootstrap/INSTALL.md gives this host. No source tag was given and one is required, so nothing was written.`)",
+    "code": "EMET-TOOL-003"
+  },
+  {
+    "file": "dispatch.js",
+    "message": "throw new ValidationError('subkey', e.message)",
+    "code": "EMET-AUTH-028"
+  },
+  {
+    "file": "dispatch.js",
+    "message": "throw new ValidationError('tag', e.message)",
+    "code": "EMET-TOOL-007"
+  },
+  {
+    "file": "error-log.js",
+    "message": "throw new Error('error log down')",
+    "code": "EMET-INT-001"
+  },
+  {
+    "file": "error-log.js",
+    "message": "throw new Error('error log down')",
+    "code": "EMET-INT-001"
+  },
+  {
+    "file": "error-report.js",
+    "message": "throw new ValidationError('codes must be a list of EMET codes.')",
+    "code": "EMET-TOOL-011"
+  },
+  {
+    "file": "error-report.js",
+    "message": "throw new ValidationError('correlation_id must be 16 hex characters.')",
+    "code": "EMET-TOOL-013"
+  },
+  {
+    "file": "error-report.js",
+    "message": "throw new ValidationError('limit must be a whole number from 1 to 200.')",
+    "code": "EMET-TOOL-012"
+  },
+  {
+    "file": "error-report.js",
+    "message": "throw new ValidationError('since is older than 90 days.')",
+    "code": "EMET-TOOL-010"
+  },
+  {
+    "file": "error-report.js",
+    "message": "throw new ValidationError('since must be an ISO date.')",
+    "code": "EMET-TOOL-009"
+  },
+  {
+    "file": "error-report.js",
+    "message": "throw new ValidationError('since must be an ISO date.')",
+    "code": "EMET-TOOL-009"
+  },
+  {
+    "file": "error-report.js",
+    "message": "throw new ValidationError('The error report is owner-only.')",
+    "code": "EMET-AUTH-038"
+  },
+  {
+    "file": "gaps.js",
+    "message": "throw new DatabaseError('MONGODB_URI is not set; cannot assess gaps.', 'emet_gaps')",
+    "code": "EMET-DB-001"
+  },
+  {
+    "file": "gaps.js",
+    "message": "throw new DatabaseError(`Unknown layer '${layer}'`, 'emet_gaps')",
+    "code": "EMET-DB-010"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('bad escape')",
+    "code": "EMET-GEM-018"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('bad number')",
+    "code": "EMET-GEM-017"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('bad number')",
+    "code": "EMET-GEM-017"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('bad number')",
+    "code": "EMET-GEM-017"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('bad number')",
+    "code": "EMET-GEM-017"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('bad number')",
+    "code": "EMET-GEM-017"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('bom')",
+    "code": "EMET-GEM-029"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('duplicate key')",
+    "code": "EMET-GEM-025"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('expected colon')",
+    "code": "EMET-GEM-027"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('expected comma')",
+    "code": "EMET-GEM-022"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('expected comma')",
+    "code": "EMET-GEM-022"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('expected key')",
+    "code": "EMET-GEM-024"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('forbidden key')",
+    "code": "EMET-GEM-026"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('number is not a safe integer')",
+    "code": "EMET-GEM-031"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('raw control in string')",
+    "code": "EMET-GEM-019"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('schema id')",
+    "code": "EMET-GEM-013"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('trailing comma')",
+    "code": "EMET-GEM-021"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('trailing comma')",
+    "code": "EMET-GEM-021"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('trailing data')",
+    "code": "EMET-GEM-030"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('unexpected character')",
+    "code": "EMET-GEM-015"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('unexpected end')",
+    "code": "EMET-GEM-014"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('unexpected token')",
+    "code": "EMET-GEM-016"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('unsupported value')",
+    "code": "EMET-GEM-032"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('unterminated array')",
+    "code": "EMET-GEM-023"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('unterminated object')",
+    "code": "EMET-GEM-028"
+  },
+  {
+    "file": "gem-check.js",
+    "message": "throw new Error('unterminated string')",
+    "code": "EMET-GEM-020"
+  },
+  {
+    "file": "invites.js",
+    "message": "throw new Error('could not allocate a person id for this invite')",
+    "code": "EMET-AUTH-001"
+  },
+  {
+    "file": "invites.js",
+    "message": "throw new Error('could not allocate a person id for this invite')",
+    "code": "EMET-AUTH-001"
+  },
+  {
+    "file": "layers.js",
+    "message": "throw new Error( `Unknown importance bucket '${bucket}'. Use one of: ${Object.keys(IMPORTANCE_BUCKETS).join(', ')}` )",
+    "code": "EMET-MEM-003"
+  },
+  {
+    "file": "layers.js",
+    "message": "throw new Error( `Unknown importance bucket '${raw}'. Use one of: ${Object.keys(IMPORTANCE_BUCKETS).join(', ')}` + ` (optional :low|:mid|:high).` )",
+    "code": "EMET-MEM-002"
+  },
+  {
+    "file": "layers.js",
+    "message": "throw new Error(`Unknown importance degree '${degree}'. Use low, mid, or high.`)",
+    "code": "EMET-MEM-004"
+  },
+  {
+    "file": "layers.js",
+    "message": "throw new Error(`Unknown layer '${layer}'. Must be one of: ${LAYERS.join(', ')}`)",
+    "code": "EMET-MEM-001"
+  },
+  {
+    "file": "layers.js",
+    "message": "throw new Error(`Unknown layer '${layer}'. Must be one of: ${LAYERS.join(', ')}`)",
+    "code": "EMET-MEM-001"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new Error('CIMD document must be a JSON object')",
+    "code": "EMET-AUTH-002"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new Error('CIMD document must carry a non-empty redirect_uris array of strings')",
+    "code": "EMET-AUTH-004"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new Error('CIMD fetch rate limit')",
+    "code": "EMET-AUTH-009"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new Error('CIMD host did not resolve')",
+    "code": "EMET-AUTH-007"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new Error('CIMD host is not a public address')",
+    "code": "EMET-AUTH-006"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new Error('CIMD host is not a public address')",
+    "code": "EMET-AUTH-006"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new Error('CIMD host resolves to a blocked address')",
+    "code": "EMET-AUTH-008"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new Error('document is not valid JSON')",
+    "code": "EMET-AUTH-012"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new Error(`CIMD clients are public; token_endpoint_auth_method must be \"none\" (got ${method})`)",
+    "code": "EMET-AUTH-005"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new Error(`CIMD document client_id does not match its URL (expected ${url})`)",
+    "code": "EMET-AUTH-003"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new Error(`document exceeds ${CIMD_MAX_BYTES} bytes`)",
+    "code": "EMET-AUTH-011"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new Error(`HTTP ${res ? res.status : 'no response'}`)",
+    "code": "EMET-AUTH-010"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError('redirect_uri does not match the one this code was issued for')",
+    "code": "EMET-AUTH-015"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError('this authorization code has already been used - start the connection again')",
+    "code": "EMET-AUTH-016"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError('this authorization code has expired - start the connection again')",
+    "code": "EMET-AUTH-014"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError('this authorization code is not recognised - start the connection again')",
+    "code": "EMET-AUTH-013"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError('this authorization code is not recognised - start the connection again')",
+    "code": "EMET-AUTH-013"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError('this login came from an invite, and invites are off on this install - it can no longer be refreshed')",
+    "code": "EMET-AUTH-022"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError('this login came from EMET Member Access, and member access is off on this install - it can no longer be refreshed')",
+    "code": "EMET-AUTH-021"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError('this login has no source tag bound. Sign in again so the new consent binds a registered tag.')",
+    "code": "EMET-AUTH-019"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError('this refresh token has already been replaced by a newer one - reconnect to sign in again')",
+    "code": "EMET-AUTH-020"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError('this refresh token has already been replaced by a newer one - reconnect to sign in again')",
+    "code": "EMET-AUTH-020"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError('this refresh token has expired - reconnect to sign in again')",
+    "code": "EMET-AUTH-018"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError('this refresh token is not recognised (it may have been revoked, or issued to another client) - reconnect to sign in again')",
+    "code": "EMET-AUTH-017"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidScopeError(`a refresh cannot widen scope: ${wider.join(', ')} was not granted (granted: ${granted.join(', ')})`)",
+    "code": "EMET-AUTH-023"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidTokenError('this access token has expired - refresh it or sign in again')",
+    "code": "EMET-AUTH-025"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidTokenError('this access token is not recognised (it may have been revoked or replaced) - sign in again')",
+    "code": "EMET-AUTH-024"
+  },
+  {
+    "file": "pages.js",
+    "message": "throw new DatabaseError('MONGODB_URI is not set; cannot read topic pages.', 'emet_page')",
+    "code": "EMET-DB-001"
+  },
+  {
+    "file": "pages.js",
+    "message": "throw new ValidationError('area', `${tool}: area must be a slug like \"health\".`)",
+    "code": "EMET-PAGE-004"
+  },
+  {
+    "file": "pages.js",
+    "message": "throw new ValidationError('area', `emet_page_lint: no current area document areas/${only}.md.`)",
+    "code": "EMET-PAGE-006"
+  },
+  {
+    "file": "pages.js",
+    "message": "throw new ValidationError('area', `emet_page: no current area document areas/${slug}.md. The owner writes it with write_doc.`)",
+    "code": "EMET-PAGE-005"
+  },
+  {
+    "file": "pages.js",
+    "message": "throw new ValidationError('as_of', 'emet_page: as_of must be an ISO date or unix seconds.')",
+    "code": "EMET-PAGE-001"
+  },
+  {
+    "file": "pages.js",
+    "message": "throw new ValidationError(`${tool}: only the owner can create or edit an area document. Nothing was written.`)",
+    "code": "EMET-PAGE-002"
+  },
+  {
+    "file": "pages.js",
+    "message": "throw new ValidationError(`${tool}: only the owner can read topic pages.`)",
+    "code": "EMET-PAGE-003"
+  },
+  {
+    "file": "provenance.js",
+    "message": "throw new ValidationError( 'derived_from', 'give a transcript span or a list of source entries, not both - an entry has one origin' )",
+    "code": "EMET-PROV-002"
+  },
+  {
+    "file": "provenance.js",
+    "message": "throw new ValidationError( 'derived_from', 'needs either session_id (with optional exchange_start/exchange_end) or entries' )",
+    "code": "EMET-PROV-003"
+  },
+  {
+    "file": "provenance.js",
+    "message": "throw new ValidationError('derived_from.entries', 'entry ids must be positive integers')",
+    "code": "EMET-PROV-005"
+  },
+  {
+    "file": "provenance.js",
+    "message": "throw new ValidationError('derived_from.entries', 'must be a non-empty array of entry ids')",
+    "code": "EMET-PROV-004"
+  },
+  {
+    "file": "provenance.js",
+    "message": "throw new ValidationError('derived_from.exchange_end', 'must be a positive integer')",
+    "code": "EMET-PROV-009"
+  },
+  {
+    "file": "provenance.js",
+    "message": "throw new ValidationError('derived_from.exchange_end', 'must not be before exchange_start')",
+    "code": "EMET-PROV-008"
+  },
+  {
+    "file": "provenance.js",
+    "message": "throw new ValidationError('derived_from.exchange_start', 'must be a positive integer')",
+    "code": "EMET-PROV-007"
+  },
+  {
+    "file": "provenance.js",
+    "message": "throw new ValidationError('derived_from.session_id', 'must be a non-empty string')",
+    "code": "EMET-PROV-006"
+  },
+  {
+    "file": "provenance.js",
+    "message": "throw new ValidationError('derived_from', 'must be an object')",
+    "code": "EMET-PROV-001"
+  },
+  {
+    "file": "provenance.js",
+    "message": "throw new ValidationError('entry', 'is required')",
+    "code": "EMET-PROV-010"
+  },
+  {
+    "file": "rune-dispatch.js",
+    "message": "throw new ValidationError('client_sha256', 'client-reported sha256')",
+    "code": "EMET-GEM-039"
+  },
+  {
+    "file": "rune-dispatch.js",
+    "message": "throw new ValidationError('gem', 'no serve event')",
+    "code": "EMET-GEM-038"
+  },
+  {
+    "file": "rune-dispatch.js",
+    "message": "throw new ValidationError('gem', 'serve log')",
+    "code": "EMET-GEM-037"
+  },
+  {
+    "file": "rune-dispatch.js",
+    "message": "throw new ValidationError('gem', \"metadata.gem must be '<gem>@<version>' and match an active directive\")",
+    "code": "EMET-GEM-034"
+  },
+  {
+    "file": "rune-dispatch.js",
+    "message": "throw new ValidationError('input_sha256', 'input hash or reference')",
+    "code": "EMET-GEM-040"
+  },
+  {
+    "file": "rune-dispatch.js",
+    "message": "throw new ValidationError('principal', 'no authenticated principal')",
+    "code": "EMET-GEM-036"
+  },
+  {
+    "file": "rune-dispatch.js",
+    "message": "throw new ValidationError('served_sha256', 'hash pin')",
+    "code": "EMET-GEM-035"
+  },
+  {
+    "file": "rune-dispatch.js",
+    "message": "throw new ValidationError(key, 'attestation is immutable')",
+    "code": "EMET-GEM-033"
+  },
+  {
+    "file": "session-graph.js",
+    "message": "throw new Error('the transcript position is not available')",
+    "code": "EMET-SESS-001"
+  },
+  {
+    "file": "session.js",
+    "message": "throw new DatabaseError('MONGODB_URI is not set; cannot verify session artifacts.')",
+    "code": "EMET-DB-001"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError( 'bot_team_backup', 'Answer yes or no, in your own words. Yes and Yes. record bot-team backup as on. Yes is the recommended choice. No leaves it off. Leaving it out leaves it off. A non-string is refused. Do not invent the answer. Nothing was written.' )",
+    "code": "EMET-CFG-012"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError( 'more_than_one_bot', 'Answer yes or no. Yes turns on delegated client sub-keys. No leaves them off. Leaving it out leaves them off. Do not invent the answer. Nothing was written.' )",
+    "code": "EMET-CFG-011"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError( 'reissue', 'This store is already set up. Re-running setup writes new versions of the user\\'s identity ' + 'documents (prior versions are archived). Pass reissue: true only on the owner\\'s explicit word. ' + 'Nothing was written.' )",
+    "code": "EMET-CFG-014"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError( `Setup is missing required answers: ${missing.join(', ')}. ` + 'Ask the user for them - do not supply them yourself.' )",
+    "code": "EMET-CFG-010"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError( field, `First-time setup is the owner's: ${declared} is a bot tag. Stop and tell the user. Nothing was written.` )",
+    "code": "EMET-CFG-009"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError('MONGODB_URI is not set. Copy .env.example to .env and fill it in.')",
+    "code": "EMET-DB-001"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError('more_than_one_bot', 'Could not read .env. Sub-keys were not turned on.')",
+    "code": "EMET-CFG-005"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError('more_than_one_bot', 'Could not write .env. Sub-keys were not turned on.')",
+    "code": "EMET-CFG-006"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError('more_than_one_bot', HOSTED_SUBKEY_STEPS)",
+    "code": "EMET-CFG-004"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError('more_than_one_bot', HOSTED_SUBKEY_STEPS)",
+    "code": "EMET-CFG-004"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError('page', 'page is a whole number from 1 (the startup is served in pages; start with no page, or page 1), or \"all\" for the whole startup in one result on a host with no size limit.')",
+    "code": "EMET-CFG-007"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError('page', `this startup has ${pages.length} pages; page ${k} does not exist.`)",
+    "code": "EMET-CFG-008"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError('role', 'emet_setup_complete requires the owner. Nothing was written.')",
+    "code": "EMET-CFG-013"
+  },
+  {
+    "file": "setup.js",
+    "message": "throw new ValidationError('role', 'emet_setup_complete requires the owner. Nothing was written.')",
+    "code": "EMET-CFG-013"
+  },
+  {
+    "file": "startup-pages.js",
+    "message": "throw new Error('startup paging: could not fit the pages to the budget')",
+    "code": "EMET-PAGE-007"
+  },
+  {
+    "file": "startup-payload.js",
+    "message": "throw new Error('abridgeReadyPayload: only a ready payload can be abridged')",
+    "code": "EMET-MEM-034"
+  },
+  {
+    "file": "subkey-store.js",
+    "message": "throw new Error('sub-key store conflict. Nothing was written.')",
+    "code": "EMET-AUTH-027"
+  },
+  {
+    "file": "subkey-store.js",
+    "message": "throw new Error('superseded by a concurrent open; this open was not made live.')",
+    "code": "EMET-AUTH-026"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError( 'Failed to get system status', 'emet_status' )",
+    "code": "EMET-DB-017"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError( 'Failed to query layer', 'query_layer', { layer: layer || 'unknown' } )",
+    "code": "EMET-DB-016"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError( 'Failed to recall memories', 'recall_memories', { layer: layer || 'all' } )",
+    "code": "EMET-DB-015"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError( 'Failed to save memory', 'save_memory', { layer: layer || 'auto' } )",
+    "code": "EMET-DB-013"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError( `emet_session_open could not load unhandled drops from the store, so no session was opened: ${e && e.message}. Nothing was stamped.`, 'emet_session_open' )",
+    "code": "EMET-DB-020"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`emet_session_open could not check whether ${requested} is already closed, so no session was opened: ${e && e.message}. ` + 'Call emet_session_open again with the same slug and load_id.', 'emet_session_open')",
+    "code": "EMET-DB-021"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed corpus recall: ${error.message}`, 'corpus_recall')",
+    "code": "EMET-DB-036"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed semantic recall: ${error.message}`, 'semantic_recall')",
+    "code": "EMET-DB-035"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed to accept nonconformance: ${error.message}`, 'accept_nonconformance')",
+    "code": "EMET-DB-033"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed to list documents: ${error.message}`, 'list_docs')",
+    "code": "EMET-DB-026"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed to patch document: ${error.message}`, 'patch_doc')",
+    "code": "EMET-DB-034"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed to query transcripts: ${error.message}`, 'query_transcripts')",
+    "code": "EMET-DB-018"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed to read document history: ${error.message}`, 'read_doc_history')",
+    "code": "EMET-DB-024"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed to read document: ${error.message}`, 'read_doc')",
+    "code": "EMET-DB-023"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed to rename document: ${error.message}`, 'rename_doc')",
+    "code": "EMET-DB-030"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed to retire document: ${error.message}`, 'retire_doc')",
+    "code": "EMET-DB-029"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed to revise memory: ${error.message}`, 'revise_memory')",
+    "code": "EMET-DB-014"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed to revise transcript: ${error.message}`, 'revise_transcript')",
+    "code": "EMET-DB-022"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed to save session transcript: ${error.message}`, 'save_transcript')",
+    "code": "EMET-DB-019"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed to validate document: ${error.message}`, 'validate_doc')",
+    "code": "EMET-DB-031"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Failed to write document: ${error.message}`, 'write_doc')",
+    "code": "EMET-DB-025"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Retirement mark did not persist: ${doc_id}`, 'retire_doc')",
+    "code": "EMET-DB-027"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`Retiring altered the document: ${doc_id}`, 'retire_doc')",
+    "code": "EMET-DB-028"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new DatabaseError(`The acceptance did not persist on ${doc_id}.`, 'accept_nonconformance')",
+    "code": "EMET-DB-032"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( 'An acceptance needs a written reason of at least 10 characters. It is the disposition of ' + 'record for a nonconformance and is what an audit reads later - the same rule revise_transcript uses.' )",
+    "code": "EMET-DOC-048"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( 'Give a doc_id to check a stored document, or content (with template_id) to check text that is not stored yet.' )",
+    "code": "EMET-DOC-046"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( 'source', `${tool} is not a bot tool: ${t} is a bot tag, and ` + `renaming documents stays owner-only (procedural ref 409)` + `. Ask the hub. Nothing was changed.` )",
+    "code": "EMET-MEM-020"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( 'source', `${tool} is not a bot tool: ${t} is a bot tag, and ` + `retiring documents is the owner's and the hub's (decision 1, procedural ref 407 item 1)` + `. Ask the hub. Nothing was changed.` )",
+    "code": "EMET-MEM-019"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `${doc_id} version ${doc.version} carries no nonconformance marker, so there is nothing to accept. ` + `Its verdict is \"${current ? current.verdict : 'not yet checked'}\".` )",
+    "code": "EMET-DOC-050"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `${tool}: ${doc_id} is a bot record and ${tag ? `\"${tag}\" is not a registered source tag` : 'this write names no source tag'} - ` + `only a registered host or the bot itself writes under bots/. Nothing was written.` )",
+    "code": "EMET-DOC-012"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `${tool}: ${doc_id} is a main record and ` + `${tag ? `\"${tag}\" is not a registered source tag` : 'this write names no source tag'} - only a registered ` + `host writes the main handoff and board. Pass the host's registered \\`source\\` (EMET_SOURCE_TAGS). Nothing was written.` )",
+    "code": "EMET-DOC-014"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `${tool}: ${doc_id} is a main record and ${tag} is a bot tag - a bot session closes against ` + `${botRecordDir(tag)} records; the main handoff and board are the hub's. Write the bot's own ` + `${botRecordDir(tag)}HANDOFF.md instead. Nothing was written.` )",
+    "code": "EMET-DOC-013"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `${tool}: ${doc_id} is a record. Records are superseded, not amended (ISO 9001 7.5.3 / 13485 4.2.5). ` + `Issue a new revision with write_doc - the whole record, with \\`supersedes\\` set to the version now in force. ` + `The prior revision is retained and marked obsolete. Nothing was changed.` )",
+    "code": "EMET-DOC-007"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `${tool}: ${doc_id} is outside ${botRecordDir(tag)} and ${tag} is a bot tag - a bot writes only its own ` + `${botRecordDir(tag)} records; other bots' records and the roster are not its to change. ` + `Hand it to the hub instead. Nothing was written.` )",
+    "code": "EMET-DOC-011"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `${tool}: ${what} matches ${n} times in ${doc_id} - must match exactly once. Add surrounding context to disambiguate.` )",
+    "code": "EMET-DOC-054"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `${tool}: doc_id ${JSON.stringify(doc_id)} ${why}. Doc ids are not paths and are not resolved; write the id ` + `exactly as it is meant to be stored. Nothing was written.` )",
+    "code": "EMET-DOC-008"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `${tool}: version conflict - document is at v${cur.version}, caller expected v${expected_version}. Re-read and retry.` )",
+    "code": "EMET-DOC-052"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `This change would leave ${doc_id} at ${pct}% of its largest size in the last 24 hours. A write may not fall below half of that peak. Nothing was written.` )",
+    "code": "EMET-DOC-026"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `This change would leave ${doc_id} at ${pct}% of its size when this session first touched it. Condensing below half is not done on the EMET server. Nothing was written.` )",
+    "code": "EMET-DOC-025"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `write_doc: ${doc_id} - supersedes names v${named}, but v${prev.version} is in force. Re-read the record ` + `and supersede the current revision. Nothing was changed.` )",
+    "code": "EMET-DOC-018"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `write_doc: ${doc_id} exists, so it is edited, not rewritten. Use patch_doc with \\`reason\\`. Nothing was written.` )",
+    "code": "EMET-DOC-022"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `write_doc: ${doc_id} is a drop and already exists, retired drops included. A drop is never patched or restored. Use a new id. Nothing was written.` )",
+    "code": "EMET-DOC-023"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `write_doc: ${doc_id} is a record and v${prev.version} is in force. A new revision must name what it ` + `supersedes - pass supersedes: ${prev.version}. Nothing was changed.` )",
+    "code": "EMET-DOC-017"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError( `write_doc: ${doc_id} is a record. A new revision needs reason (at least 10 characters) as well as supersedes. Nothing was changed.` )",
+    "code": "EMET-DOC-019"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('a board edit or restore needs session_id from emet_session_open, with a verified drop list. Nothing was written.')",
+    "code": "EMET-MEM-024"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('a board edit or restore needs session_id from emet_session_open, with a verified drop list. Nothing was written.')",
+    "code": "EMET-MEM-024"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('A guest invite accepts only emet.read')",
+    "code": "EMET-AUTH-031"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('content exceeds 2MB limit')",
+    "code": "EMET-DOC-016"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('content must be a non-empty string')",
+    "code": "EMET-DOC-015"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('corpus', `corpus must be one of: ${CORPUS_VALUES.join(', ')}`)",
+    "code": "EMET-MEM-032"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('corrects', `No entry with id ${validatedMetadata.corrects} in layer '${targetLayer}' - a correction names an entry in its own layer. Nothing was written.`)",
+    "code": "EMET-MEM-009"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('derived_from', `${targetLayer} entries must carry their source. Pass session_id (your transcript session from ` + `emet_session_open - the server stamps the exchange), or derived_from {session_id, exchange_start, ` + `exchange_end}, or derived_from {entries: [ids]} for an entry consolidated from other entries. Nothing was written.`)",
+    "code": "EMET-MEM-008"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('display_name is required — the name the guest will be known by')",
+    "code": "EMET-AUTH-029"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('display_name is required \\u2014 the name the member will be known by')",
+    "code": "EMET-AUTH-033"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('doc_id must be a non-empty string')",
+    "code": "EMET-DOC-001"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('doc_id must be a non-empty string')",
+    "code": "EMET-DOC-001"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('doc_id must be a non-empty string')",
+    "code": "EMET-DOC-001"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('doc_id must be a non-empty string')",
+    "code": "EMET-DOC-001"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('doc_id must be a non-empty string')",
+    "code": "EMET-DOC-001"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('exchanges must be a non-empty array - a revision replaces the whole part, not a field within it')",
+    "code": "EMET-TRN-007"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('exchanges must be a non-empty array')",
+    "code": "EMET-TRN-005"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('expected_version', 'expected_version is the whole-number `version` an earlier page of this document returned.')",
+    "code": "EMET-DOC-004"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('expected_version', `${doc_id}: document changed - restart from offset 0. You read earlier pages of ${was}; it is now ${now}. ` + 'Pages of two versions are never joined, so nothing was returned. Call read_doc again with offset 0 and no expected_version, ' + 'discard the pages you already have, and read every page of the new version.')",
+    "code": "EMET-DOC-005"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('layer', 'Episodic revision is prohibited - events are immutable history. Save a new episodic entry instead.')",
+    "code": "EMET-MEM-010"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('metadata.lesson', `${lessonProblem} Nothing was written.`)",
+    "code": "EMET-MEM-005"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('metadata', 'Metadata must be an object', typeof metadata)",
+    "code": "EMET-VAL-018"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('new_id must be a non-empty string')",
+    "code": "EMET-DOC-031"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('new_str must be a string (empty string allowed = delete)')",
+    "code": "EMET-DOC-058"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('old_id and new_id name the same document')",
+    "code": "EMET-DOC-032"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('old_id must be a non-empty string')",
+    "code": "EMET-DOC-030"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('old_str must be a non-empty string')",
+    "code": "EMET-DOC-057"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('Only the owner can create EMET Member Access')",
+    "code": "EMET-AUTH-037"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('Only the owner can create invites')",
+    "code": "EMET-AUTH-036"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('order', \"order must be 'latest' when it is set\")",
+    "code": "EMET-MEM-014"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('params[0]', `Search term exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH}`)",
+    "code": "EMET-MEM-015"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('patch_doc needs reason (at least 10 characters). Nothing was written.')",
+    "code": "EMET-DOC-055"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('patch_doc: a drop is write-once. Use a new id. Nothing was written.')",
+    "code": "EMET-DOC-056"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('patch_doc: an added board row needs origin. Nothing was written.')",
+    "code": "EMET-MEM-028"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('patch_doc: edits overlap. Nothing was written.')",
+    "code": "EMET-DOC-059"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('patch_doc: unhandled drops were listed at this session boot and must be retired with retire_doc before the board is edited. Nothing was written.')",
+    "code": "EMET-MEM-027"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('query', 'Query is required')",
+    "code": "EMET-VAL-005"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('query', 'query must be a non-empty string')",
+    "code": "EMET-MEM-030"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('query', 'query must be a non-empty string')",
+    "code": "EMET-MEM-030"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('query', 'Query must be a string')",
+    "code": "EMET-VAL-006"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('query', `Query exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH} characters`)",
+    "code": "EMET-VAL-008"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('query', `query exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH}`)",
+    "code": "EMET-VAL-008"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('query', `query exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH}`)",
+    "code": "EMET-VAL-008"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('reason is required and must describe what was wrong - at least 10 characters. An unexplained correction is a silent rewrite.')",
+    "code": "EMET-TRN-008"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('rename_doc needs reason (at least 10 characters). Nothing was changed.')",
+    "code": "EMET-DOC-033"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('rename_doc: a drop is write-once. Use a new id. Nothing was changed.')",
+    "code": "EMET-DOC-035"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('rename_doc: the board is never renamed. Nothing was changed.')",
+    "code": "EMET-DOC-034"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('restore_doc needs a source. Nothing was written.')",
+    "code": "EMET-DOC-038"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('restore_doc needs reason (at least 10 characters). Nothing was written.')",
+    "code": "EMET-DOC-037"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('restore_doc: a drop is never restored. Nothing was written.')",
+    "code": "EMET-DOC-039"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('restore_doc: a record is not restored. Records are superseded via revise_memory, not restored. Nothing was written.')",
+    "code": "EMET-DOC-040"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('restore_doc: a shipped copy is not restored. Nothing was written.')",
+    "code": "EMET-DOC-041"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('restore_doc: unhandled drops were listed at this session boot and must be retired with retire_doc before the board is restored. Nothing was written.')",
+    "code": "EMET-MEM-026"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('retire_doc needs reason (at least 10 characters), naming where the drop went. Nothing was changed.')",
+    "code": "EMET-DOC-029"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('retire_doc: the board is never retired. Edit it with patch_doc and a reason. Nothing was changed.')",
+    "code": "EMET-DOC-027"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('session_id is required')",
+    "code": "EMET-MEM-017"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('session_id must be a non-empty string')",
+    "code": "EMET-TRN-003"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('session_id must be a non-empty string')",
+    "code": "EMET-TRN-003"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('session_id', 'must be a string')",
+    "code": "EMET-SESS-004"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('session_id', 'must be the non-empty transcript session id from emet_session_open. Nothing was written.')",
+    "code": "EMET-MEM-006"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('session_id', 'this store cannot read transcript positions, so the pointer cannot be stamped - pass derived_from instead. Nothing was written.')",
+    "code": "EMET-MEM-007"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('session_start must be a Unix timestamp (number)')",
+    "code": "EMET-TRN-004"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('slug', `${e.message} Nothing was opened.`)",
+    "code": "EMET-MEM-016"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('source', 'A guest invite source must be a registered tag. Nothing was created.')",
+    "code": "EMET-AUTH-032"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('source', 'A member code source must be a registered tag. Nothing was created.')",
+    "code": "EMET-AUTH-035"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('subkey', e.message)",
+    "code": "EMET-AUTH-028"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('target_id', 'target_id must be a positive integer')",
+    "code": "EMET-MEM-011"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('target_id', `Entry ${targetId} is already superseded by ${targetMd.superseded_by} - revise the CURRENT entry, not the archived one`)",
+    "code": "EMET-MEM-013"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('target_id', `No entry with id ${targetId} in layer '${validatedLayer}'`)",
+    "code": "EMET-MEM-012"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('The board already exists. Provision does not replace it. Nothing was written.')",
+    "code": "EMET-MEM-021"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('The board already exists. Provision does not replace it. Nothing was written.')",
+    "code": "EMET-MEM-021"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('The board is never written. Edit it with patch_doc, with `reason` (and `origin` for an added row). Nothing was written.')",
+    "code": "EMET-MEM-022"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('The board is provisioned by the server at setup (emet_setup_complete). Nothing was written.')",
+    "code": "EMET-MEM-023"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('timestamp_start and timestamp_end must be numbers (Unix timestamps)')",
+    "code": "EMET-SESS-002"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('timestamp_start must be less than timestamp_end')",
+    "code": "EMET-SESS-003"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('unhandled drops could not be loaded at this session boot, so the board cannot be edited or restored until the list is known. Nothing was written.')",
+    "code": "EMET-MEM-025"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('user_message and assistant_message must be strings')",
+    "code": "EMET-TRN-006"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('version must be a positive integer')",
+    "code": "EMET-DOC-006"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`${name} must be a non-empty string`)",
+    "code": "EMET-DOC-051"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`${tool}: ${doc_id} is a bot record and \"${tag}\" is a ${approved ? 'declared tag outside its own folder' : 'declared tag not yet approved'} - a declared tag writes only bots/${tag}/ once approved. Nothing was written.`)",
+    "code": "EMET-DOC-010"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`${tool}: ${doc_id} is kept by the server (client approvals). Decide clients with emet_client_approve. Nothing was written.`)",
+    "code": "EMET-DOC-009"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`${tool}: ${what} not found in ${doc_id}`)",
+    "code": "EMET-DOC-053"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`an exchange field exceeds ${EXCHANGE_FIELD_MAX} characters. Nothing was written.`)",
+    "code": "EMET-TRN-001"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`Destination already exists: ${new_id} (version ${occupied.version}). Rename refused; nothing was changed.`)",
+    "code": "EMET-DOC-036"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`Document not found: ${doc_id}`)",
+    "code": "EMET-DOC-002"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`Document not found: ${doc_id}`)",
+    "code": "EMET-DOC-002"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`Document not found: ${doc_id}`)",
+    "code": "EMET-DOC-002"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`Document not found: ${doc_id}`)",
+    "code": "EMET-DOC-002"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`Document not found: ${old_id}`)",
+    "code": "EMET-DOC-002"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`No retained revision ${version} of ${doc_id}`)",
+    "code": "EMET-DOC-003"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`No retained revision ${version} of ${doc_id}`)",
+    "code": "EMET-DOC-003"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`No template ${tpl_id} ships with this release.`)",
+    "code": "EMET-DOC-047"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`No transcript found under session_id \"${session_id}\". Use save_transcript to write a new part; revise_transcript only corrects one that exists.`)",
+    "code": "EMET-TRN-009"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`patch_doc: the board edit is nonconforming. ${(checked.failures || []).join('; ')} Nothing was written.`)",
+    "code": "EMET-MEM-029"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`restore_doc: ${doc_id} is templated and the retained revision has no conformance verdict. Only an untemplated document can be restored without a verdict. Nothing was written.`)",
+    "code": "EMET-DOC-044"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`restore_doc: ${updated_by} is not in EMET_RESTORE_TAGS. Nothing was written.`)",
+    "code": "EMET-DOC-042"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`restore_doc: retained revision ${version} of ${doc_id} does not match its digest. Nothing was written.`)",
+    "code": "EMET-DOC-043"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`restore_doc: retained revision ${version} of ${doc_id} was not conforming. Nothing was written.`)",
+    "code": "EMET-DOC-045"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`retire_doc: ${doc_id} is not a drop. Working documents are edited, not retired. Nothing was changed.`)",
+    "code": "EMET-DOC-028"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`this transcript request exceeds ${EXCHANGE_REQUEST_MAX} characters. Nothing was written.`)",
+    "code": "EMET-TRN-002"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`write_doc: ${doc_id} is governed by the copy shipped with this release. Only that text may be stored. Nothing was written.`)",
+    "code": "EMET-DOC-024"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`write_doc: ${updated_by || 'no source'} is not a registered source. This session may read, and may write a new drop only. Nothing was written.`)",
+    "code": "EMET-DOC-020"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(`write_doc: this connected app already wrote 20 drops today. Nothing was written.`)",
+    "code": "EMET-DOC-021"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(INVITES_FROZEN_REASON)",
+    "code": "EMET-AUTH-030"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(machineCheck.reason)",
+    "code": "EMET-MEM-018"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(MEMBER_ACCESS_FROZEN_REASON)",
+    "code": "EMET-AUTH-034"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( 'assertion_origin', `Invalid assertion_origin '${value}'. Must be one of: ${ASSERTION_ORIGINS.join(', ')} (or null)` )",
+    "code": "EMET-VAL-025"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( 'context', `Context exceeds maximum length of ${CONTENT_LIMITS.MAX_CONTEXT_LENGTH} characters (got ${context.length})` )",
+    "code": "EMET-VAL-011"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( 'filters.content_contains', `Search term exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH}` )",
+    "code": "EMET-VAL-039"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( 'filters.context_contains', `Search term exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH}` )",
+    "code": "EMET-VAL-040"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( 'filters.importance_bucket', `Unknown bucket '${filters.importance_bucket}'. Use constitutive, durable, binding, event, or scratch.` )",
+    "code": "EMET-VAL-038"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( 'filters', 'emotional_intensity_min cannot be greater than emotional_intensity_max' )",
+    "code": "EMET-VAL-042"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( 'filters', 'importance_min cannot be greater than importance_max' )",
+    "code": "EMET-VAL-041"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( 'filters', 'timestamp_after cannot be greater than timestamp_before' )",
+    "code": "EMET-VAL-043"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( 'layer', `Invalid layer '${normalizedLayer}'. Must be one of: ${VALID_LAYERS.join(', ')}` )",
+    "code": "EMET-VAL-014"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( 'metadata', `Metadata exceeds maximum size of ${CONTENT_LIMITS.MAX_METADATA_SIZE} bytes (got ${metadataJson.length})` )",
+    "code": "EMET-VAL-019"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( 'query', `Query exceeds maximum length of ${CONTENT_LIMITS.MAX_QUERY_LENGTH} characters (got ${trimmed.length})` )",
+    "code": "EMET-VAL-008"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( 'session_id', 'metadata.session_id is not accepted: supply derived_from {session_id, exchange_start, exchange_end} ' + '(a transcript span) or derived_from {entries: [...]} (a consolidation) instead', typeof value )",
+    "code": "EMET-VAL-020"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( 'valid_from', `valid_from (${sanitized.valid_from}) cannot be greater than valid_until (${sanitized.valid_until})` )",
+    "code": "EMET-VAL-028"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( fieldName, `Content exceeds maximum length of ${CONTENT_LIMITS.MAX_CONTENT_LENGTH} characters (got ${trimmed.length})` )",
+    "code": "EMET-VAL-004"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( fieldName, `Value exceeds maximum length of ${CONTENT_LIMITS.MAX_STRING_FIELD_LENGTH} characters` )",
+    "code": "EMET-VAL-036"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError( fieldName, `Value must be between ${min} and ${max} (got ${numValue})` )",
+    "code": "EMET-VAL-017"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('args', 'Arguments must be an object')",
+    "code": "EMET-VAL-046"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('args', 'Arguments must be an object')",
+    "code": "EMET-VAL-046"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('args', 'Arguments must be an object')",
+    "code": "EMET-VAL-046"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('args', 'Arguments must be an object')",
+    "code": "EMET-VAL-046"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('context', 'Context must be a string', typeof context)",
+    "code": "EMET-VAL-010"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('custom', 'Custom metadata object is too large')",
+    "code": "EMET-VAL-027"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('expires_at', `expires_at (${aliased}) disagrees with valid_until (${sanitized.valid_until}); supply one`, typeof value)",
+    "code": "EMET-VAL-021"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('filters', 'Filters must be an object', typeof filters)",
+    "code": "EMET-VAL-037"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('layer', 'Layer is required')",
+    "code": "EMET-VAL-012"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('layer', 'Layer must be a string', typeof layer)",
+    "code": "EMET-VAL-013"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('metadata', 'Metadata must be an object', typeof metadata)",
+    "code": "EMET-VAL-018"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('options.order_by', 'order_by must be a string')",
+    "code": "EMET-VAL-045"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('options', 'Options must be an object', typeof options)",
+    "code": "EMET-VAL-044"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('query', 'Query cannot be empty')",
+    "code": "EMET-VAL-007"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('query', 'Query is required')",
+    "code": "EMET-VAL-005"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('query', 'Query must be a string', typeof query)",
+    "code": "EMET-VAL-006"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('related_ids', 'Related IDs must be an array', typeof ids)",
+    "code": "EMET-VAL-034"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('related_ids', 'Too many related IDs (max 100)')",
+    "code": "EMET-VAL-035"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('routing', 'Routing must be a plain object', typeof value)",
+    "code": "EMET-VAL-023"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('tags', 'Tags must be an array', typeof tags)",
+    "code": "EMET-VAL-030"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('tags', 'Too many tags (max 50)')",
+    "code": "EMET-VAL-031"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError('valid_until', `valid_until (${canonical}) disagrees with expires_at (${sanitized.valid_until}); supply one`, typeof value)",
+    "code": "EMET-VAL-022"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError(`tags[${i}]`, 'Each tag must be a string', typeof tag)",
+    "code": "EMET-VAL-032"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError(`tags[${i}]`, 'Tag exceeds maximum length of 100 characters')",
+    "code": "EMET-VAL-033"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError(fieldName, 'Content is required')",
+    "code": "EMET-VAL-001"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError(fieldName, 'Content must be a string', typeof content)",
+    "code": "EMET-VAL-002"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError(fieldName, 'Value is required')",
+    "code": "EMET-VAL-015"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError(fieldName, 'Value is required')",
+    "code": "EMET-VAL-015"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError(fieldName, 'Value must be a number', value)",
+    "code": "EMET-VAL-016"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError(fieldName, 'Value must be a positive integer', value)",
+    "code": "EMET-VAL-029"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError(fieldName, 'Value must be a string', typeof value)",
+    "code": "EMET-VAL-026"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError(fieldName, `Content must be at least ${CONTENT_LIMITS.MIN_CONTENT_LENGTH} character(s)`)",
+    "code": "EMET-VAL-003"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError(key, 'Value must be a boolean', typeof value)",
+    "code": "EMET-VAL-024"
+  },
+  {
+    "file": "validation.js",
+    "message": "throw new ValidationError(key, 'Value must be a string', typeof value)",
+    "code": "EMET-VAL-026"
+  }
+]

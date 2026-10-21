@@ -27,6 +27,7 @@
 
 import crypto from 'crypto';
 import { resultSize } from './startup-payload.js';
+import { CodedError } from './error-codes.js';
 
 export const DEFAULT_PAGE_BYTES = 18000;
 export const MIN_PAGE_BYTES = 12000;
@@ -46,7 +47,7 @@ export const PAGE_ORDER = Object.freeze([
   'floor', 'floor_precedence', 'floor_reassertion', 'gems_available', 'gems_active',
   'seeds_due', 'seeds_evaluated_on', 'install_notes_doc_id',
   'identity', 'character', 'character_doc_id', 'character_sha256', 'user',
-  'record_gaps', 'named_items', 'lessons_pending', 'layer_health',
+  'record_gaps', 'page_lint', 'named_items', 'lessons_pending', 'layer_health',
   'install_notes', 'instructions', 'layer_charter',
   'seeds', 'threads', 'recent_context', 'layer_counts', 'layer_counts_last_30d'
 ]);
@@ -243,7 +244,7 @@ export function paginate(full, { budget = pageBudget(), recentLimit } = {}) {
     other = Math.max(...measured.slice(1), 600);
     if (!fits) sizes.forEach((sz, i) => { if (sz > budget) overhead[i] += sz - budget + 64; });
   }
-  if (!best) throw new Error('startup paging: could not fit the pages to the budget');
+  if (!best) throw new CodedError('startup paging: could not fit the pages to the budget', { code: 'EMET-PAGE-007' });
   return best;
 }
 

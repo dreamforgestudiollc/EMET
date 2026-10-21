@@ -95,7 +95,7 @@ export const CLOSE_PROTOCOL = Object.freeze([
 async function connect() {
   const { testClientActive } = await import('./mongo-connect.js');
   if (!MONGODB_URI && !testClientActive()) {
-    throw new DatabaseError('MONGODB_URI is not set; cannot verify session artifacts.');
+    throw new DatabaseError('MONGODB_URI is not set; cannot verify session artifacts.', { code: 'EMET-DB-001' });
   }
   const client = await connectMongo(MONGODB_URI || 'mongodb://test', { serverSelectionTimeoutMS: 15000 });
   return { client, db: client.db(MONGODB_DB) };

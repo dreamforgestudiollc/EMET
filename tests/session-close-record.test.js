@@ -1,6 +1,6 @@
 /**
- * The close is recorded - through the door (2026-10-01, the reviewer's re-check 4 and
- * the tester's re-gate of commit-df21117).
+ * The close is recorded - through the door (2026-10-01, the second reader's re-check 4 and
+ * the reviewer's re-gate of an earlier draft).
  *
  * Every test here calls emet_session_close through dispatchTool, the way both
  * transports do, against an in-memory store that is complete enough for
@@ -11,13 +11,13 @@
  *
  *  1. A close that names its session only in receipts.transcript_session_id
  *     (a shape the close tool documents) is recorded, so the session locks and
- *     its id is not handed out again. (the reviewer nit 3 / the tester condition 1.)
+ *     its id is not handed out again. (review nit 3 / the reviewer condition 1.)
  *  2. A failed closed-flag write is retried once; if it fails again the reply
  *     says closed_recorded: false with a warning, instead of reading as a
- *     locked session. (the reviewer nit 2 / the tester condition 2.)
+ *     locked session. (review nit 2 / the reviewer condition 2.)
  *  3. A close-and-reopen cycle, and the 4:59 grace case, with the close driven
  *     through emet_session_close, not by writing the session row directly.
- *     (the reviewer nit 1 / the tester item 4.)
+ *     (review nit 1 / the reviewer item 4.)
  */
 import { test, testGroup, summary } from './harness.js';
 import assert from 'assert';
@@ -97,7 +97,7 @@ async function sessionReadyToClose(db, slug, T) {
 const exchangesOf = (db, sid) => db.transcripts().filter((d) => d.session_id === sid && !d.superseded_by).flatMap((d) => d.exchanges.map((e) => e.exchange_index));
 
 // -----------------------------------------------------------------------------
-testGroup('a close that names its session only in receipts.transcript_session_id is recorded (the reviewer nit 3, the tester condition 1)', () => {
+testGroup('a close that names its session only in receipts.transcript_session_id is recorded (review nit 3, the reviewer condition 1)', () => {
   test('through dispatchTool: close with no session_id, receipts naming the session -> complete, recorded closed; an append after the window is refused, nothing written; the id is not reused', async () => {
     const db = makeStore();
     const T = new Date();
@@ -136,7 +136,7 @@ testGroup('a close that names its session only in receipts.transcript_session_id
   });
 });
 
-testGroup('a failed closed-flag write is not swallowed (the reviewer nit 2, the tester condition 2)', () => {
+testGroup('a failed closed-flag write is not swallowed (review nit 2, the reviewer condition 2)', () => {
   test('the write fails once: it is retried, the close is recorded, closed_recorded: true, and the session locks', async () => {
     const db = makeStore();
     const T = new Date();
@@ -184,7 +184,7 @@ testGroup('a failed closed-flag write is not swallowed (the reviewer nit 2, the 
   });
 });
 
-testGroup('close and reopen through emet_session_close (the reviewer nit 1, the tester item 4)', () => {
+testGroup('close and reopen through emet_session_close (review nit 1, the reviewer item 4)', () => {
   test('a real cycle: open, two appends, emet_session_close via dispatchTool (complete), the closing exchange at 4:59, then locked; reopen gives -2, which starts at exchange 1', async () => {
     const db = makeStore();
     const T = new Date();
@@ -327,7 +327,7 @@ testGroup('the close attributes only a registered tag that wrote the session; an
   });
 });
 
-testGroup('EMET_CLOSE_GRACE_MINUTES takes decimal numbers only (the reviewer nit 5)', () => {
+testGroup('EMET_CLOSE_GRACE_MINUTES takes decimal numbers only (review nit 5)', () => {
   test('"0x10", "0b11" and "0o7" are not minutes: the default 5 is used, with a note', async () => {
     const { closeGraceSetting } = await import('../src/session-graph.js');
     for (const v of ['0x10', '0b11', '0o7', '0X1F']) {

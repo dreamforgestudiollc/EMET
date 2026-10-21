@@ -651,7 +651,7 @@ testGroup('extras', () => {
   });
 });
 
-testGroup('the reviewer review regressions', () => {
+testGroup('second-reader review regressions', () => {
   test('a correct handle is not locked out; only a later failure is throttled, per session and per client', async () => withEnv({ ...ON, EMET_SUBKEY_FAIL_MAX: '2' }, async () => {
     const { att, sk } = await fresh();
     const { deps, c } = world();

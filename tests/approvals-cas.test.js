@@ -1,5 +1,5 @@
 /**
- * the reviewer round 3 (2026-10-12), condition 1: the client-approvals record is
+ * the second reader round 3 (2026-10-12), condition 1: the client-approvals record is
  * written with an atomic compare-and-set. The update filter carries
  * { doc_id, version: expected }, so a second process that read the same
  * version loses even if it passed the early check. Real writeDoc, in-memory store.

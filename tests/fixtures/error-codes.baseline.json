@@ -1,0 +1,1552 @@
+{
+  "EMET-AUTH-001": {
+    "summary": "Could not allocate a person id",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-002": {
+    "summary": "CIMD document is not a JSON object",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-AUTH-003": {
+    "summary": "CIMD client_id does not match its URL",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-AUTH-004": {
+    "summary": "CIMD redirect_uris are missing",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-AUTH-005": {
+    "summary": "CIMD client is not public",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-AUTH-006": {
+    "summary": "CIMD host is not a public address",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-AUTH-007": {
+    "summary": "CIMD host did not resolve",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-AUTH-008": {
+    "summary": "CIMD host resolves to a blocked address",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-AUTH-009": {
+    "summary": "CIMD fetch rate limit",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-AUTH-010": {
+    "summary": "CIMD fetch returned an HTTP error",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-AUTH-011": {
+    "summary": "CIMD document exceeds the size cap",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-AUTH-012": {
+    "summary": "CIMD document is not valid JSON",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-AUTH-013": {
+    "summary": "Authorization code is not recognised",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-014": {
+    "summary": "Authorization code has expired",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-015": {
+    "summary": "Redirect URI does not match the code",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-016": {
+    "summary": "Authorization code has already been used",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-017": {
+    "summary": "Refresh token is not recognised",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-018": {
+    "summary": "Refresh token has expired",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-019": {
+    "summary": "Login has no source tag bound",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-020": {
+    "summary": "Refresh token has already been replaced",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-021": {
+    "summary": "Member access login can no longer be refreshed",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-022": {
+    "summary": "Invite login can no longer be refreshed",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-023": {
+    "summary": "A refresh cannot widen scope",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-024": {
+    "summary": "Access token is not recognised",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-025": {
+    "summary": "Access token has expired",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-026": {
+    "summary": "Sub-key open lost a race",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-027": {
+    "summary": "Sub-key store conflict",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-028": {
+    "summary": "Sub-key refusal",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-029": {
+    "summary": "Guest display name is required",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-030": {
+    "summary": "Guest access is off on this install",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-031": {
+    "summary": "A guest invite accepts only read access",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-032": {
+    "summary": "Guest invite source is not a registered tag",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-033": {
+    "summary": "Member display name is required",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-034": {
+    "summary": "Member access is off on this install",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-035": {
+    "summary": "Member code source is not a registered tag",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-036": {
+    "summary": "Only the owner can create invites",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-037": {
+    "summary": "Only the owner can create member access",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-038": {
+    "summary": "The error report is owner-only",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-039": {
+    "summary": "HTTP attribution preflight was refused",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-CFG-001": {
+    "summary": "Database name must be a plain name",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-CFG-002": {
+    "summary": "Collection prefix must be a plain name",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-CFG-004": {
+    "summary": "Hosted setup cannot turn sub-keys on from here",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-CFG-005": {
+    "summary": "Could not read .env",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-CFG-006": {
+    "summary": "Could not write .env",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-CFG-007": {
+    "summary": "Startup page is not a whole number",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-CFG-008": {
+    "summary": "Startup page does not exist",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-CFG-009": {
+    "summary": "First-time setup was given a bot tag",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-CFG-010": {
+    "summary": "Setup is missing required answers",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-CFG-011": {
+    "summary": "Sub-key answer must be yes or no",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-CFG-012": {
+    "summary": "Backup answer must be yes or no",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-CFG-013": {
+    "summary": "Setup requires the owner",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-CFG-014": {
+    "summary": "Store is already set up",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-001": {
+    "summary": "MONGODB_URI is not set",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-002": {
+    "summary": "Failed to connect to MongoDB",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-003": {
+    "summary": "Query failed on a memory layer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-004": {
+    "summary": "Count failed on a memory layer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-005": {
+    "summary": "Unknown layer field",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-006": {
+    "summary": "Failed to write to primary storage",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-007": {
+    "summary": "Invalid memory layer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-008": {
+    "summary": "Failed to initialize a layer schema",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-010": {
+    "summary": "Unknown layer in a gap query",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-013": {
+    "summary": "Failed to save memory",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-014": {
+    "summary": "Failed to revise memory",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-015": {
+    "summary": "Failed to recall memories",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-016": {
+    "summary": "Failed to query a layer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-017": {
+    "summary": "Failed to get system status",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-018": {
+    "summary": "Failed to query transcripts",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-019": {
+    "summary": "Failed to save a session transcript",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-020": {
+    "summary": "Session open could not load unhandled drops",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-021": {
+    "summary": "Session open could not check a closed session",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-022": {
+    "summary": "Failed to revise a transcript",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-023": {
+    "summary": "Failed to read a document",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-024": {
+    "summary": "Failed to read document history",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-025": {
+    "summary": "Failed to write a document",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-026": {
+    "summary": "Failed to list documents",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-027": {
+    "summary": "Retirement mark did not persist",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-028": {
+    "summary": "Retiring altered the document",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-029": {
+    "summary": "Failed to retire a document",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-030": {
+    "summary": "Failed to rename a document",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-031": {
+    "summary": "Failed to validate a document",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-032": {
+    "summary": "Acceptance did not persist",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-033": {
+    "summary": "Failed to accept a nonconformance",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-034": {
+    "summary": "Failed to patch a document",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-035": {
+    "summary": "Failed semantic recall",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-036": {
+    "summary": "Failed corpus recall",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-001": {
+    "summary": "doc_id must be a non-empty string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-002": {
+    "summary": "Document not found",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-003": {
+    "summary": "No retained revision",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-004": {
+    "summary": "expected_version is not a whole number",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-005": {
+    "summary": "Document changed while paging",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-006": {
+    "summary": "Version must be a positive integer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-007": {
+    "summary": "A record is superseded, not amended",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-008": {
+    "summary": "Doc id is not stored as given",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-009": {
+    "summary": "Client approvals are kept by the server",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-010": {
+    "summary": "A declared tag wrote outside its own folder",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-011": {
+    "summary": "A bot may write only its own records",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-012": {
+    "summary": "Bot records require a registered tag",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-013": {
+    "summary": "A bot tag cannot write a main record",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-014": {
+    "summary": "Main records require a registered tag",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-015": {
+    "summary": "Content must be a non-empty string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-016": {
+    "summary": "Content exceeds the 2MB limit",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-017": {
+    "summary": "A record revision must name what it supersedes",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-018": {
+    "summary": "supersedes does not name the revision in force",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-019": {
+    "summary": "A record revision needs a reason",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-020": {
+    "summary": "Unregistered source may write a new drop only",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-021": {
+    "summary": "Drop cap for the day is reached",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-022": {
+    "summary": "An existing working document is edited, not rewritten",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-023": {
+    "summary": "A drop id already exists",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-024": {
+    "summary": "A shipped copy is not replaced",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-025": {
+    "summary": "A write would condense a document below half",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-026": {
+    "summary": "A write would fall below half of the daily peak",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-027": {
+    "summary": "The board is never retired",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-028": {
+    "summary": "Working documents are edited, not retired",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-029": {
+    "summary": "retire_doc needs a reason",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-030": {
+    "summary": "old_id must be a non-empty string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-031": {
+    "summary": "new_id must be a non-empty string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-032": {
+    "summary": "old_id and new_id name the same document",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-033": {
+    "summary": "rename_doc needs a reason",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-034": {
+    "summary": "The board is never renamed",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-035": {
+    "summary": "A drop is write-once",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-036": {
+    "summary": "Rename destination already exists",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-037": {
+    "summary": "restore_doc needs a reason",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-038": {
+    "summary": "restore_doc needs a source",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-039": {
+    "summary": "A drop is never restored",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-040": {
+    "summary": "A record is not restored",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-041": {
+    "summary": "A shipped copy is not restored",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-042": {
+    "summary": "Restore source is not in EMET_RESTORE_TAGS",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-043": {
+    "summary": "Retained revision does not match its digest",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-044": {
+    "summary": "Templated revision has no conformance verdict",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-045": {
+    "summary": "Retained revision was not conforming",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-046": {
+    "summary": "validate_doc needs a document or content",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-047": {
+    "summary": "Template does not ship with this release",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-048": {
+    "summary": "An acceptance needs a written reason",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-049": {
+    "summary": "An acceptance reason is too short",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-050": {
+    "summary": "Document has no nonconformance to accept",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-051": {
+    "summary": "A required name is empty",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-052": {
+    "summary": "Document version conflict",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-053": {
+    "summary": "Patch target text was not found",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-054": {
+    "summary": "Patch target text matched more than once",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-055": {
+    "summary": "patch_doc needs a reason",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-056": {
+    "summary": "patch_doc cannot edit a drop",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-057": {
+    "summary": "old_str must be a non-empty string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-058": {
+    "summary": "new_str must be a string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-059": {
+    "summary": "Patch edits overlap",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-001": {
+    "summary": "Read-back found no document",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-002": {
+    "summary": "Read-back content digest differs",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-003": {
+    "summary": "Read-back version differs",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-004": {
+    "summary": "Read-back found no layer entry",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-005": {
+    "summary": "Layer sha256 column does not match content",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-006": {
+    "summary": "Read-back content differs",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-007": {
+    "summary": "Metadata digest column does not match",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-008": {
+    "summary": "Read-back metadata differs",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-009": {
+    "summary": "Unknown floor section",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-010": {
+    "summary": "Unknown GEM",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-011": {
+    "summary": "GEM is not loadable",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-012": {
+    "summary": "GEM has no floor",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-013": {
+    "summary": "GEM manifest schema id",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-014": {
+    "summary": "Unexpected end of JSON",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-015": {
+    "summary": "Unexpected character in JSON",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-016": {
+    "summary": "Unexpected token in JSON",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-017": {
+    "summary": "Bad number in JSON",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-018": {
+    "summary": "Bad escape in JSON",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-019": {
+    "summary": "Raw control character in a JSON string",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-020": {
+    "summary": "Unterminated JSON string",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-021": {
+    "summary": "Trailing comma in JSON",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-022": {
+    "summary": "Expected a comma in JSON",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-023": {
+    "summary": "Unterminated JSON array",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-024": {
+    "summary": "Expected a JSON key",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-025": {
+    "summary": "Duplicate JSON key",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-026": {
+    "summary": "Forbidden JSON key",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-027": {
+    "summary": "Expected a colon in JSON",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-028": {
+    "summary": "Unterminated JSON object",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-029": {
+    "summary": "JSON starts with a BOM",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-030": {
+    "summary": "Trailing data after JSON",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-031": {
+    "summary": "JSON number is not a safe integer",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-032": {
+    "summary": "Unsupported JSON value",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-GEM-033": {
+    "summary": "Attestation is immutable",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-034": {
+    "summary": "metadata.gem must name the active directive",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-035": {
+    "summary": "Served artifact has no hash pin",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-036": {
+    "summary": "No authenticated principal",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-037": {
+    "summary": "Serve log could not be written",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-038": {
+    "summary": "No serve event",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-039": {
+    "summary": "Client-reported sha256 is not accepted here",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-040": {
+    "summary": "Input hash or reference is required",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-041": {
+    "summary": "Served rune has no hash pin",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-GEM-042": {
+    "summary": "GEM socket failed closed",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-INT-001": {
+    "summary": "Unclassified internal error",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-001": {
+    "summary": "Unknown memory layer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-002": {
+    "summary": "Unknown importance bucket",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-003": {
+    "summary": "Unknown importance bucket name",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-004": {
+    "summary": "Unknown importance degree",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-005": {
+    "summary": "Lesson metadata was refused",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-006": {
+    "summary": "session_id must come from emet_session_open",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-007": {
+    "summary": "Transcript positions cannot be read",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-008": {
+    "summary": "An entry must carry its source",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-009": {
+    "summary": "A correction names a missing entry",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-010": {
+    "summary": "Episodic revision is prohibited",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-011": {
+    "summary": "target_id must be a positive integer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-012": {
+    "summary": "No entry with that id in the layer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-013": {
+    "summary": "Entry is already superseded",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-014": {
+    "summary": "order must be latest",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-015": {
+    "summary": "Search term exceeds the maximum length",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-016": {
+    "summary": "Session slug was refused",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-017": {
+    "summary": "session_id is required",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-018": {
+    "summary": "Machine check refused the append",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-019": {
+    "summary": "A bot tag cannot retire documents",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-020": {
+    "summary": "A bot tag cannot rename documents",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-021": {
+    "summary": "The board already exists",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-022": {
+    "summary": "The board is never written with write_doc",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-023": {
+    "summary": "The board is provisioned by setup",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-024": {
+    "summary": "A board edit needs a session id",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-025": {
+    "summary": "Board edit blocked: drop list unknown",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-026": {
+    "summary": "Unhandled drops block a board restore",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-027": {
+    "summary": "Unhandled drops block a board edit",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-028": {
+    "summary": "An added board row needs origin",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-029": {
+    "summary": "The board edit is nonconforming",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-030": {
+    "summary": "Query must be a non-empty string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-032": {
+    "summary": "Corpus name is not recognised",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-034": {
+    "summary": "Only a ready payload can be abridged",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PAGE-001": {
+    "summary": "as_of must be an ISO date or unix seconds",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PAGE-002": {
+    "summary": "Only the owner can create or edit an area document",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PAGE-003": {
+    "summary": "Only the owner can read topic pages",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PAGE-004": {
+    "summary": "Area must be a slug",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PAGE-005": {
+    "summary": "No current area document",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PAGE-006": {
+    "summary": "Lint found no current area document",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PAGE-007": {
+    "summary": "Startup pages could not fit the budget",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PROV-001": {
+    "summary": "derived_from must be an object",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PROV-002": {
+    "summary": "derived_from has two origins",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PROV-003": {
+    "summary": "derived_from needs a span or entries",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PROV-004": {
+    "summary": "derived_from.entries must be a non-empty array",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PROV-005": {
+    "summary": "Entry ids must be positive integers",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PROV-006": {
+    "summary": "derived_from.session_id must be a non-empty string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PROV-007": {
+    "summary": "exchange_start must be a positive integer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PROV-008": {
+    "summary": "exchange_end is before exchange_start",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PROV-009": {
+    "summary": "exchange_end must be a positive integer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-PROV-010": {
+    "summary": "Provenance entry is required",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-RATE-001": {
+    "summary": "Rate limit exceeded",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-SESS-001": {
+    "summary": "The transcript position is not available",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-SESS-002": {
+    "summary": "Transcript timestamps must be numbers",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-SESS-003": {
+    "summary": "timestamp_start must be before timestamp_end",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-SESS-004": {
+    "summary": "session_id must be a string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-SESS-005": {
+    "summary": "Session graph is unavailable",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TOOL-001": {
+    "summary": "A tool has no annotation entry",
+    "status": "active",
+    "internal": true
+  },
+  "EMET-TOOL-002": {
+    "summary": "A source tag is required",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TOOL-003": {
+    "summary": "A source tag is required and none are registered",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TOOL-004": {
+    "summary": "Source tag is not registered",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TOOL-005": {
+    "summary": "The call is outside the token scope",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TOOL-006": {
+    "summary": "Exchange index was refused",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TOOL-007": {
+    "summary": "Client approval was refused",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TOOL-008": {
+    "summary": "Unknown tool",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TOOL-009": {
+    "summary": "since must be an ISO date",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TOOL-010": {
+    "summary": "since is older than 90 days",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TOOL-011": {
+    "summary": "codes must be a list of EMET codes",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TOOL-012": {
+    "summary": "limit must be a whole number from 1 to 200",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TOOL-013": {
+    "summary": "correlation_id must be 16 hex characters",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TRN-001": {
+    "summary": "An exchange field exceeds the length cap",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TRN-002": {
+    "summary": "Transcript request exceeds the length cap",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TRN-003": {
+    "summary": "session_id must be a non-empty string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TRN-004": {
+    "summary": "session_start must be a Unix timestamp",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TRN-005": {
+    "summary": "exchanges must be a non-empty array",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TRN-006": {
+    "summary": "Exchange messages must be strings",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TRN-007": {
+    "summary": "A transcript revision replaces the whole part",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TRN-008": {
+    "summary": "A transcript correction needs a reason",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TRN-009": {
+    "summary": "No transcript found under that session id",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-TRN-010": {
+    "summary": "exchange_index must be a whole number",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-001": {
+    "summary": "Content is required",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-002": {
+    "summary": "Content must be a string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-003": {
+    "summary": "Content is shorter than the minimum",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-004": {
+    "summary": "Content exceeds the maximum length",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-005": {
+    "summary": "Query is required",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-006": {
+    "summary": "Query must be a string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-007": {
+    "summary": "Query cannot be empty",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-008": {
+    "summary": "Query exceeds the maximum length",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-010": {
+    "summary": "Context must be a string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-011": {
+    "summary": "Context exceeds the maximum length",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-012": {
+    "summary": "Layer is required",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-013": {
+    "summary": "Layer must be a string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-014": {
+    "summary": "Invalid layer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-015": {
+    "summary": "Value is required",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-016": {
+    "summary": "Value must be a number",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-017": {
+    "summary": "Value is outside the allowed range",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-018": {
+    "summary": "Metadata must be an object",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-019": {
+    "summary": "Metadata exceeds the maximum size",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-020": {
+    "summary": "metadata.session_id is not accepted",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-021": {
+    "summary": "expires_at disagrees with valid_until",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-022": {
+    "summary": "valid_until disagrees with expires_at",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-023": {
+    "summary": "Routing must be a plain object",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-024": {
+    "summary": "Value must be a boolean",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-025": {
+    "summary": "Invalid assertion_origin",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-026": {
+    "summary": "Value must be a string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-027": {
+    "summary": "Custom metadata object is too large",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-028": {
+    "summary": "valid_from is after valid_until",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-029": {
+    "summary": "Value must be a positive integer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-030": {
+    "summary": "Tags must be an array",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-031": {
+    "summary": "Too many tags",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-032": {
+    "summary": "Each tag must be a string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-033": {
+    "summary": "Tag exceeds the maximum length",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-034": {
+    "summary": "Related ids must be an array",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-035": {
+    "summary": "Too many related ids",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-036": {
+    "summary": "Value exceeds the maximum length",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-037": {
+    "summary": "Filters must be an object",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-038": {
+    "summary": "Unknown importance bucket filter",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-039": {
+    "summary": "Content search term exceeds the maximum length",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-040": {
+    "summary": "Context search term exceeds the maximum length",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-041": {
+    "summary": "importance_min is greater than importance_max",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-042": {
+    "summary": "emotional_intensity_min is greater than the max",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-043": {
+    "summary": "timestamp_after is after timestamp_before",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-044": {
+    "summary": "Options must be an object",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-045": {
+    "summary": "order_by must be a string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-VAL-046": {
+    "summary": "Arguments must be an object",
+    "status": "active",
+    "internal": false
+  }
+}

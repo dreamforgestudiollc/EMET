@@ -13,6 +13,37 @@ scoped user, and Atlas Network Access set to `0.0.0.0/0` — a hosted platform's
 dynamic, so it cannot be allowlisted. Security rests on the scoped user plus the OAuth
 passphrase; both are required.
 
+## Upgrading to 0.3.0
+
+Error-log rotation deletes from `error_log` (10,000 entries or 90 days; daily summaries are
+kept in `error_log_summary`). An existing custom role needs `REMOVE` on that collection only.
+Save the role, then append the privilege. The full note
+is [SETUP.md](SETUP.md#upgrading-to-030).
+
+```
+atlas customDbRoles describe emetRecordKeeper --projectId <id> --output json > role-before.json
+atlas customDbRoles update emetRecordKeeper --privilege REMOVE@<db>.error_log --append --projectId <id>
+atlas customDbRoles describe emetRecordKeeper --projectId <id> --output json
+```
+
+`<db>` is `MONGODB_DB`. `<id>` is the project id from `atlas projects list`. In the JSON after
+the change, a `REMOVE` resource has `"collection": "error_log"`. No `REMOVE` resource has an
+empty collection, and this upgrade adds no other collection.
+
+### Clear a stray DROP_COLLECTION
+
+`DROP_COLLECTION` must not appear anywhere in that output.
+An older stray `DROP_COLLECTION` on `_emet_verify` is not cleared by that append command. That append command cannot remove a privilege. Dry run first, then apply. The dry run calls the read-only `atlas customDbRoles describe emetRecordKeeper --projectId <id> --output json`. It needs Atlas auth and changes nothing. `--prefix <prefix>` is `EMET_COLLECTION_PREFIX` (default `emet_`). `--prefix` overrides `EMET_COLLECTION_PREFIX`. The effective prefix is `--prefix`, or else the env. Re-applying replaces prefixed privilege names if the effective prefix doesn't match the install.
+
+```
+node scripts/atlas-role.mjs --project <id> --db <db> --user <dbUsername> --prefix <prefix>
+node scripts/atlas-role.mjs --project <id> --db <db> --user <dbUsername> --prefix <prefix> --apply
+```
+
+Or in the Atlas UI: Database Access → Custom Roles → edit the role and clear `DROP_COLLECTION`.
+Atlas UI for the new privilege: Database Access → Custom Roles → edit the role → collection
+`error_log`, action `REMOVE`. Leave `REMOVE` off every other collection and off the database-wide row.
+
 ## Environment variables
 
 | Variable | Required | Purpose |
@@ -35,7 +66,7 @@ passphrase; both are required.
 
 Read this before you deploy the release that follows 0.2.2. It does not change a version number. It is the list of settings and client habits that will start failing if you leave them as they were.
 
-- **`EMET_SOURCE_TAGS` must list every real host tag**, as an exact member. Tags named in this repository's example env, docs, and live-tag checks are: `cli`, `mobile`, `desktop-host`, `cloud-host`, `project-host`, `hub-bot` (the hub; do not also list it in `EMET_RECORD_DOCS`), `reviewer-bot`, `tester-bot`, `memory-bot`, `intake-bot`, and `research-bot`. Your install may use a shorter list. A tag that is not an exact member is refused, and the refusal does not print the list.
+- **`EMET_SOURCE_TAGS` must list every real host tag**, as an exact member. Tags named in this repository's example env, docs, and live-tag checks are: `cli`, `mobile`, `desktop-cowork`, `cowork-cloud`, `grok-project`, `hub-bot` (the hub; do not also list it in `EMET_RECORD_DOCS`), `reviewer-bot`, `tester-bot`, `memory-bot`, `intake-bot`, and `research-bot`. Your install may use a shorter list. A tag that is not an exact member is refused, and the refusal does not print the list.
 - When a new bot joins the roster, append its tag to the end of `EMET_SOURCE_TAGS` and keep every existing tag in order, before its first write. The standing rule, including `EMET_RECORD_DOCS` and the `/health` and `emet_status` check after the redeploy, is [BOTS.md](BOTS.md) §4.
 - **`EMET_STRICT_LOGIN_TAG=1`** (off by default) makes a login's bound tag final: a write that declares a different `source` is refused, and so are `emet_setup_complete` and `emet_initialize` with a mismatched tag. Leave it off while bots share one login, because with it on every bot except the login's own would be refused. Turn it on only once each bot has its own login, for example a Member Access code bound to its tag.
 - **A scheduled job that still sends a `cloud-scheduled-` prefix must switch to an exact registered tag.** `cloud-scheduled-intake` was retired on 2026-10-02. A prefix is not a tag. The weekly intake runs under `intake-bot`.

@@ -252,7 +252,7 @@ export function frozenAttestation(parent, incoming) {
   const sent = incoming && typeof incoming === 'object' ? incoming : {};
   for (const key of FREEZE_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(sent, key)) continue;
-    if (sent[key] !== prior[key]) throw new ValidationError(key, 'attestation is immutable');
+    if (sent[key] !== prior[key]) throw new ValidationError(key, 'attestation is immutable', { code: 'EMET-GEM-033' });
   }
   return prior;
 }
@@ -268,11 +268,11 @@ export async function sealAttestation(metadata, opts = {}) {
   const full = SEAL_KEYS.every((key) => typeof metadata[key] === 'string' && metadata[key]);
   if (!full) { stripUnsealed(metadata); return; }
   const rune = activeByGem(metadata.gem, metadata.rune);
-  if (!rune) throw new ValidationError('gem', "metadata.gem must be '<gem>@<version>' and match an active directive");
+  if (!rune) throw new ValidationError('gem', "metadata.gem must be '<gem>@<version>' and match an active directive", { code: 'EMET-GEM-034' });
   const pinned = pinRune(rune);
-  if (!pinned) throw new ValidationError('served_sha256', 'hash pin');
+  if (!pinned) throw new ValidationError('served_sha256', 'hash pin', { code: 'EMET-GEM-035' });
   const principal = servePrincipal();
-  if (!principal) throw new ValidationError('principal', 'no authenticated principal');
+  if (!principal) throw new ValidationError('principal', 'no authenticated principal', { code: 'EMET-GEM-036' });
   const session_id = sessionOf(opts.session_id);
   const query = { principal, session_id, gem: rune.gemId, rune: rune.name, sha256: pinned.sha256 };
   let db = opts.db && typeof opts.db.collection === 'function' ? opts.db : null;
@@ -286,16 +286,16 @@ export async function sealAttestation(metadata, opts = {}) {
     try { served = await storeHasServe(db, query); }
     catch (e) {
       if (e instanceof ValidationError) throw e;
-      throw new ValidationError('gem', 'serve log');
+      throw new ValidationError('gem', 'serve log', { code: 'EMET-GEM-037' });
     }
   }
-  if (!served) throw new ValidationError('gem', 'no serve event');
+  if (!served) throw new ValidationError('gem', 'no serve event', { code: 'EMET-GEM-038' });
   if (!SHA256_RE.test(metadata.client_sha256 || '')) {
-    throw new ValidationError('client_sha256', 'client-reported sha256');
+    throw new ValidationError('client_sha256', 'client-reported sha256', { code: 'EMET-GEM-039' });
   }
   const inputHash = SHA256_RE.test(metadata.input_sha256 || '');
   const inputRef = typeof metadata.input_ref === 'string' && metadata.input_ref.trim().length > 0;
-  if (!inputHash && !inputRef) throw new ValidationError('input_sha256', 'input hash or reference');
+  if (!inputHash && !inputRef) throw new ValidationError('input_sha256', 'input hash or reference', { code: 'EMET-GEM-040' });
   metadata.gem = metadataGemValue(rune);
   metadata.version = rune.version;
   metadata.rune = rune.name;
@@ -327,7 +327,7 @@ export async function serveRune(name, args, ctx) {
   if (!rune) return null;
   const { handleError, createSuccessResponse } = await import('./tools.js');
   const pinned = pinRune(rune);
-  if (!pinned) return handleError(new ValidationError('rune', 'hash pin'), name, ctx && ctx.logger);
+  if (!pinned) return handleError(new ValidationError('rune', 'hash pin', { code: 'EMET-GEM-041' }), name, ctx && ctx.logger);
   const principal = servePrincipal();
   const session_id = sessionOf(args && args.session_id);
   const event = {
@@ -342,7 +342,7 @@ export async function serveRune(name, args, ctx) {
   const db = await openServeStore(ctx);
   try { await recordServe(event, db); }
   catch (e) {
-    const err = e instanceof ValidationError ? e : new ValidationError('gem', 'serve log');
+    const err = e instanceof ValidationError ? e : new ValidationError('gem', 'serve log', { code: 'EMET-GEM-037' });
     return handleError(err, name, ctx && ctx.logger);
   }
   const op = ctx && ctx.AuditOperation && ctx.AuditOperation.GEM_SERVE ? ctx.AuditOperation.GEM_SERVE : 'GEM_SERVE';

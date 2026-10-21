@@ -6,9 +6,24 @@
  * definition into MongoDB Atlas CLI calls. Default is a DRY RUN that prints the
  * commands; nothing changes until you pass --apply.
  *
- *   node scripts/atlas-role.mjs --project <projectId> --db <database> --user <dbUsername>
- *   node scripts/atlas-role.mjs ... --apply        create or update the role, move the user onto it
- *   node scripts/atlas-role.mjs ... --rollback     put the user back on readWrite@<database>
+ *   node scripts/atlas-role.mjs --project <projectId> --db <database> --user <dbUsername> --prefix <prefix>
+ *   node scripts/atlas-role.mjs --project <projectId> --db <database> --user <dbUsername> --prefix <prefix> --apply
+ *   node scripts/atlas-role.mjs --project <projectId> --db <database> --user <dbUsername> --prefix <prefix> --rollback
+ *
+ * `--prefix <prefix>` is EMET_COLLECTION_PREFIX (default emet_). Pass it for a prefixed install.
+ * `--prefix` overrides `EMET_COLLECTION_PREFIX`. The effective prefix is `--prefix`, or else the env. Re-applying replaces prefixed privilege names if the effective prefix doesn't match the install.
+ * A literal placeholder argument such as `<prefix>` is an error.
+ * The first command is a dry run. The dry run calls the read-only `atlas customDbRoles describe emetRecordKeeper --projectId <id> --output json`.
+ * It needs Atlas auth and changes nothing. --apply creates or updates the role
+ * and moves the user onto it. --rollback puts the user back on readWrite@<database>.
+ *
+ * The privilege list comes from src/atlas-role.js. It includes
+ * REMOVE@<db>.error_log so 0.3.0 error-log rotation can delete from error_log
+ * (10,000 entries or 90 days, daily summaries kept). error_log is not prefixed.
+ * Do not add REMOVE@ on a document-controlled collection. --apply replaces the
+ * role's privileges with that full list. To append only the log privilege on
+ * an existing role, see docs/SETUP.md "Upgrading to 0.3.0":
+ *   atlas customDbRoles update emetRecordKeeper --privilege REMOVE@<db>.error_log --append --projectId <id>
  *
  * Needs the Atlas CLI, signed in (`atlas auth login`). Set ATLAS_CLI to its path
  * if `atlas` is not on PATH. After --apply, prove it from the server:
@@ -19,13 +34,18 @@ import { spawnSync } from 'child_process';
 import { ATLAS_ROLE_NAME, atlasPrivileges } from '../src/atlas-role.js';
 
 const args = process.argv.slice(2);
+const placeholder = args.find((arg) => /<[^>\s]+>/.test(arg));
+if (placeholder) {
+  console.error(`error: ${placeholder} is a placeholder. Pass the real value. --prefix overrides EMET_COLLECTION_PREFIX.`);
+  process.exit(2);
+}
 const opt = (name) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : undefined; };
 const flag = (name) => args.includes(`--${name}`);
 const project = opt('project'), db = opt('db'), user = opt('user');
 const prefix = opt('prefix') || process.env.EMET_COLLECTION_PREFIX || 'emet_';
 const apply = flag('apply'), rollback = flag('rollback');
 if (!project || !db || !user) {
-  console.error('usage: node scripts/atlas-role.mjs --project <projectId> --db <database> --user <dbUsername> [--apply | --rollback]');
+  console.error('usage: node scripts/atlas-role.mjs --project <projectId> --db <database> --user <dbUsername> --prefix <prefix> [--apply | --rollback]');
   process.exit(2);
 }
 const CLI = process.env.ATLAS_CLI || 'atlas';

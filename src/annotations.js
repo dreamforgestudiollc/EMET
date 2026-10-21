@@ -1,3 +1,4 @@
+import { CodedError } from './error-codes.js';
 /**
  * EMET - Enduring Memory & Epistemic Tiers
  * Copyright (c) 2026 Dreamforge Studio LLC
@@ -69,6 +70,10 @@ const ANNOTATION_TABLE = {
   read_doc_history:       { title: 'Read a retained document revision', ...READ },
   list_docs:              { title: 'List documents', ...READ },
   emet_gaps:              { title: 'Count the record\'s gaps', ...READ },
+  emet_page:              { title: 'Read a topic page', ...READ },
+  emet_pages:             { title: 'List topic pages', ...READ },
+  emet_page_lint:         { title: 'Lint topic pages', ...READ },
+  emet_error_report:      { title: 'Error report', ...READ },
   emet_floor:             { title: 'Read the floor', ...READ },
   // Checks a document against its template and writes nothing - not even the
   // verdict. The write path stores that; this is the same check, borrowed.
@@ -76,7 +81,7 @@ const ANNOTATION_TABLE = {
 
   // --- Additive writes. These add; they do not remove or replace. -----------
   // Was READ until 2026-09-27: "it does not write anything itself". Since the
-  // blocked-close cap (commit-82bb76c) it records each blocked attempt in
+  // blocked-close cap  it records each blocked attempt in
   // close_attempts, so a read-only hint would be untrue (code audit, 1.3).
   emet_session_close:     { title: 'Check session is saved', ...ADD },
   emet_client_approve:    { title: 'Approve a new client', ...REPLACE },
@@ -159,10 +164,10 @@ export const TOOL_ANNOTATIONS = new Proxy(ANNOTATION_TABLE, {
 export function annotate(tools) {
   const missing = tools.filter((tool) => !TOOL_ANNOTATIONS[tool.name]).map((tool) => tool.name);
   if (missing.length > 0) {
-    throw new Error(
+    throw new CodedError(
       `Tools declared with no annotation entry: ${missing.join(', ')}. ` +
       `Add them to TOOL_ANNOTATIONS in src/annotations.js.`
-    );
+    , { code: 'EMET-TOOL-001' });
   }
   return tools.map((tool) => ({ ...tool, annotations: TOOL_ANNOTATIONS[tool.name] }));
 }

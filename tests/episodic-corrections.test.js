@@ -1,6 +1,6 @@
 /**
  * EMET - option A correction back-pointer (2026-10-02; the owner's approval, procedural ref 405 item 4;
- * the tester's sketch in his second read of episodic ref 604).
+ * the reviewer's sketch in his second read of episodic ref 604).
  *
  * Episodic entries are immutable events. A partial correction cannot supersede its parent (that would
  * hide the parent's items that still stand), so the new entry carries metadata.corrects = <parent id>
@@ -15,7 +15,7 @@ import { checkCorrectionLinks } from '../src/gaps.js';
 import { metadataIntegrityOf } from '../src/aleph.js';
 import { validateMetadata, MARKER_FIELDS } from '../src/validation.js';
 
-// The fake honours the layer (the tester MUST FIX, 2026-10-02): rows live per
+// The fake honours the layer (the reviewer MUST FIX, 2026-10-02): rows live per
 // layer, so a parent in another layer is NOT found, and updateOne supports
 // what markCorrectedBy sends ($set, $addToSet on dotted paths, array-equality
 // filters, matchedCount).
@@ -24,7 +24,7 @@ const getPath = (o, path) => path.split('.').reduce((a, k) => (a == null ? undef
 const setPath = (o, path, v) => { const ks = path.split('.'); let a = o; for (const k of ks.slice(0, -1)) { if (a[k] == null || typeof a[k] !== 'object') a[k] = {}; a = a[k]; } a[ks[ks.length - 1]] = v; };
 const matches = (row, q) => Object.entries(q).every(([k, v]) => JSON.stringify(getPath(row, k)) === JSON.stringify(v));
 
-const SRC = { source: 'reviewer-bot', assertion_origin: 'assistant' };
+const SRC = { source: 'tester-bot', assertion_origin: 'assistant' };
 
 testGroup('saving a correction marks its parent', () => {
   test('metadata.corrects is accepted; the parent gains corrected_by, content and is_live untouched, metadata re-attested', async () => {

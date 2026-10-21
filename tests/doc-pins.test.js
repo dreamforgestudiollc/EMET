@@ -43,8 +43,8 @@ testGroup('the GEM expansion and the standing chat lines do not drift', () => {
 
   test('the GEP-0003 Changed entry says Fieldnote is off by default', () => {
     const change = read('CHANGELOG.md');
-    const unreleased = change.slice(change.indexOf('## Unreleased'), change.indexOf('## 0.2.5'));
-    const changed = unreleased.slice(unreleased.indexOf('### Changed'), unreleased.indexOf('### Docs'));
+    const before025 = change.slice(0, change.indexOf('## 0.2.5'));
+    const changed = before025.slice(before025.indexOf('### Changed'), before025.indexOf('### Docs'));
     assert.match(changed, /GEP-0003/);
     assert.match(changed, /Fieldnote is off by default\./);
     assert.doesNotMatch(changed, /Fieldnote stays off/);

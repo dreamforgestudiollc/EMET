@@ -82,7 +82,7 @@ function isPositiveInt(v) {
 export function validateProvenance(input) {
   if (input === null || input === undefined) return null;
   if (typeof input !== 'object' || Array.isArray(input)) {
-    throw new ValidationError('derived_from', 'must be an object');
+    throw new ValidationError('derived_from', 'must be an object', { code: 'EMET-PROV-001' });
   }
 
   const hasSpan = input.session_id !== undefined;
@@ -92,38 +92,38 @@ export function validateProvenance(input) {
     throw new ValidationError(
       'derived_from',
       'give a transcript span or a list of source entries, not both - an entry has one origin'
-    );
+    , { code: 'EMET-PROV-002' });
   }
   if (!hasSpan && !hasEntries) {
     throw new ValidationError(
       'derived_from',
       'needs either session_id (with optional exchange_start/exchange_end) or entries'
-    );
+    , { code: 'EMET-PROV-003' });
   }
 
   if (hasEntries) {
     if (!Array.isArray(input.entries) || input.entries.length === 0) {
-      throw new ValidationError('derived_from.entries', 'must be a non-empty array of entry ids');
+      throw new ValidationError('derived_from.entries', 'must be a non-empty array of entry ids', { code: 'EMET-PROV-004' });
     }
     if (!input.entries.every(isPositiveInt)) {
-      throw new ValidationError('derived_from.entries', 'entry ids must be positive integers');
+      throw new ValidationError('derived_from.entries', 'entry ids must be positive integers', { code: 'EMET-PROV-005' });
     }
     return { entries: [...input.entries] };
   }
 
   if (typeof input.session_id !== 'string' || input.session_id.length === 0) {
-    throw new ValidationError('derived_from.session_id', 'must be a non-empty string');
+    throw new ValidationError('derived_from.session_id', 'must be a non-empty string', { code: 'EMET-PROV-006' });
   }
   const start = input.exchange_start;
   const end = input.exchange_end;
   if (start !== undefined && !isPositiveInt(start)) {
-    throw new ValidationError('derived_from.exchange_start', 'must be a positive integer');
+    throw new ValidationError('derived_from.exchange_start', 'must be a positive integer', { code: 'EMET-PROV-007' });
   }
   if (end !== undefined && !isPositiveInt(end)) {
-    throw new ValidationError('derived_from.exchange_end', 'must be a positive integer');
+    throw new ValidationError('derived_from.exchange_end', 'must be a positive integer', { code: 'EMET-PROV-009' });
   }
   if (isPositiveInt(start) && isPositiveInt(end) && end < start) {
-    throw new ValidationError('derived_from.exchange_end', 'must not be before exchange_start');
+    throw new ValidationError('derived_from.exchange_end', 'must not be before exchange_start', { code: 'EMET-PROV-008' });
   }
 
   return {
@@ -160,7 +160,7 @@ export function provenanceColumns(provenance) {
  * This is the precedence rule, in one place, so no caller has to decide it.
  */
 export function resolveProvenance(entry, windowSeconds = FALLBACK_WINDOW_SECONDS) {
-  if (!entry) throw new ValidationError('entry', 'is required');
+  if (!entry) throw new ValidationError('entry', 'is required', { code: 'EMET-PROV-010' });
 
   if (entry.source_session_id) {
     return {

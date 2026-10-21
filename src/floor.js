@@ -152,6 +152,7 @@ export async function readFloor(options = {}) {
       return {
         form: 'section',
         error: `Unknown section '${section}'.`,
+        emet_code: 'EMET-GEM-009',
         sections: FLOOR_SECTIONS
       };
     }
@@ -174,7 +175,7 @@ export async function readFloor(options = {}) {
 /** A loadable installed GEM's floor. Off is still readable. A refusal is not served. */
 async function readGemFloor(gem, { compact, section }) {
   if (!GEM_ID.test(gem)) {
-    return { form: 'gem', gem, error: `Unknown GEM '${gem}'.` };
+    return { form: 'gem', gem, error: `Unknown GEM '${gem}'.`, emet_code: 'EMET-GEM-010' };
   }
   const { seatGems } = await import('./socket.js');
   const seated = await seatGems({
@@ -187,14 +188,15 @@ async function readGemFloor(gem, { compact, section }) {
       form: 'gem',
       gem,
       error: `Unknown GEM '${gem}'.`,
+      emet_code: 'EMET-GEM-010',
       installed: (seated.gems_available || []).map((g) => g.id)
     };
   }
   if (row.loadable !== true) {
-    return { form: 'gem', gem, loadable: false, reason: row.reason, error: `GEM '${gem}' is not loadable.` };
+    return { form: 'gem', gem, loadable: false, reason: row.reason, error: `GEM '${gem}' is not loadable.`, emet_code: 'EMET-GEM-011' };
   }
   const body = seated.floors && Object.prototype.hasOwnProperty.call(seated.floors, gem) ? seated.floors[gem] : null;
-  if (!body) return { form: 'gem', gem, error: `GEM '${gem}' has no floor.` };
+  if (!body) return { form: 'gem', gem, error: `GEM '${gem}' has no floor.`, emet_code: 'EMET-GEM-012' };
   const active = row.active === true;
   if (compact) {
     return {
@@ -211,7 +213,7 @@ async function readGemFloor(gem, { compact, section }) {
   if (section) {
     const sections = body.sections || {};
     if (!Object.prototype.hasOwnProperty.call(sections, section)) {
-      return { form: 'section', gem, error: `Unknown section '${section}'.`, sections: Object.keys(sections) };
+      return { form: 'section', gem, error: `Unknown section '${section}'.`, emet_code: 'EMET-GEM-009', sections: Object.keys(sections) };
     }
     return { form: 'section', gem, active, section, precedence: PRECEDENCE, floor: sections[section] };
   }

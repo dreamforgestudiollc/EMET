@@ -218,9 +218,9 @@ testGroup('server refusals', () => {
       await fs.promises.rm(other, { recursive: true, force: true });
     }
   });
-  test('a bundled copy inside the release with requires >=0.3.0 is SR-06, off, and still listed', async () => {
+  test('a bundled copy inside the release with requires >=0.4.0 is SR-06, off, and still listed', async () => {
     const release = await tempRelease(['neurendipity'], (manifest) => {
-      manifest.requires = { emet: '>=0.3.0' };
+      manifest.requires = { emet: '>=0.4.0' };
       manifest.defaultOn = true;
     });
     try {
@@ -449,6 +449,10 @@ testGroup('server refusals', () => {
       }
 
       await setReleased(lss, true);
+      seated = await seatGems({ root, releaseRoot: root, log: quiet().log });
+      rows = byId(seated);
+      assert.strictEqual(rows['lean-six-sigma'].loadable, true, rows['lean-six-sigma'].reason);
+      await writeGemJson(lss, (manifest) => { manifest.requires.emet = '>=0.4.0'; });
       seated = await seatGems({ root, releaseRoot: root, log: quiet().log });
       rows = byId(seated);
       assert.strictEqual(rows['lean-six-sigma'].loadable, false);
@@ -806,10 +810,10 @@ testGroup('startup lists Neurendipity off, and the guide stays out of the payloa
     const lssLine = 'lean-six-sigma, Lean Six Sigma, off';
     assert.ok(full.instructions.includes(line));
     assert.ok(full.instructions.includes(noteLine));
-    assert.ok(full.instructions.includes(lssLine));
-    assert.ok(full.instructions_short.includes(lssLine));
     assert.ok(full.instructions_short.includes(line));
     assert.ok(full.instructions_short.includes(noteLine));
+    assert.ok(full.instructions.includes(lssLine));
+    assert.ok(full.instructions_short.includes(lssLine));
     assert.ok(full.instructions.indexOf(line) < full.instructions.indexOf('Never open with a question alone'));
     assert.ok(full.instructions_short.length < 1400);
     const packed = JSON.stringify(full);

@@ -259,7 +259,7 @@ await testGroup('R6: an invite token stops refreshing while invites are frozen',
   });
 });
 
-testGroup('approve route marks invite grants (the reviewer nit P4g, 2026-10-02)', () => {
+testGroup('approve route marks invite grants (review nit P4g, 2026-10-02)', () => {
   // The /approve handler is the only place a code is issued for an invite redemption. If it stopped
   // passing issued_via, new invite tokens would carry no marker and rely on the legacy role:'member'
   // lookup alone. Source pin on the createAuthorizationCode call in src/http-remote.js.

@@ -1,8 +1,8 @@
 /**
  * EMET - attribution per session, v2 (2026-10-12).
  *
- * Alex approved PROPOSAL.md with its 7 defaults;
- * v1 (PR 32) was reverted after the reviewer's review (A1-A4). This version:
+ * Alex approved PROPOSAL.md (the attribution proposal) with its 7 defaults;
+ * v1 (PR 32) was reverted after the second reader's review (A1-A4). This version:
  *
  *  STAMP vs RIGHTS. Several agents share one OAuth login (the Grok client
  *  8xm-7ILLKEDFc3-QRxqlgw). A bot's declared tag is what its writes are
@@ -39,9 +39,9 @@ export const APPROVALS_DOC = 'emet/CLIENT_APPROVALS.md';
 export const WRITE_TOOLS = new Set([
   'save_to_layer', 'revise_memory', 'write_doc', 'patch_doc', 'retire_doc', 'rename_doc', 'restore_doc',
   'accept_nonconformance', 'emet_transcript_append', 'save_transcript', 'revise_transcript', 'emet_session_close',
-  // the reviewer's re-review (2026-10-12): opening a session claims it; deciding a client is a write.
+  // the second reader's re-review (2026-10-12): opening a session claims it; deciding a client is a write.
   'emet_session_open', 'emet_client_approve',
-  // the reviewer's PR 47 review: setup writes durable identity and board docs.
+  // the second reader's PR 47 review: setup writes durable identity and board docs.
   'emet_setup_complete'
 ]);
 /** Tools the strict login tag also covers. emet_initialize can provision, so a
@@ -119,7 +119,7 @@ function remember(d, clientId, tag, { declared_name = null, basis = null, at, re
   if (renamed_from && row.tags[renamed_from]) row.tags[renamed_from] = { ...row.tags[renamed_from], retired: true, renamed_to: tag, retired_at: at };
 }
 
-/** Strict: returns null when the record does not parse (fail closed, the reviewer 4). */
+/** Strict: returns null when the record does not parse (fail closed, the second reader 4). */
 export function parseApprovals(content) {
   const m = /```json\n([\s\S]*?)\n```/.exec(String(content || ''));
   if (!m) return null;
@@ -160,7 +160,7 @@ export async function loadApprovals(deps, { fresh = false } = {}) {
 }
 
 /**
- * Compare-and-set (the reviewer 3): mutations run one at a time in this process, each
+ * Compare-and-set (the second reader 3): mutations run one at a time in this process, each
  * re-reads the record and writes with the version it read; a version moved by
  * another writer is retried on the fresh copy. `fn(data)` returns false to write nothing.
  */
@@ -197,7 +197,7 @@ export function personIsOwner(actor, ownerId) {
 }
 
 /**
- * The owner acting as the owner (the reviewer A2 re-review). Over HTTP the person must be
+ * The owner acting as the owner (the second reader A2 re-review). Over HTTP the person must be
  * the owner AND the call must carry the login's own tag (no declared or
  * generated tag) AND that tag must not be a bot tag. Every bot on the owner's
  * shared login is therefore not the owner. Stdio is the local owner.
@@ -247,7 +247,7 @@ export function bindSession(base, tag, extra = {}) {
   SESSION_BINDINGS.set(base, { agent_tag: tag, ...extra, bound_at: new Date() });
 }
 
-/** Tags already on the session's stored rows (A4: survives a restart). Read only; fails closed (the reviewer A4). */
+/** Tags already on the session's stored rows (A4: survives a restart). Read only; fails closed (the second reader A4). */
 export async function storedSessionTags(db, base, layerCollections = []) {
   if (!base) return [];
   if (!db) throw refusal(`the store cannot be read to check who owns session ${base}; nothing was written.`);
@@ -482,8 +482,8 @@ export function approvalsView(data, actor, ownerId) {
 
 /**
  * emet_client_approve. Only the owner acting as the owner, or the configured
- * COS on its own login tag; never the client deciding itself (the reviewer 1).
- * Idempotent: the same decision again writes nothing (the reviewer 2).
+ * COS on its own login tag; never the client deciding itself (the second reader 1).
+ * Idempotent: the same decision again writes nothing (the second reader 2).
  */
 export async function clientApprove(deps, actor, ownerId, { tag, decision, reason, as, from } = {}, _registry = [], now = new Date()) {
   const t = typeof tag === 'string' ? tag.trim() : '';
@@ -502,7 +502,7 @@ export async function clientApprove(deps, actor, ownerId, { tag, decision, reaso
   const by = ownerOk ? `owner (${actor && actor.personId || 'local'})` : `cos ${cosTag()}`;
   let result = null;
   await mutateApprovals(deps, (d) => {
-    // the reviewer round 3: whatever path made the caller "owner" or "COS", it may never
+    // the second reader round 3: whatever path made the caller "owner" or "COS", it may never
     // decide a request that its own connection queued (same client_id or same
     // grant), nor a tag equal to its own. A bot on a shared login that omits
     // `source` looks like the login; this catches it.
@@ -512,7 +512,7 @@ export async function clientApprove(deps, actor, ownerId, { tag, decision, reaso
       const sameGrant = !!req.grant_id && req.grant_id === (actor.grantId || null);
       if (sameClient || sameGrant) throw refusal('emet_client_approve: this connection queued the request for "' + t + '", so it may not decide it. Decide from another client. Nothing was changed.');
     }
-    // the reviewer delta M2: a client_id that already has approved tags needs an explicit
+    // the second reader delta M2: a client_id that already has approved tags needs an explicit
     // `as` ('add' keeps every sibling, 'rename' retires one named tag).
     const cidReq = (d.pending[t] && d.pending[t].client_id) || null;
     const siblings = decision === 'approve' && cidReq ? rememberedFor(d, cidReq).filter((x) => x !== t) : [];

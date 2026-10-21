@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { slugPersonId } from './persons.js';
 import { setting } from './env.js';
+import { CodedError } from './error-codes.js';
 
 const COLLECTION = 'invites';
 
@@ -29,13 +30,13 @@ export const DOORS_FROZEN_REASON =
 
 export async function createInvite(db, { created_by, display_name, scopes = ['emet.read'], days = 14, source_tag = null } = {}) {
   if (INVITES_FROZEN) {
-    const err = new Error(INVITES_FROZEN_REASON);
+    const err = new CodedError(INVITES_FROZEN_REASON, { code: 'EMET-AUTH-030' });
     err.code = 'INVITES_FROZEN';
     throw err;
   }
   const requested = Array.isArray(scopes) && scopes.length ? scopes : ['emet.read'];
   if (requested.length !== 1 || requested[0] !== 'emet.read') {
-    const err = new Error('A guest invite accepts only emet.read');
+    const err = new CodedError('A guest invite accepts only emet.read', { code: 'EMET-AUTH-031' });
     err.code = 'GUEST_SCOPE';
     throw err;
   }
@@ -59,7 +60,7 @@ export async function createInvite(db, { created_by, display_name, scopes = ['em
 
 export async function createMemberAccess(db, { created_by, display_name, days = 14, source_tag = null } = {}) {
   if (MEMBER_ACCESS_FROZEN) {
-    const err = new Error(MEMBER_ACCESS_FROZEN_REASON);
+    const err = new CodedError(MEMBER_ACCESS_FROZEN_REASON, { code: 'EMET-AUTH-034' });
     err.code = 'MEMBER_ACCESS_FROZEN';
     throw err;
   }
@@ -109,7 +110,7 @@ export async function allocateGuestPersonId(persons, display_name) {
     const id = `${base}-${n}`;
     if (!(await taken(id))) return id;
   }
-  throw new Error('could not allocate a person id for this invite');
+  throw new CodedError('could not allocate a person id for this invite', { code: 'EMET-AUTH-001' });
 }
 
 function claimedRow(result) {
@@ -161,7 +162,7 @@ export async function redeemInvite(db, code) {
       if (!(e && (e.code === 11000 || /duplicate/i.test(String(e.message || ''))))) throw e;
     }
   }
-  if (!saved) throw new Error('could not allocate a person id for this invite');
+  if (!saved) throw new CodedError('could not allocate a person id for this invite', { code: 'EMET-AUTH-001' });
   await col.updateOne({ digest }, { $set: { person_id } });
   return { ok: true, person_id, scopes, display_name: claimed.display_name || row.display_name, door, source_tag: claimed.source_tag || row.source_tag || null };
 }

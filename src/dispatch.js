@@ -9,7 +9,7 @@
  * Until 2026-09-27 index.js (stdio) and http-remote.js (HTTP) each carried a
  * full switch mapping tool name to handler. dispatch.test.js compared the two
  * by case NAME and caught one class of drift (the session_id alias divergence,
- * commit-9e580d5); it could not see argument drift, and the code audit of
+ * an earlier fix); it could not see argument drift, and the code audit of
  * 2026-09-27 found one - setupComplete received the logger on stdio and not on
  * HTTP. A rule stated twice drifts; this file is the one statement.
  *
@@ -89,13 +89,14 @@ export function requireRegisteredSource(tag, tool, allowNull = false) {
   if (tag === null || tag === undefined || tag === '') {
     if (allowNull) return null;
     const reg = registeredSourceTags();
-    throw new ValidationError('source', reg.length
-      ? `${tool}: pass "source" set to the registered tag of the host this write comes from. A new host adopts one in bootstrap/INSTALL.md first. No source tag was given and one is required, so nothing was written.`
-      : `${tool}: pass "source" set to the tag of the host this write comes from. No tags are registered on this server, so any non-empty tag passes: use the one bootstrap/INSTALL.md gives this host. No source tag was given and one is required, so nothing was written.`);
+    if (reg.length) {
+      throw new ValidationError('source', `${tool}: pass "source" set to the registered tag of the host this write comes from. A new host adopts one in bootstrap/INSTALL.md first. No source tag was given and one is required, so nothing was written.`, { code: 'EMET-TOOL-002' });
+    }
+    throw new ValidationError('source', `${tool}: pass "source" set to the tag of the host this write comes from. No tags are registered on this server, so any non-empty tag passes: use the one bootstrap/INSTALL.md gives this host. No source tag was given and one is required, so nothing was written.`, { code: 'EMET-TOOL-003' });
   }
   const registry = registeredSourceTags();
   if (registry.length && !registry.includes(tag)) {
-    throw new ValidationError('source', `${tool}: pass "source" set to a registered tag. A new host adopts one in bootstrap/INSTALL.md first. Source tag "${echoId(tag)}" is not registered, so nothing was written.`);
+    throw new ValidationError('source', `${tool}: pass "source" set to a registered tag. A new host adopts one in bootstrap/INSTALL.md first. Source tag "${echoId(tag)}" is not registered, so nothing was written.`, { code: 'EMET-TOOL-004' });
   }
   return tag;
 }
@@ -120,7 +121,7 @@ export async function dispatchTool(name, args, ctx) {
     const { scopesAllow, deniedMessage } = await import('./scopes.js');
     const { scopes } = actor;
     if (!scopesAllow(scopes, name, { http: actor.transport === 'http', authenticated: actor.authenticated === true, args })) {
-      throw new EmetError(deniedMessage(name, scopes, args), ErrorCodes.VALIDATION_ERROR, StatusCodes.BAD_REQUEST);
+      throw new EmetError(deniedMessage(name, scopes, args), ErrorCodes.VALIDATION_ERROR, StatusCodes.BAD_REQUEST, { code: 'EMET-TOOL-005' });
     }
     // The session graph (2026-09-29, board 120): the monorail (docs/GUARDRAILS-AND-MONORAILS.md). State is read BEFORE a
     // governed write; the write's result carries `session_graph` with the next
@@ -129,12 +130,12 @@ export async function dispatchTool(name, args, ctx) {
     // that names a session fails closed when the graph cannot be read.
     const sg = await import('./session-graph.js');
     // The exchange number, normalized ONCE, before the graph, the closed-session
-    // guard and the tool all read it (2026-10-01, the reviewer's blocker on commit-2a361fd: the
+    // guard and the tool all read it (2026-10-01, the second reader's blocker on an earlier draft: the
     // guard read "4" as 4, the tool did not, so a text "4" was a retry to one and
     // a new exchange to the other). A whole number, or its text, or absent.
     if (name === 'emet_transcript_append') {
       const { value, error } = sg.normalizeExchangeNumber(args.exchange_index);
-      if (error) throw new ValidationError('exchange_index', `${error}. Nothing was written.`);
+      if (error) throw new ValidationError('exchange_index', `${error}. Nothing was written.`, { code: 'EMET-TOOL-006' });
       args = { ...args };
       if (value === null) delete args.exchange_index; else args.exchange_index = value;
     }
@@ -151,7 +152,7 @@ export async function dispatchTool(name, args, ctx) {
         // A governed write that names a session fails closed on any graph
         // error. An unreadable session is not a reason to edit the board.
         if (sg.GRAPH_WRITE_TOOLS.has(name) && sg.sessionOf(args)) {
-          const closed = new ValidationError('session', `session graph unavailable: ${e && e.message}. Nothing was written.`);
+          const closed = new ValidationError('session', `session graph unavailable: ${e && e.message}. Nothing was written.`, { code: 'EMET-SESS-005' });
           closed.graph = { mode: sg.graphMode(), decision: { verdict: 'refuse', gate: 'unavailable', reason: closed.message, next: null } };
           sg.labRecord(name, args, closed.graph, dbManager, logger);
           throw closed;
@@ -183,7 +184,7 @@ export async function dispatchTool(name, args, ctx) {
     // A correction of a closed session: the exchanges with their numbers normalized.
     if (grace && grace.revise) { args = { ...args, exchanges: grace.exchanges }; grace = null; }
     // A retry of the saved closing exchange is answered here; the tool is NOT
-    // called, so nothing can be written (the reviewer's blocker on commit-2a361fd).
+    // called, so nothing can be written (the second reader's blocker on an earlier draft).
     if (grace && grace.retry) {
       const block = sg.graphBlock(graph);
       return createSuccessResponse({
@@ -219,11 +220,11 @@ export async function dispatchTool(name, args, ctx) {
       }
       return createSuccessResponse(data, name);
     };
-    // The close's state write is awaited (the reviewer's nit 6), so an append sent after
+    // The close's state write is awaited (the second reader's nit 6), so an append sent after
     // the close returns already finds the session closed - when the write
     // succeeds. A failed write is retried once; if it still fails the reply
     // says so (closed_recorded: false, with a warning) instead of reading as a
-    // locked session (2026-10-01, the reviewer's nit 2 on commit-df21117, the tester's
+    // locked session (2026-10-01, the second reader's nit 2 on an earlier draft, the reviewer's
     // condition 2). Every other step is recorded without holding up the reply.
     const recordClose = async (data) => {
       let rec = await sg.graphAfter(name, args, data, dbManager, logger, now);
@@ -267,6 +268,22 @@ export async function dispatchTool(name, args, ctx) {
         return await ok(data);
       }
       case 'emet_gaps':              return ok(await findGaps(args));
+      case 'emet_page': {
+        const { readPage } = await import('./pages.js');
+        return ok(await readPage({ area: args.area, as_of: args.as_of ?? null, include_history: args.include_history === true }));
+      }
+      case 'emet_pages': {
+        const { listPages } = await import('./pages.js');
+        return ok(await listPages());
+      }
+      case 'emet_page_lint': {
+        const { lintPages } = await import('./pages.js');
+        return ok(await lintPages({ area: args.area || null }));
+      }
+      case 'emet_error_report': {
+        const { runErrorReport } = await import('./error-report.js');
+        return ok(await runErrorReport(args, dbManager));
+      }
       case 'emet_client_approve': {
         const att = await import('./attribution.js');
         const { rawActor, resolveTokenSubject } = await import('./persons.js');
@@ -275,7 +292,7 @@ export async function dispatchTool(name, args, ctx) {
         try {
           return ok(await att.clientApprove(approvalsDeps, rawActor(), ownerId, args, sourceRegistry()));
         } catch (e) {
-          if (e && e.attributionRefusal) throw new ValidationError('tag', e.message);
+          if (e && e.attributionRefusal) throw new ValidationError('tag', e.message, { code: 'EMET-TOOL-007' });
           throw e;
         }
       }
@@ -302,7 +319,7 @@ export async function dispatchTool(name, args, ctx) {
             // seating or refusal lines to stderr on every call.
             status.gems = gemCost(await seat({ log: SILENT_GEM_LOG }));
           } catch {
-            status.gems = { error: 'GEM socket failed closed' };
+            status.gems = { error: 'GEM socket failed closed', emet_code: 'EMET-GEM-042' };
           }
         }
         {
@@ -359,7 +376,7 @@ export async function dispatchTool(name, args, ctx) {
             try {
               return ok(await sk.dispatchSubkey(name, approvalsDeps, rawActor(), ownerId, args, sourceRegistry(), now));
             } catch (e) {
-              if (e && e.attributionRefusal) throw new ValidationError('subkey', e.message);
+              if (e && e.attributionRefusal) throw new ValidationError('subkey', e.message, { code: 'EMET-AUTH-028' });
               throw e;
             }
           }
@@ -367,7 +384,7 @@ export async function dispatchTool(name, args, ctx) {
         const { serveRune } = await import('./rune-dispatch.js');
         const ran = await serveRune(name, args, { logger, AuditOperation, dbManager });
         if (ran) return ran;
-        throw new EmetError(`Unknown tool: ${name}`, ErrorCodes.UNKNOWN_TOOL, StatusCodes.BAD_REQUEST);
+        throw new EmetError(`Unknown tool: ${name}`, ErrorCodes.UNKNOWN_TOOL, StatusCodes.BAD_REQUEST, { code: 'EMET-TOOL-008' });
       }
     }
   } catch (error) {

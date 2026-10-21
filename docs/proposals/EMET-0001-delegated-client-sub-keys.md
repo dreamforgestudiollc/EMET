@@ -1,9 +1,9 @@
 # EMET-0001: Delegated client sub-keys (EMET core proposal)
 
-**Status:** Accepted 2026-10-15 by Alex (revision 2, after the reviewer's review of PR 48)
+**Status:** Accepted 2026-10-15 by Alex (revision 2, after the second reader's review of PR 48)
 **Date:** 2026-10-15
 **Approver:** Alex
-**Sponsor:** the hub (a sponsor does not approve)
+**Sponsor:** the hub bot (a sponsor does not approve)
 **Scope:** EMET core attribution (server), not a GEM. This is the first EMET core proposal. Core proposals live in `docs/proposals/` as `EMET-NNNN`.
 **Related:** board 126 (per-client attribution), NC issue #49, PR 47 (`EMET_STRICT_LOGIN_TAG`)
 
@@ -117,7 +117,7 @@ A key's status and last_used change in place. Each change is kept as a history e
 ## 13. Rollout
 
 1. Alex accepts this proposal.
-2. Implementation PR covering the tools, handle binding, pepper, redact rule, throttle, `declared_attribution` gap and the tests in §10. the reviewer reviews against §10. A new flag, `EMET_SUBKEYS=1`, keeps sub-keys off by default.
+2. Implementation PR covering the tools, handle binding, pepper, redact rule, throttle, `declared_attribution` gap and the tests in §10. the second reader reviews against §10. A new flag, `EMET_SUBKEYS=1`, keeps sub-keys off by default.
 3. Alex sets `EMET_SUBKEY_PEPPER` in Railway, then deploy with the usual verified backup, health check and sandbox check.
 4. Turn on `EMET_SUBKEYS=1`. Each client requests a key, Alex approves from his own host, and each client claims its key with its nonce. Re-run board 126 and check with `read_doc_history`.
 5. When every client is on a sub-key, turn on `EMET_STRICT_LOGIN_TAG=1`. Close NC #49 only if the residual in §9 is accepted in writing or a host secret store removes it.

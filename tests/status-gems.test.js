@@ -1,5 +1,5 @@
 /**
- * emet_status `gems` at the dispatch level (GEM socket PR 4, the reviewer review of #43):
+ * emet_status `gems` at the dispatch level (GEM socket PR 4, second-reader review of #43):
  * the fail-closed branch, the normal branch against seatGems, and no stderr.
  */
 import { test, testGroup, summary } from './harness.js';
@@ -36,7 +36,7 @@ testGroup('emet_status gems', () => {
     setStatusSeatForTests(async () => { const e = new Error('boom at /secret/path/gems'); e.stack = 'Error: boom\n    at /secret/path/socket.js:1:1'; throw e; });
     try {
       const { text, data } = await status();
-      assert.deepStrictEqual(data.gems, { error: 'GEM socket failed closed' });
+      assert.deepStrictEqual(data.gems, { error: 'GEM socket failed closed', emet_code: 'EMET-GEM-042' });
       assert.ok('initialized' in data, 'setup fields still present');
       assert.ok('database' in data, 'database field still present');
       assert.ok('source_tag' in data, 'attribution fields still present');

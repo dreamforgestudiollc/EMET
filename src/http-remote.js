@@ -121,7 +121,7 @@ function buildServer() {
     } catch (e) {
       if (e && e.attributionRefusal) {
         const { ValidationError } = await import('./validation.js');
-        return actorStore.run(actor, () => t.handleError(new ValidationError('source', e.message), name, logger));
+        return actorStore.run(actor, () => t.handleError(new ValidationError('source', e.message, { code: 'EMET-AUTH-039' }), name, logger));
       }
       throw e;
     }
@@ -310,4 +310,5 @@ app.post('/mcp', requireBearerAuth({ verifier: provider, resourceMetadataUrl: PR
   catch (e) { console.error('[emet] GEM socket failed closed'); }
   app.listen(PORT, HOST, () => console.error(`[emet] listening ${PUBLIC_URL} (bind ${HOST}:${PORT}); /mcp OAuth-protected; PRM ${PRM_URL}`));
   import('./subkeys.js').then((m) => m.startFlagOffSweep((msg) => console.error(`[emet] ${msg}`))).catch(() => console.error('[emet] sub-key flag-off sweep failed'));
+  import('./error-log.js').then((m) => m.startErrorLogRotation()).catch(() => {});
 })();

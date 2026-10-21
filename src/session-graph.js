@@ -50,6 +50,7 @@
  */
 
 import { setting } from './env.js';
+import { CodedError } from './error-codes.js';
 
 export const GRAPH_MODES = Object.freeze(['enforce']);
 
@@ -138,7 +139,7 @@ export function echoId(id) {
  * Every session base an id could belong to, the way the close check groups a
  * session's documents (session.js inspectSession: ^base(_.*)?$). An id like
  * `<base>_extra` is counted by the close as part of `<base>`, so the closed-
- * session guard must treat it as `<base>` too (2026-10-01, the tester's gate
+ * session guard must treat it as `<base>` too (2026-10-01, the reviewer's gate
  * (a)). Longest first: the id itself, then each prefix ending before a `_`.
  */
 export function candidateBases(sessionId) {
@@ -171,7 +172,7 @@ export function groupedUnder(sessionId, base) {
  * that shape ("receipts.transcript_session_id is used when this is omitted")
  * and sessionClose checks that session; until 2026-10-01 the graph read only
  * `session_id`, so a close naming its session only in the receipts was never
- * recorded and the session stayed open (the reviewer's nit 3 on commit-df21117, the tester's
+ * recorded and the session stayed open (the second reader's nit 3 on an earlier draft, the reviewer's
  * condition 1). Receipts sent as JSON text are read as sessionClose reads
  * them (session.js parseReceipts).
  */
@@ -195,8 +196,8 @@ function receiptsOf(value) {
 }
 
 /**
- * An exchange number as sent, normalized ONCE (2026-10-01, the reviewer's re-check of
- * commit-2a361fd). Hosts send numbers as numbers or as text ("4"). The guard read "4"
+ * An exchange number as sent, normalized ONCE (2026-10-01, the second reader's re-check of
+ * an earlier draft). Hosts send numbers as numbers or as text ("4"). The guard read "4"
  * as 4 while emet_transcript_append only took real numbers, so a text "4" was a
  * "retry" to the guard and "the next exchange" to the tool. dispatch now runs
  * every exchange_index through this before the graph, the guard and the tool,
@@ -210,7 +211,7 @@ export function normalizeExchangeNumber(v) {
   let n = v;
   if (typeof n === 'string' && /^\s*\d+\s*$/.test(n)) n = Number(n);
   if (typeof n === 'number' && Number.isInteger(n) && n >= 1) return { value: n };
-  return { error: `exchange_index must be a whole number, 1 or more (got ${JSON.stringify(v)})` };
+  return { error: `exchange_index must be a whole number, 1 or more (got ${JSON.stringify(v)})`, emet_code: 'EMET-TRN-010' };
 }
 
 /** The exchange a call declares, if any: `exchange` on writes, `exchange_index` on an append. */
@@ -353,8 +354,8 @@ export async function isSessionClosed(base, dbManager) {
  * once the window passes, the session is locked. A retry of that same
  * exchange number is answered as already saved, never as a second write:
  * the guard answers it itself and the tool is not called, at any time after
- * the close, so a retry can write nothing anywhere (2026-10-01, the reviewer's blocker
- * and the tester's gate on commit-2a361fd). The closing exchange itself is written
+ * the close, so a retry can write nothing anywhere (2026-10-01, the second reader's blocker
+ * and the reviewer's gate on an earlier draft). The closing exchange itself is written
  * into the session's last live part, whatever part or base id the caller sent.
  *
  * graceDecision is pure: state is the session row, declared the exchange the
@@ -370,7 +371,7 @@ export const DEFAULT_CLOSE_GRACE_MINUTES = 5;
 export const MAX_CLOSE_GRACE_MINUTES = 60;
 
 /**
- * The window setting, checked (2026-10-01, the reviewer's nit 4). Unset or blank: the
+ * The window setting, checked (2026-10-01, the second reader's nit 4). Unset or blank: the
  * default, 5. A number from 0 to 60: that many minutes (0 turns the window
  * off). Anything else is NOT silently accepted: a negative or non-numeric value
  * falls back to the default 5, and a value over 60 is capped at 60; both come
@@ -392,7 +393,7 @@ function closeGraceName() {
 export function closeGraceSetting(raw = setting('CLOSE_GRACE_MINUTES'), name = closeGraceName()) {
   if (raw === undefined || raw === null || String(raw).trim() === '') return { minutes: DEFAULT_CLOSE_GRACE_MINUTES, note: null };
   // Decimal only: Number() also reads hex, octal and binary ("0x10" is 16),
-  // which no one means for minutes (the reviewer's nit 5 on commit-df21117).
+  // which no one means for minutes (the second reader's nit 5 on an earlier draft).
   const text = String(raw).trim();
   const n = /^[+-]?(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i.test(text) ? Number(text) : NaN;
   if (!Number.isFinite(n) || n < 0) {
@@ -519,7 +520,7 @@ export async function closedSessionGuard(tool, args = {}, dbManager, now = new D
     } catch (e) { throw await unreadable(tool, base, 'the transcript part to be revised', e); }
     if (!part) return null; // the tool itself refuses a revision of a part that does not exist
     // A correction of a closed session keeps EXACTLY the exchange numbers the
-    // part holds (2026-10-01, the reviewer's nit 2): none added, none dropped, none
+    // part holds (2026-10-01, the second reader's nit 2): none added, none dropped, none
     // duplicated. Numbers sent as text are stored as numbers; the corrected
     // part is stored in exchange order.
     const held = [...new Set((part.exchanges || []).map((e) => Number(e && e.exchange_index)))].sort((a, b) => a - b);
@@ -555,7 +556,7 @@ export async function closedSessionGuard(tool, args = {}, dbManager, now = new D
   let pos;
   try {
     pos = typeof dbManager.transcriptPosition === 'function' ? await dbManager.transcriptPosition(base) : null;
-    if (!pos || typeof pos.highest !== 'number') throw new Error('the transcript position is not available');
+    if (!pos || typeof pos.highest !== 'number') throw new CodedError('the transcript position is not available', { code: 'EMET-SESS-001' });
   } catch (e) { throw await unreadable(tool, base, 'the transcript position', e); }
   const highest = pos.highest;
   const declared = declaredExchange(tool, args);
@@ -565,8 +566,8 @@ export async function closedSessionGuard(tool, args = {}, dbManager, now = new D
   const d = graceDecision(row, declared, highest, now, minutes);
 
   if (d === 'retry') {
-    // Answered HERE, and the tool is never called (2026-10-01, the reviewer's blocker on
-    // commit-2a361fd): a retry handed to the tool with the caller's arguments could
+    // Answered HERE, and the tool is never called (2026-10-01, the second reader's blocker on
+    // an earlier draft): a retry handed to the tool with the caller's arguments could
     // land in another part id, the base id, or - with the number sent as text -
     // as a new exchange, while the reply said nothing was written.
     return { retry: true, base, index: row.grace_index,
@@ -574,7 +575,7 @@ export async function closedSessionGuard(tool, args = {}, dbManager, now = new D
   }
   if (d === 'grace') {
     const index = highest + 1;
-    // Pinned to the session's last live part (2026-10-01, the reviewer's nit 3), never
+    // Pinned to the session's last live part (2026-10-01, the second reader's nit 3), never
     // the part or base id the caller named. If that part is full, the append
     // rolls to the next part number exactly as a live append does.
     let part = typeof pos.last_part === 'string' && pos.last_part ? pos.last_part : null;
@@ -903,7 +904,7 @@ export function graphBlock(g) {
 /**
  * After a successful call: record the step. Never throws - a failed record is
  * logged, not fatal. Returns what happened, so the close can say so
- * (2026-10-01, the reviewer's nit 2 on commit-df21117, the tester's condition 2):
+ * (2026-10-01, the second reader's nit 2 on an earlier draft, the reviewer's condition 2):
  *   null                          nothing to record (no session, or no step)
  *   {recorded: true, base}        the step was written
  *   {recorded: false, base, error} the write failed (logged as a warning)

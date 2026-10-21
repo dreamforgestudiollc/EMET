@@ -261,7 +261,7 @@ testGroup('Honesty about what the floor does not do', () => {
   });
 });
 
-testGroup('Engagement: goal_check and no_rapport_mirroring (the reviewer review of #39)', () => {
+testGroup('Engagement: goal_check and no_rapport_mirroring (second-reader review of #39)', () => {
   test('both keys exist under engagement', () => {
     assert.strictEqual(typeof FLOOR.engagement.goal_check, 'string');
     assert.strictEqual(typeof FLOOR.engagement.no_rapport_mirroring, 'string');

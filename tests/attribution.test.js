@@ -1,7 +1,7 @@
 /**
  * Attribution per session v2 (2026-10-12). Regression for the client (grok-project)
  * and the intake bot (intake-bot) stamped hub-bot on the shared Grok
- * client 8xm-7ILLKEDFc3-QRxqlgw, for the reviewer's review findings A1-A4 of PR 32,
+ * client 8xm-7ILLKEDFc3-QRxqlgw, for the second reader's review findings A1-A4 of PR 32,
  * and for the owner's new-client requirements (COS flag, owner fallback, solo
  * auto-approve, ties across restarts, real tag at startup).
  */
@@ -46,7 +46,7 @@ async function fresh() { const a = await import('../src/attribution.js'); a._res
 const ctx = (over = {}) => ({ db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps: memDeps(), registry: ['hub-bot', 'intake-bot', 'grok-project', 'cowork-cloud'], ...over });
 
 testGroup('stamp', () => {
-  test('the intake bot declared on the hub login is stamped intake-bot, login kept', async () => {
+  test('the intake bot declared on the the hub bot login is stamped intake-bot, login kept', async () => {
     const att = await fresh();
     const { resolvedSourceTag } = await import('../src/tools.js');
     const { actorStore } = await import('../src/persons.js');
@@ -117,14 +117,14 @@ testGroup('A3 no rights beyond the login tag', () => {
     const att = await fresh();
     const { refuseBotMainRecord, refuseBotRetireRename } = await import('../src/tools.js');
     const { actorStore } = await import('../src/persons.js');
-    process.env.EMET_RECORD_DOCS = 'bots/intake-bot/HANDOFF.md,bots/reviewer-bot/HANDOFF.md';
+    process.env.EMET_RECORD_DOCS = 'bots/intake-bot/HANDOFF.md,bots/tester-bot/HANDOFF.md';
     process.env.EMET_SOURCE_TAGS = 'hub-bot,intake-bot,grok-project';
     const a = actorFor({ sourceTag: 'intake-bot' });
     await att.preflight(ctx(), a, { source: 'grok-project' }, 'write_doc');
     actorStore.run(a, () => {
       assert.throws(() => refuseBotMainRecord('HANDOFF.md', 'grok-project', 'write_doc'), /bot tag/);
       assert.throws(() => refuseBotMainRecord('STATE.md', 'grok-project', 'patch_doc'), /bot tag/);
-      assert.throws(() => refuseBotMainRecord('bots/reviewer-bot/HANDOFF.md', 'grok-project', 'write_doc'), /outside/);
+      assert.throws(() => refuseBotMainRecord('bots/tester-bot/HANDOFF.md', 'grok-project', 'write_doc'), /outside/);
       assert.throws(() => refuseBotRetireRename('grok-project', 'retire_doc'), /not a bot tool/);
     });
     delete process.env.EMET_RECORD_DOCS; delete process.env.EMET_SOURCE_TAGS;
@@ -244,7 +244,7 @@ testGroup('(a) approvals: no self-approval, idempotent, compare-and-set, fail cl
     assert.ok(att.WRITE_TOOLS.has('emet_client_approve'));
     assert.ok(att.WRITE_TOOLS.has('emet_session_open'));
   });
-  test('the reviewer r3: a pending newbot on the owner login that omits source cannot approve itself', async () => {
+  test('the second reader r3: a pending newbot on the owner login that omits source cannot approve itself', async () => {
     const att = await fresh();
     const c = ctx();
     // newbot connects on the owner's shared host login, declares itself, gets queued.
@@ -409,7 +409,7 @@ testGroup('(d) remembered client tags (Alex 2026-10-12)', () => {
   });
 });
 
-testGroup('(e) the reviewer delta M2: explicit as on a client with approved tags', () => {
+testGroup('(e) the second reader delta M2: explicit as on a client with approved tags', () => {
   test("the owner's case: client 8xm with the intake bot approved, approving grok-project keeps the intake bot", async () => {
     const att = await fresh();
     const c = ctx({ registry: ['cowork-cloud'] });
@@ -434,7 +434,7 @@ testGroup('(e) the reviewer delta M2: explicit as on a client with approved tags
     await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'a2', decision: 'approve', as: 'add' });
     await assert.rejects(() => att.preflight(c, on(), { source: 'a3', content: 'x' }, 'write_doc'));
     await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'a3', decision: 'approve', as: 'rename' }), /"from"/);
-    // the reviewer should-fix: `from` must be one of the client's own approved tags.
+    // the second reader should-fix: `from` must be one of the client's own approved tags.
     await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'a3', decision: 'approve', as: 'rename', from: 'not-a-sibling' }), /"from"/);
     await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'a3', decision: 'approve', as: 'rename', from: 'a3' }), /"from"/);
     assert.ok(att.parseApprovals(c.deps.store.content).pending.a3, 'still pending after a bad from');
