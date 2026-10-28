@@ -51,4 +51,7 @@ export class ApproveThrottle {
   }
 
   recordSuccess(ip) { this.failures.delete(String(ip)); }
+
+  /** Owner break-glass clears one address. It does not clear every address. */
+  clearAddress(ip) { this.failures.delete(String(ip)); }
 }

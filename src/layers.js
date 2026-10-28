@@ -248,7 +248,7 @@ export function bandFor(layer) {
 
 /** Named importance buckets. The word is the differentiator; the range is
  *  compatibility for the stored float. Degree (low/mid/high) is the only
- *  reason to pick a number other than the midpoint. Alex 2026-09-26. */
+ *  reason to pick a number other than the midpoint. the owner 2026-09-26. */
 export const IMPORTANCE_BUCKETS = Object.freeze({
   constitutive: { range: [0.9, 1.0], layers: ['identity'] },
   durable: { range: [0.6, 0.9], layers: ['semantic', 'meta'] },

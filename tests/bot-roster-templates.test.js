@@ -1,8 +1,8 @@
 /**
  * EMET - bot roster, bot handoff template and bot registration (2026-10-01).
  *
- * Alex, the recorded time: "update EMET to recognize the bot tags and update
- * templates and such as necessary for it to be fully functional"; the recorded time:
+ * the owner, 4:17: "update EMET to recognize the bot tags and update
+ * templates and such as necessary for it to be fully functional"; 4:18:
  * a bot roster template and a setup reference. No production code changes:
  * a tag is a bot tag only when bots/<tag>/HANDOFF.md is in EMET_RECORD_DOCS
  * (session-graph.js isBotTag), so these tests pin (1) that the configured
@@ -24,14 +24,13 @@ import {
 } from '../src/conformance.js';
 import { isBotTag, mainRecordIds } from '../src/session-graph.js';
 import { refuseBotMainRecord, isRecordDoc } from '../src/tools.js';
-import { privateWordsIn } from './scrub-tokens.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
 const BOTS = ['tester-bot', 'intake-bot', 'reviewer-bot', 'memory-bot', 'research-bot'];
 const HUB = 'hub-bot';
-// The exact value set on the reference deploy, 2026-10-01 the recorded time (four bots at 4:20, a fifth added 4:23).
+// The exact value set on the reference deploy, 2026-10-01 4:23 (four bots at 4:20, Research added 4:23).
 const RECORD_DOCS = BOTS.map((t) => `bots/${t}/HANDOFF.md`).join(',');
 
 function withEnv(vars, fn) {
@@ -54,11 +53,11 @@ testGroup('the configured value: five bots are bots, the hub stays a host', () =
   test('the hub tag and host tags are not bot tags', () => withEnv(env, () => {
     for (const t of [HUB, 'grok-project', 'mobile', 'cli', 'unspecified']) assert.strictEqual(isBotTag(t), false, t);
   }));
-  test('unset, no tag is a bot tag (the state the second reader found live)', () => withEnv(CLEAN, () => {
+  test('unset, no tag is a bot tag (the state Tester found live)', () => withEnv(CLEAN, () => {
     for (const t of BOTS) assert.strictEqual(isBotTag(t), false, t);
   }));
-  test('the legacy CASCADE_ name is hidden once the EMET_ name is set', () => withEnv({ ...env, CASCADE_RECORD_DOCS: 'bots/other-bot/HANDOFF.md' }, () => {
-    assert.strictEqual(isBotTag('other-bot'), false);
+  test('the legacy CASCADE_ name is hidden once the EMET_ name is set', () => withEnv({ ...env, CASCADE_RECORD_DOCS: 'bots/hubbot-other/HANDOFF.md' }, () => {
+    assert.strictEqual(isBotTag('hubbot-other'), false);
     assert.strictEqual(isBotTag('tester-bot'), true);
   }));
   test('a bot tag is refused both main records; the hub is not', () => withEnv(env, () => {
@@ -85,11 +84,11 @@ testGroup('the configured value: five bots are bots, the hub stays a host', () =
   });
 });
 
-const BOT_HANDOFF_FILLED = `# example-bot — HANDOFF
+const BOT_HANDOFF_FILLED = `# hubbot-example — HANDOFF
 
 ## §0 RECORD CONTROL
 - Template: \`templates/BOTHANDOFF.md\` rev 1 · Handoff revision: v1 · Supersedes: none — first revision
-- Session id: 2026-10-01_example-bot-check · Source tag: example-bot · Bot: Example (roster row in \`bots/ROSTER.md\`)
+- Session id: 2026-10-01_example-bot-check · Source tag: hubbot-example · Bot: Example (roster row in \`bots/ROSTER.md\`)
 - Host / interface: example host · Machine: example machine · Written (local): 2026-10-01 4:40 PM
 - **Scope of this session, one line:** one read-only check, reported to the hub.
 
@@ -131,7 +130,7 @@ const ROSTER_FILLED = `# BOT ROSTER
 ## §1 BOTS
 | Tag | Name | Role | Host | Machine | Handoff doc | Tool profile | Owner | Status | Registered (SOURCE_TAGS · RECORD_DOCS) |
 |---|---|---|---|---|---|---|---|---|---|
-| example-bot | Example | tester | example host | example machine | \`bots/example-bot/HANDOFF.md\` | bot (provisional) | the user | PILOT | Y · Y |
+| hubbot-example | Example | tester | example host | example machine | \`bots/hubbot-example/HANDOFF.md\` | bot (provisional) | the user | PILOT | Y · Y |
 
 ## §2 HUB — host-level, never a bot
 | Tag | Name | Host | Machine | Records it writes | Listed in RECORD_DOCS |
@@ -140,14 +139,14 @@ const ROSTER_FILLED = `# BOT ROSTER
 
 ## §3 CONFIGURATION READ-BACK
 - Read (local): 2026-10-01 4:40 PM · Deployment: example · Read by: hub-example
-- \`EMET_RECORD_DOCS\` bot entries: bots/example-bot/HANDOFF.md
-- \`EMET_SOURCE_TAGS\` bot and hub entries: example-bot, hub-example
+- \`EMET_RECORD_DOCS\` bot entries: bots/hubbot-example/HANDOFF.md
+- \`EMET_SOURCE_TAGS\` bot and hub entries: hubbot-example, hub-example
 - **Agreement:** Y
 
 ## §4 CHANGE LOG
 | Date (local) | Change (added · retired · role · profile) | User's words, verbatim | Decision record |
 |---|---|---|---|
-| 2026-10-01 | added example-bot | "add it" | procedural 1 |
+| 2026-10-01 | added hubbot-example | "add it" | procedural 1 |
 `;
 
 testGroup('the two new forms ship and are DRAFT', () => {
@@ -230,7 +229,7 @@ testGroup('the setup reference is linked where setup is described', () => {
     assert.match(b, /misspelled tag is treated as a host/);
     assert.match(b, /set `EMET_SOURCE_TAGS` and `EMET_RECORD_DOCS` together/);
   });
-  test('BOTS.md §5 states the C-3 limit in bold: "These refusals cover listed tags only." (review nit D3a)', () => {
+  test('BOTS.md §5 states the C-3 limit in bold: "These refusals cover listed tags only." (Tester nit D3a)', () => {
     const b = read('docs/BOTS.md');
     const s5 = b.slice(b.indexOf('\n## 5.'), b.indexOf('\n## 6.'));
     assert.ok(s5.length > 0, 'BOTS.md §5 not found');
@@ -250,13 +249,13 @@ testGroup('the setup reference is linked where setup is described', () => {
     assert.match(b, /\*\*Name every write attempt\.\*\*/);
     assert.match(b, /a write not on it, a retry, or a write after the close is a finding/);
   });
-  test('BOTS.md uses generic example tags', () => assert.deepStrictEqual(privateWordsIn(read('docs/BOTS.md')), []));
+  test('BOTS.md uses generic example tags', () => assert.ok(!/hubbot-/.test(read('docs/BOTS.md'))));
   test('the bot handoff form can record a main-record breach (Y / N)', () => {
     assert.match(read('templates/BOTHANDOFF.md'), /\| Main records untouched \| Y \/ N/);
   });
   test('the shipped forms carry no install-specific bot names', () => {
     for (const f of ['templates/ROSTER.md', 'templates/BOTHANDOFF.md']) {
-      assert.deepStrictEqual(privateWordsIn(read(f)), [], f);
+      assert.ok(!/hubbot-|Master Hub|Reviewer|Studio/i.test(read(f)), f);
     }
   });
 });

@@ -1,6 +1,6 @@
 # TEMPLATE — THREAD
 
-**Template control:** id `templates/THREAD.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · procedural ref 311 (board 11) · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
+**Template control:** id `templates/THREAD.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-09-11 · procedural ref 311 (board 011) · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
 **Fills:** `threads/<name>.md` — the working document for one project or line of work: its current position, its decisions and their reasons, and a dated log.
 **Failure it prevents:** threads grown by appended sections until the current state sat under hundreds of kilobytes of history (reference install: two threads at 147 KB and 328 KB). A phone session did not read one — the mobile startup skips threads by rule — so the board marked its career rows `NOT COMPLETED` (2026-09-10); whether a phone session could read a thread that size was never tested. When it was read, its priority list still told the user to submit an application that had been submitted two weeks earlier — the current state was never rewritten, only appended to.
 **Completion rules:** `templates/STANDARD.md` §5, unmodified.

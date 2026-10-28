@@ -44,16 +44,21 @@ import { setting } from './env.js';
 import { InvalidGrantError, InvalidScopeError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { scopesNotGranted } from './scopes.js';
 import { CodedError, assignCode } from './error-codes.js';
+import { doorFromIssuedVia, grantIdFromFamily, logGrantId } from './grants.js';
+import { credentialBlocked, currentHouseholdGeneration, refuseRotatedCredential } from './rotate.js';
+import { owlCredentialBlocked, refuseOwlCredential } from './owl.js';
 
 const CODE_TTL_MS = 5 * 60 * 1000;              // authorization codes: 5 minutes
 const ACCESS_TTL_S = 60 * 60;                   // access tokens: 1 hour
 const REFRESH_TTL_S = 60 * 60 * 24 * 60;        // refresh tokens: 60 days
 const REFRESH_ROTATION_GRACE_S = 60;            // a rotated refresh token stays usable this long
-/** The marker on codes and tokens minted from an invite (R6). */
+/** The marker on codes and tokens minted from an invite (guest door). */
 export const INVITE_GRANT = 'invite';
 // EMET Member Access tokens carry their own marker, so refresh can check the member flag, not the guest one.
 export const MEMBER_GRANT = 'member';
-const DOOR_GRANTS = new Set([INVITE_GRANT, MEMBER_GRANT]);
+/** Passphrase consents. Stored explicitly so a new owner token is not a legacy row. */
+export const OWNER_GRANT = 'owner';
+const STORED_DOORS = new Set([INVITE_GRANT, MEMBER_GRANT, OWNER_GRANT]);
 
 /** How long a fetched Client ID Metadata Document is trusted before refetching. */
 export const CIMD_TTL_MS = 60 * 60 * 1000;      // 1 hour
@@ -622,14 +627,17 @@ export class MongoOAuthProvider {
 
   /** Called by /oauth/approve AFTER a successful passphrase check. */
   async createAuthorizationCode({ client_id, redirect_uri, code_challenge, scopes, resource, subject, issued_via, source_tag }) {
+    const draft = { client_id, clientId: client_id, source_tag };
+    if (await owlCredentialBlocked(this._getDb(), this.prefix, draft)) await refuseOwlCredential(draft, 'code');
     const code = randTok(24);
     await this.col('codes').insertOne({
       code: tokenDigest(code), hashed: true, client_id, redirect_uri, code_challenge,
       scopes: scopes || [], resource: resource || null,
       subject: subject || null,
       source_tag: source_tag || null,
-      ...(DOOR_GRANTS.has(issued_via) ? { issued_via } : {}),
+      ...(STORED_DOORS.has(issued_via) ? { issued_via } : {}),
       expiresAtMs: Date.now() + CODE_TTL_MS, used: false, createdAt: new Date(),
+      rotation_generation: await currentHouseholdGeneration(this._getDb(), this.prefix)
     });
     return code;
   }
@@ -645,6 +653,8 @@ export class MongoOAuthProvider {
     const digest = tokenDigest(authorizationCode);
     const existing = await codes.findOne({ code: digest, client_id: client.client_id });
     if (!existing) throw assignCode(new InvalidGrantError('this authorization code is not recognised - start the connection again'), 'EMET-AUTH-013');
+    if (await owlCredentialBlocked(this._getDb(), this.prefix, existing)) await refuseOwlCredential(existing, 'code');
+    if (await credentialBlocked(this._getDb(), this.prefix, existing)) await refuseRotatedCredential(existing, 'code');
     if (existing.expiresAtMs < Date.now()) throw assignCode(new InvalidGrantError('this authorization code has expired - start the connection again'), 'EMET-AUTH-014');
     if (redirectUri && existing.redirect_uri && redirectUri !== existing.redirect_uri) throw assignCode(new InvalidGrantError('redirect_uri does not match the one this code was issued for'), 'EMET-AUTH-015');
     const claimed = await codes.findOneAndUpdate(
@@ -670,6 +680,10 @@ export class MongoOAuthProvider {
     // (RFC 6749 section 5.2). A plain Error became a 500 server_error, which
     // told the client the server was broken instead of "sign in again".
     if (!rt) throw assignCode(new InvalidGrantError('this refresh token is not recognised (it may have been revoked, or issued to another client) - reconnect to sign in again'), 'EMET-AUTH-017');
+    if (await owlCredentialBlocked(this._getDb(), this.prefix, rt)) await refuseOwlCredential(rt, 'refresh');
+    // Household rotation refuses before the 60-second lost-response grace.
+    // That grace is one client retry. It is not time left on a revoked grant.
+    if (await credentialBlocked(this._getDb(), this.prefix, rt)) await refuseRotatedCredential(rt, 'refresh');
     const nowS = Math.floor(Date.now() / 1000);
     if (rt.expiresAt && rt.expiresAt < nowS) throw assignCode(new InvalidGrantError('this refresh token has expired - reconnect to sign in again'), 'EMET-AUTH-018');
     // A token issued before source tags were stored must not mint another
@@ -719,6 +733,7 @@ export class MongoOAuthProvider {
       await tokens.deleteOne({ token: tokenDigest(out.access_token), kind: 'access' });
       await tokens.deleteOne({ token: tokenDigest(out.refresh_token), kind: 'refresh' });
       const fresh = await tokens.findOne({ _id: rt._id });
+      if (fresh && await credentialBlocked(this._getDb(), this.prefix, fresh)) await refuseRotatedCredential(fresh, 'refresh');
       if (fresh && fresh.grace_replacement && typeof fresh.rotated_at === 'number' && (nowS - fresh.rotated_at) <= REFRESH_ROTATION_GRACE_S) {
         return { ...fresh.grace_replacement };
       }
@@ -726,6 +741,24 @@ export class MongoOAuthProvider {
       throw assignCode(new InvalidGrantError('this refresh token has already been replaced by a newer one - reconnect to sign in again'), 'EMET-AUTH-020');
     }
     return out;
+  }
+
+  /**
+   * End one grant. The grant id is that token family. This is not rotate-all:
+   * a bearer, `*`, or `all` is refused, and deletion stays on _revokeFamily.
+   */
+  async revokeGrantById(grantId) {
+    const family = logGrantId(grantId);
+    if (family === 'none' || grantId === 'unknown' || grantId === '*' || grantId === 'all') {
+      return { ok: false, reason: 'one_grant' };
+    }
+    const db = typeof this._getDb === 'function' ? this._getDb() : null;
+    if (!db) return { ok: false, reason: 'unavailable' };
+    const row = await this.col('tokens').findOne({ family });
+    if (!row || grantIdFromFamily(row.family) !== family) return { ok: false, reason: 'missing' };
+    const door = doorFromIssuedVia(row.issued_via);
+    await this._revokeFamily(row);
+    return { ok: true, grant_id: family, door };
   }
 
   /** A reused refresh token outside the grace window ends every token in its family. */
@@ -755,10 +788,17 @@ export class MongoOAuthProvider {
    * 'guest' (EMET Guest Access, issued_via 'invite'), or null (passphrase). A legacy token with no
    * issued_via is judged by its subject's person row: role 'member' with door 'member' is a member,
    * any other role 'member' is a guest (every such row before the member door was a guest).
+   * That person-row reading is for freeze checks only. verifyAccessToken stamps door from
+   * doorFromIssuedVia, so a missing issued_via stays null and is not guessed.
+   * See docs/proposals/EMET-0002-grant-doors.md §7.
    */
   async _tokenDoor(rt) {
     if (rt.issued_via === MEMBER_GRANT) return 'member';
     if (rt.issued_via === INVITE_GRANT) return 'guest';
+    // Owner and any other explicit marker are not invite doors. Freeze checks
+    // stay on member and guest. A missing marker still falls through to the
+    // legacy person-role lookup below.
+    if (rt.issued_via === OWNER_GRANT) return null;
     if (rt.issued_via !== undefined && rt.issued_via !== null) return null;
     if (!rt.subject || rt.subject === 'owner') return null;
     const person = await this._getDb().collection('persons').findOne({ person_id: rt.subject });
@@ -795,17 +835,22 @@ export class MongoOAuthProvider {
     const now = Math.floor(Date.now() / 1000);
     const subject = subjectOverride || await this._subject();
     const fam = family || randTok(16);
+    const minted = { client_id: clientId, clientId, source_tag: sourceTag, family: fam };
+    if (await owlCredentialBlocked(this._getDb(), this.prefix, minted)) await refuseOwlCredential(minted, 'issue');
+    const rotation_generation = await currentHouseholdGeneration(this._getDb(), this.prefix);
     // Only a door grant (guest 'invite' or 'member') is marked; passphrase rows keep today's shape.
-    const via = DOOR_GRANTS.has(issuedVia) ? { issued_via: issuedVia } : {};
+    const via = STORED_DOORS.has(issuedVia) ? { issued_via: issuedVia } : {};
     const access = randTok(32);
     await this.col('tokens').insertOne({
       token: tokenDigest(access), hashed: true, kind: 'access', client_id: clientId, scopes, resource: resource || null,
       subject, ...via, family: fam, source_tag: sourceTag || null, expiresAt: now + ACCESS_TTL_S, createdAt: new Date(),
+      rotation_generation
     });
     const refresh = randTok(32);
     await this.col('tokens').insertOne({
       token: tokenDigest(refresh), hashed: true, kind: 'refresh', client_id: clientId, scopes, resource: resource || null,
       subject, ...via, family: fam, source_tag: sourceTag || null, expiresAt: now + REFRESH_TTL_S, createdAt: new Date(),
+      rotation_generation
     });
     const out = { access_token: access, token_type: 'bearer', expires_in: ACCESS_TTL_S, refresh_token: refresh };
     if (scopes && scopes.length) out.scope = scopes.join(' ');
@@ -819,13 +864,20 @@ export class MongoOAuthProvider {
     // No double quotes in these messages: they are copied into that header.
     const doc = await this._findToken(token, 'access');
     if (!doc) throw assignCode(new InvalidTokenError('this access token is not recognised (it may have been revoked or replaced) - sign in again'), 'EMET-AUTH-024');
+    if (await owlCredentialBlocked(this._getDb(), this.prefix, doc)) await refuseOwlCredential(doc, 'access');
+    if (await credentialBlocked(this._getDb(), this.prefix, doc)) await refuseRotatedCredential(doc, 'access');
     if (doc.expiresAt && doc.expiresAt * 1000 < Date.now()) throw assignCode(new InvalidTokenError('this access token has expired - refresh it or sign in again'), 'EMET-AUTH-025');
     return {
       token,
       clientId: doc.client_id,
       scopes: doc.scopes || [],
       expiresAt: doc.expiresAt,
-      extra: { subject: doc.subject || 'owner', sourceTag: doc.source_tag || null, grantId: doc.family || null },
+      extra: {
+        subject: doc.subject || 'owner',
+        sourceTag: doc.source_tag || null,
+        grantId: grantIdFromFamily(doc.family),
+        door: doorFromIssuedVia(doc.issued_via)
+      },
     };
   }
 
@@ -836,4 +888,36 @@ export class MongoOAuthProvider {
     const clear = await tokens.findOne({ token: request.token, client_id: client.client_id }); // a pre-H2 clear row
     if (clear && clear.hashed !== true) await tokens.deleteOne({ _id: clear._id });
   }
+}
+
+/**
+ * R5 credential bookkeeping. These rows live in the OAuth collections and in
+ * emet_rotations. They are not a memory layer, a document, or a transcript.
+ * A rotated grant is stamped and kept. Nothing here is deleted.
+ */
+async function stampCredentialIds(col, ids, eventId, at) {
+  if (!ids.length || !col || typeof col.updateMany !== 'function') return 0;
+  const result = await col.updateMany(
+    { _id: { $in: ids } },
+    { $set: { superseded_by: eventId, retired: true, revoked_at: at, deleted: false } }
+  );
+  return result && result.modifiedCount ? result.modifiedCount : ids.length;
+}
+
+export async function openRotationEvent(db, prefix, { event, epochId, household, epochSet, tokenIds, codeIds, at }) {
+  const rotations = db.collection(`${prefix}rotations`);
+  await rotations.insertOne(event);
+  if (household) {
+    await rotations.updateOne(
+      { _id: epochId },
+      { $set: epochSet, $inc: { generation: 1 } },
+      { upsert: true }
+    );
+  }
+  await stampCredentialIds(db.collection(`${prefix}oauth_tokens`), tokenIds, event._id, at);
+  await stampCredentialIds(db.collection(`${prefix}oauth_codes`), codeIds, event._id, at);
+}
+
+export async function finishRotationEvent(db, prefix, eventId, fields) {
+  await db.collection(`${prefix}rotations`).updateOne({ _id: eventId }, { $set: fields });
 }

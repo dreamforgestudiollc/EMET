@@ -10,10 +10,11 @@ import { currentActor, getPerson } from './persons.js';
 import { EMET_VERSION } from './version.js';
 import { ERROR_CODES, EMET_CODE_RE } from './error-codes.js';
 import { redactText } from './redact.js';
-import { queryErrorLog } from './error-log.js';
+import { logClientId, logDoor, logGrantId } from './grants.js';
+import { queryErrorLog, logSessionId } from './error-log.js';
 
 export const SEND_INSTRUCTION = 'The calling assistant may send this report only after showing the report to its user and getting their OK.';
-export const DEFAULT_REPORT_EMAIL = 'dreamforgestudio@mail.grokbot.com';
+export const DEFAULT_REPORT_EMAIL = 'dreamforgestudio@mail.hubbot.com';
 export const MAILTO_MAX = 1800;
 
 /**
@@ -101,8 +102,19 @@ function shown(entry) {
     transport: entry.transport === 'http' ? 'http' : 'stdio',
     caller: redactText(String(entry.caller || 'unregistered')),
     role: entry.role === 'owner' ? 'owner' : 'guest',
+    client_id: logClientId(entry.client_id),
+    grant_id: logGrantId(entry.grant_id),
+    door: logDoor(entry.door),
+    session_id: shownSessionId(entry.session_id),
     correlation_id: redactText(String(entry.correlation_id || ''))
   };
+}
+
+/** A stored session id, or none when the row is not a session close. */
+function shownSessionId(id) {
+  if (id == null || id === '' || id === 'none') return 'none';
+  if (id === 'unknown') return 'unknown';
+  return logSessionId(id);
 }
 
 function totalsOf(rows) {
@@ -141,11 +153,11 @@ function assemble({ version, shortId, generated, windowStart, windowEnd, nodeVer
   lines.push('Most recent');
   if (!recent.length) lines.push('  (none)');
   for (const entry of recent) {
-    lines.push(`  ${entry.t}  ${entry.emet_code}  ${entry.tool}  ${entry.transport}  ${entry.caller}  ${entry.role}  ${entry.correlation_id}`);
+    lines.push(`  ${entry.t}  ${entry.emet_code}  ${entry.tool}  ${entry.transport}  ${entry.caller}  ${entry.role}  ${entry.client_id}  ${entry.grant_id}  ${entry.door}  ${entry.session_id}  ${entry.correlation_id}`);
   }
   lines.push('');
-  lines.push('Contains: codes, times, tool names, versions, caller tags, ids.');
-  lines.push('Does not contain: memory, documents, arguments, names, tokens.');
+  lines.push('Contains: codes, times, tool names, versions, caller tags, client ids, grant ids, doors, session ids.');
+  lines.push('Does not contain: memory, documents, arguments, message text, or tokens.');
   lines.push('You are sending this yourself. EMET has not sent it anywhere.');
   return lines.join('\n');
 }

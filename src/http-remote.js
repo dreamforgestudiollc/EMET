@@ -88,18 +88,8 @@ function buildServer() {
   });
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const { name, arguments: args = {} } = request.params;
-    const { actorStore, personFromAuth } = await import('./persons.js');
-    const auth = extra && extra.authInfo;
-    const clientId = (auth && auth.clientId) || 'http:visitor';
-    const actor = {
-      personId: personFromAuth(extra),
-      clientId,
-      scopes: (auth && auth.scopes) || [],
-      transport: 'http',
-      sourceTag: (auth && auth.extra && auth.extra.sourceTag) || null,
-      grantId: (auth && auth.extra && auth.extra.grantId) || null,
-      authenticated: Boolean(auth)
-    };
+    const { actorStore, httpToolActor } = await import('./persons.js');
+    const actor = httpToolActor(extra);
     const bucket = t.rateBucket(actor);
     const rl = rateLimiter.checkLimit(name, bucket);
     if (!rl.allowed) return actorStore.run(actor, () => t.handleError(new t.RateLimitError(rl.reason, rl.retryAfterMs), name, logger));
@@ -107,7 +97,7 @@ function buildServer() {
     // Every tool call leaves one audit entry (H6). callTool never throws: it
     // returns either a success response or handleError's isError response.
     const t0 = Date.now();
-    // Parameter NAMES, never values (Alex, 2026-09-27, code audit 1.6).
+    // Parameter NAMES, never values (the owner, 2026-09-27, code audit 1.6).
     const paramNames = Object.keys(args || {}).sort();
     try {
       const att = await import('./attribution.js');
@@ -121,12 +111,16 @@ function buildServer() {
     } catch (e) {
       if (e && e.attributionRefusal) {
         const { ValidationError } = await import('./validation.js');
-        return actorStore.run(actor, () => t.handleError(new ValidationError('source', e.message, { code: 'EMET-AUTH-039' }), name, logger));
+        const code = e.emetCode === 'EMET-AUTH-044' ? 'EMET-AUTH-044' : 'EMET-AUTH-039';
+        const err = new ValidationError('source', e.message, { code });
+        if (e.chooser) err.chooser = e.chooser;
+        return actorStore.run(actor, () => t.handleError(err, name, logger));
       }
       throw e;
     }
     const result = await actorStore.run(actor, () => callTool(name, args));
-    logger.audit(AuditOperation.TOOL_CALL, { tool: name, success: result.isError !== true, durationMs: Date.now() - t0, params: paramNames });
+    const { toolCallAuditDetails } = await import('./grants.js');
+    logger.audit(AuditOperation.TOOL_CALL, toolCallAuditDetails(actor, { tool: name, success: result.isError !== true, durationMs: Date.now() - t0, params: paramNames }));
     return result;
   });
   return server;
@@ -155,18 +149,36 @@ app.use(requestLogger({ enabled: process.env.EMET_REQUEST_LOG !== '0' }));
 
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'emet', tools: t.TOOLS.length, cimd: provider.cimdEnabled }));
 
-// Pending sub-keys. Same passphrase and the same per-address failure throttle
-// as /oauth/approve. The routes are not mounted unless EMET_SUBKEYS=1, so a
-// flag-off process answers these paths the way it answers any other unknown path.
-if (setting('SUBKEYS') === '1') {
+// Chooser, break-glass, and the retired owner-approvals pointer. The passphrase
+// and the per-address lockout are the same ones /oauth/approve uses. A member
+// or guest grant is not a session. Sub-key tools still follow EMET_SUBKEYS;
+// the human pages stay mounted either way so a refusal link has somewhere to open.
+{
+  const { setChooserPublicUrl, breakGlassStartupLine } = await import('./deep-links.js');
+  const { rotateStartupLine } = await import('./rotate.js');
+  const { createOwnerGate } = await import('./owner-session.js');
+  const { mountChooser } = await import('./chooser.js');
+  const { mountBreakGlass } = await import('./break-glass.js');
   const { mountOwnerApprovals } = await import('./owner-approvals.js');
   const { resolveTokenSubject } = await import('./persons.js');
-  mountOwnerApprovals(app, {
+  setChooserPublicUrl(PUBLIC_URL);
+  const human = {
     checkPassphrase: (input) => provider.checkPassphrase(input),
     throttle: approveThrottle,
     deps: t.approvalsDeps,
-    ownerId: () => resolveTokenSubject(dbManager.db)
-  });
+    ownerId: () => resolveTokenSubject(dbManager.db),
+    db: () => dbManager.db,
+    prefix: provider.prefix,
+    provider,
+    rateLimiter,
+    logger
+  };
+  human.gate = createOwnerGate(human);
+  mountChooser(app, human);
+  mountBreakGlass(app, human);
+  mountOwnerApprovals(app, human);
+  app.locals.breakGlassStartupLine = breakGlassStartupLine;
+  app.locals.rotateStartupLine = rotateStartupLine;
 }
 
 // OAuth 2.1 authorization server + protected-resource metadata:
@@ -244,8 +256,19 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
       }
       sourceTag = requested || null;
     }
+    const { isOwlIdentity } = await import('./owl.js');
+    if (isOwlIdentity(client_id) || isOwlIdentity(sourceTag)) {
+      res.locals.reason = 'owl_retired';
+      res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.end('<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">This owl MCP clone account was retired by R6. the owner decides a new writer on /owner/chooser. Nothing was granted.</p>');
+    }
     const client = await provider.clientsStore.getClient(client_id);
     if (!client) { res.locals.reason = 'unknown_client'; return res.status(400).end('unknown client'); }
+    if (isOwlIdentity(client)) {
+      res.locals.reason = 'owl_retired';
+      res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.end('<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">This owl MCP clone account was retired by R6. the owner decides a new writer on /owner/chooser. Nothing was granted.</p>');
+    }
     // Same rule the SDK's /authorize applies: exact match, except that loopback
     // redirects (localhost / 127.0.0.1 / [::1]) match with the port ignored, per
     // RFC 8252 §7.3 — Claude Code binds an ephemeral port on every run.
@@ -264,10 +287,19 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
       scopes: grantedScopes,
       resource: resource || null,
       subject: inviteSubject || null,
-      // The door rides on the token: 'member' for EMET Member Access, 'invite' for EMET Guest Access.
-      issued_via: inviteSubject ? (inviteDoor === 'member' ? 'member' : 'invite') : null,
+      // The door rides on the token: 'member', 'invite' (guest), or 'owner' (passphrase).
+      issued_via: inviteSubject ? (inviteDoor === 'member' ? 'member' : 'invite') : 'owner',
       source_tag: sourceTag,
     });
+    if (sourceTag === 'grok-project') {
+      try {
+        const { recordSophiaCredential } = await import('./bound-door.js');
+        const door = inviteSubject ? (inviteDoor === 'member' ? 'member' : 'guest') : 'owner';
+        await recordSophiaCredential(t.approvalsDeps, { client_id, door, grant_id: null, by: 'consent' });
+      } catch {
+        console.error('[emet] bound door listing was not written');
+      }
+    }
     const u = new URL(redirect_uri);
     u.searchParams.set('code', code);
     if (state) u.searchParams.set('state', state);
@@ -294,10 +326,28 @@ app.post('/mcp', requireBearerAuth({ verifier: provider, resourceMetadataUrl: PR
   }
 });
 
-(async () => {
+export { app, dbManager };
+
+// EMET_HTTP_LISTEN=0 lets a test import this module and POST /oauth/approve
+// without binding the production port. Production does not set it.
+if (process.env.EMET_HTTP_LISTEN !== '0') (async () => {
   if (!PASSPHRASE) console.error('[emet] WARNING: EMET_OAUTH_PASSPHRASE unset — all authorization attempts will be rejected.');
   try { await dbManager.ensureClient(); console.error('[emet] Mongo connected'); }
   catch (e) { console.error('[emet] Mongo connect FAILED:', e.message); }
+  try {
+    if (dbManager.db) {
+      const { runStartupChecks } = await import('./owl.js');
+      await runStartupChecks(dbManager.db, { prefix: provider.prefix, log: (line) => console.error(line) });
+    }
+  } catch {
+    console.error('[emet] OWL RETIREMENT CHECK FAILED account=user-EMET--owl active=unknown rung=R6 pointer=/owner/chooser');
+  }
+  try {
+    const { proofStartupLine } = await import('./proof-run.js');
+    console.error(proofStartupLine());
+  } catch {
+    console.error('[emet] proof-run status=not_run rung=R7');
+  }
   try {
     const { seatGems } = await import('./socket.js');
     const seated = await seatGems({ log: logger });
@@ -308,7 +358,11 @@ app.post('/mcp', requireBearerAuth({ verifier: provider, resourceMetadataUrl: PR
     }
   }
   catch (e) { console.error('[emet] GEM socket failed closed'); }
-  app.listen(PORT, HOST, () => console.error(`[emet] listening ${PUBLIC_URL} (bind ${HOST}:${PORT}); /mcp OAuth-protected; PRM ${PRM_URL}`));
+  app.listen(PORT, HOST, () => {
+    console.error(`[emet] listening ${PUBLIC_URL} (bind ${HOST}:${PORT}); /mcp OAuth-protected; PRM ${PRM_URL}`);
+    console.error(app.locals.breakGlassStartupLine());
+    console.error(app.locals.rotateStartupLine());
+  });
   import('./subkeys.js').then((m) => m.startFlagOffSweep((msg) => console.error(`[emet] ${msg}`))).catch(() => console.error('[emet] sub-key flag-off sweep failed'));
   import('./error-log.js').then((m) => m.startErrorLogRotation()).catch(() => {});
 })();

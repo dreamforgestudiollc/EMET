@@ -1,7 +1,7 @@
 /**
  * EMET - close verify that blocks skipped wrap steps (2026-09-26).
  *
- * the owner's requirement (procedural ref 388, 389, 391): the wrap steps HAVE TO BE
+ * Alex's requirement (procedural ref 388, 389, 391): the wrap steps HAVE TO BE
  * FOLLOWED whichever model hosts, and a skipped step blocks the close. The
  * four-item verify is working documents, episodic session record, board and
  * verbatim transcript read back from MongoDB; the handoff is written last.
@@ -24,7 +24,7 @@ function observed(overrides = {}) {
       { doc_id: 'STATE.md', exists: true, version: 356, updated_at: at(20), updated_this_session: true },
       { doc_id: 'staging/close.md', exists: true, version: 3, updated_at: at(10), updated_this_session: true }
     ],
-    episodic: { id: 90, timestamp_ms: T0 + 25 * 60000 },
+    episodic: { id: 590, timestamp_ms: T0 + 25 * 60000 },
     transcript: {
       present: true, split: true, intact: true,
       base_session_id: '2026-09-26_cowork-init',
@@ -39,7 +39,7 @@ function observed(overrides = {}) {
 function receipts(overrides = {}) {
   return {
     working_docs: ['staging/close.md'],
-    episodic_id: 90,
+    episodic_id: 590,
     board_doc: 'STATE.md',
     board_version: 356,
     transcript_session_id: '2026-09-26_cowork-init',
@@ -82,7 +82,7 @@ testGroup('each of the four items is checked against the store', () => {
   test('working document that does not exist', () =>
     assert.ok(checkReceipts(receipts({ working_docs: ['threads/nope.md'] }), observed()).problems.some((p) => p.includes('does not exist'))));
   test('episodic record not found in this session', () =>
-    assert.ok(checkReceipts(receipts(), observed({ episodic: null })).problems.some((p) => p.includes('episodic entry 90'))));
+    assert.ok(checkReceipts(receipts(), observed({ episodic: null })).problems.some((p) => p.includes('episodic entry 590'))));
   test('board version mismatch', () =>
     assert.ok(checkReceipts(receipts({ board_version: 355 }), observed()).problems.some((p) => p.includes('receipt says v355, store holds v356'))));
   test('transcript part list that was not read back', () =>
@@ -102,7 +102,7 @@ testGroup('the handoff is written last', () => {
     assert.ok(checkReceipts(receipts(), obs).problems.some((p) => p.includes('handoff was not the last write') && p.includes('STATE.md')));
   });
   test('episodic record written after the handoff blocks', () =>
-    assert.ok(checkReceipts(receipts(), observed({ episodic: { id: 90, timestamp_ms: T0 + 45 * 60000 } })).problems.some((p) => p.includes('episodic 90'))));
+    assert.ok(checkReceipts(receipts(), observed({ episodic: { id: 590, timestamp_ms: T0 + 45 * 60000 } })).problems.some((p) => p.includes('episodic ' + 590))));
 });
 
 testGroup('speak lines', () => {

@@ -53,7 +53,7 @@ testGroup('sixteen board-guard checks', () => {
     await withStore(db, async () => {
       await write('HANDOFF.md', 'x'.repeat(100), { reason: REASON, session_id: 's1' });
       await write('HANDOFF.md', 'x'.repeat(80), { reason: REASON, supersedes: 1, session_id: 's1' });
-      await assert.rejects(() => write('HANDOFF.md', 'x'.repeat(40), { reason: REASON, supersedes: 2, session_id: 's1' }), /first touched/);
+      await assert.rejects(() => write('HANDOFF.md', 'x'.repeat(40), { reason: REASON, supersedes: 2, session_id: 's1' }), /first touched[\s\S]*full revision[\s\S]*write_doc_begin[\s\S]*write_doc_append[\s\S]*header-only/);
     });
   });
   test('a change that stays over half of the session-start size is kept', async () => {

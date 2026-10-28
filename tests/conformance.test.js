@@ -353,7 +353,7 @@ testGroup('the real shipped set - what actually ships with this release', () => 
   clearShippedCache();
   const SHIPPED = ['templates/BOARD.md', 'templates/HANDOFF.md', 'templates/SEED.md',
     'templates/THREAD.md', 'templates/STAGING.md', 'templates/PROCEDURE.md', 'templates/STANDARD.md',
-    'templates/AREA.md'];
+    'templates/AREA.md', 'templates/SESSIONDISPOSITION.md'];
   for (const id of SHIPPED) {
     test(`${id} ships, is IN FORCE, and carries its approval`, () => {
       const t = loadShipped(id, { cache: false });
@@ -371,7 +371,7 @@ testGroup('the real shipped set - what actually ships with this release', () => 
   });
 });
 
-// --- board 66 -----------------------------------------------------------------
+// --- board 066 -----------------------------------------------------------------
 // Two false positives found on the validator's first day, by running it against
 // the reference install's own board. Both made it NOISY, never permissive, and
 // the fixtures below are built from the real shape of each so that a later
@@ -394,7 +394,7 @@ const PREV_BOARD = `# BOARD
 ## §3 OPEN BOARD
 | Id | Item |
 |---|---|
-| B-002 | Build block. Carries the work closed under B-012 and B-050 |
+| B-002 | Build block. Carries the work closed under B-012 and board 050 |
 | B-099 | Still open next revision |
 
 ## §4 CLOSED THIS REVISION
@@ -404,13 +404,13 @@ const PREV_BOARD = `# BOARD
 | B-050 | EMET's line |
 `;
 
-/** The next revision. board 12 and board 50 were closed LAST revision and are gone,
+/** The next revision. board 012 and board 050 were closed LAST revision and are gone,
  *  correctly. They survive only inside B-002's prose on the previous one. */
 const NEXT_BOARD = PREV_BOARD
-  .replace('| B-002 | Build block. Carries the work closed under B-012 and B-050 |', '| B-002 | Build block, continuing |')
+  .replace('| B-002 | Build block. Carries the work closed under B-012 and board 050 |', '| B-002 | Build block, continuing |')
   .replace('| B-012 | Validation v1 |\n| B-050 | EMET\'s line |\n', '| - | none |\n');
 
-testGroup('board 66 (1) - carry-forward reads the id column, not the section body', () => {
+testGroup('board 066 (1) - carry-forward reads the id column, not the section body', () => {
   clearShippedCache();
   const BOARD = loadShipped('templates/BOARD.md', { dir: DIR, cache: false });
   const carry = (r) => (r.failures.find((f) => /no disposition/.test(f)) || null);
@@ -436,12 +436,12 @@ testGroup('board 66 (1) - carry-forward reads the id column, not the section bod
   });
 });
 
-testGroup('board 66 (2) - the control-line id token is bounded', () => {
+testGroup('board 066 (2) - the control-line id token is bounded', () => {
   clearShippedCache();
 
   test('a filename containing the letters "id" is not read as a declared template', () => {
     const withMention = PREV_BOARD.replace('- Template: `templates/BOARD.md` rev 10',
-      '- Template: `templates/BOARD.md` rev 10 · open markers: `staging/template-validation-v1-pricing.md` v9 (9)');
+      '- Template: `templates/BOARD.md` rev 10 · open markers: `the staging note` v9 (9)');
     const r = validateDocument('STATE.md', withMention, null, { dir: DIR });
     const l4 = r.warnings.find((w) => /record declares/.test(w));
     assert.strictEqual(l4, undefined, `spurious L4 warning: ${l4}`);

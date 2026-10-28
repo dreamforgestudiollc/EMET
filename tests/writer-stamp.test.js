@@ -2,6 +2,7 @@
  * Writer stamp: client_id is server-stamped. A caller value is ignored.
  */
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { test, testGroup, summary } from './harness.js';
 import { makeStore, withStore } from './memstore.js';
 
@@ -132,11 +133,63 @@ test('a caller client_id is not a valid memory field', async () => {
   const { VALID_METADATA_FIELDS } = await import('../src/validation.js');
   assert.strictEqual(VALID_METADATA_FIELDS.includes('client_id'), false);
 });
+test('writeDoc and retireDoc each read writerStamp once', () => {
+  const src = fs.readFileSync(new URL('../src/tools.js', import.meta.url), 'utf8');
+  function body(name, nextName) {
+    const start = src.indexOf(`export async function ${name}`);
+    assert.ok(start >= 0, `${name} not found`);
+    const next = src.indexOf(`export async function ${nextName}`, start + 10);
+    assert.ok(next > start, `${nextName} not found after ${name}`);
+    return src.slice(start, next);
+  }
+  for (const [name, nextName] of [['writeDoc', 'listDocs'], ['retireDoc', 'renameDoc']]) {
+    const fn = body(name, nextName);
+    const calls = fn.match(/writerStamp\s*\(/g) || [];
+    assert.strictEqual(calls.length, 1, `${name} calls writerStamp ${calls.length} times`);
+    assert.ok(!/import\(\s*['"]\.\/persons\.js['"]\s*\)/.test(fn), `${name} still dynamically imports persons.js`);
+  }
+});
+
+test('a new drop and its retirement share one HTTP stamp', async () => {
+  const { writeDoc, retireDoc } = await import('../src/tools.js');
+  const { actorStore } = await import('../src/persons.js');
+  const db = makeStore();
+  const actor = {
+    transport: 'http', personId: 'ada', clientId: 'login-9', grantId: 'fam-1', door: 'member'
+  };
+  await withStore(db, async () => {
+    await actorStore.run(actor, () => writeDoc('drops/once.md', 'one stamp\n', 'host'));
+    const row = db.doc('drops/once.md');
+    assert.strictEqual(row.person_id, 'ada');
+    assert.strictEqual(row.client_id, 'login-9');
+    assert.strictEqual(row.grant_id, 'fam-1');
+    assert.strictEqual(row.door, 'member');
+    assert.strictEqual(row.drop_bucket, 'client:login-9');
+    await actorStore.run(actor, () => retireDoc('drops/once.md', 'moved onto the board', 'host'));
+    const retired = db.doc('drops/once.md');
+    assert.strictEqual(retired.retired_person_id, 'ada');
+    assert.strictEqual(retired.retired_client_id, 'login-9');
+    assert.strictEqual(retired.retired_grant_id, 'fam-1');
+    assert.strictEqual(retired.retired_door, 'member');
+    assert.strictEqual(retired.client_id, 'login-9');
+    assert.strictEqual(retired.grant_id, 'fam-1');
+    assert.strictEqual(retired.door, 'member');
+  });
+});
+
 test('writerStamp ignores a caller value', async () => {
   const { writerStamp, actorStore } = await import('../src/persons.js');
   assert.strictEqual(writerStamp().client_id, 'stdio');
-  await actorStore.run({ personId: 'owner', clientId: 'login-9' }, () => {
+  assert.strictEqual(writerStamp().grant_id, null);
+  assert.strictEqual(writerStamp().door, 'stdio');
+  await actorStore.run({ personId: 'owner', clientId: 'login-9', grantId: 'spoof-grant', door: 'owner' }, () => {
     assert.strictEqual(writerStamp().client_id, 'login-9');
+    assert.strictEqual(writerStamp().grant_id, null, 'a grant id on a non-HTTP actor is not a grant');
+    assert.strictEqual(writerStamp().door, 'stdio');
+  });
+  await actorStore.run({ transport: 'http', personId: 'owner', clientId: 'login-9', grantId: 'fam-1', door: 'member' }, () => {
+    assert.strictEqual(writerStamp().grant_id, 'fam-1');
+    assert.strictEqual(writerStamp().door, 'member');
   });
 });
 

@@ -1,5 +1,5 @@
 /**
- * EMET - re-sign on the sanctioned metadata marks (2026-10-02; the reviewer's finding at commit-3476acf).
+ * EMET - re-sign on the sanctioned metadata marks (2026-10-02; Reviewer's finding at thatcommit).
  *
  * The signature is an HMAC over the content digest and the metadata digest. saveMemory signs at insert,
  * but markCorrectedBy (a corrected_by mark) and reviseMemory (the parent's superseded_by mark) re-attested
@@ -98,6 +98,23 @@ testGroup('never re-signed blindly; no key keeps today\'s behaviour', () => {
     assert.ok(!db.row('episodic', parent.id).signature);
     assert.strictEqual((await readOne(db, 'episodic', parent.id)).signed, 'unsigned');
   }));
+  test('a second correction by a different grant replaces corrected_grant_id and is not re-signed', () => withKey(KEY, async () => {
+    const { actorStore } = await import('../src/persons.js');
+    const db = fakeDb();
+    const parent = await saveMemory(db, 'Episode.', 'episodic', { ...SRC });
+    const first = { transport: 'http', personId: 'ada', clientId: 'c1', grantId: 'fam-first', door: 'member', authenticated: true, scopes: ['emet'] };
+    const second = { ...first, personId: 'bea', clientId: 'c2', grantId: 'fam-second' };
+    await actorStore.run(first, () => markCorrectedBy(db, 'episodic', parent.id, 801));
+    assert.strictEqual(db.row('episodic', parent.id).corrected_grant_id, 'fam-first');
+    assert.strictEqual(signatureIntegrityOf(db.row('episodic', parent.id), KEY), true);
+    await actorStore.run(second, () => markCorrectedBy(db, 'episodic', parent.id, 802));
+    const row = db.row('episodic', parent.id);
+    assert.deepStrictEqual(row.metadata.corrected_by.map(Number), [801, 802]);
+    assert.strictEqual(row.corrected_grant_id, 'fam-second');
+    assert.strictEqual(row.metadata.corrected_grant_id, 'fam-second');
+    assert.strictEqual(signatureIntegrityOf(row, KEY), false, 'the previous grant was replaced, so the row is not re-signed');
+    assert.strictEqual(metadataIntegrityOf(row), true);
+  }));
   test('with no key: the marks leave the signature column exactly as it was (today\'s behaviour)', () => withKey(null, async () => {
     const db = fakeDb();
     const signedParent = await withKey(KEY, () => saveMemory(db, 'Signed episode.', 'episodic', { ...SRC }));
@@ -110,7 +127,7 @@ testGroup('never re-signed blindly; no key keeps today\'s behaviour', () => {
     assert.strictEqual(db.row('procedural', p.id).signature, null);
     assert.strictEqual(metadataIntegrityOf(db.row('procedural', p.id)), true);
   }));
-  test('signatureCoversPriorMetadata: only the three managed back-pointers are rolled back', () => {
+  test('signatureCoversPriorMetadata rolls back only the sanctioned mark fields', () => {
     const md = { source: 'x', importance: 0.5 };
     const sha = 'a'.repeat(64);
     const row = (metadata, signedOver) => ({ sha256: sha, metadata, metadata_sha256: 'stale', signature: signDigests(sha, signedOver, KEY) });
@@ -120,6 +137,12 @@ testGroup('never re-signed blindly; no key keeps today\'s behaviour', () => {
       assert.strictEqual(signatureCoversPriorMetadata(row({ ...md, superseded_by: 9, superseded_at: 't', corrected_by: [3, 4] }, sig), KEY), true);
       assert.strictEqual(signatureCoversPriorMetadata(row({ ...md, corrected_by: [3, 4] }, dm({ ...md, corrected_by: [3] })), KEY), true, 'a prefix of corrected_by');
       assert.strictEqual(signatureCoversPriorMetadata(row({ ...md, corrected_by: [4, 3] }, dm({ ...md, corrected_by: [3] })), KEY), false, 'not a prefix');
+      assert.strictEqual(signatureCoversPriorMetadata(row({ ...md, corrected_by: [3], corrected_grant_id: 'fam-r3-stamp' }, sig), KEY), true, 'the correcting grant rolls back with the mark');
+      assert.strictEqual(signatureCoversPriorMetadata(row({ ...md, superseded_by: 9, superseded_at: 't', superseded_grant_id: 'fam-r3-stamp' }, sig), KEY), true, 'the superseding grant rolls back with the mark');
+      assert.strictEqual(signatureCoversPriorMetadata(row({ ...md, corrected_grant_id: 'fam-r3-stamp' }, sig), KEY), false, 'a grant field alone is not a mark');
+      assert.strictEqual(signatureCoversPriorMetadata(row({ ...md, superseded_grant_id: 'fam-r3-stamp' }, sig), KEY), false, 'a superseding grant alone is not a mark');
+      assert.strictEqual(signatureCoversPriorMetadata(row({ ...md, corrected_by: [3, 4], corrected_grant_id: 'fam-r3-stamp' }, dm({ ...md, corrected_by: [3], corrected_grant_id: 'fam-r3-stamp' })), KEY), true, 'the same grant stays with a longer corrected_by');
+      assert.strictEqual(signatureCoversPriorMetadata(row({ ...md, corrected_by: [3, 4], corrected_grant_id: 'fam-later' }, dm({ ...md, corrected_by: [3], corrected_grant_id: 'fam-r3-stamp' })), KEY), false, 'last-writer-wins: a replaced grant is not a prefix');
       assert.strictEqual(signatureCoversPriorMetadata(row({ ...md, importance: 0.6 }, sig), KEY), false, 'another field changed');
       assert.strictEqual(signatureCoversPriorMetadata(row({ ...md, superseded_by: 9 }, sig), null), false, 'no key');
       assert.strictEqual(signatureCoversPriorMetadata({ ...row(md, sig), signature: null }, KEY), false, 'no signature');

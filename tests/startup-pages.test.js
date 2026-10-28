@@ -1,5 +1,5 @@
 /**
- * Paged startup (Alex approved paging 2026-10-03; design paper question 1).
+ * Paged startup (the owner approved paging 2026-10-03; design paper question 1).
  * The connector gateway cuts a result at 20,000 bytes; the startup is ~64K.
  *
  *   Z   sizes: every page, envelope included, within the page budget (18,000
@@ -221,7 +221,7 @@ testGroup('B: backward compatibility', () => {
     assert.strictEqual(J(payloadOf(whole)), J(full));
     assert.strictEqual(whole.startup_page.load_id, pages[0].startup_page.load_id, 'the same load_id the pages carry');
     for (const k of pg.PAGE_FIELDS) assert.ok(!(k in full), k);
-    assert.deepStrictEqual(Object.keys(full).slice(0, 4), ['state', 'database', 'source_tag', 'person_id']);
+    assert.deepStrictEqual(Object.keys(full).slice(0, 6), ['state', 'database', 'source_tag', 'grant_id', 'door', 'person_id']);
     assert.strictEqual(Object.keys(full)[Object.keys(full).length - 1], 'gems_active');
   });
   test('even a brand-new store\'s startup is paged (the shipped floor, charter and instructions alone pass one page); page "all" is the same payload in one result', async () => {

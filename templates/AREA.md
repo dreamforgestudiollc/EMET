@@ -2,7 +2,7 @@
 
 **Template control:** id `templates/AREA.md` · revision: the store's version governs · status: IN FORCE · approved: user · 2026-10-20 · owner: EMET (base) · built to `templates/STANDARD.md` · supersedes: none
 **Fills:** `areas/<slug>.md` — the selector for one compiled topic page.
-**Failure it prevents:** a topic page stored as a record, so a view computed from the memory database became a second source of truth (Alex, 2026-10-20). The page body is never written here.
+**Failure it prevents:** a topic page stored as a record, so a view computed from the memory database became a second source of truth (the owner, 2026-10-20). The page body is never written here.
 **Completion rules:** `templates/STANDARD.md` §5, unmodified.
 
 ---

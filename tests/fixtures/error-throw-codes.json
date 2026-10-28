@@ -55,6 +55,11 @@
     "code": "EMET-CFG-002"
   },
   {
+    "file": "claimed-tag.js",
+    "message": "throw new ValidationError( 'source', `This write is attributed only by a claimed source tag, and that path ended on ${kill}. A write needs a credential: ${ONBOARDING}. Nothing was written.` )",
+    "code": "EMET-AUTH-040"
+  },
+  {
     "file": "conformance.js",
     "message": "throw new Error( `An acceptance needs a written reason of at least ${MIN_ACCEPTANCE_REASON} characters. ` + `It is the disposition of record for a nonconformance and is read by whoever audits it later.` )",
     "code": "EMET-DOC-049"
@@ -121,6 +126,11 @@
   },
   {
     "file": "dispatch.js",
+    "message": "throw new ValidationError('session_id', 'must be a string')",
+    "code": "EMET-SESS-004"
+  },
+  {
+    "file": "dispatch.js",
     "message": "throw new ValidationError('source', `${tool}: pass \"source\" set to a registered tag. A new host adopts one in bootstrap/INSTALL.md first. Source tag \"${echoId(tag)}\" is not registered, so nothing was written.`)",
     "code": "EMET-TOOL-004"
   },
@@ -138,6 +148,11 @@
     "file": "dispatch.js",
     "message": "throw new ValidationError('subkey', e.message)",
     "code": "EMET-AUTH-028"
+  },
+  {
+    "file": "dispatch.js",
+    "message": "throw new ValidationError('tag', e.message)",
+    "code": "EMET-AUTH-043"
   },
   {
     "file": "dispatch.js",
@@ -500,13 +515,18 @@
     "code": "EMET-AUTH-024"
   },
   {
+    "file": "owl.js",
+    "message": "throw err",
+    "code": "EMET-AUTH-042"
+  },
+  {
     "file": "pages.js",
     "message": "throw new DatabaseError('MONGODB_URI is not set; cannot read topic pages.', 'emet_page')",
     "code": "EMET-DB-001"
   },
   {
     "file": "pages.js",
-    "message": "throw new ValidationError('area', `${tool}: area must be a slug like \"health\".`)",
+    "message": "throw new ValidationError('area', `${tool}: area must be a slug like \"finances\".`)",
     "code": "EMET-PAGE-004"
   },
   {
@@ -705,6 +725,181 @@
     "code": "EMET-CFG-013"
   },
   {
+    "file": "staged-write.js",
+    "message": "throw new DatabaseError(`Failed to stage a document write: ${error.message}`, tool)",
+    "code": "EMET-DB-037"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError( `write_doc: ${docId} - supersedes names v${named}, but v${prev.version} is in force. Re-read the record ` + `and supersede the current revision. Nothing was changed.` )",
+    "code": "EMET-DOC-018"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError( `write_doc: ${docId} exists, so it is edited, not rewritten. Use patch_doc with \\`reason\\`. Nothing was written.` )",
+    "code": "EMET-DOC-022"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError( `write_doc: ${docId} is a drop and already exists, retired drops included. A drop is never patched or restored. Use a new id. Nothing was written.` )",
+    "code": "EMET-DOC-023"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError( `write_doc: ${docId} is a record and v${prev.version} is in force. A new revision must name what it ` + `supersedes - pass supersedes: ${prev.version}. Nothing was changed.` )",
+    "code": "EMET-DOC-017"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError( `write_doc: ${docId} is a record. A new revision needs reason (at least 10 characters) as well as supersedes. Nothing was changed.` )",
+    "code": "EMET-DOC-019"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError('doc_id must be a non-empty string')",
+    "code": "EMET-DOC-001"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError('The board is never written. Edit it with patch_doc, with `reason` (and `origin` for an added row). Nothing was written.')",
+    "code": "EMET-MEM-022"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError('The board is provisioned by the server at setup (emet_setup_complete). Nothing was written.')",
+    "code": "EMET-MEM-023"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError('write_doc_append: a staged chunk must be a non-empty string. Nothing was written.')",
+    "code": "EMET-DOC-071"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError('write_doc_append: part must be a whole number starting at 1. Nothing was written.')",
+    "code": "EMET-DOC-072"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError('write_doc_commit: reason does not match the stage. Nothing was written.')",
+    "code": "EMET-DOC-078"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError('write_doc_commit: sha256 does not match the assembled content. Nothing was written.')",
+    "code": "EMET-DOC-069"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError('write_doc_commit: sha256 must be a 64-character hex digest of the assembled text. Nothing was written.')",
+    "code": "EMET-DOC-073"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError('write_doc_commit: supersedes does not match the stage. Nothing was written.')",
+    "code": "EMET-DOC-077"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`${tool}: stage not found for this writer. Nothing was written.`)",
+    "code": "EMET-DOC-060"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`${tool}: stage not found for this writer. Nothing was written.`)",
+    "code": "EMET-DOC-060"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`${tool}: this call's session does not match the stage. Nothing was written.`)",
+    "code": "EMET-DOC-080"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`${tool}: this call's source does not match the stage. Nothing was written.`)",
+    "code": "EMET-DOC-079"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`${tool}: this stage expired. Begin again. Nothing was written.`)",
+    "code": "EMET-DOC-061"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`${tool}: this stage is already being committed. Nothing was written.`)",
+    "code": "EMET-DOC-076"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`${tool}: this stage is already committed. Read the document. Nothing was written.`)",
+    "code": "EMET-DOC-063"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`${tool}: this stage was aborted. Nothing was written.`)",
+    "code": "EMET-DOC-062"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`write_doc_append: a staged write holds at most ${STAGED_LIMITS.maxParts} parts. Nothing was written.`)",
+    "code": "EMET-DOC-068"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`write_doc_append: part ${part} is ${chunk.length} characters and the part limit is ${STAGED_LIMITS.maxPartChars}. Nothing was written.`)",
+    "code": "EMET-DOC-064"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`write_doc_append: part ${part} is out of order. The next part is ${again.next_part}. Nothing was written.`)",
+    "code": "EMET-DOC-065"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`write_doc_append: part ${part} is out of order. The next part is ${row.next_part}. Nothing was written.`)",
+    "code": "EMET-DOC-065"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`write_doc_append: part ${part} was already stored with different bytes. Nothing was written.`)",
+    "code": "EMET-DOC-066"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`write_doc_append: part ${part} was already stored with different bytes. Nothing was written.`)",
+    "code": "EMET-DOC-066"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`write_doc_append: staged content would exceed the ${STAGED_LIMITS.maxTotalChars} character limit. Nothing was written.`)",
+    "code": "EMET-DOC-067"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`write_doc_begin: this writer already has ${STAGED_LIMITS.maxOpenPerWriter} open stages. Commit or abort one, then begin again. Nothing was written.`)",
+    "code": "EMET-DOC-074"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`write_doc_commit: part_count is ${input.part_count} but this stage has ${held} parts. Nothing was written.`)",
+    "code": "EMET-DOC-070"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`write_doc_commit: part_count is ${partCount} but the stored parts are not contiguous. Nothing was written.`)",
+    "code": "EMET-DOC-070"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`write_doc_commit: this commit names a different document than the stage (${row.doc_id}). Nothing was written.`)",
+    "code": "EMET-DOC-075"
+  },
+  {
+    "file": "staged-write.js",
+    "message": "throw new ValidationError(`write_doc: ${source || 'no source'} is not a registered source. This session may read, and may write a new drop only. Nothing was written.`)",
+    "code": "EMET-DOC-020"
+  },
+  {
     "file": "startup-pages.js",
     "message": "throw new Error('startup paging: could not fit the pages to the budget')",
     "code": "EMET-PAGE-007"
@@ -856,7 +1051,7 @@
   },
   {
     "file": "tools.js",
-    "message": "throw new ValidationError( 'source', `${tool} is not a bot tool: ${t} is a bot tag, and ` + `renaming documents stays owner-only (procedural ref 409)` + `. Ask the hub. Nothing was changed.` )",
+    "message": "throw new ValidationError( 'source', `${tool} is not a bot tool: ${t} is a bot tag, and ` + `renaming documents stays the owner-only (procedural ref 409)` + `. Ask the hub. Nothing was changed.` )",
     "code": "EMET-MEM-020"
   },
   {
@@ -916,7 +1111,7 @@
   },
   {
     "file": "tools.js",
-    "message": "throw new ValidationError( `This change would leave ${doc_id} at ${pct}% of its size when this session first touched it. Condensing below half is not done on the EMET server. Nothing was written.` )",
+    "message": "throw new ValidationError( `This change would leave ${doc_id} at ${pct}% of its size when this session first touched it. Condensing below half is not done on the EMET server. Nothing was written. Write the full revision: the whole content in one write_doc, or write_doc_begin, write_doc_append, and write_doc_commit. A condensed or header-only substitute is refused.` )",
     "code": "EMET-DOC-025"
   },
   {
@@ -958,6 +1153,11 @@
     "file": "tools.js",
     "message": "throw new ValidationError('A guest invite accepts only emet.read')",
     "code": "EMET-AUTH-031"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('An AI cannot grant a writer. Alex decides on /owner/chooser with an owner session. Nothing was created.')",
+    "code": "EMET-AUTH-043"
   },
   {
     "file": "tools.js",

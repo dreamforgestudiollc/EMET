@@ -74,7 +74,7 @@ testGroup('Pattern rules', () => {
     assert.strictEqual(out, `mongodb+srv://${MASK}:${MASK}@cluster0.example.mongodb.net/?authSource=admin`);
   });
   test('a URI without credentials is untouched', () => {
-    const u = 'https://emet.example.up.railway.app/mcp';
+    const u = 'https://emet-remote-production.up.railway.app/mcp';
     assert.strictEqual(redactText(u), u);
   });
   test('Bearer tokens are masked', () => {
@@ -200,6 +200,12 @@ testGroup('Deep redaction', () => {
     assert.strictEqual(r.value.token, null);
     assert.strictEqual(r.value.secret, '');
     assert.strictEqual(r.hits, 0);
+  });
+  test('a chooser deep-link token is masked and the path remains', () => {
+    const token = 'A'.repeat(43);
+    const out = redactText(`open https://emet.example/owner/chooser?d=${token} now`);
+    assert.strictEqual(out.includes(token), false);
+    assert.ok(out.includes('/owner/chooser?d='));
   });
   test('Dates survive as Dates', () => {
     const d = new Date();

@@ -1,6 +1,6 @@
 /**
  * EMET - option A correction back-pointer (2026-10-02; the owner's approval, procedural ref 405 item 4;
- * the reviewer's sketch in his second read of episodic ref 604).
+ * Reviewer's sketch in his second read of episodic ref 604).
  *
  * Episodic entries are immutable events. A partial correction cannot supersede its parent (that would
  * hide the parent's items that still stand), so the new entry carries metadata.corrects = <parent id>
@@ -15,7 +15,7 @@ import { checkCorrectionLinks } from '../src/gaps.js';
 import { metadataIntegrityOf } from '../src/aleph.js';
 import { validateMetadata, MARKER_FIELDS } from '../src/validation.js';
 
-// The fake honours the layer (the reviewer MUST FIX, 2026-10-02): rows live per
+// The fake honours the layer (Reviewer MUST FIX, 2026-10-02): rows live per
 // layer, so a parent in another layer is NOT found, and updateOne supports
 // what markCorrectedBy sends ($set, $addToSet on dotted paths, array-equality
 // filters, matchedCount).

@@ -110,7 +110,30 @@ const SANCTIONED = {
   // collections are bookkeeping, not a layer, a document, or a transcript.
   // rotateErrorLog is the one removal, and only of log rows, after the daily
   // summary is kept. It cannot go through saveMemory or writeDoc.
-  'error-log.js': new Set(['insertErrorLog', 'upsertErrorSummary', 'rotateErrorLog'])
+  'error-log.js': new Set(['insertErrorLog', 'upsertErrorSummary', 'rotateErrorLog']),
+  // ADDED 2026-10-27 with R6 writer approval. persist writes
+  // `<prefix>writer_approvals` only: the server's own record of who prepared,
+  // who validated, and who decided. It is not a memory layer, a document, or
+  // a transcript. It cannot go through writeDoc: a read token would then be
+  // able to read a pending writer request. Rows are inserted and updated.
+  // Nothing in this file deletes a row.
+  'writer-approval.js': '*',
+  // ADDED 2026-10-27 with R6 owl retirement. ensureOwlRetirementMarker inserts
+  // one retained row in `<prefix>owl_retirement`. It is bookkeeping, not a
+  // memory layer, a document, or a transcript. A later call does not delete
+  // the marker and does not clear a previous retirement.
+  'owl.js': '*',
+  // ADDED 2026-10-27 with staged multi-part document writes (BOUND init audit
+  // item 9). `<prefix>doc_stages` holds ordered chunks for a host that cannot
+  // send a whole record in one write_doc argument. A chunk is not a revision,
+  // and a read token must not be able to read it, so the stage cannot go
+  // through writeDoc. commitStagedDoc calls writeDoc once, after the sha256 of
+  // the assembled text matches, and that call is the document write. Rows are
+  // inserted and updated in place (open, committing, committed, aborted,
+  // expired). Parts are cleared with an update. Nothing in this file deletes.
+  'staged-write.js': new Set([
+    'beginStagedDoc', 'appendStagedChunk', 'commitStagedDoc', 'abortStagedDoc', 'readStage', 'expireOpenStages'
+  ])
 };
 
 // Doors that must scrub before they hash. The test checks the identifier
@@ -306,6 +329,15 @@ testGroup('The layer insert is reachable only through saveMemory', () => {
     assert.ok(!/COLLECTION_PREFIX\s*\+\s*['"`](?:episodic|semantic|procedural|meta|identity|working)/.test(src));
     assert.ok(!/\$\{COLLECTION_PREFIX\}(?:episodic|semantic|procedural|meta|identity|working|transcripts|documents)/.test(src));
     assert.ok(!/deleteOne|deleteMany|\bdrop\(/.test(src), 'the sub-key store must not remove a record');
+  });
+  test('writer-approval.js and owl.js never touch a layer, documents, or transcripts, and never delete', () => {
+    for (const file of ['writer-approval.js', 'owl.js']) {
+      const src = all[file];
+      assert.ok(!/collection\(\s*['"`](?:transcripts|documents|documents_history)['"`]/.test(src), file);
+      assert.ok(!/COLLECTION_PREFIX\s*\+\s*['"`](?:episodic|semantic|procedural|meta|identity|working)/.test(src), file);
+      assert.ok(!/\$\{prefix\}(?:episodic|semantic|procedural|meta|identity|working|transcripts|documents)/.test(src), file);
+      assert.ok(!/deleteOne|deleteMany|findOneAndDelete|\bdrop\(/.test(src), file);
+    }
   });
 });
 

@@ -1,5 +1,5 @@
 /**
- * emet_status `gems` at the dispatch level (GEM socket PR 4, second-reader review of #43):
+ * emet_status `gems` at the dispatch level (GEM socket PR 4, Tester review of #43):
  * the fail-closed branch, the normal branch against seatGems, and no stderr.
  */
 import { test, testGroup, summary } from './harness.js';
@@ -57,6 +57,43 @@ testGroup('emet_status gems', () => {
   test('a status call writes nothing about GEMs to stderr', async () => {
     const { lines } = await quietStderr(() => status());
     assert.deepStrictEqual(lines.filter((l) => /GEMs seated|GEM seated|GEM refused|GEM socket/.test(l)), []);
+  });
+  test('session_id reports open, closed, or absent, and a part id reads the base', async () => {
+    const openId = '2026-10-27_status-open';
+    const closedId = '2026-10-27_status-closed';
+    const db = makeStore();
+    db.col('emet_sessions').docs.push(
+      { _id: openId, opened: true, closed: false },
+      { _id: closedId, opened: true, closed: true }
+    );
+    const read = async (session_id) => {
+      const res = await withStore(db, () => dispatchTool('emet_status', { session_id }, { dbManager: db, logger: null }));
+      const body = JSON.parse(res.content[0].text);
+      assert.ok(!res.isError, res.content[0].text.slice(0, 400));
+      return body.data.session;
+    };
+    const bare = await withStore(db, () => dispatchTool('emet_status', {}, { dbManager: db, logger: null }));
+    const bareBody = JSON.parse(bare.content[0].text);
+    assert.strictEqual(bareBody.data.session, undefined);
+    assert.deepStrictEqual(await read(openId), { session_id: openId, state: 'open' });
+    assert.deepStrictEqual(await read(`${openId}_verbatim_part2`), { session_id: openId, state: 'open' });
+    assert.deepStrictEqual(await read(closedId), { session_id: closedId, state: 'closed' });
+    assert.deepStrictEqual(await read('2026-10-27_status-missing'), { session_id: '2026-10-27_status-missing', state: 'absent' });
+  });
+  test('a session lookup that cannot be read is unreadable and the rest of status survives', async () => {
+    const db = makeStore();
+    db.ensureClient = async () => { throw new Error('down at /secret/session-store'); };
+    const session_id = '2026-10-27_status-unreadable';
+    const res = await withStore(db, () => dispatchTool('emet_status', { session_id }, { dbManager: db, logger: null }));
+    const text = res.content[0].text;
+    const body = JSON.parse(text);
+    assert.ok(!res.isError, text.slice(0, 400));
+    assert.deepStrictEqual(body.data.session, { state: 'unreadable', emet_code: 'EMET-SESS-005' });
+    assert.ok(!text.includes(session_id), 'the asked id is not echoed');
+    assert.ok(!text.includes('/secret/session-store'));
+    assert.ok(!text.includes('down at'));
+    assert.ok('initialized' in body.data, 'setup fields still present');
+    assert.ok('database' in body.data, 'database field still present');
   });
   test('the seat is called with a logger', async () => {
     let got = null;

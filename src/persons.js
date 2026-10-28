@@ -10,6 +10,7 @@
  */
 
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { grantIdFromFamily, httpDoor } from './grants.js';
 
 const COLLECTION = 'persons';
 /** Stdio has no login. Every local write is stamped with this one subject. */
@@ -17,7 +18,7 @@ export const LOCAL_SUBJECT = 'local';
 export const actorStore = new AsyncLocalStorage();
 export function currentActor() {
   const s = actorStore.getStore();
-  if (typeof s === 'string' && s.trim()) return { personId: s.trim(), scopes: [] };
+  if (typeof s === 'string' && s.trim()) return { personId: s.trim(), scopes: [], grantId: null, door: 'stdio' };
   if (s && typeof s === 'object') {
     return {
       personId: s.personId || null,
@@ -25,10 +26,12 @@ export function currentActor() {
       scopes: Array.isArray(s.scopes) ? s.scopes : [],
       transport: s.transport || null,
       authenticated: s.authenticated === true,
-      sourceTag: typeof s.sourceTag === 'string' ? s.sourceTag : null
+      sourceTag: typeof s.sourceTag === 'string' ? s.sourceTag : null,
+      grantId: s.transport === 'http' ? grantIdFromFamily(s.grantId) : null,
+      door: s.transport === 'http' ? httpDoor(s.door) : 'stdio'
     };
   }
-  return { personId: null, clientId: null, scopes: [], transport: null, authenticated: false };
+  return { personId: null, clientId: null, scopes: [], transport: null, authenticated: false, grantId: null, door: null };
 }
 export function currentPersonId() {
   return currentActor().personId;
@@ -44,12 +47,22 @@ export function writerStamp() {
   const s = actorStore.getStore();
   if (!s || typeof s === 'string') {
     const id = typeof s === 'string' && s.trim() ? s.trim() : LOCAL_SUBJECT;
-    return { person_id: id, client_id: 'stdio' };
+    return { person_id: id, client_id: 'stdio', grant_id: null, door: 'stdio' };
   }
   if (s.transport === 'http') {
-    return { person_id: s.personId || null, client_id: s.clientId === undefined ? null : s.clientId };
+    return {
+      person_id: s.personId || null,
+      client_id: s.clientId === undefined ? null : s.clientId,
+      grant_id: grantIdFromFamily(s.grantId),
+      door: httpDoor(s.door)
+    };
   }
-  return { person_id: s.personId || LOCAL_SUBJECT, client_id: s.clientId === undefined ? 'stdio' : s.clientId };
+  return {
+    person_id: s.personId || LOCAL_SUBJECT,
+    client_id: s.clientId === undefined ? 'stdio' : s.clientId,
+    grant_id: null,
+    door: 'stdio'
+  };
 }
 
 /**
@@ -79,6 +92,8 @@ export function declaredAttribution() {
     declared: s.declaredTag || null, basis: s.sourceBasis || null, login,
     effective: s.effectiveTag || null, clientId: s.clientId || null,
     approval: s.approvalState || null,
+    grantId: grantIdFromFamily(s.grantId),
+    door: httpDoor(s.door),
     rememberedTags: Array.isArray(s.rememberedTags) ? s.rememberedTags : [],
     ...(s.subkeyId ? { keyId: s.subkeyId } : {})
   };
@@ -129,6 +144,24 @@ export function personFromAuth(extra) {
   const s = (info && info.extra && info.extra.subject) || (info && info.subject);
   if (typeof s === 'string' && s.trim()) return s.trim();
   return null;
+}
+
+/**
+ * HTTP CallTool actor. Grant and door are copied from the verified token
+ * (`auth.extra`) and from nowhere else. Stdio does not use this.
+ */
+export function httpToolActor(extra) {
+  const auth = extra && extra.authInfo;
+  return {
+    personId: personFromAuth(extra),
+    clientId: (auth && auth.clientId) || 'http:visitor',
+    scopes: (auth && auth.scopes) || [],
+    transport: 'http',
+    sourceTag: (auth && auth.extra && auth.extra.sourceTag) || null,
+    grantId: (auth && auth.extra && auth.extra.grantId) || null,
+    door: (auth && auth.extra && auth.extra.door) || null,
+    authenticated: Boolean(auth)
+  };
 }
 
 export async function getPerson(db, person_id) {

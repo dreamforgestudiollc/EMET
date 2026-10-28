@@ -14,7 +14,7 @@ import { MASK } from '../src/redact.js';
 
 testGroup('What gets a line', () => {
   test('OAuth and MCP paths are always logged', () => {
-    for (const p of ['/authorize', '/token', '/register', '/revoke', '/oauth/approve', '/mcp', '/.well-known/oauth-authorization-server', '/.well-known/oauth-protected-resource/mcp']) {
+    for (const p of ['/authorize', '/token', '/register', '/revoke', '/oauth/approve', '/mcp', '/owner/chooser', '/owner/break-glass', '/owner/break-glass/rotate-all', '/owner/break-glass/revoke-member', '/owner/approvals', '/owner/login', '/.well-known/oauth-authorization-server', '/.well-known/oauth-protected-resource/mcp']) {
       assert.ok(shouldLog(p, 200), p);
     }
   });
@@ -26,9 +26,17 @@ testGroup('What gets a line', () => {
     assert.ok(!shouldLog('/health', 200));
     assert.ok(!shouldLog('/', 200));
   });
+  test('a chooser query token is not copied onto the line', () => {
+    const secret = 'd'.repeat(16) + 'secret-token-value';
+    const e = requestLogEntry({ method: 'GET', path: '/owner/chooser', statusCode: 303, ms: 2, ip: '203.0.113.8',
+      query: { d: secret, client_id: 'bot-client' } });
+    assert.strictEqual(JSON.stringify(e).includes(secret), false);
+    assert.strictEqual(e.client, 'bot-client');
+  });
   test('LOGGED_PATH does not match by prefix alone', () => {
     assert.ok(!LOGGED_PATH.test('/mcpx'));
     assert.ok(!LOGGED_PATH.test('/tokens'));
+    assert.ok(!LOGGED_PATH.test('/owner/break-glass/rotate-all/x'));
   });
 });
 
@@ -66,7 +74,7 @@ testGroup('What the line carries', () => {
     assert.strictEqual(e.tool, 'save_to_layer');
     assert.ok(!formatRequestLog(e).includes('PRIVATE CONTENT'));
   });
-  // 2026-09-27 (code audit 1.6, Alex): parameter NAMES are logged so their use can be measured; values never.
+  // 2026-09-27 (code audit 1.6, the owner): parameter NAMES are logged so their use can be measured; values never.
   test('an /mcp tool call carries the parameter names, sorted, and none of the values', () => {
     const e = requestLogEntry({ method: 'POST', path: '/mcp', statusCode: 200, ms: 5,
       body: { jsonrpc: '2.0', method: 'tools/call', params: { name: 'save_to_layer', arguments: { metadata: { source: 'SECRET-HOST' }, content: 'PRIVATE CONTENT', layer: 'working' } } } });

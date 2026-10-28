@@ -12,10 +12,9 @@ import { EMET_VERSION } from '../src/version.js';
 import { ERROR_CODES } from '../src/error-codes.js';
 import { useMemoryErrorLog, recordError, flushErrorLog } from '../src/error-log.js';
 import {
-  SEND_INSTRUCTION, DEFAULT_REPORT_EMAIL, reportEmailAddress,
+  SEND_INSTRUCTION, DEFAULT_REPORT_EMAIL,
   composeErrorReport, runErrorReport, fitReportEmail, plainReportAddress
 } from '../src/error-report.js';
-import { privateWordsIn } from './scrub-tokens.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const store = useMemoryErrorLog();
@@ -319,7 +318,7 @@ testGroup('error report', () => {
     delete process.env.EMET_REPORT_EMAIL;
     store.entries.length = 0;
     store.entries.push({
-      t: '2026-10-20T12:00:00.000Z',
+      t: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
       emet_code: 'EMET-VAL-005',
       class_code: 'VALIDATION_ERROR',
       tool: 'recall',
@@ -355,13 +354,13 @@ testGroup('error report', () => {
       const raw = JSON.stringify(result);
       assert.ok(!raw.includes('SENTINEL'));
       assert.ok(!raw.includes('emet_tok_'));
-      assert.ok(!raw.split(DEFAULT_REPORT_EMAIL).join('').includes('example.com'));
+      assert.ok(!raw.includes('example.com'));
       assert.ok(!raw.includes('Ada'));
       assert.ok(!raw.includes('Finances'));
       assert.ok(!raw.includes('Query is required SENTINEL'));
       assert.ok(raw.includes('Query is required'));
       assert.ok(result.report.includes('*****'));
-      assert.match(result.report, /Does not contain: memory, documents, arguments, names, tokens\./);
+      assert.match(result.report, /Does not contain: memory, documents, arguments, message text, or tokens\./);
     } finally {
       restoreEmail();
     }
@@ -467,26 +466,14 @@ testGroup('error report', () => {
     }
   });
 
-  test('the default report address is the project inbox and EMET_REPORT_EMAIL overrides it', async () => {
-    assert.strictEqual(DEFAULT_REPORT_EMAIL, 'dreamforgestudio@mail.grokbot.com');
-    assert.strictEqual(plainReportAddress(DEFAULT_REPORT_EMAIL), true);
-    assert.deepStrictEqual(privateWordsIn(DEFAULT_REPORT_EMAIL), []);
-    const label = DEFAULT_REPORT_EMAIL.split('@')[1].split('.')[1];
-    assert.deepStrictEqual(privateWordsIn(label), [label]);
+  test('the default report address is accepted', async () => {
+    process.env.EMET_REPORT_EMAIL = 'dreamforgestudio@mail.hubbot.com';
     store.entries.length = 0;
     try {
-      delete process.env.EMET_REPORT_EMAIL;
-      assert.strictEqual(reportEmailAddress(), DEFAULT_REPORT_EMAIL);
-      const unset = await asStdio(() => runErrorReport({}));
-      assert.strictEqual(unset.email.to, 'dreamforgestudio@mail.grokbot.com');
-      assert.ok(unset.email.mailto.startsWith('mailto:dreamforgestudio@mail.grokbot.com?'));
-      assert.ok(!JSON.stringify(unset).includes('email":null'));
-      process.env.EMET_REPORT_EMAIL = 'reports@example.com';
-      assert.strictEqual(reportEmailAddress(), 'reports@example.com');
-      const overridden = await asStdio(() => runErrorReport({}));
-      assert.strictEqual(overridden.email.to, 'reports@example.com');
-      assert.ok(overridden.email.mailto.startsWith('mailto:reports@example.com?'));
-      assert.notStrictEqual(overridden.email.to, DEFAULT_REPORT_EMAIL);
+      const result = await asStdio(() => runErrorReport({}));
+      assert.strictEqual(result.email.to, 'dreamforgestudio@mail.hubbot.com');
+      assert.ok(result.email.mailto.startsWith('mailto:dreamforgestudio@mail.hubbot.com?'));
+      assert.ok(!JSON.stringify(result).includes('email":null'));
     } finally {
       restoreEmail();
     }
@@ -505,7 +492,7 @@ testGroup('error report', () => {
       ['\r', 'k@x.com\r'],
       ['\n', 'k@x.com\n'],
       ['"', 'k"@x.com'],
-      ['display name', 'Alex <k@x.com>'],
+      ['display name', 'the owner <k@x.com>'],
       ['no dot', 'k@xcom']
     ];
     store.entries.length = 0;

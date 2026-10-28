@@ -13,7 +13,7 @@ import { createMemoryStore } from '../src/subkey-store.js';
 
 console.log('\n=== delegated client sub-keys ===');
 
-const CLIENT = '8xm-7ILLKEDFc3-QRxqlgw';
+const CLIENT = 'bound-login-client';
 const PEPPER = 'pepper-pepper-pepper-pepper-pepper-32b';
 const PREV = 'previous-pepper-previous-pepper-32b!';
 const REG = ['hub-bot', 'intake-bot', 'grok-project', 'cowork-cloud'];
@@ -476,13 +476,13 @@ testGroup('13. who may use a sub-key', () => {
 });
 
 testGroup('14. the key list is owner and COS only', () => {
-  test('owner and COS see keys with no secrets; a bot and a guest see nothing', async () => withEnv({ ...ON, EMET_COS_TAG: 'hub-cos', EMET_RECORD_DOCS: 'bots/hub-cos/HANDOFF.md,bots/hub-bot/HANDOFF.md' }, async () => {
+  test('owner and COS see keys with no secrets; a bot and a guest see nothing', async () => withEnv({ ...ON, EMET_COS_TAG: 'hubbot-cos', EMET_RECORD_DOCS: 'bots/hubbot-cos/HANDOFF.md,bots/hub-bot/HANDOFF.md' }, async () => {
     const { sk } = await fresh();
     const { deps } = world();
     const { claimed } = await issue(deps, sk);
     const data = await records(deps, sk);
     const owner = sk.subkeysView(data, ownerHost(), 'alex', NOW);
-    const cos = sk.subkeysView(data, { personId: 'alex', ownerId: 'alex', clientId: 'cos-client', transport: 'http', authenticated: true, sourceTag: 'hub-cos', sourceBasis: 'login' }, 'alex', NOW);
+    const cos = sk.subkeysView(data, { personId: 'alex', ownerId: 'alex', clientId: 'cos-client', transport: 'http', authenticated: true, sourceTag: 'hubbot-cos', sourceBasis: 'login' }, 'alex', NOW);
     const bot = sk.subkeysView(data, actorFor(), 'alex', NOW);
     const guest = sk.subkeysView(data, { personId: 'guest', ownerId: 'alex', clientId: 'g', transport: 'http', authenticated: true, sourceTag: 'cowork-cloud', sourceBasis: 'login' }, 'alex', NOW);
     assert.equal(owner.keys.length, 1);
@@ -605,7 +605,7 @@ testGroup('extras', () => {
     assert.equal(data.keys[claimed.key_id].status, 'active');
     assert.equal(data.keys[claimed.key_id].live_session_id, null);
   }));
-  test('the accepted proposal records Alex\'s decisions and the strict-off residual', () => {
+  test('the accepted proposal records the owner\'s decisions and the strict-off residual', () => {
     const text = fs.readFileSync(new URL('../docs/proposals/EMET-0001-delegated-client-sub-keys.md', import.meta.url), 'utf8');
     assert.match(text, /Accepted 2026-10-15 by Alex/);
     assert.match(text, /still possible, counted in `declared_attribution`/);
@@ -651,7 +651,7 @@ testGroup('extras', () => {
   });
 });
 
-testGroup('second-reader review regressions', () => {
+testGroup('Tester review regressions', () => {
   test('a correct handle is not locked out; only a later failure is throttled, per session and per client', async () => withEnv({ ...ON, EMET_SUBKEY_FAIL_MAX: '2' }, async () => {
     const { att, sk } = await fresh();
     const { deps, c } = world();

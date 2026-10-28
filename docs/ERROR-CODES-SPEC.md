@@ -1,6 +1,6 @@
 # Error codes and the error report
 
-This is the behavior EMET 0.3.1 ships. The code table is generated from the registry: [ERROR-CODES.md](ERROR-CODES.md). A code’s meaning does not change. A removed code is added to the retired list, stays in that table, and its number is not reused.
+This is the behavior EMET 0.3.0 ships. The code table is generated from the registry: [ERROR-CODES.md](ERROR-CODES.md). A code’s meaning does not change. A removed code is added to the retired list, stays in that table, and its number is not reused.
 
 ## Where the code goes
 
@@ -30,7 +30,7 @@ The result is, in order:
 2. A `mailto:` draft, when an address is set.
 3. A structured email `{to, subject, body_text, short_id, version}`, plus the mailto link, so a calling assistant can pass it to its own email tool.
 
-`to` is `EMET_REPORT_EMAIL`. When the variable is unset, the address is `dreamforgestudio@mail.grokbot.com`. An empty string means no email: the tool returns the report and `email: null`. Any other value is treated the same way unless it is one plain address: exactly one `@`, a local part of letters, digits, and `. _ + -` that does not start or end with a dot and does not contain `..`, and a domain of at least two labels separated by dots. A label is letters, digits, and `-`, does not start or end with `-`, and is not empty.
+`to` is `EMET_REPORT_EMAIL`. When the variable is unset, the address is `dreamforgestudio@mail.hubbot.com`. An empty string means no email: the tool returns the report and `email: null`. Any other value is treated the same way unless it is one plain address: exactly one `@`, a local part of letters, digits, and `. _ + -` that does not start or end with a dot and does not contain `..`, and a domain of at least two labels separated by dots. A label is letters, digits, and `-`, does not start or end with `-`, and is not empty.
 
 The subject is `EMET error report <version> <6 hex characters>`. `body_text` is the full report shown above. The mailto body is that same text when it fits, and a shorter draft when it does not. The link is at most 1,800 characters. Totals stay when they fit. Recent lines are cut to the newest that fit, and the draft says so. The report in the tool output stays complete.
 

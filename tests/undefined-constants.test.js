@@ -1,7 +1,7 @@
 /**
  * EMET - undefined-constant guard.
  *
- * Exists because an earlier commit (2026-09-15) deleted the definitions of
+ * Exists because thatcommit (2026-09-15) deleted the definitions of
  * SEMANTIC_RECALL_LAYERS and SEMANTIC_RECALL_INDEX while semanticRecall kept
  * using them. `node --check` does not catch a reference to a name that was
  * never declared, and no suite exercises the vector path without Atlas, so

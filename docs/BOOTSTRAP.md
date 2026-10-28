@@ -73,6 +73,8 @@ the session is saved until it returns state "complete".
 That is the whole thing. The disciplines it alludes to arrive in full from
 `emet_initialize`; repeating them here would create two copies to keep in agreement.
 
+When more than one bot shares the owner login, the owner approves a new writer and each bot's own key on `/owner/chooser`. An AI does not grant a writer. A bot that can keep a key file presents that key at `emet_session_open`. The open returns `session_handle` once. Every later write in that session passes `session_handle`. A write that omits it, or sends a different one, is refused, and nothing is written. The handle is not a receipt. With sub-keys off, the field is absent. See [SUBKEYS.md](SUBKEYS.md) and [BOTS.md](BOTS.md) §4.
+
 ---
 
 ## Hosts differ, and EMET degrades gracefully

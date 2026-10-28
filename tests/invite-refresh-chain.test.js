@@ -1,11 +1,11 @@
 /**
  * EMET - the invite/refresh security chain (multi-user report v2, 2026-10-01;
- * Alex approved the fix the recorded time).
+ * the owner approved the fix 4:23).
  *
  *   Defect 1: a refresh grant replaced the stored scopes with whatever was
  *             requested, so any read-only token could refresh to `emet` / `*`.
  *   Defect 2: an invite's person id was the slug of its display name, and an
- *             existing person with that slug was reused - "Alex" became alex.
+ *             existing person with that slug was reused - "the owner" became alex.
  *   R6:       the refresh path had no invite-freeze check, so an invite token
  *             outlived a re-freeze by rotating for ever.
  *
@@ -190,7 +190,7 @@ await testGroup('Defect 2: an invite name never selects an existing person', asy
     const id = await allocateGuestPersonId(persons, long);
     assert.ok(id.length <= 40 && id.endsWith('-2'), id);
   });
-  await test('end to end (child process, EMET_INVITES=1 there only): an invite named "Alex" redeems as a new member', () => {
+  await test('end to end (child process, EMET_INVITES=1 there only): an invite named "the owner" redeems as a new member', () => {
     const script = `
       import { createInvite, redeemInvite } from './src/invites.js';
       const bags = {};
@@ -248,7 +248,7 @@ await testGroup('R6: an invite token stops refreshing while invites are frozen',
     const t = await provider._issueTokens('c1', ['emet.read', 'emet.write'], null, 'alex', null, null, 'laptop');
     assert.ok((await provider.exchangeRefreshToken(client, t.refresh_token, undefined, null)).access_token);
   });
-  await test('the full chain is closed: invite "Alex" → alex-2, read-only, cannot refresh to emet', async () => {
+  await test('the full chain is closed: invite "the owner" → alex-2, read-only, cannot refresh to emet', async () => {
     const { db, provider } = setup({ frozen: false });
     const persons = db.collection('persons');
     const id = await allocateGuestPersonId(persons, 'Alex');
@@ -259,7 +259,7 @@ await testGroup('R6: an invite token stops refreshing while invites are frozen',
   });
 });
 
-testGroup('approve route marks invite grants (review nit P4g, 2026-10-02)', () => {
+testGroup('approve route marks invite grants (Tester nit P4g, 2026-10-02)', () => {
   // The /approve handler is the only place a code is issued for an invite redemption. If it stopped
   // passing issued_via, new invite tokens would carry no marker and rely on the legacy role:'member'
   // lookup alone. Source pin on the createAuthorizationCode call in src/http-remote.js.
@@ -268,8 +268,8 @@ testGroup('approve route marks invite grants (review nit P4g, 2026-10-02)', () =
     const call = src.match(/provider\.createAuthorizationCode\(\{([\s\S]*?)\}\)/);
     assert.ok(call, 'createAuthorizationCode call not found in src/http-remote.js');
     assert.ok(/subject:\s*inviteSubject\s*\|\|\s*null/.test(call[1]), 'subject must come from the redeemed invite');
-    const m = call[1].match(/issued_via:\s*inviteSubject\s*\?\s*\(inviteDoor === 'member' \? 'member' : 'invite'\)\s*:\s*null/);
-    assert.ok(m, 'issued_via must be the door marker (member or invite) exactly when a code was redeemed, else null');
+    const m = call[1].match(/issued_via:\s*inviteSubject\s*\?\s*\(inviteDoor === 'member' \? 'member' : 'invite'\)\s*:\s*'owner'/);
+    assert.ok(m, 'issued_via must be the door marker (member or invite) exactly when a code was redeemed, else owner');
     assert.strictEqual(INVITE_GRANT, 'invite');
   });
 });

@@ -70,7 +70,7 @@ template id and revision used · record revision · session id · source tag · 
 
 **Every record from a templated document type is validated against its template. No caller can skip it.**
 
-**Design — priced 2026-09-10; v1 scope APPROVED by the user 2026-09-11; not yet built. Build detail and limits: `staging/template-validation-v1-pricing.md`.**
+**Design — priced 2026-09-10; v1 scope APPROVED by the user 2026-09-11; not yet built. Build detail and limits: `the staging note`.**
 - **Where it cannot be skipped:** the write path. Every document write already passes one door (redaction, digests, read-back, receipt). Validation runs there on every write to a templated type.
 - **Which documents are templated:** by the record control block's template id, **and** by a document-id map (`HANDOFF.md` → HANDOFF, `STATE.md` → BOARD, `seeds/*` → SEED, `threads/*` → THREAD, `staging/*` → STAGING, `procedures/*` → PROCEDURE …). The map means leaving out the control block cannot evade validation.
 - **Where it is also visible:** the write receipt carries the verdict; reads carry it per document (as integrity is carried today); session start counts nonconforming documents (as record gaps are counted today).

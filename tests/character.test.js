@@ -63,7 +63,7 @@ testGroup('readyInstructions - with a character document', () => {
  * THE INSTRUCTIONS ARE TESTED BY WHAT THEY MUST CONTAIN AND IN WHAT ORDER - not
  * by their sentences. Until 2026-09-27 this group pinned three clauses verbatim
  * (opening, greeting guidance, core) and measured every addition against them;
- * it broke on the 9/26-27 builds and would break on every rewording after. Alex
+ * it broke on the 9/26-27 builds and would break on every rewording after. the owner
  * ruled (code audit 4.2, 9/27 evening): assert contents and order, stop pinning
  * prose. Each marker below is a step a startup must not lose; a rewrite that
  * drops or reorders one is a regression, a rewrite that rewords one is not.

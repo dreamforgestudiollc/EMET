@@ -13,17 +13,20 @@
 
 import { connectMongo } from './mongo-connect.js';
 import { newCorrelationId, EMET_INT_001, EMET_CODE_RE, lookupEmetCode } from './error-codes.js';
+import { attachChooserLink } from './deep-links.js';
 import { recordError } from './error-log.js';
 import { resolveModulePath } from './module-path.js';
 import { replacedByOf } from './setup.js';
 import { currentActor, rawActor, writerStamp, boundSourceTag, declaredAttribution, LOCAL_SUBJECT } from './persons.js';
+import { guardClaimedTag } from './claimed-tag.js';
 import { approvedTags, APPROVALS_DOC } from './attribution.js';
+import { refuseSophiaDoor, sophiaActor, sophiaCredentialOverrides, sophiaClaimOnSharedLogin, CLAIM_TAG } from './bound-door.js';
 import { sealAttestation, frozenAttestation } from './rune-dispatch.js';
 
 /** Approvals record io for attribution.js (server-kept doc, written as emet-server). */
 export const approvalsDeps = {
   readDoc: (id) => readDoc(id),
-  // Compare-and-set on the stored version (the second reader 3). mutateApprovals serializes
+  // Compare-and-set on the stored version (Tester 3). mutateApprovals serializes
   // writers in this process; this check catches a writer elsewhere.
   writeDoc: async (id, content, expectedVersion) => {
     // Atomic across processes: writeDoc filters the update on { doc_id, version: expected }.
@@ -209,6 +212,13 @@ export class RateLimiter {
     return { allowed: true };
   }
 
+  /** Forget tool-call counters in this process. Does not revoke a grant. */
+  clearToolLockout() {
+    const n = this.buckets.size;
+    this.buckets.clear();
+    return n;
+  }
+
   recordRequest(toolName, bucketKey = 'stdio') {
     const now = Date.now();
     const bucket = this._bucket(bucketKey);
@@ -319,7 +329,7 @@ function wrapValidationError(error) {
 /**
  * Central error handler for all tool operations
  */
-export function handleError(error, toolName, logger = null) {
+export function handleError(error, toolName, logger = null, logFields = null) {
   let errorResponse;
 
   if (error instanceof EmetError) {
@@ -370,11 +380,14 @@ export function handleError(error, toolName, logger = null) {
   const correlationId = newCorrelationId();
   errorResponse.error.emet_code = stamped;
   errorResponse.error.correlation_id = correlationId;
+  attachChooserLink(errorResponse, error, correlationId);
+  if (error && error.chooser) delete error.chooser;
   void recordError({
     emet_code: stamped,
     class_code: errorResponse.error.code,
     tool: toolName,
-    correlation_id: correlationId
+    correlation_id: correlationId,
+    ...(toolName === 'emet_session_close' ? { session_id: logFields && logFields.session_id } : {})
   });
 
   // Read at call time. Never attach a stack on the HTTP server.
@@ -545,6 +558,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     // stored (no bound tag) may use the caller's tag only when that tag is an
     // exact member of EMET_SOURCE_TAGS. The shared default is not applied there.
     const sourceDecision = resolvedSourceTag(validatedMetadata.source);
+    if (sourceDecision.from === 'bound-door') refuseSophiaDoor(sophiaActor());
     if (sourceDecision.from === 'caller') {
       const defaultTag = setting('SOURCE_TAG');
       if (sourceDecision.tag) {
@@ -558,7 +572,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       }
     } else {
       validatedMetadata.source = sourceDecision.tag;
-      if (sourceDecision.from === 'declared' || sourceDecision.from === 'auto' || sourceDecision.from === 'subkey') {
+      if (sourceDecision.from === 'declared' || sourceDecision.from === 'auto' || sourceDecision.from === 'subkey' || sourceDecision.from === 'credential') {
         validatedMetadata.source_basis = sourceDecision.from;
         if (sourceDecision.login) validatedMetadata.source_login = sourceDecision.login;
         if (sourceDecision.from === 'subkey' && sourceDecision.key_id) validatedMetadata.key_id = sourceDecision.key_id;
@@ -579,14 +593,29 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     // one fixed local subject. A caller client_id never survives in custom.
     {
       const stamp = writerStamp();
+      const claimed = guardClaimedTag({
+        transport: currentActor().transport,
+        grant_id: stamp.grant_id,
+        sourceFrom: sourceDecision.from,
+        caller: sourceDecision.tag,
+        tool: 'save_to_layer'
+      });
+      if (claimed.warning) warnings.push(claimed.warning);
       validatedMetadata.person_id = stamp.person_id;
       delete validatedMetadata.client_id;
+      delete validatedMetadata.grant_id;
+      delete validatedMetadata.door;
       if (validatedMetadata.custom && typeof validatedMetadata.custom === 'object') {
         delete validatedMetadata.custom.client_id;
         delete validatedMetadata.custom.person_id;
+        delete validatedMetadata.custom.grant_id;
+        delete validatedMetadata.custom.door;
         if (Object.keys(validatedMetadata.custom).length === 0) delete validatedMetadata.custom;
       }
       validatedMetadata.client_id = stamp.client_id;
+      validatedMetadata.grant_id = stamp.grant_id;
+      validatedMetadata.door = stamp.door;
+      if (claimed.claimed) validatedMetadata.claimed_tag = true;
     }
     await sealAttestation(validatedMetadata, {
       session_id: options && options.session_id,
@@ -792,7 +821,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     const correction = (validatedMetadata.corrects !== undefined && validatedMetadata.corrects !== null)
       ? await markCorrectedBy(dbManager, targetLayer, validatedMetadata.corrects, memoryId)
       : null;
-    // the second reader N4: a correction whose parent could not be marked is still saved,
+    // Tester N4: a correction whose parent could not be marked is still saved,
     // but the caller is told in words, not only by a boolean.
     if (correction && correction.marked !== true) {
       warnings.push(`corrects: ${correction.parent_id} - the parent entry was not marked corrected_by (missing in ${targetLayer}, or the mark did not hold); the correction is saved, the link is one-sided until the parent is marked`);
@@ -847,6 +876,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       ...(provenanceStamped ? { provenance_stamped: 'from the named transcript session; the exchange is the one in progress, stored by the append after this reply' } : {}),
       ...(md.provenance_missing ? { provenance_missing: true } : {}),
       source: md.source,
+      grant_id: md.grant_id,
       ...(md.source_defaulted ? { source_defaulted: true } : {}),
       ...(md.source_unregistered ? { source_unregistered: true } : {}),
       ...(md.source_missing ? { source_missing: true } : {}),
@@ -985,7 +1015,7 @@ export async function resolveSupersessionChain(read, entry, maxHops = 50) {
 }
 
 /**
- * Option A correction back-pointer (Alex, 2026-10-02, procedural ref 405 item 4; the reviewer's sketch in his
+ * Option A correction back-pointer (Alex, 2026-10-02, procedural ref 405 item 4; Reviewer's sketch in his
  * second read of episodic ref 604). Episodic entries are immutable events, so a PARTIAL correction cannot
  * supersede its parent: supersession would put an end date on the whole parent and present every item
  * in it as replaced. Instead the new entry carries metadata.corrects = <parent id>, and the parent is MARKED:
@@ -999,7 +1029,7 @@ export async function resolveSupersessionChain(read, entry, maxHops = 50) {
  * corrected_by mark): the new metadata digest and, when a signing key is set
  * and the row's existing signature verifies against its metadata before the
  * marks (aleph.js signatureCoversPriorMetadata), a fresh signature over the
- * same content digest and the new metadata digest (2026-10-02, the reviewer's
+ * same content digest and the new metadata digest (2026-10-02, Reviewer's
  * finding: the marks left signed:false behind). With no key, or a signature
  * that does not verify, the signature is left exactly as it is: never re-signed
  * blindly, so a row changed outside the sanctioned path keeps reading
@@ -1019,23 +1049,32 @@ export async function markCorrectedBy(dbManager, layer, parentId, childId) {
   const parent = await col.findOne({ id: parentId });
   if (!parent) return { parent_id: parentId, marked: false };
   const cid = Number(childId);
-  // Race-safe (the second reader N3 / the reviewer, 2026-10-02): the id is ADDED atomically
+  // Race-safe (Tester N3 / Reviewer, 2026-10-02): the id is ADDED atomically
   // ($addToSet on the column and on the metadata copy), never written back
   // from a stale read, so two simultaneous corrections of one parent both
   // land. A legacy string-metadata row falls back to read-modify-write.
+  // corrected_grant_id is the latest door that marked this parent. corrected_by
+  // keeps every child. A later correction by a different grant replaces the
+  // grant value; it is not appended. The prior signature covered the previous
+  // grant, so that row is not re-signed (aleph.js).
+  const grant = writerStamp().grant_id;
   if (parent.metadata && typeof parent.metadata === 'object') {
-    await col.updateOne({ id: parentId }, { $addToSet: { corrected_by: cid, 'metadata.corrected_by': cid } });
+    await col.updateOne({ id: parentId }, {
+      $addToSet: { corrected_by: cid, 'metadata.corrected_by': cid },
+      $set: { corrected_grant_id: grant, 'metadata.corrected_grant_id': grant }
+    });
   } else {
     const md = parseMetadata(parent.metadata);
     const list = Array.isArray(md.corrected_by) ? md.corrected_by.map(Number) : [];
     if (!list.includes(cid)) list.push(cid);
     md.corrected_by = list;
-    await col.updateOne({ id: parentId }, { $set: { metadata: md, corrected_by: list } });
+    md.corrected_grant_id = grant;
+    await col.updateOne({ id: parentId }, { $set: { metadata: md, corrected_by: list, corrected_grant_id: grant } });
   }
   // Re-attest from what is actually stored. The digest is set only if the
   // stored metadata is still exactly the metadata it was computed from: the
   // compare-and-set filter is the WHOLE metadata value, not only corrected_by
-  // (the reviewer, 2026-10-02), so a concurrent change to any metadata field in
+  // (Reviewer, 2026-10-02), so a concurrent change to any metadata field in
   // between (another mark, a superseded_by, anything) makes the filter miss,
   // and the loop re-reads and re-digests. The last re-attest therefore always
   // covers what is stored. The value compared is the one just read back, so
@@ -1112,6 +1151,7 @@ export async function reviseMemory(dbManager, layer, target_id, content, metadat
 
     targetMd.superseded_by = saved.id;
     targetMd.superseded_at = saved.timestamp;
+    targetMd.superseded_grant_id = writerStamp().grant_id;
     // Write BOTH the metadata copy and the promoted top-level column. The
     // top-level one is what a reader follows (indexed); the metadata copy
     // stays for audit. Always written as a subdocument - a parent still
@@ -1122,6 +1162,7 @@ export async function reviseMemory(dbManager, layer, target_id, content, metadat
       metadata: targetMd,
       superseded_by: saved.id,
       superseded_at: saved.timestamp,
+      superseded_grant_id: targetMd.superseded_grant_id,
       // C1: marking a parent is the ONE sanctioned mutation of stored metadata,
       // so the parent is re-attested in the same write. Without this every
       // superseded row would read as a metadata mismatch from then on. With a
@@ -1922,6 +1963,16 @@ export async function saveTranscript(session_id, session_start, session_end, exc
     }
     assertExchangeBudget(exchanges.flatMap((ex) => [ex && ex.user_message, ex && ex.assistant_message]));
     const resolvedExchanges = exchanges;
+    const transcriptStamp = writerStamp();
+    const transcriptDecision = resolvedSourceTag(resolvedChannel);
+    const stampedChannel = stampedSource(transcriptDecision, resolvedChannel);
+    const transcriptClaim = guardClaimedTag({
+      transport: currentActor().transport,
+      grant_id: transcriptStamp.grant_id,
+      sourceFrom: transcriptDecision.from,
+      caller: transcriptDecision.tag,
+      tool: 'save_transcript'
+    });
 
     const client = await connectMongo(MONGODB_URI, { serverSelectionTimeoutMS: 5000, maxPoolSize: 10 });
     const db = client.db(MONGODB_DB);
@@ -1945,11 +1996,11 @@ export async function saveTranscript(session_id, session_start, session_end, exc
 
     const sessionDoc = {
       session_id,
-      channel: resolvedChannel,
+      channel: stampedChannel,
       session_start: new Date(session_start * 1000),
       session_end: session_end ? new Date(session_end * 1000) : new Date(),
       exchange_count: resolvedExchanges.length,
-      exchanges: resolvedExchanges.map((ex, i) => stampExchange(storedExchange(ex, i, scrub), resolvedChannel)),
+      exchanges: resolvedExchanges.map((ex, i) => stampExchange(storedExchange(ex, i, scrub), stampedChannel, transcriptStamp)),
       created_at: new Date()
     };
     if (redactedSpans > 0) sessionDoc.redacted_spans = redactedSpans;
@@ -1962,10 +2013,12 @@ export async function saveTranscript(session_id, session_start, session_end, exc
     return {
       success: true,
       session_id,
-      channel: resolvedChannel,
+      channel: stampedChannel,
       inserted_id: result.insertedId.toString(),
       exchange_count: resolvedExchanges.length,
       redacted: redactedSpans,
+      grant_id: transcriptStamp.grant_id,
+      ...(transcriptClaim.warning ? { claimed_tag_warning: transcriptClaim.warning } : {}),
       ...(timestampsDefaulted > 0 ? { timestamps_defaulted: timestampsDefaulted } : {}),
       performance: { duration_ms: duration }
     };
@@ -1999,13 +2052,14 @@ export function storedExchange(ex, i, scrub, now = new Date()) {
   };
 }
 
-function stampExchange(row, source) {
-  const stamp = writerStamp();
+export function stampExchange(row, source, stamp = writerStamp()) {
   return {
     ...row,
     source: source || setting('SOURCE_TAG') || null,
     person_id: stamp.person_id,
-    client_id: stamp.client_id
+    client_id: stamp.client_id,
+    grant_id: stamp.grant_id,
+    door: stamp.door
   };
 }
 
@@ -2204,6 +2258,16 @@ export async function transcriptAppend(args = {}, logger = null) {
     throw new ValidationError('user_message and assistant_message must be strings', { code: 'EMET-TRN-006' });
   }
   assertExchangeBudget([user_message, assistant_message]);
+  const appendStamp = writerStamp();
+  const appendDecision = resolvedSourceTag(channel);
+  const stampedChannel = stampedSource(appendDecision, channel || setting('SOURCE_TAG') || null);
+  const appendClaim = guardClaimedTag({
+    transport: currentActor().transport,
+    grant_id: appendStamp.grant_id,
+    sourceFrom: appendDecision.from,
+    caller: appendDecision.tag || channel,
+    tool: 'emet_transcript_append'
+  });
   const {
     partId, partNumber, baseFromPart, nextExchangeIndex, shouldStartNewPart, EXCHANGES_PER_PART
   } = await import('./transcript-session.js');
@@ -2228,18 +2292,12 @@ export async function transcriptAppend(args = {}, logger = null) {
     }
 
     const scrub = (s) => redactWithReport(s || '').text;
-    const stamp = writerStamp();
-    const row = {
-      ...storedExchange({
-        exchange_index: idx,
-        user_message,
-        assistant_message,
-        timestamp: Date.now() / 1000
-      }, idx - 1, scrub),
-      source: channel || setting('SOURCE_TAG') || null,
-      person_id: stamp.person_id,
-      client_id: stamp.client_id
-    };
+    const row = stampExchange(storedExchange({
+      exchange_index: idx,
+      user_message,
+      assistant_message,
+      timestamp: Date.now() / 1000
+    }, idx - 1, scrub), stampedChannel, appendStamp);
     const attr = declaredAttribution();
     if (attr && attr.basis === 'subkey' && attr.keyId) {
       row.key_id = attr.keyId;
@@ -2265,7 +2323,7 @@ export async function transcriptAppend(args = {}, logger = null) {
       const start = typeof session_start === 'number' ? session_start : Date.now() / 1000;
       await col.insertOne({
         session_id: part,
-        channel: channel || setting('SOURCE_TAG') || 'mcp',
+        channel: stampedChannel || 'mcp',
         session_start: new Date(start * 1000),
         session_end: new Date(),
         exchange_count: 1,
@@ -2274,6 +2332,8 @@ export async function transcriptAppend(args = {}, logger = null) {
       });
       return {
         session_id: part, exchange_index: idx, exchange_count: 1, rolled: part !== session_id,
+        grant_id: appendStamp.grant_id,
+        ...(appendClaim.warning ? { claimed_tag_warning: appendClaim.warning } : {}),
         ...(machineCheck ? { machine_line: machineCheck.enforced ? `checked: ${machineCheck.matched}` : machineCheck.reason } : {})
       };
     }
@@ -2288,7 +2348,9 @@ export async function transcriptAppend(args = {}, logger = null) {
       exchange_index: idx,
       exchange_count: (live.exchange_count || exchanges.length) + 1,
       rolled: part !== session_id,
-      next_part_after: EXCHANGES_PER_PART
+      next_part_after: EXCHANGES_PER_PART,
+      grant_id: appendStamp.grant_id,
+      ...(appendClaim.warning ? { claimed_tag_warning: appendClaim.warning } : {})
     };
   } finally {
     await client.close();
@@ -2320,6 +2382,15 @@ export async function reviseTranscript(session_id, exchanges, reason, session_st
       throw new ValidationError('exchanges must be a non-empty array - a revision replaces the whole part, not a field within it', { code: 'EMET-TRN-007' });
     if (!reason || typeof reason !== 'string' || reason.trim().length < 10)
       throw new ValidationError('reason is required and must describe what was wrong - at least 10 characters. An unexplained correction is a silent rewrite.', { code: 'EMET-TRN-008' });
+    const reviseStamp = writerStamp();
+    const reviseDecision = resolvedSourceTag(channel);
+    const reviseClaim = guardClaimedTag({
+      transport: currentActor().transport,
+      grant_id: reviseStamp.grant_id,
+      sourceFrom: reviseDecision.from,
+      caller: reviseDecision.tag || channel,
+      tool: 'revise_transcript'
+    });
 
     const client = await connectMongo(MONGODB_URI, { serverSelectionTimeoutMS: 5000, maxPoolSize: 10 });
     const db = client.db(MONGODB_DB);
@@ -2342,7 +2413,7 @@ export async function reviseTranscript(session_id, exchanges, reason, session_st
       session_start: session_start ? new Date(session_start * 1000) : parent.session_start,
       session_end: session_end ? new Date(session_end * 1000) : parent.session_end,
       exchange_count: exchanges.length,
-      exchanges: exchanges.map((ex, i) => stampExchange(storedExchange(ex, i, scrub), channel || parent.channel)),
+      exchanges: exchanges.map((ex, i) => stampExchange(storedExchange(ex, i, scrub), channel || parent.channel, reviseStamp)),
       ...(redactedSpans > 0 ? { redacted_spans: redactedSpans } : {}),
       revision,
       supersedes: parent._id,
@@ -2353,7 +2424,8 @@ export async function reviseTranscript(session_id, exchanges, reason, session_st
     };
 
     const result = await col.insertOne(revised);
-    await col.updateOne({ _id: parent._id }, { $set: { superseded_by: result.insertedId } });
+    const reviseGrant = reviseStamp.grant_id;
+    await col.updateOne({ _id: parent._id }, { $set: { superseded_by: result.insertedId, superseded_grant_id: reviseGrant } });
 
     // Read back rather than trust the write, and confirm the parent survived -
     // a supersession that lost the original would be a deletion with extra steps.
@@ -2382,6 +2454,8 @@ export async function reviseTranscript(session_id, exchanges, reason, session_st
         ? { timestamps_defaulted: revised.exchanges.filter(e => e.timestamp_defaulted).length } : {}),
       previous_exchange_count: parent.exchange_count ?? null,
       redacted: redactedSpans,
+      grant_id: reviseStamp.grant_id,
+      ...(reviseClaim.warning ? { claimed_tag_warning: reviseClaim.warning } : {}),
       revision_reason: reason.trim(),
       note: verified
         ? 'The prior version is retained and marked superseded. Readers take the revision; the original stays auditable.'
@@ -2560,7 +2634,7 @@ export async function readDoc(doc_id, logger = null, opts = {}) {
       // current, which is the whole of "prevent unintended use".
       return { doc_id: doc.doc_id, content, sha256: doc.sha256, version: doc.version,
                updated_at: doc.updated_at, updated_by: doc.updated_by || null,
-               client_id: doc.client_id || null, session_id: doc.session_id || null,
+               client_id: doc.client_id || null, grant_id: doc.grant_id || null, door: doc.door || null, session_id: doc.session_id || null,
                ...(doc.key_id ? { key_id: doc.key_id } : {}),
                ...(doc.source_basis ? { source_basis: doc.source_basis } : {}),
                path_hint: doc.path_hint || null, size: doc.content.length,
@@ -2604,7 +2678,7 @@ export async function readDocHistory(doc_id, version = null, logger = null) {
       if (version === null || version === undefined) {
         const retained = await hist.find({ doc_id }, { projection: { content: 0 } }).sort({ version: 1 }).toArray();
         const rows = retained.map(r => ({ version: r.version, sha256: r.sha256 || null, size: r.size ?? null,
-          updated_at: r.updated_at || null, updated_by: r.updated_by || null, client_id: r.client_id || null, session_id: r.session_id || null, archived_at: r.archived_at || null,
+          updated_at: r.updated_at || null, updated_by: r.updated_by || null, client_id: r.client_id || null, grant_id: r.grant_id || null, door: r.door || null, session_id: r.session_id || null, archived_at: r.archived_at || null,
           ...(r.key_id ? { key_id: r.key_id } : {}),
           ...(r.source_basis ? { source_basis: r.source_basis } : {}),
           conformance: r.conformance ? r.conformance.verdict : null }));
@@ -2614,7 +2688,7 @@ export async function readDocHistory(doc_id, version = null, logger = null) {
       if (current && current.version === version) {
         return { doc_id, version, is_current: true, content: current.content, sha256: current.sha256, size: current.content.length,
                  updated_at: current.updated_at, updated_by: current.updated_by || null,
-                 client_id: current.client_id || null, session_id: current.session_id || null,
+                 client_id: current.client_id || null, grant_id: current.grant_id || null, door: current.door || null, session_id: current.session_id || null,
                  ...(current.key_id ? { key_id: current.key_id } : {}),
                  ...(current.source_basis ? { source_basis: current.source_basis } : {}),
                  conformance: current.conformance || null };
@@ -2626,7 +2700,7 @@ export async function readDocHistory(doc_id, version = null, logger = null) {
       const integrity = row.sha256 ? (digest(row.content) === row.sha256) : 'unattested';
       return { doc_id, version, is_current: false, content: row.content, sha256: row.sha256 || null, size: row.content.length,
                updated_at: row.updated_at || null, updated_by: row.updated_by || null, archived_at: row.archived_at || null,
-               client_id: row.client_id || null, session_id: row.session_id || null,
+               client_id: row.client_id || null, grant_id: row.grant_id || null, door: row.door || null, session_id: row.session_id || null,
                ...(row.key_id ? { key_id: row.key_id } : {}),
                ...(row.source_basis ? { source_basis: row.source_basis } : {}),
                conformance: row.conformance || null,
@@ -2682,14 +2756,14 @@ function _refuseRecordAmendment(doc_id, tool) {
  * 3.5). write_doc and patch_doc refuse the main HANDOFF.md or STATE.md when the
  * write's source is a bot tag (bots/<tag>/HANDOFF.md listed in
  * EMET_RECORD_DOCS), and nothing is written. So do the other doors that can
- * change a main record (the reviewer's F1 on PR 2): retire_doc, rename_doc (from
+ * change a main record (Reviewer's F1 on PR 2): retire_doc, rename_doc (from
  * or onto one) and accept_nonconformance - retire and rename set retired_by,
  * not updated_by, so the close alone could not see them. The source is the one the door
  * stamps as updated_by: the caller's, else EMET_SOURCE_TAG. A records rule like
  * the record-amendment refusal above, so it applies in every graph mode.
  *
- * Two further guards on the same doors (2026-10-01, the owner's 4:17 PM approval to
- * make the bot tags fully functional; the reviewer's review of PR 3):
+ * Two further guards on the same doors (2026-10-01, Alex's 4:17 PM approval to
+ * make the bot tags fully functional; Reviewer's review of PR 3):
  *   - REGISTERED HOSTS ONLY on the main records. With a source registry
  *     configured (EMET_SOURCE_TAGS, parsed as save_to_layer parses it), the
  *     main handoff and board take writes only from a registered tag. An
@@ -2710,7 +2784,7 @@ export function sourceRegistry() {
 }
 
 /**
- * Attribution v2 (the second reader A3): a declared tag never gains rights beyond the login's
+ * Attribution v2 (Tester A3): a declared tag never gains rights beyond the login's
  * tag. A guard is run for every tag returned here and the write must pass all.
  */
 export function rightsTags(tag) {
@@ -2733,6 +2807,17 @@ export function resolvedSourceTag(caller) {
   const bound = boundSourceTag();
   const tag = typeof caller === 'string' ? caller.trim() : '';
   if (bound === undefined) return { tag: tag || null, from: 'caller' };
+  const actor = sophiaActor();
+  if (sophiaCredentialOverrides(actor, tag)) {
+    const sub = actor.subkeySession === true && actor.subkeyTag === CLAIM_TAG;
+    return {
+      tag: CLAIM_TAG,
+      from: sub ? 'subkey' : 'credential',
+      login: bound || null,
+      ...(sub && actor.subkeyId ? { key_id: actor.subkeyId } : {})
+    };
+  }
+  if (sophiaClaimOnSharedLogin(actor, tag)) return { tag: null, from: 'bound-door', login: bound || null };
   // Attribution v2: the per-request tag decided by attribution.preflight is the
   // stamp (declared, or generated for a login with none). Rights stay the
   // login's: see rightsTags().
@@ -2745,14 +2830,21 @@ export function resolvedSourceTag(caller) {
   return { tag: null, from: 'legacy' };
 }
 
-// Look-alike doc ids (the second reader's recheck d1-d5, 2026-10-02): a `.` or `..` segment,
+/** A BOUND credential stamp replaces a forged Master Hub string. A door claim throws. */
+function stampedSource(decision, fallback) {
+  if (decision && decision.from === 'bound-door') refuseSophiaDoor(sophiaActor());
+  if (decision && (decision.from === 'credential' || (decision.from === 'subkey' && decision.tag === CLAIM_TAG))) return decision.tag;
+  return fallback;
+}
+
+// Look-alike doc ids (Tester's recheck d1-d5, 2026-10-02): a `.` or `..` segment,
 // a leading `/`, or a `bots/` prefix in the wrong case would let a write pass
 // the prefix checks below while naming a record they are meant to fence (d1:
 // bots/tester-bot/../intake-bot/HANDOFF.md passed the own-dir check). Doc
 // ids are flat strings, never resolved as paths, so these shapes are refused
 // outright, before any guard, on every door that calls this.
 //
-// Hardening (the reviewer's scope on the doc-id fix, 2026-10-02): also refused are
+// Hardening (Reviewer's scope on the doc-id fix, 2026-10-02): also refused are
 // control and invisible-format characters (\p{Cc}, \p{Cf}) anywhere; leading or
 // trailing whitespace on the id or on any segment; a backslash; the `/`, `.`/`..`
 // and `bots/` checks run on the NFKC form too (so full-width dots and slashes,
@@ -2799,7 +2891,7 @@ export function refuseLookalikeDocId(doc_id, tool) {
   }
 }
 
-// Cleanup path (the reviewer's scope): a look-alike id may already exist in a store
+// Cleanup path (Reviewer's scope): a look-alike id may already exist in a store
 // written before these checks. retire_doc, and rename_doc FROM such an id, are let
 // through for a registered host tag only: EMET_SOURCE_TAGS set, the tag listed,
 // and not a bot tag. Never for a write, a patch, a rename onto it, or a bot.
@@ -2813,12 +2905,12 @@ export function refuseBotMainRecord(doc_id, updated_by, tool, options = {}) {
 }
 function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
   const tag = updated_by || setting('SOURCE_TAG') || null;
-  // The client-approvals record is server-only (the second reader 4): no host writes,
+  // The client-approvals record is server-only (Tester 4): no host writes,
   // patches, retires, renames, restores or accepts it.
   if (typeof doc_id === 'string' && FOLD(doc_id.normalize('NFKC')) === FOLD(APPROVALS_DOC) && !(options && options.approvalsRecord === true)) {
     throw new ValidationError(`${tool}: ${doc_id} is kept by the server (client approvals). Decide clients with emet_client_approve. Nothing was written.`, { code: 'EMET-DOC-009' });
   }
-  // A3 without a registry (the second reader re-review): a declared or generated tag writes
+  // A3 without a registry (Tester re-review): a declared or generated tag writes
   // under bots/ only inside bots/<its own tag>/ and only once approved.
   {
     const d = declaredAttribution();
@@ -2839,7 +2931,7 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
       `Hand it to the hub instead. Nothing was written.`
     , { code: 'EMET-DOC-011' });
   }
-  // Registry guard on bots/ too (the reviewer's PR 5 review; the second reader's fix (a), 2026-10-02): with EMET_SOURCE_TAGS
+  // Registry guard on bots/ too (Reviewer's PR 5 review; Tester's fix (a), 2026-10-02): with EMET_SOURCE_TAGS
   // set, a non-bot write under bots/ is refused unless its tag is registered; a missing source counts as
   // unregistered. Without this, a misspelled or unregistered tag is not a bot tag, so the cross-bot guard
   // above never fires and it can write any bot's records or the roster. A listed bot is already fenced to
@@ -2873,11 +2965,11 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
  * retire_doc and rename_doc are not bot tools at all (Alex, 2026-10-01 4:27 PM
  * ET, decision 1, as relayed: "retire_doc isn't needed for bots: keep it
  * Alex/hub only and out of every bot profile"; procedural ref 407; stage 1 of the
- * ref 358 startup amendment, admitted by the reviewer 2026-10-02). A profile is not a
+ * ref 358 startup amendment, admitted by Reviewer 2026-10-02). A profile is not a
  * security boundary, so the door refuses them under ANY bot tag, for every
  * doc_id - not only the main records refuseBotMainRecord covers. ref 407(1)
- * covers retire_doc only; rename_doc stays owner-only under procedural ref 409
- * (owner-confirmed 2026-10-02 the recorded time: every other owner-only tool is
+ * covers retire_doc only; rename_doc stays Alex-only under procedural ref 409
+ * (Alex-confirmed 2026-10-02 7:50: every other Alex-only tool is
  * unchanged), and it retires its old id internally, so it is refused too. The tag is the
  * one the door would stamp: the caller's, else EMET_SOURCE_TAG. Hosts and the
  * hub have no bots/<tag>/HANDOFF.md record and are unaffected. Nothing is
@@ -2900,7 +2992,7 @@ function refuseBotRetireRenameOne(tag, tool) {
   throw new ValidationError(
     'source',
     `${tool} is not a bot tool: ${t} is a bot tag, and ` +
-    `renaming documents stays owner-only (procedural ref 409)` +
+    `renaming documents stays the owner-only (procedural ref 409)` +
     `. Ask the hub. Nothing was changed.`
   , { code: 'EMET-MEM-020' });
 }
@@ -2927,7 +3019,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       }
       const prev = await col.findOne({ doc_id });
       const version = (prev && prev.version ? prev.version : 0) + 1;
-      // Compare-and-set for the client-approvals record (the second reader round 3): checked
+      // Compare-and-set for the client-approvals record (Tester round 3): checked
       // here before anything is archived, and again atomically in the update filter.
       const casOn = options && options.approvalsRecord === true && Object.prototype.hasOwnProperty.call(options, 'expectedVersion');
       const casConflict = () => { const e = new ValidationError(`${doc_id} changed under this write (compare-and-set). Nothing was written.`); e.versionConflict = true; return e; };
@@ -2965,9 +3057,9 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       if (!rightsTags(updated_by).every(passes) && !serverProvision && !(isDropDoc(doc_id) && !prev)) {
         throw new ValidationError(`write_doc: ${updated_by || 'no source'} is not a registered source. This session may read, and may write a new drop only. Nothing was written.`, { code: 'EMET-DOC-020' });
       }
+      const docStamp = writerStamp();
       if (isDropDoc(doc_id) && !prev) {
-        const { writerStamp } = await import('./persons.js');
-        const bucket = dropBucket(writerStamp().client_id, updated_by);
+        const bucket = dropBucket(docStamp.client_id, updated_by);
         const day = nyDay(new Date());
         const same = (await col.find({ doc_id: { $regex: '^drops/' } }).toArray()).filter((d) => (d.drop_bucket || dropBucket(d.client_id, d.updated_by)) === bucket && nyDay(d.updated_at instanceof Date ? d.updated_at : new Date(d.updated_at || 0)) === day);
         if (same.length >= 20) throw new ValidationError(`write_doc: this connected app already wrote 20 drops today. Nothing was written.`, { code: 'EMET-DOC-021' });
@@ -3015,7 +3107,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       if (prev && !floorExempt && baseline > 0 && content.length * 2 < baseline) {
         const pct = Math.floor((content.length / baseline) * 100);
         throw new ValidationError(
-          `This change would leave ${doc_id} at ${pct}% of its size when this session first touched it. Condensing below half is not done on the EMET server. Nothing was written.`
+          `This change would leave ${doc_id} at ${pct}% of its size when this session first touched it. Condensing below half is not done on the EMET server. Nothing was written. Write the full revision: the whole content in one write_doc, or write_doc_begin, write_doc_append, and write_doc_commit. A condensed or header-only substitute is refused.`
         , { code: 'EMET-DOC-025' });
       }
       // Cross-session floor. The per-session floor is measured from this
@@ -3039,6 +3131,15 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       }
       const sizeSamples = recentSamples.slice();
       if (prev) sizeSamples.push({ size: String(prev.content || '').length, at: prev.updated_at || new Date() });
+      const docDecision = resolvedSourceTag(updated_by);
+      const stampedUpdatedBy = stampedSource(docDecision, updated_by || (isDropDoc(doc_id) ? 'visitor' : (setting('SOURCE_TAG') || null)));
+      const docClaim = guardClaimedTag({
+        transport: currentActor().transport,
+        grant_id: docStamp.grant_id,
+        sourceFrom: docDecision.from,
+        caller: docDecision.tag || updated_by,
+        tool: options && options.edited ? 'patch_doc' : 'write_doc'
+      });
       if (prev) {
         const { _id, size_baselines: _liveBaselines, ...rest } = prev;
         // Retained and marked obsolete (ISO 7.5.3 / 4.2.5): the archived copy
@@ -3069,11 +3170,14 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         doc_id, content, sha256, signature, version, size: content.length, updated_at: now,
         conformance,
         supersedes_version: prev ? prev.version : null,
-        updated_by: updated_by || (isDropDoc(doc_id) ? 'visitor' : (setting('SOURCE_TAG') || null)),
+        updated_by: stampedUpdatedBy,
         edit_reason: (options && options.reason) || null,
         edit_origin: (options && options.origin) || null,
-        person_id: (await import('./persons.js').then((m) => m.writerStamp())).person_id,
-        client_id: (await import('./persons.js').then((m) => m.writerStamp())).client_id,
+        person_id: docStamp.person_id,
+        client_id: docStamp.client_id,
+        grant_id: docStamp.grant_id,
+        door: docStamp.door,
+        ...(docClaim.claimed ? { claimed_tag: true } : {}),
         session_id: sid,
         restored_from_version: (options && options.restore_of) || null,
         size_at_session_start: baseline,
@@ -3094,6 +3198,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         writtenRow.key_id = attr.keyId;
         writtenRow.source_basis = 'subkey';
       }
+      if (docDecision.from === 'credential') writtenRow.source_basis = 'credential';
       if (options && options.provision && doc_id === stateDoc()) {
         const ins = await col.updateOne({ doc_id }, { $setOnInsert: writtenRow }, { upsert: true });
         if (ins && ins.upsertedCount === 0) {
@@ -3103,7 +3208,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         let res;
         try {
           res = options.expectedVersion == null
-            // the second reader delta M1: documents.doc_id has no unique index, so the first
+            // Tester delta M1: documents.doc_id has no unique index, so the first
             // create keys on a deterministic _id; _id is always unique, so a
             // second racing insert matches it (or hits a duplicate key) and loses.
             ? await col.updateOne({ _id: `${APPROVALS_DOC}#current` }, { $setOnInsert: writtenRow }, { upsert: true })
@@ -3123,7 +3228,9 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       return { doc_id, sha256, version, size: content.length, updated_at: now, verified: true,
                signed: signatureIntegrityOf(check, signingKey),
                signature_stored: typeof check?.signature === 'string' && check.signature.length > 0,
-               redacted: redaction.hits, conformance };
+               redacted: redaction.hits, conformance,
+               grant_id: docStamp.grant_id,
+               ...(docClaim.warning ? { claimed_tag_warning: docClaim.warning } : {}) };
     } finally { await client.close(); }
   } catch (error) {
     if (error && error.versionConflict) throw error;
@@ -3229,14 +3336,26 @@ export async function retireDoc(doc_id, reason = null, retired_by = null, logger
       }
 
       const now = new Date();
+      const retireStamp = writerStamp();
+      const retireDecision = resolvedSourceTag(retired_by);
+      const retireClaim = guardClaimedTag({
+        transport: currentActor().transport,
+        grant_id: retireStamp.grant_id,
+        sourceFrom: retireDecision.from,
+        caller: retireDecision.tag || retired_by,
+        tool: 'retire_doc'
+      });
       await col.updateOne({ doc_id }, { $set: {
         retired: true,
         retired_at: now,
         retired_by: retired_by || setting('SOURCE_TAG') || null,
         retired_reason: reason || null,
-        retired_person_id: (await import('./persons.js').then((m) => m.currentPersonId())) || null,
-        retired_client_id: (await import('./persons.js').then((m) => m.currentClientId())) || 'stdio',
-        retired_session_id: (options && options.session_id) || null
+        retired_person_id: retireStamp.person_id,
+        retired_client_id: retireStamp.client_id || 'stdio',
+        retired_grant_id: retireStamp.grant_id,
+        retired_door: retireStamp.door,
+        retired_session_id: (options && options.session_id) || null,
+        ...(retireClaim.claimed ? { claimed_tag: true } : {})
       } });
 
       // aleph: the mark is not set because the call returned. Content and
@@ -3269,6 +3388,8 @@ export async function retireDoc(doc_id, reason = null, retired_by = null, logger
       return { doc_id, retired: true, verified: true, retired_at: now, conformance,
                retired_reason: reason || null, version: check.version,
                sha256: check.sha256, content_unchanged: true,
+               grant_id: retireStamp.grant_id,
+               ...(retireClaim.warning ? { claimed_tag_warning: retireClaim.warning } : {}),
                note: 'Content retained at this id. list_docs keeps it after the current documents, marked with retired_at and, when a rename replaced it, what replaced it. read_doc still returns it. Nothing was deleted.' };
     } finally { await client.close(); }
   } catch (error) {
@@ -3479,11 +3600,21 @@ export async function acceptNonconformance(doc_id, reason, accepted_by = null, l
           `Its verdict is "${current ? current.verdict : 'not yet checked'}".`
         , { code: 'EMET-DOC-050' });
       }
-      const { currentPersonId, currentClientId } = await import('./persons.js');
+      const acceptDecision = resolvedSourceTag(accepted_by);
+      const acceptClaim = guardClaimedTag({
+        transport: currentActor().transport,
+        grant_id: writerStamp().grant_id,
+        sourceFrom: acceptDecision.from,
+        caller: acceptDecision.tag || accepted_by,
+        tool: 'accept_nonconformance'
+      });
+      const stamp = writerStamp();
       const accepted = buildAcceptance({
         reason, by: accepted_by || setting('SOURCE_TAG') || null, version: doc.version,
-        person_id: currentPersonId() || null,
-        client_id: currentClientId() || 'stdio',
+        person_id: stamp.person_id,
+        client_id: stamp.client_id || 'stdio',
+        grant_id: stamp.grant_id,
+        door: stamp.door,
         session_id: (options && options.session_id) || null
       });
       await col.updateOne({ doc_id }, { $set: { 'conformance.accepted': accepted } });
@@ -3496,6 +3627,8 @@ export async function acceptNonconformance(doc_id, reason, accepted_by = null, l
       return {
         doc_id, verified: true, version: doc.version, covers_version: doc.version,
         accepted, failures_accepted: current.failures || [],
+        grant_id: stamp.grant_id,
+        ...(acceptClaim.warning ? { claimed_tag_warning: acceptClaim.warning } : {}),
         note: 'The marker is retained with this acceptance beside it. It covers this revision only - the next write is validated fresh, and accepted markers stay counted at session start, separately from open ones.'
       };
     } finally { await client.close(); }
@@ -3592,7 +3725,7 @@ export async function patchDoc(doc_id, old_str, new_str, updated_by = null, expe
   }
 }
 
-// Restored 2026-09-19: both constants were dropped in an earlier commit while the function
+// Restored 2026-09-19: both constants were dropped in thatcommit while the function
 // kept referencing them, which made every semantic_recall call throw
 // "SEMANTIC_RECALL_LAYERS is not defined".
 const SEMANTIC_RECALL_LAYERS = ['episodic', 'semantic', 'procedural', 'meta', 'identity', 'working'];
@@ -3828,6 +3961,15 @@ export async function memberAccessCreate(dbManager, { display_name, days, source
   await dbManager.getConnection('working');
   const { createMemberAccess, MEMBER_ACCESS_FROZEN, MEMBER_ACCESS_FROZEN_REASON } = await import('./invites.js');
   if (MEMBER_ACCESS_FROZEN) throw new ValidationError(MEMBER_ACCESS_FROZEN_REASON, { code: 'EMET-AUTH-034' });
+  const { currentActor } = await import('./persons.js');
+  const { actorIsCos } = await import('./attribution.js');
+  const { isOwlIdentity } = await import('./owl.js');
+  const { isMasterBlasterActor } = await import('./writer-approval.js');
+  const who = currentActor();
+  const aiWriter = isOwlIdentity(who) || (who.transport === 'http' && (isMasterBlasterActor(who) || actorIsCos(who) || (who.sourceTag && isBotTag(who.sourceTag))));
+  if (aiWriter) {
+    throw new ValidationError('An AI cannot grant a writer. Alex decides on /owner/chooser with an owner session. Nothing was created.', { code: 'EMET-AUTH-043' });
+  }
   const { registeredSourceTags } = await import('./setup.js');
   const actor = await codeCreator(dbManager);
   if (!actor) throw new ValidationError('Only the owner can create EMET Member Access', { code: 'EMET-AUTH-037' });
@@ -3862,12 +4004,13 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_status",
-    description: "Diagnostic in one call (replaces emet_setup_status, get_status and emet_verify_connection, 2026-09-27). Reports environment, database, collections, vector index, whether identity and user documents exist, and per-layer counts and health. Pass probe: true to also prove the write path - connect, write a probe document, read the same value back, remove it; a read alone cannot reveal a broken write path. Prefer emet_initialize for a normal session start.",
+    description: "Diagnostic in one call (replaces emet_setup_status, get_status and emet_verify_connection, 2026-09-27). Reports environment, database, collections, vector index, whether identity and user documents exist, and per-layer counts and health. Pass probe: true to also prove the write path - connect, write a probe document, read the same value back, remove it; a read alone cannot reveal a broken write path. Pass session_id to read that session: `session.state` is open, closed, or absent, or unreadable when the session row cannot be read (the rest of the status still returns, and the asked id is not echoed). A part id is read as its base session. Prefer emet_initialize for a normal session start. Also reports checkpoint on every call: due when an open session's last verbatim save, or the open itself when no transcript is saved, is at least 24 hours old. A session covered by a current conforming records/ disposition (templates/SESSIONDISPOSITION.md) is not listed as checkpoint-due. A row that names an inserted_id dispositions that transcript only and does not close the session. The disposition is not a receipt. Save that verbatim text with emet_transcript_append or save_transcript, under the open session or the daily YYYY-MM-DD_chat-daily session. emet_session_close cites the saved parts. A store that cannot be read sets checkpoint.unread and does not claim the save is current.",
     inputSchema: {
       type: "object",
       properties: {
         probe: { type: "boolean", description: "Also write and read back a probe document (default false). Use after a deploy or a configuration change." },
-        source: { type: "string", description: "Your own source tag. The status then reports the tag your writes will carry and its approval state." }
+        source: { type: "string", description: "Your own source tag. The status then reports the tag your writes will carry and its approval state." },
+        session_id: { type: "string", description: "A transcript session id from emet_session_open, or one of its part ids. The result's session.state is open, closed, or absent, or unreadable when that session cannot be read." }
       }
     }
   },
@@ -4163,11 +4306,11 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_session_open",
-    description: "Open a transcript session. Returns session_id, dated in the configured local time zone (EMET_TIMEZONE, default America/New_York). A slug whose id is already CLOSED is never reopened: the session opens as <id>-2, -3, ... and the result's `notice` says so. Pass load_id from your startup pages (startup_page.load_id on every emet_initialize page) so the startup page check runs on your own startup; an open without load_id, or with a page of that startup never fetched, is refused (the refusal says how to pass). After every reply, call emet_transcript_append with that id and the one exchange that just happened. Do not dump the whole chat at close.",
+    description: "Open a transcript session. Returns session_id, dated in the configured local time zone (EMET_TIMEZONE, default America/New_York). A slug that already begins with YYYY-MM-DD_ (month 01-12, day 01-31) is not dated again, even when that date is not the local day. A slug whose id is already CLOSED is never reopened: the session opens as <id>-2, -3, ... and the result's `notice` says so. Pass load_id from your startup pages (startup_page.load_id on every emet_initialize page) so the startup page check runs on your own startup; an open without load_id, or with a page of that startup never fetched, is refused (the refusal says how to pass). After every reply, call emet_transcript_append with that id and the one exchange that just happened. Do not dump the whole chat at close.",
     inputSchema: {
       type: "object",
       properties: {
-        slug: { type: "string", description: "Short name for the session, e.g. grok-init" },
+        slug: { type: "string", description: "Short name for the session, e.g. grok-init. A slug that already begins with YYYY-MM-DD_ (month 01-12, day 01-31) is the base and is not dated again, even when that date is not the local day. Any other slug receives the local day. A closed id still opens as -2, -3, .... Parts are still _verbatim_partN." },
         load_id: { type: "string", description: "Required for the startup page check (by policy; the schema leaves it optional so older hosts can still open): the load_id from `startup_page` on your emet_initialize pages - page 1 returns it, every page carries it, and the last page names it. An open without load_id, or with a page of that load known not fetched, is refused before anything is written (gate startup_pages); the refusal names the exact calls that pass." }
       }
     }
@@ -4220,6 +4363,51 @@ const TOOL_DEFINITIONS = [
       source: { type: "string", description: "Source tag - which host produced this write. One name on every write since 2026-09-27." },
       updated_by: { type: "string", description: "Alias of `source` (the older name, kept one release). Prefer `source`." }
     }, required: ["doc_id", "content"] }
+  },
+  {
+    name: "write_doc_begin",
+    description: "Open a staged write when a document will not fit in one write_doc argument. The stage is not a document and does not change the current revision. Send each part with write_doc_append, then write_doc_commit. A record (HANDOFF.md and any id in EMET_RECORD_DOCS) still needs supersedes and reason; commit writes one whole revision through write_doc. Limits: 16000 characters per part, 128 parts, 2000000 characters total, 30 minutes from begin, 4 open stages per writer. Same source, session, and writer stamp as write_doc.",
+    inputSchema: { type: "object", properties: {
+      doc_id: { type: "string" },
+      supersedes: { type: "number", description: "Required when staging a new revision of a RECORD: the version currently in force. Stored on the stage and passed to write_doc at commit." },
+      reason: { type: "string", description: "Required on a record revision (at least 10 characters). Stored on the stage and passed to write_doc at commit." },
+      source: { type: "string", description: "Source tag - which host produced this write. One name on every write since 2026-09-27." },
+      updated_by: { type: "string", description: "Alias of `source` (the older name, kept one release). Prefer `source`." }
+    }, required: ["doc_id"] }
+  },
+  {
+    name: "write_doc_append",
+    description: "Append the next ordered chunk of an open stage. part starts at 1 and increases by one. The same part with the same bytes is a no-op. A different byte string, a skipped part, or a chunk over 16000 characters is refused and the current document is unchanged.",
+    inputSchema: { type: "object", properties: {
+      stage_id: { type: "string", description: "The stage_id write_doc_begin returned." },
+      part: { type: "number", description: "The 1-based part index. The next part is next_part from the previous call. A whole number sent as text is accepted." },
+      chunk: { type: "string", description: "The next slice of the document, at most 16000 characters. Chunks are concatenated in order at commit." },
+      source: { type: "string", description: "Source tag. Must be the same source the stage was begun with." },
+      updated_by: { type: "string", description: "Alias of `source`. Prefer `source`." }
+    }, required: ["stage_id", "part", "chunk"] }
+  },
+  {
+    name: "write_doc_commit",
+    description: "Assemble an open stage, check part_count and the sha256 of the exact assembled text (the concatenation of the parts in order, before this server redacts it), then write one revision through write_doc. A mismatch or a write_doc refusal leaves the current document unchanged and the stage open. A second commit of the same sha256 returns the first receipt and does not write another revision. A record is still one whole revision: it is superseded, never patched or appended.",
+    inputSchema: { type: "object", properties: {
+      stage_id: { type: "string" },
+      doc_id: { type: "string", description: "The same document id the stage was begun for." },
+      sha256: { type: "string", description: "Lowercase hex sha256 of the exact assembled text." },
+      part_count: { type: "number", description: "How many parts were appended. Commit is refused if the stage holds a different number." },
+      supersedes: { type: "number", description: "Optional. When omitted, the value stored at begin is used. A different number is refused." },
+      reason: { type: "string", description: "Optional. When omitted, the reason stored at begin is used. A different reason is refused." },
+      source: { type: "string", description: "Source tag. Must match the stage." },
+      updated_by: { type: "string", description: "Alias of `source`. Prefer `source`." }
+    }, required: ["stage_id", "doc_id", "sha256", "part_count"] }
+  },
+  {
+    name: "write_doc_abort",
+    description: "Drop an open stage. The current document is unchanged. Aborting a stage that is already aborted reports that abort and writes nothing.",
+    inputSchema: { type: "object", properties: {
+      stage_id: { type: "string" },
+      source: { type: "string", description: "Source tag. Must match the stage." },
+      updated_by: { type: "string", description: "Alias of `source`. Prefer `source`." }
+    }, required: ["stage_id"] }
   },
   {
     name: "list_docs",
@@ -4313,7 +4501,7 @@ const TOOL_DEFINITIONS = [
     name: "emet_page",
     description: "Read one compiled topic page for an area slug (areas/<slug>.md). A page is a view of current records. It is not a record: this tool writes nothing, stores nothing, and the result is never written back and is not returned by recall. Every displayed line cites its source as [mem:<id> · <layer> · <client> · <YYYY-MM-DD>] or [doc:<doc_id>@v<version>]. A line with no source is dropped. Superseded and retired records stay out of the current sections; pass include_history true to show them under History only. A line is marked stale when its source has not been confirmed or revised within the area's staleness window (default 30 days; the area document may set its own). Owner only. Computed on every call, so cache_hit is false.",
     inputSchema: { type: "object", properties: {
-      area: { type: "string", description: "Area slug, for example health. The selector is the current areas/<slug>.md document." },
+      area: { type: "string", description: "Area slug, for example finances. The selector is the current areas/<slug>.md document." },
       as_of: { type: "string", description: "Optional ISO date or unix seconds. The page shows records that were current at that moment. A document line cites the revision in force then, from documents_history. A revision that was never archived is absent. A superseded or retired record with no end date is still shown in this past view, labelled \"end date unknown\", and is not a current line. The area selector is the current area document." },
       include_history: { type: "boolean", description: "When true, superseded and retired records appear under History, labelled as not current. Default false." }
     }, required: ["area"] }
@@ -4366,15 +4554,19 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_client_approve",
-    description: "Approve or deny a new client (a bot, or a single-instance AI such as Claude or ChatGPT) that EMET flagged on its first write. A new client is read-limited until approved. Only the owner, or the chief-of-staff bot named by EMET_COS_TAG, may decide. Pending clients are listed in emet_initialize and emet_status as client_approvals.",
+    description: "Approve or deny a pending client tag, or prepare a new writer. decision prepare drafts a writer request: client, claimed tag, door (member or guest), reason, and correlation_id. Master Hub prepares that draft. The server validates it. Validation is a check and is not approval. Alex decides a new writer on /owner/chooser with the owner session. No AI grants a writer, including Master Hub and the retired owl account. The owner login may still approve or deny a pending client tag. Pending client tags are listed in emet_initialize and emet_status as client_approvals.",
     inputSchema: {
       type: "object",
       properties: {
-        tag: { type: "string", description: "The pending client's tag, as listed in client_approvals.pending" },
-        decision: { type: "string", enum: ["approve", "deny"] },
-        reason: { type: "string", description: "Optional note kept with the decision" },
+        tag: { type: "string", description: "The pending client's tag, as listed in client_approvals.pending. For decision prepare, this is the claimed tag when claimed_tag is omitted." },
+        decision: { type: "string", enum: ["approve", "deny", "prepare"] },
+        reason: { type: "string", description: "Note kept with the decision, or the reason on a prepared writer request." },
         as: { type: "string", enum: ["rename", "add"], description: "Required when the client_id already has approved tags: add keeps them all (several bots on one shared client); rename retires one" },
-        from: { type: "string", description: "With as=rename on a client that has several approved tags: the tag being replaced" }
+        from: { type: "string", description: "With as=rename on a client that has several approved tags: the tag being replaced" },
+        client: { type: "string", description: "For decision prepare: the client id the writer request names." },
+        claimed_tag: { type: "string", description: "For decision prepare: the tag the writer would be known by." },
+        door: { type: "string", enum: ["member", "guest"], description: "For decision prepare: member is a writer. Guest is not a writer." },
+        correlation_id: { type: "string", description: "For decision prepare: 16 lowercase hex characters. The same id again returns the retained request." }
       },
       required: ["tag", "decision"]
     }
@@ -4408,7 +4600,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_session_close",
-    description: "Call this when the session is ending - the user says goodbye, asks you to wrap up, mentions restarting or opening a new session, or you are about to run out of room. An acknowledgement of the turn just completed - thanks, great, perfect - is not a session end; if it is ambiguous, ask rather than close. Checks whether this session's work has actually been written to the store and reports exactly what is missing. It does not write anything itself. RECEIPTS ARE REQUIRED: pass `receipts` naming what you wrote and read back for each close step - working documents, the episodic session record id, the board and its version, the transcript part ids and highest exchange index as query_transcripts returned them, and the handoff version (written last). Each receipt is compared with the store; omitted or mismatched receipts, a handoff that was not the last write, or a transcript no layer entry cites (derived_from) return state 'blocked'. Each missing line carries a `scope`: touch only what it names. THREE blocked closes on one session return state 'escalate': stop retrying, say the `speak` lines, and hand the user the list - the counter does not reset on a changed receipt, only with a new session. Say every line of the returned `speak` to the user, in order - a wrap that leaves it out is a failed close. Never tell the user their session is saved unless this returns state 'complete'.",
+    description: "Call this when the session is ending - the user says goodbye, asks you to wrap up, mentions restarting or opening a new session, or you are about to run out of room. An acknowledgement of the turn just completed - thanks, great, perfect - is not a session end; if it is ambiguous, ask rather than close. Checks whether this session's work has actually been written to the store and reports exactly what is missing. It does not write anything itself. RECEIPTS ARE REQUIRED: pass `receipts` naming what you wrote and read back for each close step - working documents, the episodic session record id, the board and its version, the transcript part ids and highest exchange index as query_transcripts returned them, and the handoff version (written last). Each receipt is compared with the store; omitted or mismatched receipts, a handoff that was not the last write, or a transcript no layer entry cites (derived_from) return state 'blocked'. Each missing line carries a `scope`: touch only what it names. THREE blocked closes on one session return state 'escalate': stop retrying, say the `speak` lines, and hand the user the list - the counter does not reset on a changed receipt, only with a new session. Say every line of the returned `speak` to the user, in order - a wrap that leaves it out is a failed close. A records/ session disposition is not a receipt and does not make this call complete. Never tell the user their session is saved unless this returns state 'complete'.",
     inputSchema: {
       type: "object",
       properties: {

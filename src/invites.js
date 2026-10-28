@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { slugPersonId } from './persons.js';
 import { setting } from './env.js';
 import { CodedError } from './error-codes.js';
+import { currentInstanceId } from './deep-links.js';
 
 const COLLECTION = 'invites';
 
@@ -86,7 +87,7 @@ export async function createMemberAccess(db, { created_by, display_name, days = 
  * A redeemed invite always gets a NEW person (multi-user report v2, defect 2,
  * 2026-10-01). Until then the guest's id was the slug of the display name the
  * invite carried, and an existing person with that slug was silently reused:
- * an invite named "Alex" (or "ALEX", "Alex!") redeemed as the owner, wrote as
+ * an invite named "Alex" (or "ALEX", "Aléx") redeemed as the owner, wrote as
  * the owner and passed the owner-only invite check. A display name is a label,
  * not a credential, so it never selects an existing identity:
  *   - the slug is a starting point; if any person already holds it, or it is a
@@ -127,6 +128,10 @@ export async function redeemInvite(db, code) {
   const digest = inviteDigest(String(code).trim());
   const row = await col.findOne({ digest });
   if (!row) return { ok: false, reason: 'unknown' };
+  if (row.retired_at || row.superseded_by || row.retired === true) return { ok: false, reason: 'retired' };
+  if (typeof row.instance_id === 'string' && row.instance_id && row.instance_id !== currentInstanceId()) {
+    return { ok: false, reason: 'wrong_instance' };
+  }
   const door = row.door === 'member' ? 'member' : 'guest';
   if (door === 'member' ? MEMBER_ACCESS_FROZEN : INVITES_FROZEN) {
     return { ok: false, reason: 'frozen', message: door === 'member' ? MEMBER_ACCESS_FROZEN_REASON : INVITES_FROZEN_REASON };
@@ -165,4 +170,45 @@ export async function redeemInvite(db, code) {
   if (!saved) throw new CodedError('could not allocate a person id for this invite', { code: 'EMET-AUTH-001' });
   await col.updateOne({ digest }, { $set: { person_id } });
   return { ok: true, person_id, scopes, display_name: claimed.display_name || row.display_name, door, source_tag: claimed.source_tag || row.source_tag || null };
+}
+
+/** Retire unused invite codes. Rows stay. A code already redeemed is history. */
+export async function retireUnusedInvites(db, { eventId, at, household = false, tag = null, personId = null } = {}) {
+  const col = db.collection(COLLECTION);
+  const rows = typeof col.find === 'function' ? await col.find({}).toArray() : [];
+  let n = 0;
+  for (const row of rows) {
+    if (!row || row.used_at || row.retired_at || row.superseded_by) continue;
+    if (row.rotation_event_id === eventId) continue;
+    if (!household) {
+      const tagOk = tag && row.source_tag === tag;
+      const personOk = personId && row.person_id === personId;
+      if (!tagOk && !personOk) continue;
+    }
+    const filter = row._id != null ? { _id: row._id } : { digest: row.digest };
+    await col.updateOne(filter, { $set: { retired_at: at, superseded_by: eventId, retired: true, deleted: false } });
+    n += 1;
+  }
+  return n;
+}
+
+/**
+ * One fresh invite from a rotation. Single-use like every invite, and bound
+ * to this process instance. The plaintext code is returned once and is not
+ * written to a log by this function.
+ */
+export async function createRotationInvite(db, { created_by, display_name, door, source_tag, instance_id, rotation_event_id } = {}) {
+  const made = door === 'member'
+    ? await createMemberAccess(db, { created_by, display_name, source_tag })
+    : await createInvite(db, { created_by, display_name, source_tag });
+  await db.collection(COLLECTION).updateOne(
+    { digest: inviteDigest(made.code) },
+    { $set: { instance_id: instance_id || null, rotation_event_id: rotation_event_id || null, single_use: true } }
+  );
+  return {
+    ...made,
+    source_tag: source_tag || null,
+    instance_id: instance_id || null,
+    rotation_event_id: rotation_event_id || null
+  };
 }

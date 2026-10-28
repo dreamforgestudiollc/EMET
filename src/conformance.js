@@ -259,7 +259,8 @@ export function baseMap() {
       'threads/': 'templates/THREAD.md',
       'staging/': 'templates/STAGING.md',
       'procedures/': 'templates/PROCEDURE.md',
-      'areas/': 'templates/AREA.md'
+      'areas/': 'templates/AREA.md',
+      [SESSION_DISPOSITION_PREFIX]: SESSION_DISPOSITION_TEMPLATE
     }
   };
 }
@@ -371,7 +372,7 @@ function idCell(row, idIndex) {
  * a closed row named in a note, an item cross-referenced in a next action -
  * read as a row of its own, so the carry-forward check reported it missing
  * from the next revision. Found by running the validator against the reference
- * install's own board, 2026-09-11: board 12 and board 50 were both closed on the
+ * install's own board, 2026-09-11: board 012 and board 050 were both closed on the
  * prior revision and appeared only inside another row's text.
  *
  * The failure direction matters and is recorded so no one "fixes" this by
@@ -399,6 +400,261 @@ function idColumnIndex(body) {
   if (!header) return null;
   const i = cells(header).findIndex((h) => /^id$/i.test(h));
   return i === -1 ? null : i;
+}
+
+/**
+ * Session disposition (templates/SESSIONDISPOSITION.md).
+ * A batch under records/ notes overdue or duplicate sessions. It does not close
+ * them and it does not write a receipt. An inserted_id row dispositions that
+ * transcript and leaves the transcript in the store. A session-level row
+ * (no inserted_id) is what checkpoint overdue listing reads.
+ */
+export const SESSION_DISPOSITION_TEMPLATE = 'templates/SESSIONDISPOSITION.md';
+export const SESSION_DISPOSITION_PREFIX = 'records/';
+export const SESSION_DISPOSITIONS = Object.freeze([
+  'CARRIED_FORWARD',
+  'ABANDONED_NO_TRANSCRIPT',
+  'SUPERSEDED_BY_LATER_SESSION',
+  'CLOSED_NORMAL',
+  'RETAINED_OPEN_CRITICAL'
+]);
+const SESSION_DISPOSITION_SET = new Set(SESSION_DISPOSITIONS);
+const NEEDS_DESTINATION = new Set(['CARRIED_FORWARD', 'SUPERSEDED_BY_LATER_SESSION']);
+const INSERTED_ID_RE = /^[a-f0-9]{24}$/i;
+
+export function dispositionResolvesOverdue(name) {
+  return SESSION_DISPOSITION_SET.has(name);
+}
+
+function markdownTable(body) {
+  const lines = String(body || '').split('\n').map((l) => l.trim());
+  let header = null;
+  let seenRule = false;
+  const rows = [];
+  for (const line of lines) {
+    if (!line.startsWith('|')) {
+      if (seenRule && rows.length) break;
+      continue;
+    }
+    if (!header) { header = cells(line); continue; }
+    if (!seenRule) { seenRule = /^\|[\s:|-]+\|$/.test(line); continue; }
+    rows.push(cells(line));
+  }
+  return { header: header || [], rows };
+}
+
+function columnIndex(header, ...names) {
+  const norm = (header || []).map((h) => String(h || '').toLowerCase().replace(/[\s-]+/g, '_'));
+  for (const name of names) {
+    const i = norm.indexOf(name);
+    if (i !== -1) return i;
+  }
+  return -1;
+}
+
+function cellAt(row, index) {
+  if (index == null || index < 0) return '';
+  return String((row && row[index]) || '').trim();
+}
+
+function unanswered(value, label) {
+  const v = String(value ?? '').trim();
+  if (!v || /^_{2,}$/.test(v)) return `${label} is blank`;
+  if (/^(none|n\/a)$/i.test(v)) return `${label} is an unscoped none`;
+  if (/^(none|n\/a)\b/i.test(v) && !/^(?:none|n\/a)\s*[—–-]\s*\S/i.test(v)) return `${label} is an unscoped none`;
+  return null;
+}
+
+function isScopedNone(value) {
+  return /^(?:none|n\/a)\b/i.test(String(value ?? '').trim());
+}
+
+function controlValue(body, label) {
+  const re = new RegExp(`${String(label).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:\\s*([^·\\n]+)`, 'i');
+  const m = re.exec(String(body || ''));
+  return m ? m[1].trim() : null;
+}
+
+/** A real transcript id, or null when the cell is empty or a scoped none. */
+export function realInsertedId(value) {
+  const v = String(value ?? '').trim();
+  if (!v || isScopedNone(v)) return null;
+  return INSERTED_ID_RE.test(v) ? v.toLowerCase() : v;
+}
+
+function dispositionKey(sessionId, insertedId) {
+  return `${sessionId}\0${insertedId || ''}`;
+}
+
+function indexDispositionColumns(header) {
+  return {
+    session_id: columnIndex(header, 'session_id'),
+    opened_at: columnIndex(header, 'opened_at'),
+    last_saved_at: columnIndex(header, 'last_saved_at'),
+    disposition: columnIndex(header, 'disposition'),
+    reason: columnIndex(header, 'reason'),
+    evidence: columnIndex(header, 'evidence'),
+    carried_forward_to: columnIndex(header, 'carried_forward_to'),
+    inserted_id: columnIndex(header, 'inserted_id')
+  };
+}
+
+/**
+ * §1 rows. `inserted_id` is the 24-hex id, or null when the row is session-level.
+ * A row that fails form still parses, so a reader can see what was written.
+ */
+export function parseDispositionRows(content) {
+  const one = parseSections(content).find((s) => s.num === '1');
+  if (!one) return [];
+  const table = markdownTable(one.body);
+  const idx = indexDispositionColumns(table.header);
+  if (idx.session_id < 0) return [];
+  const out = [];
+  for (const raw of table.rows) {
+    const session_id = cellAt(raw, idx.session_id);
+    if (!session_id) continue;
+    out.push({
+      session_id,
+      opened_at: cellAt(raw, idx.opened_at),
+      last_saved_at: cellAt(raw, idx.last_saved_at),
+      disposition: cellAt(raw, idx.disposition),
+      reason: cellAt(raw, idx.reason),
+      evidence: cellAt(raw, idx.evidence),
+      carried_forward_to: cellAt(raw, idx.carried_forward_to),
+      inserted_id: realInsertedId(cellAt(raw, idx.inserted_id))
+    });
+  }
+  return out;
+}
+
+function dispositionSubjects(content) {
+  return parseDispositionRows(content).map((row) => ({
+    key: dispositionKey(row.session_id, row.inserted_id),
+    session_id: row.session_id,
+    inserted_id: row.inserted_id
+  }));
+}
+
+/**
+ * Form checks for a session-disposition record. The write path calls this
+ * from checkRecord. It checks form, not whether the disposition is true.
+ */
+export function checkDispositionRecord(content, { previous = null } = {}) {
+  const failures = [];
+  const sections = parseSections(content);
+  const byNum = new Map(sections.map((s) => [s.num, s]));
+  const zero = byNum.get('0');
+  if (zero) {
+    for (const label of ['Session id', 'Source tag', 'Written (local)', 'Scope', 'Rows']) {
+      const problem = unanswered(controlValue(zero.body, label), label);
+      if (problem) failures.push(`record control ${problem}`);
+    }
+    const declared = controlValue(zero.body, 'Rows');
+    const stated = declared == null ? NaN : Number(String(declared).replace(/[^0-9-]/g, ''));
+    const one = byNum.get('1');
+    const table = one ? markdownTable(one.body) : { header: [], rows: [] };
+    if (Number.isFinite(stated) && one && stated !== table.rows.length) {
+      failures.push(`§0 states Rows ${stated}; §1 holds ${table.rows.length} row${table.rows.length === 1 ? '' : 's'}`);
+    }
+  }
+
+  const one = byNum.get('1');
+  if (one) {
+    if (/no session in this record/i.test(one.body) && markdownTable(one.body).rows.length > 0) {
+      failures.push('§1 says no session in this record and also holds rows');
+    }
+    const table = markdownTable(one.body);
+    if (table.rows.length === 0) {
+      if (!/None\s*[—–-]\s*\S/i.test(one.body)) {
+        failures.push('§1 names no session and states no scoped none');
+      }
+    } else {
+      const idx = indexDispositionColumns(table.header);
+      const required = ['session_id', 'opened_at', 'last_saved_at', 'disposition', 'reason', 'evidence', 'carried_forward_to', 'inserted_id'];
+      for (const name of required) {
+        if (idx[name] < 0) failures.push(`§1 table has no ${name} column`);
+      }
+      if (required.every((name) => idx[name] >= 0)) {
+        const seen = new Map();
+        table.rows.forEach((raw, n) => {
+          const at = `§1 row ${n + 1}`;
+          const session_id = cellAt(raw, idx.session_id);
+          const opened_at = cellAt(raw, idx.opened_at);
+          const last_saved_at = cellAt(raw, idx.last_saved_at);
+          const disposition = cellAt(raw, idx.disposition);
+          const reason = cellAt(raw, idx.reason);
+          const evidence = cellAt(raw, idx.evidence);
+          const carried = cellAt(raw, idx.carried_forward_to);
+          const insertedRaw = cellAt(raw, idx.inserted_id);
+          const inserted = realInsertedId(insertedRaw);
+          if (!session_id || isScopedNone(session_id)) failures.push(`${at} session_id is not a session id`);
+          for (const [label, value] of [['opened_at', opened_at], ['last_saved_at', last_saved_at], ['carried_forward_to', carried], ['inserted_id', insertedRaw]]) {
+            const problem = unanswered(value, label);
+            if (problem) failures.push(`${at} ${problem}`);
+          }
+          if (!SESSION_DISPOSITION_SET.has(disposition)) {
+            failures.push(`${at} disposition "${disposition}" is not one of ${SESSION_DISPOSITIONS.join(', ')}`);
+          }
+          if (reason.trim().length < MIN_ACCEPTANCE_REASON) {
+            failures.push(`${at} reason is shorter than ${MIN_ACCEPTANCE_REASON} characters`);
+          }
+          if (isScopedNone(evidence) || evidence.trim().length < MIN_ACCEPTANCE_REASON) {
+            failures.push(`${at} evidence must name a record, revision, inserted id, or dated words (at least ${MIN_ACCEPTANCE_REASON} characters)`);
+          }
+          if (NEEDS_DESTINATION.has(disposition) && isScopedNone(carried)) {
+            failures.push(`${at} ${disposition} must name carried_forward_to`);
+          }
+          if (insertedRaw && !isScopedNone(insertedRaw) && !INSERTED_ID_RE.test(insertedRaw)) {
+            failures.push(`${at} inserted_id is not a 24-hex transcript id or a scoped none`);
+          }
+          if (inserted) {
+            if (disposition !== 'SUPERSEDED_BY_LATER_SESSION') {
+              failures.push(`${at} an inserted_id row uses SUPERSEDED_BY_LATER_SESSION`);
+            }
+            if (!evidence.includes(inserted)) failures.push(`${at} evidence does not name inserted_id ${inserted}`);
+          }
+          const key = dispositionKey(session_id, inserted);
+          if (session_id && seen.has(key)) failures.push(`${at} repeats ${session_id}${inserted ? ` inserted_id ${inserted}` : ''}`);
+          if (session_id) seen.set(key, n + 1);
+        });
+      }
+    }
+  }
+
+  const three = byNum.get('3');
+  if (three && previous && typeof previous === 'string') {
+    const before = dispositionSubjects(previous);
+    const after = new Set(dispositionSubjects(content).map((s) => s.key));
+    const released = new Set();
+    const release = markdownTable(three.body);
+    const idCol = columnIndex(release.header, 'session_id');
+    const insCol = columnIndex(release.header, 'inserted_id');
+    const whyCol = columnIndex(release.header, 'why_it_left', 'why');
+    const evCol = columnIndex(release.header, 'evidence');
+    if (release.rows.length && (idCol < 0 || whyCol < 0 || evCol < 0)) {
+      failures.push('§3 table needs session_id, why it left, and evidence');
+    }
+    release.rows.forEach((raw, n) => {
+      const session_id = cellAt(raw, idCol);
+      const inserted = realInsertedId(cellAt(raw, insCol));
+      const why = cellAt(raw, whyCol);
+      const evidence = cellAt(raw, evCol);
+      if (!session_id) failures.push(`§3 row ${n + 1} session_id is blank`);
+      if (why.trim().length < MIN_ACCEPTANCE_REASON) failures.push(`§3 row ${n + 1} why it left is shorter than ${MIN_ACCEPTANCE_REASON} characters`);
+      if (evidence.trim().length < MIN_ACCEPTANCE_REASON) failures.push(`§3 row ${n + 1} evidence is shorter than ${MIN_ACCEPTANCE_REASON} characters`);
+      const key = dispositionKey(session_id, inserted);
+      if (after.has(key)) failures.push(`§3 releases ${session_id} that §1 still holds`);
+      released.add(key);
+    });
+    const dropped = before.filter((s) => !after.has(s.key) && !released.has(s.key));
+    if (dropped.length) {
+      const names = dropped.map((s) => s.inserted_id ? `${s.session_id}#${s.inserted_id}` : s.session_id);
+      failures.push(
+        `${dropped.length} subject${dropped.length === 1 ? '' : 's'} on the previous revision left this one with no disposition: ${names.sort().join(', ')}`
+      );
+    }
+  }
+  return failures;
 }
 
 /** Data rows of the first markdown table in a section body. */
@@ -526,6 +782,12 @@ export function checkRecord(content, template, { previous = null, doc_id = null 
     }
   }
 
+  // Session disposition. A records/ batch is checked for its own columns.
+  // Board carry-forward above looks for B-### ids and does not see session ids.
+  if (template && template.template_id === SESSION_DISPOSITION_TEMPLATE) {
+    failures.push(...checkDispositionRecord(text, { previous }));
+  }
+
   return { failures, warnings };
 }
 
@@ -651,7 +913,7 @@ export function validateDocument(doc_id, content, previous = null, { dir } = {})
 
 export const MIN_ACCEPTANCE_REASON = 10;
 
-export function buildAcceptance({ reason, by = null, version = null, person_id = null, client_id = null, session_id = null }) {
+export function buildAcceptance({ reason, by = null, version = null, person_id = null, client_id = null, grant_id = null, door = null, session_id = null }) {
   const text = String(reason || '').trim();
   if (text.length < MIN_ACCEPTANCE_REASON) {
     throw new CodedError(
@@ -661,7 +923,7 @@ export function buildAcceptance({ reason, by = null, version = null, person_id =
   }
   return {
     reason: text, accepted_by: by, accepted_at: new Date().toISOString(), covers_version: version,
-    person_id, client_id: client_id || 'stdio', session_id
+    person_id, client_id: client_id || 'stdio', grant_id: grant_id || null, door: door || null, session_id
   };
 }
 
@@ -686,5 +948,7 @@ export default {
   parseSections, parseTemplate, countPlaceholders,
   baseMap, extraMappings, templateFor, isGovernedByShippedCopy,
   loadShipped, clearShippedCache, checkRecord, validateDocument,
-  buildAcceptance, isOpenNonconformance, isAcceptedNonconformance
+  buildAcceptance, isOpenNonconformance, isAcceptedNonconformance,
+  SESSION_DISPOSITION_TEMPLATE, SESSION_DISPOSITION_PREFIX, SESSION_DISPOSITIONS,
+  dispositionResolvesOverdue, parseDispositionRows, checkDispositionRecord
 };

@@ -25,6 +25,7 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { setting } from './env.js';
+import { toolCallAuditDetails } from './grants.js';
 import { redactText } from './redact.js';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -171,11 +172,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
   // Every tool call leaves one audit entry (H6, 2026-09-19). callTool never
   // throws: it returns either a success response or handleError's response.
   const t0 = Date.now();
-  // Parameter NAMES, never values (Alex, 2026-09-27, code audit 1.6): the next
+  // Parameter NAMES, never values (the owner, 2026-09-27, code audit 1.6): the next
   // audit can measure which parameters hosts use; nothing a host sent is stored.
   const paramNames = Object.keys(args || {}).sort();
   const result = await actorStore.run(actor, () => callTool(name, args));
-  logger.audit(AuditOperation.TOOL_CALL, { tool: name, success: result.isError !== true, durationMs: Date.now() - t0, params: paramNames });
+  logger.audit(AuditOperation.TOOL_CALL, toolCallAuditDetails(actor, { tool: name, success: result.isError !== true, durationMs: Date.now() - t0, params: paramNames }));
   return result;
 });
 
@@ -260,6 +261,21 @@ async function main() {
 
   try { await seatGems({ log: logger }); }
   catch (e) { logger.error('GEM socket failed closed', { error: e && e.message }); }
+
+  if (initializedLayers.length && dbManager.db) {
+    try {
+      const { runStartupChecks } = await import('./owl.js');
+      await runStartupChecks(dbManager.db, { log: (line) => logger.error(line) });
+    } catch {
+      logger.error('[emet] OWL RETIREMENT CHECK FAILED account=user-EMET--owl active=unknown rung=R6 pointer=/owner/chooser');
+    }
+  }
+  try {
+    const { proofStartupLine } = await import('./proof-run.js');
+    logger.error(proofStartupLine());
+  } catch {
+    logger.error('[emet] proof-run status=not_run rung=R7');
+  }
 
   import('./subkeys.js').then((m) => m.startFlagOffSweep((msg) => logger.error(msg))).catch((e) => logger.error('sub-key flag-off sweep failed', { error: e && e.message }));
   import('./error-log.js').then((m) => m.startErrorLogRotation()).catch(() => {});

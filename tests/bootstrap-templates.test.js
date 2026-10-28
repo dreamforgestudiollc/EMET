@@ -30,6 +30,7 @@ test('map sends character aliases to templates/CHARACTER.md', () => {
 });
 test('templates use assistant/user, not an install name', () => {
   const id = fs.readFileSync(path.join(ROOT, 'templates', 'IDENTITY.md'), 'utf8');
+  assert.doesNotMatch(id, /BOUND/);
   assert.deepStrictEqual(privateWordsIn(id), []);
 });
 

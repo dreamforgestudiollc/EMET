@@ -121,6 +121,10 @@ const RULES = [
   // JWT
   { name: 'jwt', pre: (t) => t.includes('eyJ'),
     re: /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, sub: () => MASK },
+  // R4 chooser link. The raw token is the capability. Mask it if a log line
+  // ever contains the URL. The path stays so the line still says which page.
+  { name: 'chooser-link', pre: (t) => t.includes('/owner/chooser?d='),
+    re: /(\/owner\/chooser\?d=)[A-Za-z0-9_-]{16,}/g, sub: (_m, prefix) => `${prefix}${MASK}` },
   // Delegated client sub-keys (EMET-0001). The full key, the session handle
   // and the claim nonce. A bare key_id (32 hex, no prefix) is an index and
   // stays visible. Lengths are exact so a shorter hex id is not masked.

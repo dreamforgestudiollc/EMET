@@ -81,7 +81,7 @@ const ANNOTATION_TABLE = {
 
   // --- Additive writes. These add; they do not remove or replace. -----------
   // Was READ until 2026-09-27: "it does not write anything itself". Since the
-  // blocked-close cap  it records each blocked attempt in
+  // blocked-close cap (thatcommit) it records each blocked attempt in
   // close_attempts, so a read-only hint would be untrue (code audit, 1.3).
   emet_session_close:     { title: 'Check session is saved', ...ADD },
   emet_client_approve:    { title: 'Approve a new client', ...REPLACE },
@@ -101,6 +101,10 @@ const ANNOTATION_TABLE = {
   // --- Replacing writes. Prior versions are archived, but the visible
   //     content of an existing document is replaced. -------------------------
   write_doc:              { title: 'Write a document', ...REPLACE },
+  write_doc_begin:        { title: 'Begin a staged document write', ...ADD },
+  write_doc_append:       { title: 'Append a staged document chunk', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  write_doc_commit:       { title: 'Commit a staged document write', readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+  write_doc_abort:        { title: 'Abort a staged document write', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
   patch_doc:              { title: 'Edit a document', ...REPLACE },
   emet_setup_complete:    { title: 'Complete setup', ...REPLACE },
 
@@ -123,7 +127,7 @@ const ANNOTATION_TABLE = {
   //     probe document and removes it again, so it is not declared read-only -
   //     a health check that only reads cannot detect a broken write path.
   //     Replaced emet_setup_status, get_status and emet_verify_connection on
-  //     2026-09-27 (Alex: consolidate overlapping tools). -----------------------
+  //     2026-09-27 (the owner: consolidate overlapping tools). -----------------------
   emet_status:            { title: 'Store status and write-path probe', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
 };
 

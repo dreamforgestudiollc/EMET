@@ -84,7 +84,7 @@ const RECEIPT_ORDER = [
   'signed', 'signature_stored',
   'redacted',
   'provenance', 'provenance_stamped', 'provenance_missing',
-  'source', 'source_defaulted', 'source_unregistered', 'source_missing',
+  'source', 'grant_id', 'source_defaulted', 'source_unregistered', 'source_missing',
   'assertion_origin', 'assertion_origin_missing',
   'importance', 'importance_defaulted',
   'routing', 'relocated_to_custom', 'warnings'

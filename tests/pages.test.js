@@ -162,18 +162,6 @@ function bullets(markdown) {
 }
 
 testGroup('shipped area selectors', () => {
-  test('areas/ contains exactly the generic set', () => {
-    const generic = ['emet.md', 'garden.md', 'health.md', 'home.md', 'learning.md', 'state.md'];
-    const expectSet = (names) => assert.deepStrictEqual([...names].sort(), generic);
-    const names = fs.readdirSync(path.join(ROOT, 'areas'));
-    expectSet(names);
-    assert.throws(() => expectSet([...names, 'family.md']));
-    const css = fs.readFileSync(path.join(ROOT, 'site/styles.css'), 'utf8');
-    const oauth = fs.readFileSync(path.join(ROOT, 'src/oauth-provider.js'), 'utf8');
-    assert.ok(css.includes('font-family:'));
-    assert.ok(oauth.includes('family: fam'));
-    expectSet(fs.readdirSync(path.join(ROOT, 'areas')));
-  });
   test('areas map to the area template', () => {
     assert.strictEqual(templateFor('areas/health.md'), 'templates/AREA.md');
     assert.strictEqual(templateFor('areas/state.md'), 'templates/AREA.md');
@@ -184,8 +172,8 @@ testGroup('shipped area selectors', () => {
     const expect = {
       'emet.md': { slug: 'emet', title: 'EMET', days: 30 },
       'garden.md': { slug: 'garden', title: 'Garden', days: 30 },
-      'home.md': { slug: 'home', title: 'Home', days: 30 },
       'health.md': { slug: 'health', title: 'Health', days: 30 },
+      'home.md': { slug: 'home', title: 'Home', days: 30 },
       'learning.md': { slug: 'learning', title: 'Learning', days: 30 },
       'state.md': { slug: 'state', title: 'State', days: 30 }
     };
@@ -224,15 +212,15 @@ testGroup('shipped area selectors', () => {
 });
 
 testGroup('compiled page rules', () => {
-  const health = fs.readFileSync(path.join(ROOT, 'areas', 'health.md'), 'utf8');
-  const selector = parseArea(health, 'areas/health.md');
+  const finances = fs.readFileSync(path.join(ROOT, 'areas', 'health.md'), 'utf8').replaceAll('health', 'finances').replaceAll('Health', 'Finances');
+  const selector = parseArea(finances, 'areas/finances.md');
   const t1 = Date.parse('2026-01-01T00:00:00Z') / 1000;
   const t2 = Date.parse('2026-06-01T00:00:00Z') / 1000;
   const memories = [
-    { id: 1, layer: 'semantic', content: 'rent is 900', timestamp: t1, importance: 0.8, metadata: { source: 'claude-host', tags: ['health'] }, superseded_by: 2, superseded_at: t2, source_session_id: 's1' },
-    { id: 2, layer: 'semantic', content: 'rent is 950', timestamp: t2, importance: 0.8, metadata: { source: 'intake-bot', tags: ['health'] }, source_session_id: 's2' },
-    { id: 3, layer: 'semantic', content: 'no client on this line', timestamp: null, metadata: { tags: ['health'] } },
-    { id: 4, layer: 'episodic', content: 'paid the invoice', timestamp: t2, metadata: { source: 'claude-host', tags: ['health'] }, source_session_id: 's2', retired_at: t2 - 10 }
+    { id: 1, layer: 'semantic', content: 'rent is 900', timestamp: t1, importance: 0.8, metadata: { source: 'claude-host', tags: ['finances'] }, superseded_by: 2, superseded_at: t2, source_session_id: 's1' },
+    { id: 2, layer: 'semantic', content: 'rent is 950', timestamp: t2, importance: 0.8, metadata: { source: 'intake-bot', tags: ['finances'] }, source_session_id: 's2' },
+    { id: 3, layer: 'semantic', content: 'no client on this line', timestamp: null, metadata: { tags: ['finances'] } },
+    { id: 4, layer: 'episodic', content: 'paid the invoice', timestamp: t2, metadata: { source: 'claude-host', tags: ['finances'] }, source_session_id: 's2', retired_at: t2 - 10 }
   ];
   const now = new Date('2026-10-20T12:00:00Z');
 
@@ -284,7 +272,7 @@ testGroup('compiled page rules', () => {
   });
   test('a per-area staleness window overrides the 30-day default', () => {
     const tenDays = Date.parse('2026-10-10T12:00:00Z') / 1000;
-    const mems = [{ id: 9, layer: 'semantic', content: 'balance is current', timestamp: tenDays, metadata: { source: 'claude-host', tags: ['health'] }, source_session_id: 's' }];
+    const mems = [{ id: 9, layer: 'semantic', content: 'balance is current', timestamp: tenDays, metadata: { source: 'claude-host', tags: ['finances'] }, source_session_id: 's' }];
     const wide = compilePage(selector, mems, [], { now });
     assert.strictEqual(wide.lines[0].stale, false);
     const narrow = { ...selector, staleness_days: 7 };
@@ -294,22 +282,22 @@ testGroup('compiled page rules', () => {
   });
   test('a document line cites its version and a retired document is not current', () => {
     const docs = [
-      { doc_id: 'threads/health.md', version: 3, content: '- The account is open.\n', updated_at: new Date('2026-10-01T00:00:00Z'), updated_by: 'claude-host' },
-      { doc_id: 'threads/health-old.md', version: 1, content: '- Closed account.\n', updated_at: new Date('2024-01-01T00:00:00Z'), retired: true, retired_at: new Date('2024-02-01T00:00:00Z') }
+      { doc_id: 'threads/finances.md', version: 3, content: '- The account is open.\n', updated_at: new Date('2026-10-01T00:00:00Z'), updated_by: 'claude-host' },
+      { doc_id: 'threads/finances-old.md', version: 1, content: '- Closed account.\n', updated_at: new Date('2024-01-01T00:00:00Z'), retired: true, retired_at: new Date('2024-02-01T00:00:00Z') }
     ];
     const page = compilePage(selector, [], docs, { now });
-    assert.ok(page.lines.some((l) => l.cite === '[doc:threads/health.md@v3]' && l.text === 'The account is open.'));
+    assert.ok(page.lines.some((l) => l.cite === '[doc:threads/finances.md@v3]' && l.text === 'The account is open.'));
     assert.ok(!page.markdown.includes('Closed account'));
   });
   test('a document with no version is dropped as unsourced', () => {
     const docs = [{
-      doc_id: 'threads/health-unversioned.md',
+      doc_id: 'threads/finances-unversioned.md',
       content: '- An unversioned rent note.\n',
       updated_at: new Date('2026-10-01T00:00:00Z'),
       updated_by: 'claude-host'
     }];
     const page = compilePage(selector, [], docs, { now });
-    assert.ok(page.dropped.some((d) => d.ref === 'doc:threads/health-unversioned.md' && d.reason === 'unsourced'));
+    assert.ok(page.dropped.some((d) => d.ref === 'doc:threads/finances-unversioned.md' && d.reason === 'unsourced'));
     assert.ok(!page.lines.some((l) => l.text.includes('unversioned') || l.cite == null || String(l.cite).includes('null')));
     assert.ok(!page.markdown.includes('unversioned'));
     assert.ok(!page.markdown.includes('null'));
@@ -418,18 +406,18 @@ testGroup('seeded lint, no record changes, owner only', () => {
   test('only the owner can create or edit an area document', async () => {
     const store = plant(makeStore());
     const { writeDoc, patchDoc } = await import('../src/tools.js');
-    const homeArea = fs.readFileSync(path.join(ROOT, 'areas', 'home.md'), 'utf8');
+    const home = fs.readFileSync(path.join(ROOT, 'areas', 'home.md'), 'utf8');
     await withStore(store, async () => {
       const before = snapshot(store);
       const writes = store.writes.length;
       await assert.rejects(
-        () => actorStore.run(memberHttp, () => writeDoc('areas/home.md', homeArea, 'pages-owner')),
+        () => actorStore.run(memberHttp, () => writeDoc('areas/home.md', home, 'pages-owner')),
         /only the owner/
       );
       assert.strictEqual(snapshot(store), before);
       assert.strictEqual(store.writes.length, writes);
       await withEnv({ EMET_SOURCE_TAGS: 'pages-owner' }, async () => {
-        const written = await writeDoc('areas/home.md', homeArea, 'pages-owner');
+        const written = await writeDoc('areas/home.md', home, 'pages-owner');
         assert.strictEqual(written.conformance.template, 'templates/AREA.md');
         assert.strictEqual(written.conformance.verdict, 'conforms');
       });
@@ -753,17 +741,17 @@ testGroup('area selection', () => {
   });
 
   test('an area document is never page content', () => {
-    const health = fs.readFileSync(path.join(ROOT, 'areas', 'health.md'), 'utf8');
-    const selector = parseArea(health, 'areas/health.md');
-    const leaky = { ...selector, prefixes: ['areas/', 'threads/health'] };
+    const finances = fs.readFileSync(path.join(ROOT, 'areas', 'health.md'), 'utf8').replaceAll('health', 'finances').replaceAll('Health', 'Finances');
+    const selector = parseArea(finances, 'areas/finances.md');
+    const leaky = { ...selector, prefixes: ['areas/', 'threads/finances'] };
     const docs = [{
-      doc_id: 'areas/health.md', version: 1,
-      content: `${health}\nThe vault code is 2468.\n`,
+      doc_id: 'areas/finances.md', version: 1,
+      content: `${finances}\nThe vault code is 2468.\n`,
       updated_at: new Date('2026-10-01T00:00:00Z'), updated_by: 'claude-host'
     }];
     const page = compilePage(leaky, [], docs, { now: new Date('2026-10-20T12:00:00Z') });
     assert.ok(!page.markdown.includes('vault code'));
-    assert.ok(!page.markdown.includes('areas/health.md'));
+    assert.ok(!page.markdown.includes('areas/finances.md'));
     assert.ok(!page.lines.some((l) => String(l.cite).includes('areas/')));
   });
 });

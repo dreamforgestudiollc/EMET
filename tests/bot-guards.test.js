@@ -1,6 +1,6 @@
 /**
  * EMET - main-record and bot-directory guards (2026-10-01; the owner's 4:17 PM
- * approval to make the bot tags fully functional; the reviewer's review of
+ * approval to make the bot tags fully functional; Reviewer's review of
  * PR 3, items (1) and (3b)). Both live in refuseBotMainRecord, so they cover
  * every door that already calls it: write_doc, patch_doc, retire_doc,
  * rename_doc (from and onto) and accept_nonconformance.
@@ -12,7 +12,7 @@
  *   2. Each bot in its own directory: a bot tag writes under bots/ only inside
  *      bots/<its own tag>/. Hosts stay allowed. With EMET_SOURCE_TAGS set,
  *      an unregistered, typo or missing tag is refused anywhere under bots/
- *      (2026-10-02, the reviewer's PR 5 review; the owner's approval, procedural ref 405).
+ *      (2026-10-02, Reviewer's PR 5 review; the owner's approval, procedural ref 405).
  *   3. Refusal text: a single-argument ValidationError no longer renders
  *      "Validation failed for '<msg>': undefined".
  * Dispatch-level, in-memory store (as bot-session-close.test.js).
@@ -78,7 +78,7 @@ const C1_TEXT = (tag) => new RegExp(`is a main record and ${tag} is a bot tag - 
 const unchanged = (db) => { assert.strictEqual(versionOf(db, 'STATE.md'), 7); assert.strictEqual(versionOf(db, 'HANDOFF.md'), 3); };
 
 testGroup('1. registered hosts only on the main records (EMET_SOURCE_TAGS set)', () => {
-  test('the hub host patches STATE.md and supersedes HANDOFF.md; the hub bot writes STATE.md (no lock-out)', () => withEnv(REG, async () => {
+  test('the hub host patches STATE.md and supersedes HANDOFF.md; Master Hub writes STATE.md (no lock-out)', () => withEnv(REG, async () => {
     const db = seeded();
     const p = await go(db, 'patch_doc', { doc_id: 'STATE.md', old_str: 'active: hub work', new_str: 'active: hub work, patched', source: HOST });
     assert.ok(!p.isError, text(p).slice(0, 300));
@@ -93,8 +93,8 @@ testGroup('1. registered hosts only on the main records (EMET_SOURCE_TAGS set)',
   test('a typo or unregistered tag is refused on STATE.md and HANDOFF.md; nothing is written', () => withEnv(REG, async () => {
     const db = seeded();
     for (const [tool, args] of [
-      ['write_doc', { doc_id: 'STATE.md', content: '# Board\nx\n', source: 'intkae-bot' }],
-      ['patch_doc', { doc_id: 'STATE.md', old_str: 'active', new_str: 'idle', source: 'intkae-bot' }],
+      ['write_doc', { doc_id: 'STATE.md', content: '# Board\nx\n', source: 'hubbot-mloe' }],
+      ['patch_doc', { doc_id: 'STATE.md', old_str: 'active', new_str: 'idle', source: 'hubbot-mloe' }],
       ['write_doc', { doc_id: 'HANDOFF.md', content: '# H\nx\n', supersedes: 3, source: 'tablet-cowork' }]
     ]) {
       const r = await go(db, tool, args);
@@ -113,7 +113,7 @@ testGroup('1. registered hosts only on the main records (EMET_SOURCE_TAGS set)',
       const r = await go(db, tool, args);
       assert.ok(r.isError && NOT_REGISTERED.test(text(r)), `${tool}: ${text(r).slice(0, 300)}`);
     }
-    // Renamed from a bot folder onto STATE.md: the bots/ registry refusal answers first (the second reader, fix (a)); both are correct.
+    // Renamed from a bot folder onto STATE.md: the bots/ registry refusal answers first (Tester, fix (a)); both are correct.
     const r = await go(db, 'rename_doc', { old_id: `bots/${INTAKE}/notes.md`, new_id: 'STATE.md', source: 'stranger' });
     assert.ok(r.isError && BOTS_NOT_REGISTERED.test(text(r)), `rename_doc from bots/: ${text(r).slice(0, 300)}`);
     unchanged(db);
@@ -226,17 +226,17 @@ testGroup('2. each bot in its own directory (bots/<tag>/ only)', () => {
   }));
   test('hosts stay allowed anywhere under bots/ (the hub tidies a bot\'s records)', () => withEnv(REG, async () => {
     const db = seeded();
-    const r = await go(db, 'write_doc', { doc_id: `bots/${TESTER}/notes.md`, content: '# hub note for the tester\n', source: HUB });
+    const r = await go(db, 'write_doc', { doc_id: `bots/${TESTER}/notes.md`, content: '# hub note for Tester\n', source: HUB });
     assert.ok(!r.isError, text(r).slice(0, 300));
     const p = await go(db, 'write_doc', { doc_id: `bots/${TESTER}/HANDOFF.md`, content: '# Tester handoff\nv2 by host\n', supersedes: 1, source: HOST });
     assert.ok(!p.isError, text(p).slice(0, 300));
   }));
-  test('with a registry set, a typo or unregistered tag is refused anywhere under bots/ (review gap on PR 5)', () => withEnv(REG, async () => {
+  test('with a registry set, a typo or unregistered tag is refused anywhere under bots/ (Reviewer PR 5 gap)', () => withEnv(REG, async () => {
     const db = seeded();
     for (const [tool, args] of [
-      ['write_doc', { doc_id: `bots/${TESTER}/HANDOFF.md`, content: '# Tester handoff\nv2 by a typo\n', supersedes: 1, source: 'bot-typo' }],
-      ['write_doc', { doc_id: 'bots/ROSTER.md', content: '# Roster\n', source: 'bot-typo' }],
-      ['patch_doc', { doc_id: `bots/${INTAKE}/notes.md`, old_str: 'Intake notes', new_str: 'Intake notes x', source: 'intake-bo' }],
+      ['write_doc', { doc_id: `bots/${TESTER}/HANDOFF.md`, content: '# Tester handoff\nv2 by a typo\n', supersedes: 1, source: 'hubbot-typo' }],
+      ['write_doc', { doc_id: 'bots/ROSTER.md', content: '# Roster\n', source: 'hubbot-typo' }],
+      ['patch_doc', { doc_id: `bots/${INTAKE}/notes.md`, old_str: 'Intake notes', new_str: 'Intake notes x', source: 'hubbot-mol' }],
       ['retire_doc', { doc_id: `bots/${INTAKE}/notes.md`, reason: 'tidy', source: 'stranger' }],
       ['rename_doc', { old_id: `bots/${INTAKE}/notes.md`, new_id: 'threads/moved.md', source: 'stranger' }],
       ['rename_doc', { old_id: 'threads/notes.md', new_id: `bots/${TESTER}/notes.md`, source: 'stranger' }],
@@ -271,13 +271,13 @@ testGroup('2. each bot in its own directory (bots/<tag>/ only)', () => {
     const other = await go(db, 'write_doc', { doc_id: `bots/${TESTER}/notes.md`, content: '# x\n', source: INTAKE });
     assert.ok(other.isError && /own bots/.test(text(other)), text(other).slice(0, 300));
   }));
-  test('registry entries are trimmed: a spaced EMET_SOURCE_TAGS still admits its hosts (review nit M5d)', () => withEnv({ EMET_SOURCE_TAGS: ` cli , ${HOST} ,  ${HUB} ` }, async () => {
+  test('registry entries are trimmed: a spaced EMET_SOURCE_TAGS still admits its hosts (Tester nit M5d)', () => withEnv({ EMET_SOURCE_TAGS: ` cli , ${HOST} ,  ${HUB} ` }, async () => {
     const db = seeded();
     const p = await go(db, 'patch_doc', { doc_id: 'STATE.md', old_str: 'active: hub work', new_str: 'active: hub work, spaced', source: HOST });
     assert.ok(!p.isError, text(p).slice(0, 300));
     const roster = await go(db, 'write_doc', { doc_id: 'bots/ROSTER.md', content: '# Roster\n', source: HUB });
     assert.ok(!roster.isError, text(roster).slice(0, 300));
-    const typo = await go(db, 'write_doc', { doc_id: 'bots/ROSTER.md', content: '# Roster\nv2\n', source: 'bot-typo' });
+    const typo = await go(db, 'write_doc', { doc_id: 'bots/ROSTER.md', content: '# Roster\nv2\n', source: 'hubbot-typo' });
     assert.ok(typo.isError && BOTS_NOT_REGISTERED.test(text(typo)), text(typo).slice(0, 300));
   }));
   test('refusal text carries no stray "undefined" (single-argument ValidationError)', () => withEnv(REG, async () => {
@@ -285,7 +285,7 @@ testGroup('2. each bot in its own directory (bots/<tag>/ only)', () => {
     for (const [tool, args] of [
       ['write_doc', { doc_id: 'STATE.md', content: '# Board\nx\n', source: 'stranger' }],
       ['write_doc', { doc_id: `bots/${TESTER}/HANDOFF.md`, content: '# x\n', supersedes: 1, source: INTAKE }],
-      ['write_doc', { doc_id: 'bots/ROSTER.md', content: '# x\n', source: 'bot-typo' }]
+      ['write_doc', { doc_id: 'bots/ROSTER.md', content: '# x\n', source: 'hubbot-typo' }]
     ]) {
       const r = await go(db, tool, args);
       assert.ok(r.isError, `${tool} should be refused`);
@@ -334,7 +334,7 @@ testGroup('2. each bot in its own directory (bots/<tag>/ only)', () => {
   }));
   test('with no registry set, nothing changes for non-bot tags under bots/ (both guards are opt-in)', () => withEnv({ EMET_SOURCE_TAGS: undefined }, async () => {
     const db = seeded();
-    const typo = await go(db, 'write_doc', { doc_id: 'bots/ROSTER.md', content: '# Roster\n', source: 'bot-typo' });
+    const typo = await go(db, 'write_doc', { doc_id: 'bots/ROSTER.md', content: '# Roster\n', source: 'hubbot-typo' });
     assert.ok(!typo.isError, text(typo).slice(0, 300));
     const sched = await go(db, 'patch_doc', { doc_id: `bots/${INTAKE}/notes.md`, old_str: 'Intake notes', new_str: 'Intake notes x', source: 'cloud-scheduled-intake' });
     assert.ok(!sched.isError, text(sched).slice(0, 300));
@@ -362,7 +362,7 @@ testGroup('2. each bot in its own directory (bots/<tag>/ only)', () => {
   }));
 });
 
-testGroup('look-alike doc ids are refused before any guard (the second reader recheck d1-d5)', () => {
+testGroup('look-alike doc ids are refused before any guard (Tester recheck d1-d5)', () => {
   const LOOKALIKE = /doc_id "[^"]*" (starts with "\/"|starts with a character that normalises to "\/"|has a "\." or "\.\." segment|has a segment that normalises to "\." or "\.\."|starts with "[^"]+" - the bot records folder is "bots\/", lower case|starts with "[^"]+", which folds to "bots" - the bot records folder is the ASCII "bots", lower case|has a control or invisible formatting character|has a backslash|has leading or trailing whitespace on the id or on a segment|is a case or Unicode variant of a main record id)\. Doc ids are not paths/;
   test('d1-d5 are refused on write_doc and nothing is written', () => withEnv(REG, async () => {
     const db = seeded();
@@ -370,9 +370,9 @@ testGroup('look-alike doc ids are refused before any guard (the second reader re
     for (const [id, source] of [
       [`bots/${TESTER}/../${INTAKE}/HANDOFF.md`, TESTER],
       [`bots/./${INTAKE}/HANDOFF2.md`, TESTER],
-      [`Bots/${INTAKE}/HANDOFF.md`, 'bot-typo'],
-      [`/bots/${INTAKE}/HANDOFF.md`, 'bot-typo'],
-      ['./HANDOFF.md', 'bot-typo'],
+      [`Bots/${INTAKE}/HANDOFF.md`, 'hubbot-typo'],
+      [`/bots/${INTAKE}/HANDOFF.md`, 'hubbot-typo'],
+      ['./HANDOFF.md', 'hubbot-typo'],
       [`BOTS/${INTAKE}/HANDOFF.md`, HUB],
       ['../STATE.md', HOST],
       ['threads/..', HOST]
@@ -386,7 +386,7 @@ testGroup('look-alike doc ids are refused before any guard (the second reader re
     const db = seeded();
     for (const [tool, args] of [
       ['patch_doc', { doc_id: `bots/${INTAKE}/../${TESTER}/HANDOFF.md`, old_str: 'v1', new_str: 'v2', source: INTAKE }],
-      ['retire_doc', { doc_id: `Bots/${TESTER}/HANDOFF.md`, reason: 'x', source: 'bot-typo' }],
+      ['retire_doc', { doc_id: `Bots/${TESTER}/HANDOFF.md`, reason: 'x', source: 'hubbot-typo' }],
       ['rename_doc', { old_id: `bots/${INTAKE}/notes.md`, new_id: `bots/${INTAKE}/../${TESTER}/notes.md`, source: INTAKE }],
       ['rename_doc', { old_id: `/bots/${INTAKE}/notes.md`, new_id: 'threads/x.md', source: INTAKE }],
       ['accept_nonconformance', { doc_id: './STATE.md', reason: 'x', source: HOST }]
@@ -406,7 +406,7 @@ testGroup('look-alike doc ids are refused before any guard (the second reader re
   }));
 });
 
-testGroup('doc-id hardening (the reviewer\'s scope; the second reader\'s b-cases)', () => {
+testGroup('doc-id hardening (Reviewer\'s scope; Tester\'s b-cases)', () => {
   const LOOK = /\. Doc ids are not paths and are not resolved/;
   const refusedOnWrite = async (db, id, source, why) => {
     const r = await go(db, 'write_doc', { doc_id: id, content: '# x\n', source });
@@ -446,7 +446,7 @@ testGroup('doc-id hardening (the reviewer\'s scope; the second reader\'s b-cases
   test('b5: a first segment that folds to "bots" must be the ASCII "bots" (full-width, mixed case)', () => withEnv(REG, async () => {
     const db = seeded();
     for (const id of [`\uff42\uff4f\uff54\uff53/${INTAKE}/HANDOFF.md`, `\uff22OTS/${INTAKE}/HANDOFF.md`, `bOts/${INTAKE}/HANDOFF.md`]) {
-      await refusedOnWrite(db, id, 'bot-typo', /bot records folder is/);
+      await refusedOnWrite(db, id, 'hubbot-typo', /bot records folder is/);
     }
   }));
   test('b6: case, Unicode and padding variants of the main-record ids are refused even for the registered hub', () => withEnv(REG, async () => {
@@ -496,7 +496,7 @@ testGroup('doc-id hardening (the reviewer\'s scope; the second reader\'s b-cases
   }));
   test('cleanup is refused to a bot, an unregistered or missing tag, and with no registry; write and patch never get it', () => withEnv(REG, async () => {
     const db = makeStore(); seedBad(db);
-    for (const source of [INTAKE, 'bot-typo', undefined]) {
+    for (const source of [INTAKE, 'hubbot-typo', undefined]) {
       const r = await go(db, 'retire_doc', { doc_id: 'threads/old\u200b.md', reason: 'x', ...(source ? { source } : {}) });
       assert.ok(r.isError && LOOK.test(text(r)), `${source}: ${text(r).slice(0, 300)}`);
       const n = await go(db, 'rename_doc', { old_id: 'threads/old\u200b.md', new_id: 'threads/z.md', ...(source ? { source } : {}) });

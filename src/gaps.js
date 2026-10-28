@@ -265,7 +265,7 @@ export async function findGaps({ layer = null, since = null, limit = 50 } = {}) 
   const push = (name, ref) => { const c = classes[name]; c.count++; if (c.ids.length < cap) c.ids.push(ref); };
 
   // Declared outside the try: the return below reads it (live-caught 2026-09-29,
-  // "chain is not defined", deploy commit-9968716c).
+  // "chain is not defined", deploy thatcommit).
   const chain = {};
   let graphLab = null;
   const { client, db } = await connect();

@@ -250,12 +250,21 @@ export function registeredSourceTags() {
   return env.length ? [...new Set([...env, ...approvedTags()])] : env;
 }
 
-/** Attribution v2: the caller's real tag, not the server-wide default (Alex 2026-10-12 (c)). */
+/** Attribution v2: the caller's real tag, not the server-wide default (Alex 2026-10-12 (c)).
+ *  R2 adds the credential: grant_id (the token family) and door. Stdio has no grant. */
 export function callerAttribution() {
   const d = declaredAttribution();
-  if (!d) return { source_tag: setting('SOURCE_TAG') || null };
+  if (!d) return { source_tag: setting('SOURCE_TAG') || null, grant_id: null, door: 'stdio' };
   const tag = d.effective || d.login || null;
-  return { source_tag: tag, source_basis: d.basis || (tag ? 'login' : 'none'), ...(d.login && d.login !== tag ? { source_login: d.login } : {}), approval_state: d.approval || (d.basis === 'login' ? 'login' : 'unknown'), ...((() => { const v = rememberedView({ rememberedTags: d.rememberedTags, declaredTag: d.declared || d.effective }); return v ? { source_remembered: v } : {}; })()) };
+  return {
+    source_tag: tag,
+    grant_id: d.grantId || null,
+    door: d.door || null,
+    source_basis: d.basis || (tag ? 'login' : 'none'),
+    ...(d.login && d.login !== tag ? { source_login: d.login } : {}),
+    approval_state: d.approval || (d.basis === 'login' ? 'login' : 'unknown'),
+    ...((() => { const v = rememberedView({ rememberedTags: d.rememberedTags, declaredTag: d.declared || d.effective }); return v ? { source_remembered: v } : {}; })())
+  };
 }
 
 export function hostSetupInstructions() {
@@ -618,7 +627,7 @@ export function upsertEnvAssignments(text, assignments) {
  * owner page and the store already ship. This only writes EMET_SUBKEYS=1, a
  * pepper, and EMET_SUBKEY_PEPPER_VERSION=1. The pepper is not returned. An
  * existing strong pepper is kept, not rotated. This does not set process.env:
- * the flag takes effect on restart, with the tools and /owner/approvals together.
+ * the flag takes effect on restart, with the tools and /owner/chooser together.
  * A hosted process, where real env vars are the config source, is refused
  * instead of writing a pepper into the container.
  */
@@ -653,7 +662,7 @@ export function enableSubkeysAtFirstUse({ envFile = ENV_FILE, env = process.env,
     try { fs.unlinkSync(tmp); } catch { /* the temp file may not exist */ }
     throw new ValidationError('more_than_one_bot', 'Could not write .env. Sub-keys were not turned on.', { code: 'EMET-CFG-006' });
   }
-  // The flag stays off in this process. Tools and /owner/approvals appear together on restart.
+  // The flag stays off in this process. Tools and /owner/chooser appear together on restart.
   // Register the pepper so a later write that contains it is masked.
   registerSecretsFromEnv({ EMET_SUBKEY_PEPPER: pepper });
   return {
@@ -672,7 +681,7 @@ export function subkeySetupNote(multi, subkeys) {
     return 'The store is set up. Sub-keys were not turned on because .env could not be written. See docs/SUBKEYS.md.';
   }
   if (multi && subkeys && subkeys.enabled) {
-    return 'Sub-keys were written to .env. The pepper is not in this result. Restart (or redeploy) the server once so the tools and /owner/approvals appear together. Each bot\'s tag must be listed in EMET_SOURCE_TAGS. See docs/SUBKEYS.md.';
+    return 'Sub-keys were written to .env. The pepper is not in this result. Restart (or redeploy) the server once so the tools and /owner/chooser appear together. Each bot\'s tag must be listed in EMET_SOURCE_TAGS. See docs/SUBKEYS.md.';
   }
   if (setting('SUBKEYS') === '1') return 'Sub-keys were already on. This answer does not turn them off.';
   return 'Sub-keys stay off. See docs/SUBKEYS.md.';
@@ -1121,9 +1130,9 @@ async function buildStartup(options = {}) {
       lessonsPending = { assessed: false, error: e && e.message ? e.message : String(e), pending: [] };
     }
 
-    // Stage 1 of the ref 358 startup amendment (2026-10-02; the owner's decision 2,
+    // Stage 1 of the ref 358 startup amendment (2026-10-02; Alex's decision 2,
     // procedural ref 407: "emet_initialize is the startup doorway every bot
-    // calls; only first-time setup stays the owner's"). Initialize no longer creates
+    // calls; only first-time setup stays Alex's"). Initialize no longer creates
     // the owner person: that write moved to setupComplete, the owner's
     // first-time setup, so initialize is read-only in every branch and matches
     // its annotation (annotations.js, READ) for every caller. A store with no
@@ -1342,15 +1351,15 @@ function renderUserDoc(a) {
 
 export async function setupComplete(answers = {}, logger = null, options = {}) {
   // First-time setup is the owner's (decision 2, procedural ref 407). Stage 1
-  // guards (2026-10-02, the reviewer's stage 1 admission, conditions S1-S2):
+  // guards (2026-10-02, Reviewer's stage 1 admission, conditions S1-S2):
   //  - refused under a configured bot tag. The tag is self-declared and
   //    emet_initialize takes no source until stage 2, so this is inert until a
   //    caller declares a bot tag that Alex has configured (stage 3);
-  //  - refused on a store that is already set up unless `reissue: true` (the owner's
+  //  - refused on a store that is already set up unless `reissue: true` (Alex's
   //    answer 5): a re-run replaces the user's identity documents with new
   //    versions, so it needs the owner's explicit word. Nothing is written
   //    when either refusal fires.
-  // S1-1 (the reviewer's re-check of commit-1a215d7): EACH declared value is checked, not
+  // S1-1 (Reviewer's re-check of thatcommit): EACH declared value is checked, not
   // the first non-empty one. The write below takes answers.source_tag first, so
   // checking only `source` let `source: <host>` + `answers.source_tag: <bot>`
   // write the identity documents as the bot. The tag that would be written
@@ -1417,7 +1426,7 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
     const [hasIdentity, hasUser] = await Promise.all([
       docsCol.findOne({ doc_id: IDENTITY_DOC }), docsCol.findOne({ doc_id: USER_DOC })
     ]);
-    // Set up = BOTH identity documents exist (the second reader's S-c; the reviewer: test it,
+    // Set up = BOTH identity documents exist (Tester's S-c; Reviewer: test it,
     // don't loosen it). A half-set-up store (one of the two) is an interrupted
     // first setup, and completing it needs no reissue.
     if (hasIdentity && hasUser && options.reissue !== true) {

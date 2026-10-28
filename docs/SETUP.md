@@ -248,6 +248,16 @@ it should come back `ready` with your existing identity, not `setup_required`. I
 `setup_required`, one of the four variables above is wrong; **do not run the setup interview,
 which would write a new identity over your existing one.**
 
+## Upgrading to 0.3.2
+
+0.3.2 adds door grants, the owner chooser, household rotation, and writer approval. An existing store keeps its records. After you deploy:
+
+- Reconnect each host so it sees `write_doc_begin`, `write_doc_append`, `write_doc_commit`, and `write_doc_abort`.
+- The owner approves a new writer on `/owner/chooser`. An AI does not grant a writer.
+- When `EMET_SUBKEYS=1`, a bot that shares the owner login uses its own key. `emet_session_open` returns `session_handle` once, and every later write in that session passes `session_handle`.
+
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged. The 0.3.0 error-log role note below is unchanged.
+
 ## Upgrading to 0.3.0
 
 0.3.0 rotates `error_log`. The log is capped at 10,000 entries or 90 days, and the daily summaries are kept in `error_log_summary`. Rotation deletes from `error_log`, so an existing `emetRecordKeeper`
@@ -346,10 +356,6 @@ That last one is the real test. Write from your laptop, read from your phone. If
 the thing is doing its job.
 
 ---
-
-## Error reports
-
-`emet_error_report` is owner-only and read-only. It returns the report and a draft. EMET does not send mail. The draft address is `EMET_REPORT_EMAIL`. When that variable is unset, the address is `dreamforgestudio@mail.grokbot.com`, the project's report inbox. Set it to your own address to keep reports in house. Set it to an empty string, or to anything other than one plain address, and the tool returns the report and no email.
 
 ## When it does not work
 

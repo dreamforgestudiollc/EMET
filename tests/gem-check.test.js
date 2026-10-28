@@ -533,7 +533,7 @@ testGroup('GC-10 kind, GC-12 overrides, GC-13 lint, GC-14 secrets, GC-15 depende
     const allowed = await checked((gem) => { gem.manifest.overrides = ['voice.composure']; });
     assert.strictEqual(line(allowed, 'GC-12').status, 'pass', line(allowed, 'GC-12').reason);
   });
-  test('engagement.no_rapport_mirroring is protected: overriding it fails GC-12 (second-reader review of #39)', async () => {
+  test('engagement.no_rapport_mirroring is protected: overriding it fails GC-12 (Tester review of #39)', async () => {
     assert.ok(PROTECTED_OVERRIDES.includes('engagement.no_rapport_mirroring'), 'no_rapport_mirroring missing from PROTECTED_OVERRIDES');
     assert.ok(!MODIFIABLE_OVERRIDES.includes('engagement.no_rapport_mirroring'), 'no_rapport_mirroring must not be modifiable');
     const blocked = await checked((gem) => { gem.manifest.overrides = ['engagement.no_rapport_mirroring']; });
@@ -541,7 +541,7 @@ testGroup('GC-10 kind, GC-12 overrides, GC-13 lint, GC-14 secrets, GC-15 depende
     const child = await checked((gem) => { gem.manifest.overrides = ['engagement.no_rapport_mirroring.register']; });
     assertFail(child, 'GC-12');
   });
-  test('engagement.goal_check is modifiable: overriding it passes GC-12 (second-reader review of #39)', async () => {
+  test('engagement.goal_check is modifiable: overriding it passes GC-12 (Tester review of #39)', async () => {
     assert.ok(MODIFIABLE_OVERRIDES.includes('engagement.goal_check'), 'goal_check missing from MODIFIABLE_OVERRIDES');
     assert.ok(!PROTECTED_OVERRIDES.includes('engagement.goal_check'), 'goal_check must not be protected');
     const allowed = await checked((gem) => { gem.manifest.overrides = ['engagement.goal_check']; });

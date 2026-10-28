@@ -8,7 +8,7 @@
  * from authentication, the served hash is the pin, and the attestation
  * fields do not change on a later write. The file keeps SERVE_CAP rows per
  * principal. This release creates SERVE_COLLECTION (`<prefix>gem_serves`).
- * Alex approved it as an append-only write site on the write-path allow-list.
+ * the owner approved it as an append-only write site on the write-path allow-list.
  * The collection keeps every row. Nothing is deleted.
  */
 import crypto from 'node:crypto';

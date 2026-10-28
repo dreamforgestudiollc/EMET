@@ -26,7 +26,7 @@ See also: [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md) · [SECUR
 - **Per-client attribution and approvals.** Every write is attributed to the client that made it. A new client is read-limited until it is approved. The approval is recorded.
 - **Error codes and problem reports.** Every error carries a stable `EMET-<AREA>-<NNN>` code. An operational error log keeps 10,000 entries or 90 days, plus daily summaries. The owner-only `emet_error_report` returns the report and an email draft that you send yourself. See [Reporting a problem](#reporting-a-problem).
 - **verify-emet and the feature map.** `npm run verify` runs `scripts/verify-emet.mjs` from a checkout. It starts EMET in a temporary directory on the in-memory test database, with no `.env`, and drives every registered tool. A tool that needs a service a plain install does not have is reported as a gap. A run whose only problems are gaps exits 3. A failed tool exits 1. The map is [docs/features/README.md](docs/features/README.md).
-- **MIT.** Version 0.3.1. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
+- **MIT.** Version 0.3.2. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
 
 The store has one owner, and other people can join only through the optional Guest
 (read-only) and Member (read and write) access, both off by default.
@@ -48,6 +48,10 @@ EMET is built for document control in environments that work under ISO 9001 and 
 - **Guided setup:** [docs/GUIDED-SETUP.md](docs/GUIDED-SETUP.md) — never deployed anything. Your assistant installs, configures, deploys, and verifies. You sign in when asked and paste the connector URL.
 - **Setup:** [docs/SETUP.md](docs/SETUP.md) — the manual walkthrough: MongoDB, both transports, and the first-run interview.
 - **Deploy:** [docs/DEPLOY.md](docs/DEPLOY.md) — remote HTTP with OAuth, so a phone, a browser, or another vendor's agent reaches the same store.
+
+> **npm lags the repo.** `npx -y @dreamforgestudiollc/emet` installs 0.3.1 until 0.3.2 is
+> published. For 0.3.2, clone this repo and run `npm ci && npm start`, or deploy the
+> repository itself.
 
 > **Status: 0.x. The stored document shapes are not frozen yet.** Breaking changes to the
 > schema may land before 1.0. Pin a version if you depend on it.
@@ -234,11 +238,26 @@ you reconnect the connector there. New tools stay invisible until the host sees 
 and the host may ask again for approvals you had already given. See
 [docs/DEPLOY.md](docs/DEPLOY.md).
 
-**Register a bot before its first write, and set both lists in one change.** One bot, one tag.
-In the same deployment, add the tag to `EMET_SOURCE_TAGS` and append `bots/<tag>/HANDOFF.md`
-to `EMET_RECORD_DOCS`. A registered tag that is not listed as a bot can still write the main
-records. The hub's tag is registered as a host and is never listed as a bot. See
-[docs/BOTS.md](docs/BOTS.md).
+**Register a bot before its first write, and set both lists in one change.** One bot, one tag,
+`<prefix>-<bot>` (for example `bot-reviewer`). When a bot joins the roster, append its tag to
+the end of `EMET_SOURCE_TAGS`, keep every existing tag in order, and add
+`bots/<tag>/HANDOFF.md` to `EMET_RECORD_DOCS` before its first write. Set both in one
+deployment. Setting either variable redeploys the server; afterwards, check `/health` and
+`emet_status`. A registered tag that is not listed as a bot can still write the main records.
+The hub's tag is registered as a host and is never listed as a bot. That standing rule is
+[docs/BOTS.md](docs/BOTS.md) §4.
+
+**Approve a writer yourself, and give a bot that shares your login its own key.** The owner
+decides a new writer on `/owner/chooser`. An AI does not grant a writer. When `EMET_SUBKEYS=1`,
+each bot that can keep a key file holds its own `emk_` key. The owner approves that key on the
+same page. The bot presents the key once at `emet_session_open`. See
+[docs/SUBKEYS.md](docs/SUBKEYS.md) and [docs/BOTS.md](docs/BOTS.md) §4.
+
+**Pass `session_handle` on every write in a sub-key session.** `emet_session_open` returns
+`session_handle` once. Later writes in that session pass `session_handle`. A write that names
+the session and omits the handle, or sends a different one, is refused, and nothing is written.
+The handle is not a receipt and is not written into a document. With sub-keys off, the field is
+absent. See [docs/SUBKEYS.md](docs/SUBKEYS.md) and [docs/PERMISSIONS.md](docs/PERMISSIONS.md).
 
 **Prove the write path before you trust a new deploy.** Run `emet_status` with `probe: true`.
 It writes a test document, reads the same value back and removes it; a read alone cannot show
@@ -712,6 +731,10 @@ save_transcript
 semantic_recall
 validate_doc
 write_doc
+write_doc_abort
+write_doc_append
+write_doc_begin
+write_doc_commit
 ```
 <!-- /emet-tools -->
 
