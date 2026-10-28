@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.dreamforgestudiollc/emet",
   "title": "EMET",
-  "description": "0.3.1. Free MIT; no account, key, or payment. Verifies record, not computation. Stable error codes.",
-  "version": "0.3.1",
+  "description": "0.3.2. Free MIT; no account, key, or payment. Verifies record, not computation. Stable error codes.",
+  "version": "0.3.2",
   "websiteUrl": "https://dreamforgestudiollc.github.io/EMET/",
   "repository": {
     "url": "https://github.com/dreamforgestudiollc/EMET",
@@ -22,7 +22,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@dreamforgestudiollc/emet",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "transport": {
         "type": "stdio"
       },
@@ -76,7 +76,11 @@
         "save_transcript",
         "semantic_recall",
         "validate_doc",
-        "write_doc"
+        "write_doc",
+        "write_doc_abort",
+        "write_doc_append",
+        "write_doc_begin",
+        "write_doc_commit"
       ]
     }
   }

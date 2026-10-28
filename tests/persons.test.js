@@ -9,7 +9,7 @@ await test('slug is stable and lowercase', () => {
   assert.strictEqual(slugPersonId('Mary-Jane O\'Neil'), 'mary-jane-o-neil');
 });
 await test('empty name becomes owner', () => assert.strictEqual(slugPersonId(''), 'owner'));
-await test('first ensure creates the owner', async () => {
+await test('first ensure creates Alex', async () => {
   const db = memoryDb();
   const p = await ensureOwnerPerson(db, { display_name: 'Alex' });
   assert.strictEqual(p.person_id, 'alex');
@@ -26,7 +26,7 @@ await test('second ensure does not duplicate', async () => {
 await test('resolve falls back to owner when the table is empty', async () => {
   assert.strictEqual(await resolveTokenSubject(memoryDb()), 'owner');
 });
-await test('resolve returns the owner person_id', async () => {
+await test('resolve returns Alex person_id', async () => {
   const db = memoryDb();
   await ensureOwnerPerson(db, { display_name: 'Alex' });
   assert.strictEqual(await resolveTokenSubject(db), 'alex');

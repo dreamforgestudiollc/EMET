@@ -1,6 +1,9 @@
 import { test, testGroup, summary } from './harness.js';
 import * as mongoConnect from '../src/mongo-connect.js';
 import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { fullStartup } from './graph-session.js';
 import { sessionBaseId, partId, partNumber, baseFromPart, nextExchangeIndex, shouldStartNewPart } from '../src/transcript-session.js';
 
@@ -145,7 +148,7 @@ testGroup('session ids: the date is the local day (failure b, episodic ref 600)'
     assert.strictEqual(sessionTimeZone(undefined).zone, 'America/New_York');
     assert.strictEqual(sessionTimeZone(undefined).note, null);
   });
-  test('end to end: emet_session_open at the recorded time on 9/30 opens 2026-09-30_<slug> (clock injected)', async () => {
+  test('end to end: emet_session_open at 9:30 on 9/30 opens 2026-09-30_<slug> (clock injected)', async () => {
     const { sessionOpen } = await import('../src/tools.js');
     const r = await sessionOpen({ slug: 'grok-init' }, null, fakeSessions(), EVENING);
     assert.strictEqual(r.base, '2026-09-30_grok-init');
@@ -156,6 +159,52 @@ testGroup('session ids: the date is the local day (failure b, episodic ref 600)'
     const r = await sessionOpen({ slug: 'tz-check' }, null, fakeSessions());
     assert.strictEqual(r.time_zone, 'America/New_York');
   });
+});
+
+// board 125(d), BOUND init audit item 1 (2026-10-22). A caller that already
+// passed YYYY-MM-DD_ was dated again: 2026-10-27_foo minted as
+// 2026-10-27_2026-10-27-foo. Noon UTC on 2026-10-27 is still that local day
+// in America/New_York.
+const DATED_DAY = new Date('2026-10-27T16:00:00Z');
+
+testGroup('session ids: a slug that already has a date is not dated again (board 125(d))', () => {
+  test('slug 2026-10-27_foo mints 2026-10-27_foo, not a doubled date', () => {
+    const id = sessionBaseId(DATED_DAY, '2026-10-27_foo');
+    assert.strictEqual(id, '2026-10-27_foo');
+    assert.notStrictEqual(id, '2026-10-27_2026-10-27_foo');
+    assert.notStrictEqual(id, '2026-10-27_2026-10-27-foo');
+  });
+  test('an undated slug still receives the local day', () => {
+    assert.strictEqual(sessionBaseId(DATED_DAY, 'foo'), '2026-10-27_foo');
+    assert.strictEqual(sessionBaseId(DATED_DAY, 'Grok Init'), '2026-10-27_grok-init');
+  });
+  test('a well-formed prefix that is not the local day is kept, not replaced and not refused', () => {
+    assert.strictEqual(sessionBaseId(DATED_DAY, '2026-01-15_foo'), '2026-01-15_foo');
+    assert.strictEqual(sessionBaseId(EVENING, '2026-10-27_foo'), '2026-10-27_foo');
+  });
+  test('the mint grammar is month 01-12 and day 01-31, not a calendar check', () => {
+    assert.strictEqual(sessionBaseId(DATED_DAY, '2026-02-31_bar'), '2026-02-31_bar');
+    assert.strictEqual(sessionBaseId(DATED_DAY, '2026-13-01_foo'), '2026-10-27_2026-13-01-foo');
+    assert.strictEqual(sessionBaseId(DATED_DAY, '2026-10-32_foo'), '2026-10-27_2026-10-32-foo');
+    assert.strictEqual(sessionBaseId(DATED_DAY, '2026-10-27-foo'), '2026-10-27_2026-10-27-foo');
+    assert.strictEqual(sessionBaseId(DATED_DAY, '20261027_foo'), '2026-10-27_20261027-foo');
+  });
+  test('only the leading date separator is kept; the rest of the slug is cleaned', () => {
+    assert.strictEqual(sessionBaseId(DATED_DAY, '  2026-10-27_Foo Bar  '), '2026-10-27_foo-bar');
+    assert.strictEqual(sessionBaseId(DATED_DAY, '2026-10-27_'), '2026-10-27_session');
+    assert.strictEqual(sessionBaseId(DATED_DAY, '2026-10-27_2026-10-27_foo'), '2026-10-27_2026-10-27-foo');
+    assert.strictEqual(sessionBaseId(DATED_DAY, `2026-10-27_${'a'.repeat(50)}`), `2026-10-27_${'a'.repeat(40)}`);
+  });
+  test('a closed dated slug still opens as -2, and the part id is _verbatim_part1', async () => {
+    const { sessionOpen } = await import('../src/tools.js');
+    const first = await sessionOpen({ slug: '2026-10-27_foo' }, null, fakeSessions(), DATED_DAY);
+    assert.strictEqual(first.base, '2026-10-27_foo');
+    assert.strictEqual(first.session_id, '2026-10-27_foo_verbatim_part1');
+    const again = await sessionOpen({ slug: '2026-10-27_foo' }, null, fakeSessions([first.base]), DATED_DAY);
+    assert.strictEqual(again.base, '2026-10-27_foo-2');
+    assert.strictEqual(again.session_id, '2026-10-27_foo-2_verbatim_part1');
+  });
+;
 });
 
 testGroup('session ids: a closed id is never reused (failure a, episodic ref 598)', () => {
@@ -428,7 +477,7 @@ testGroup('transcript writes into a closed session (review fix 1; Alex 2026-10-0
   });
 });
 
-testGroup('closed sessions: a retry or an odd id can write nothing (second-reader review 3 and review gate on an earlier draft)', () => {
+testGroup('closed sessions: a retry or an odd id can write nothing (Tester review 3 and Reviewer gate on thatcommit)', () => {
   const CLOSED = '2026-09-30_grok-project-init';
   const P1 = `${CLOSED}_verbatim_part1`;
   const CLOSED_AT = EVENING;
@@ -584,7 +633,7 @@ testGroup('closed sessions: a retry or an odd id can write nothing (second-reade
     const r = await call(db, 'emet_transcript_append', { session_id: P1, exchange_index: 4, ...msg }, minutesAfter(CLOSED_AT, 4));
     assert.strictEqual(snapshot(db), before, 'the retry wrote after the correction');
     assert.ok(retried(r), text(r).slice(0, 300));
-    // Even where a part already lacks the closing exchange (e.g. a revision made on an earlier draft), a retry writes nothing.
+    // Even where a part already lacks the closing exchange (e.g. a revision made on thatcommit), a retry writes nothing.
     const db2 = await afterClosing();
     db2.transcripts[0].exchanges = db2.transcripts[0].exchanges.filter((e) => e.exchange_index !== 4);
     const before2 = snapshot(db2);
@@ -645,7 +694,7 @@ testGroup('closed sessions: a retry or an odd id can write nothing (second-reade
     assert.deepStrictEqual(db.transcripts.find((d) => d.session_id === sid).exchanges.map((e) => e.exchange_index), [1, 2, 3]);
   });
 
-  // --- the second reader's nits 1, 4, 7 -------------------------------------------------------------
+  // --- Tester's nits 1, 4, 7 -------------------------------------------------------------
   test('monorail wording: the closed gate and next step say "closed and locked" and never "open a new session"', async () => {
     const { evaluate, nextStep } = await import('../src/session-graph.js');
     const next = nextStep({ opened: true, closed: true }, 4);

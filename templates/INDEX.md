@@ -1,6 +1,6 @@
 # EMET CONTROLLED DOCUMENT LIBRARY — REGISTER
 
-**Status:** **ADOPTED by the user 2026-09-11** (*"Yes I do"*; procedural ref 311). **IN FORCE with the repository commit** (board 14), because the shipped copy governs (`templates/STANDARD.md` §9a L1; `CHARTER.md` §9). Revision: the store's version governs. Decision records: procedural ref 300 → ref 301 (scope), ref 302 (latitude), ref 303 → ref 304 (validation not optional; mark for audit and review); review of 2026-09-11: ref 306 (validation v1, shipping), ref 307 (locks), ref 308 (close order), ref 309 (charter lock), ref 310 (seed statuses and triggers).
+**Status:** **ADOPTED by the user 2026-09-11** (*"Yes I do"*; procedural ref 311). **IN FORCE with the repository commit** (board 014), because the shipped copy governs (`templates/STANDARD.md` §9a L1; `CHARTER.md` §9). Revision: the store's version governs. Decision records: procedural ref 300 → ref 301 (scope), ref 302 (latitude), ref 303 → ref 304 (validation not optional; mark for audit and review); review of 2026-09-11: ref 306 (validation v1, shipping), ref 307 (locks), ref 308 (close order), ref 309 (charter lock), ref 310 (seed statuses and triggers).
 **Written:** 2026-09-10. **Brought current** 2026-09-11, session `2026-09-11_morning-mobile-init`, source `mobile`, after the user's full review of the set. **This revision also removes install-specific names** — the reference install's orchestrator, private documents, named employers, machine paths and seed names — under the scope rule that shipped forms are generic (ref 301). The reference install's own records keep them.
 
 ---
@@ -22,7 +22,7 @@
 | **1 — Charter** | What EMET is, what it is for, how it is structured, how information flows, how documents are controlled | `CHARTER.md` — DRAFT; locked like the base templates: ships with the release, a store copy is not authoritative, and it is present before any first-run interview |
 | **2 — Procedures** | How a session runs, start to close | The floor, layer charter, startup instructions and close protocol — in server code, pointed to. The close order is stated once, in `CHARTER.md` §6. An install may add its own orchestrator; it points here and restates nothing |
 | **3 — Work instructions and reference** | How to do a specific thing | `procedures/*` (PROCEDURE template) · an install's own reference and debug documents |
-| **4 — Forms and records** | Templates (forms) and the documents filled from them (records) | `templates/*` → `HANDOFF.md`, `STATE.md`, `threads/*`, `seeds/*`, `staging/*`, `procedures/*`, `areas/*` · layer entries and transcripts (structure enforced by code) |
+| **4 — Forms and records** | Templates (forms) and the documents filled from them (records) | `templates/*` → `HANDOFF.md`, `STATE.md`, `threads/*`, `seeds/*`, `staging/*`, `procedures/*`, `areas/*`, `records/*` · layer entries and transcripts (structure enforced by code) |
 
 ---
 
@@ -45,7 +45,9 @@ Every document listed under **Fills** is validated against its template by its i
 | `templates/INSTALL.md` | `bootstrap/INSTALL.md` | A paste-block start that cannot check a machine or tag a write | IN FORCE 2026-09-26 · procedural ref 361 |
 | `templates/BOTHANDOFF.md` | `bots/<tag>/HANDOFF.md` (unmapped while DRAFT) | A bot that could close only by writing the user's own handoff and board; scheduled bot runs citing sessions never opened (episodic ref 558, ref 592); bot handoffs marked nonconforming against a template that demands a board | DRAFT — requested by the user 2026-10-01; approval and decision record pending. Supersede-only after revision 1 (`EMET_RECORD_DOCS`) |
 | `templates/ROSTER.md` | `bots/ROSTER.md` (unmapped while DRAFT) | A bot tag the server did not treat as a bot because its handoff id was never listed (a live check of per-bot close records, 2026-10-01); the hub's tag at risk of being listed with the bots | DRAFT — requested by the user 2026-10-01; approval and decision record pending. The hub is listed apart and never in `EMET_RECORD_DOCS` |
-| `templates/AREA.md` | `areas/<slug>.md` | A topic page stored as a record, so a view computed from the memory database became a second source of truth (Alex, 2026-10-20). The area document holds the selector only | IN FORCE 2026-10-20 · user. Only the owner creates or edits an area. The page is computed on each read and is never written back |
+| `templates/AREA.md` | `areas/<slug>.md` | A topic page stored as a record, so a view computed from the memory database became a second source of truth (the owner, 2026-10-20). The area document holds the selector only | IN FORCE 2026-10-20 · user. Only the owner creates or edits an area. The page is computed on each read and is never written back |
+| `templates/SESSIONDISPOSITION.md` | `records/*` | A close days later blocked because receipts are compared with the store that day, and a duplicate save_transcript left unmarked (inserted_id 6ae1df09c4da08b2cadc1fb4, 2026-10-28). The disposition notes the session or the transcript. It does not write a receipt and it does not delete the transcript | IN FORCE 2026-10-28 · user, session-disposition brief. A session-level row covers checkpoint overdue. An inserted_id row does not close the session |
+| `templates/GRANT.md` | unmapped while DRAFT. Later, an owner-written `grants/<grant id>.md` that records one OAuth token family. The live credential stays the family itself | A write stamped with another connection's name because the credential that made it was not on the row (shared OAuth client, declared tag, 2026-10-11 and 2026-10-15) | DRAFT — R2 design 2026-10-26. Approval and decision record pending. Not a second secret |
 
 **Deliberately NOT templated:** an install's own orchestrator (a single document, not a type) · layer entries and transcripts (structure already enforced by the write-path door) · an install's private reference documents that have their own convention and no recorded failure.
 
@@ -57,13 +59,13 @@ Every document listed under **Fills** is validated against its template by its i
 
 0. ~~STANDARD~~ — written 2026-09-10.
 1. ~~HANDOFF + BOARD~~ — written 2026-09-10; in trial use.
-2. ~~CHARTER~~ — written 2026-09-10; §1 intended use awaits the user's words (board 10).
+2. ~~CHARTER~~ — written 2026-09-10; §1 intended use awaits the user's words (board 010).
 3. ~~SEED + THREAD~~ — written 2026-09-10 evening.
 4. ~~STAGING + PROCEDURE~~ — written 2026-09-10 evening.
 5. ~~Migrate the position document into the BOARD form~~ — done 2026-09-10.
 6. ~~Review of the full set with the user~~ — done 2026-09-11.
 7. **Validation v1** — DECIDED 2026-09-11 (ref 306, ref 307): the priced scope plus locks L1–L6. Not built — bridged session.
-8. **Repository commit** (board 14) — the charter and templates ship in the release; the set becomes IN FORCE with it.
+8. **Repository commit** (board 014) — the charter and templates ship in the release; the set becomes IN FORCE with it.
 
 ## LATITUDE — DECIDED (user, 2026-09-10; procedural ref 302)
 *"They must be followed but can be expanded and there can be a generic template standard guidlines for anything added above and beyond will be created within those guidelines."* Base templates: required sections fixed; installs may expand, never loosen. Anything beyond the base is built to `templates/STANDARD.md`.
@@ -79,5 +81,5 @@ Every document listed under **Fills** is validated against its template by its i
 ## OPEN — the user's
 - **Adoption — DECIDED 2026-09-11** (procedural ref 311). IN FORCE with the repository commit.
 - **Where local templates live** in an install's store.
-- **Intended-use statement** for the charter (board 10).
-- **The disclosure line** (board 16) — before the repository goes public.
+- **Intended-use statement** for the charter (board 010).
+- **The disclosure line** (board 016) — before the repository goes public.

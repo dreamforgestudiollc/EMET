@@ -1,11 +1,11 @@
 /**
  * EMET - lessons that became checks (2026-09-27).
  *
- * Three rules moved from advice to server checks at the owner's word, after the
+ * Three rules moved from advice to server checks at Alex's word, after the
  * Hanako "Loops and Graphs" reading: the machine line on the first transcript
  * append, a cap of three blocked closes, and repeated corrections named at
  * startup. Each is a pure function here so the rule is assertable without a
- * database. staging/emet-lessons-to-checks.md holds the decisions.
+ * database. the staging note holds the decisions.
  */
 
 import { test, testGroup, summary } from './harness.js';

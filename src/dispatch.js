@@ -9,7 +9,7 @@
  * Until 2026-09-27 index.js (stdio) and http-remote.js (HTTP) each carried a
  * full switch mapping tool name to handler. dispatch.test.js compared the two
  * by case NAME and caught one class of drift (the session_id alias divergence,
- * an earlier fix); it could not see argument drift, and the code audit of
+ * thatcommit); it could not see argument drift, and the code audit of
  * 2026-09-27 found one - setupComplete received the logger on stdio and not on
  * HTTP. A rule stated twice drifts; this file is the one statement.
  *
@@ -20,8 +20,9 @@
 import { EmetError, ErrorCodes, StatusCodes } from './database.js';
 import { ValidationError } from './validation.js';
 import { registeredSourceTags } from './setup.js';
-import { echoId } from './session-graph.js';
+import { echoId, sessionOf } from './session-graph.js';
 import { currentActor } from './persons.js';
+import { recordError } from './error-log.js';
 import {
   initialize, setupStatus, setupComplete, verifyConnection, sessionClose, findGaps, readFloor,
   handleError, createSuccessResponse,
@@ -32,7 +33,10 @@ import {
   resolvedSourceTag,
   TOOLS
 } from './tools.js';
+import { refuseSophiaDoor, sophiaActor } from './bound-door.js';
+import { beginStagedDoc, appendStagedChunk, commitStagedDoc, abortStagedDoc } from './staged-write.js';
 import { reserveToolNames } from './rune-registry.js';
+import { applyCheckpoint, checkpointOnError, checkpointStatus } from './checkpoint.js';
 
 reserveToolNames([...TOOLS.map((tool) => tool.name), 'emet_subkey_request', 'emet_subkey_claim', 'emet_subkey_revoke', 'emet_subkey_end_session']);
 
@@ -42,7 +46,7 @@ reserveToolNames([...TOOLS.map((tool) => tool.name), 'emet_subkey_request', 'eme
  * isError envelope, so the transport's audit line always has an outcome.
  */
 /**
- * The source tag under one name. `source` is the name on every write (Alex,
+ * The source tag under one name. `source` is the name on every write (the owner,
  * 2026-09-27, code audit 1.5c); the older per-tool names - updated_by,
  * retired_by, accepted_by on documents, channel on transcripts - are read as
  * aliases for one release and then dropped. metadata.source on the layers is
@@ -54,11 +58,13 @@ export function sourceOf(args) {
   // may use the caller's tag only when it is an exact member of EMET_SOURCE_TAGS.
   // Stdio still reads the argument, and requireRegisteredSource checks the registry.
   const caller = args.source ?? args.updated_by ?? args.retired_by ?? args.accepted_by ?? args.channel ?? null;
-  return resolvedSourceTag(caller).tag;
+  const decision = resolvedSourceTag(caller);
+  if (decision.from === 'bound-door') refuseSophiaDoor(sophiaActor());
+  return decision.tag;
 }
 
 /**
- * A transcript write names a registered host or is refused (Alex, 2026-09-27,
+ * A transcript write names a registered host or is refused (the owner, 2026-09-27,
  * code audit 1.5d: nine spellings for five hosts in the store). Registered =
  * EMET_SOURCE_TAGS, exact membership only. With no registry configured, any
  * non-empty tag passes. A refusal does not publish the registry.
@@ -130,7 +136,7 @@ export async function dispatchTool(name, args, ctx) {
     // that names a session fails closed when the graph cannot be read.
     const sg = await import('./session-graph.js');
     // The exchange number, normalized ONCE, before the graph, the closed-session
-    // guard and the tool all read it (2026-10-01, the second reader's blocker on an earlier draft: the
+    // guard and the tool all read it (2026-10-01, Tester's blocker on thatcommit: the
     // guard read "4" as 4, the tool did not, so a text "4" was a retry to one and
     // a new exchange to the other). A whole number, or its text, or absent.
     if (name === 'emet_transcript_append') {
@@ -183,17 +189,37 @@ export async function dispatchTool(name, args, ctx) {
     if (grace && grace.grace) args = { ...args, session_id: grace.part, exchange_index: grace.index };
     // A correction of a closed session: the exchanges with their numbers normalized.
     if (grace && grace.revise) { args = { ...args, exchanges: grace.exchanges }; grace = null; }
+    // After the tool has written. An append that just saved moves session_end
+    // to now, so this read sees the checkpoint it cleared. A read failure never
+    // fails the call and never claims the save is current.
+    const attachCheckpoint = async (data) => {
+      try {
+        const checkpoint = await checkpointStatus(dbManager, now);
+        return applyCheckpoint(data, checkpoint, { always: name === 'emet_status', sessionId: sg.sessionOf(args) });
+      } catch {
+        const unread = checkpointOnError(name);
+        if (unread && data && typeof data === 'object' && !Array.isArray(data)) {
+          data.checkpoint = unread;
+          return true;
+        }
+        return false;
+      }
+    };
+    const finish = async (data) => {
+      await attachCheckpoint(data);
+      return createSuccessResponse(data, name);
+    };
     // A retry of the saved closing exchange is answered here; the tool is NOT
-    // called, so nothing can be written (the second reader's blocker on an earlier draft).
+    // called, so nothing can be written (Tester's blocker on thatcommit).
     if (grace && grace.retry) {
       const block = sg.graphBlock(graph);
-      return createSuccessResponse({
+      return finish({
         session_id: grace.base, exchange_index: grace.index, already_present: true, written: false,
         closing_exchange: { accepted: true, session: grace.base, exchange_index: grace.index, locked: true, already_saved: true, notice: grace.notice },
         ...(block ? { session_graph: block } : {})
-      }, name);
+      });
     }
-    const ok = (data) => {
+    const ok = async (data) => {
       // A sub-key, claim nonce, or session handle is delivered once by the tool
       // that minted it. Later receipts do not repeat it.
       if (data && typeof data === 'object' && !Array.isArray(data)) {
@@ -218,13 +244,13 @@ export async function dispatchTool(name, args, ctx) {
       if (graph || name === 'emet_session_open') {
         sg.graphAfter(name, args, data, dbManager, logger, now); // never throws; not awaited
       }
-      return createSuccessResponse(data, name);
+      return finish(data);
     };
-    // The close's state write is awaited (the second reader's nit 6), so an append sent after
+    // The close's state write is awaited (Tester's nit 6), so an append sent after
     // the close returns already finds the session closed - when the write
     // succeeds. A failed write is retried once; if it still fails the reply
     // says so (closed_recorded: false, with a warning) instead of reading as a
-    // locked session (2026-10-01, the second reader's nit 2 on an earlier draft, the reviewer's
+    // locked session (2026-10-01, Tester's nit 2 on thatcommit, Reviewer's
     // condition 2). Every other step is recorded without holding up the reply.
     const recordClose = async (data) => {
       let rec = await sg.graphAfter(name, args, data, dbManager, logger, now);
@@ -241,13 +267,24 @@ export async function dispatchTool(name, args, ctx) {
           if (typeof data.instructions === 'string') data.instructions = `${data.instructions} ${warning}`;
         }
       }
-      return createSuccessResponse(data, name);
+      return finish(data);
     };
     switch (name) {
       case 'emet_initialize':        return ok(await initialize(args, { onLate: (late) => sg.recordLatePages(late, dbManager, logger) }));
       case 'emet_setup_complete':    return ok(await setupComplete(args.answers || {}, logger, { reissue: args.reissue === true, source: sourceOf(args) }));
       case 'emet_session_close': {
         const data = await sessionClose(args);
+        // Blocked and escalated closes return a result, not a thrown error.
+        // The log row still names the session. A thrown refusal is logged in
+        // the catch below. A complete close is not an error.
+        if (data && (data.state === 'blocked' || data.state === 'escalate')) {
+          void recordError({
+            emet_code: data.state === 'escalate' ? 'EMET-SESS-007' : 'EMET-SESS-006',
+            class_code: ErrorCodes.VALIDATION_ERROR,
+            tool: 'emet_session_close',
+            session_id: sessionOf(args) || ''
+          });
+        }
         try {
           const { setting } = await import('./env.js');
           if (data && data.state === 'complete' && setting('SUBKEYS') === '1') {
@@ -290,9 +327,19 @@ export async function dispatchTool(name, args, ctx) {
         const { approvalsDeps, sourceRegistry } = await import('./tools.js');
         const ownerId = await resolveTokenSubject(dbManager.db).catch(() => null);
         try {
+          if (args && args.decision === 'prepare') {
+            const { prepareWriterRequest } = await import('./writer-approval.js');
+            const { COLLECTION_PREFIX } = await import('./database.js');
+            const fields = { ...(args || {}) };
+            if (!fields.claimed_tag && typeof args.tag === 'string') fields.claimed_tag = args.tag;
+            return ok(await prepareWriterRequest(dbManager.db, COLLECTION_PREFIX, rawActor(), fields));
+          }
           return ok(await att.clientApprove(approvalsDeps, rawActor(), ownerId, args, sourceRegistry()));
         } catch (e) {
-          if (e && e.attributionRefusal) throw new ValidationError('tag', e.message, { code: 'EMET-TOOL-007' });
+          if (e && e.attributionRefusal) {
+            if (args && args.decision === 'prepare') throw new ValidationError('tag', e.message, { code: 'EMET-AUTH-043' });
+            throw new ValidationError('tag', e.message, { code: 'EMET-TOOL-007' });
+          }
           throw e;
         }
       }
@@ -300,7 +347,7 @@ export async function dispatchTool(name, args, ctx) {
       case 'recall':                 return ok(await recallMemories(dbManager, args.query, args.layer || null, args.limit || 10, logger, AuditOperation, { history: args.history === true, order: args.order }));
       case 'query_layer':            return ok(await queryLayer(dbManager, args.layer, args.options || {}, logger, AuditOperation));
       case 'emet_status': {
-        // One diagnostic (2026-09-27, Alex: one tool with several functions over
+        // One diagnostic (2026-09-27, the owner: one tool with several functions over
         // several overlapping ones). setupStatus + the per-layer counts, and the
         // write-path probe on request.
         const status = await setupStatus();
@@ -330,6 +377,36 @@ export async function dispatchTool(name, args, ctx) {
           Object.assign(status, callerAttribution());
           const v = att.approvalsView(att.cachedApprovals(), rawActor() || { transport: 'stdio' }, null);
           if (v) status.client_approvals = v;
+          const { claimedTagTraffic } = await import('./claimed-tag.js');
+          status.claimed_tag_traffic = claimedTagTraffic();
+          const { breakGlassMetric } = await import('./deep-links.js');
+          status.break_glass = breakGlassMetric();
+          const { rotateMetric } = await import('./rotate.js');
+          status.rotate_all = rotateMetric();
+          const { writerApprovalMetric } = await import('./writer-approval.js');
+          status.writer_approval = writerApprovalMetric();
+          const { owlRetirementMetric } = await import('./owl.js');
+          status.owl_retirement = owlRetirementMetric();
+          const { proofRunMetric } = await import('./proof-run.js');
+          status.proof_run = proofRunMetric();
+          if (args.session_id !== undefined && args.session_id !== null && args.session_id !== '') {
+            if (typeof args.session_id !== 'string') {
+              throw new ValidationError('session_id', 'must be a string', { code: 'EMET-SESS-004' });
+            }
+            const asked = args.session_id.trim();
+            if (asked) {
+              try {
+                const base = sg.baseOf(asked);
+                const found = await sg.sessionStatus(base, dbManager);
+                status.session = {
+                  session_id: base,
+                  state: !found.exists ? 'absent' : (found.closed ? 'closed' : 'open')
+                };
+              } catch {
+                status.session = { state: 'unreadable', emet_code: 'EMET-SESS-005' };
+              }
+            }
+          }
           if (setting('SUBKEYS') === '1') {
             const sk = await import('./subkeys.js');
             const { approvalsDeps } = await import('./tools.js');
@@ -350,6 +427,10 @@ export async function dispatchTool(name, args, ctx) {
       case 'read_doc':               return ok(await readDoc(args.doc_id, logger, { offset: args.offset ?? 0, limit: args.limit ?? READ_DOC_PAGE_DEFAULT, expected_version: args.expected_version, expected_sha256: args.expected_sha256 }));
       case 'read_doc_history':       return ok(await readDocHistory(args.doc_id, args.version ?? null, logger));
       case 'write_doc':              return ok(await writeDoc(args.doc_id, args.content, sourceOf(args), null, logger, { supersedes: args.supersedes ?? null, reason: args.reason || null, session_id: args.session_id || null }));
+      case 'write_doc_begin':        return ok(await beginStagedDoc({ doc_id: args.doc_id, source: sourceOf(args), session_id: args.session_id || null, supersedes: args.supersedes ?? null, reason: args.reason || null }, logger, now));
+      case 'write_doc_append':       return ok(await appendStagedChunk({ stage_id: args.stage_id, part: args.part, chunk: args.chunk, source: sourceOf(args), session_id: args.session_id || null }, logger, now));
+      case 'write_doc_commit':       return ok(await commitStagedDoc({ stage_id: args.stage_id, doc_id: args.doc_id, sha256: args.sha256, part_count: args.part_count, source: sourceOf(args), session_id: args.session_id || null, supersedes: args.supersedes ?? null, reason: args.reason || null }, logger, now));
+      case 'write_doc_abort':        return ok(await abortStagedDoc({ stage_id: args.stage_id, source: sourceOf(args), session_id: args.session_id || null }, logger, now));
       case 'list_docs':              return ok(await listDocs(args.prefix || null, logger, args.include_retired === true));
       case 'retire_doc':             return ok(await retireDoc(args.doc_id, args.reason || null, sourceOf(args), logger, { session_id: args.session_id || null }));
       case 'rename_doc':             return ok(await renameDoc(args.old_id, args.new_id, sourceOf(args), logger, args.reason || null, { session_id: args.session_id || null }));
@@ -383,7 +464,20 @@ export async function dispatchTool(name, args, ctx) {
         }
         const { serveRune } = await import('./rune-dispatch.js');
         const ran = await serveRune(name, args, { logger, AuditOperation, dbManager });
-        if (ran) return ran;
+        if (ran) {
+          // serveRune builds its own success envelope. Stamp the reminder on
+          // that payload when the call names a due session. A failed read does
+          // not fail the serve and does not claim the save is current.
+          if (!ran.isError && ran.content && ran.content[0] && typeof ran.content[0].text === 'string') {
+            try {
+              const body = JSON.parse(ran.content[0].text);
+              if (body && body.success === true && body.data && typeof body.data === 'object' && !Array.isArray(body.data)) {
+                if (await attachCheckpoint(body.data)) ran.content[0].text = JSON.stringify(body);
+              }
+            } catch { /* the reminder never fails the serve */ }
+          }
+          return ran;
+        }
         throw new EmetError(`Unknown tool: ${name}`, ErrorCodes.UNKNOWN_TOOL, StatusCodes.BAD_REQUEST, { code: 'EMET-TOOL-008' });
       }
     }
@@ -392,7 +486,7 @@ export async function dispatchTool(name, args, ctx) {
       try { const sg = await import('./session-graph.js'); await sg.markCloseGrace(grace.base, dbManager, { release: true }); }
       catch (e) { logger?.warn?.('closing exchange: claim not released', { error: e && e.message }); }
     }
-    return handleError(error, name, logger);
+    return handleError(error, name, logger, name === 'emet_session_close' ? { session_id: sessionOf(args || {}) } : null);
   }
 }
 

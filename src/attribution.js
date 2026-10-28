@@ -1,16 +1,19 @@
 /**
  * EMET - attribution per session, v2 (2026-10-12).
  *
- * Alex approved PROPOSAL.md (the attribution proposal) with its 7 defaults;
- * v1 (PR 32) was reverted after the second reader's review (A1-A4). This version:
+ * the owner approved PROPOSAL.md (the attribution proposal) with its 7 defaults;
+ * v1 (PR 32) was reverted after Tester's review (A1-A4). This version:
  *
  *  STAMP vs RIGHTS. Several agents share one OAuth login (the Grok client
- *  8xm-7ILLKEDFc3-QRxqlgw). A bot's declared tag is what its writes are
+ *  bound-login-client). A bot's declared tag is what its writes are
  *  stamped with (source_basis "declared", source_login = the login's tag),
  *  but a declared tag never gains rights beyond the login's tag (A3): every
  *  guard is run for BOTH tags and the write must pass both (rightsTags()).
+ *  grok-project on the token bound to hub-bot is not that
+ *  claim: it is refused (BOUND's own door). A credential row (basis
+ *  "credential") is not a remembered tag for the shared client.
  *
- *  NEW CLIENTS (Alex, 2026-10-12). A tag is known when it is in
+ *  NEW CLIENTS (the owner, 2026-10-12). A tag is known when it is in
  *  EMET_SOURCE_TAGS, approved in the approvals record, or bound to a login at
  *  consent (the owner approved that at the consent page). The first write by
  *  any other tag is refused (read-limited) and queued in the approvals
@@ -34,14 +37,19 @@
  */
 
 import { setting } from './env.js';
+import { chooserBinding } from './deep-links.js';
+import { isOwlIdentity } from './owl.js';
+import { isMasterBlasterActor } from './writer-approval.js';
+import { isSophiaCredential, sophiaClaimOnSharedLogin, BOUND_LOGIN_MESSAGE, CLAIM_TAG, MB_TAG } from './bound-door.js';
 
 export const APPROVALS_DOC = 'emet/CLIENT_APPROVALS.md';
 export const WRITE_TOOLS = new Set([
-  'save_to_layer', 'revise_memory', 'write_doc', 'patch_doc', 'retire_doc', 'rename_doc', 'restore_doc',
+  'save_to_layer', 'revise_memory', 'write_doc', 'write_doc_begin', 'write_doc_append', 'write_doc_commit', 'write_doc_abort',
+  'patch_doc', 'retire_doc', 'rename_doc', 'restore_doc',
   'accept_nonconformance', 'emet_transcript_append', 'save_transcript', 'revise_transcript', 'emet_session_close',
-  // the second reader's re-review (2026-10-12): opening a session claims it; deciding a client is a write.
+  // Tester's re-review (2026-10-12): opening a session claims it; deciding a client is a write.
   'emet_session_open', 'emet_client_approve',
-  // the second reader's PR 47 review: setup writes durable identity and board docs.
+  // Tester's PR 47 review: setup writes durable identity and board docs.
   'emet_setup_complete'
 ]);
 /** Tools the strict login tag also covers. emet_initialize can provision, so a
@@ -92,7 +100,7 @@ export function cachedApprovals() { return approvalsCache.data; }
 export function emptyApprovals() { return { approved: {}, pending: {}, denied: {}, clients: {} }; }
 
 /**
- * Remembered tags for one client_id (Alex 2026-10-12): approved clients keep
+ * Remembered tags for one client_id (the owner 2026-10-12): approved clients keep
  * their tag across logins. A shared client_id can carry several approved tags
  * (one per bot), so this is a set. Retired entries (renamed away) are skipped.
  * Approvals recorded before the map existed count through their request.
@@ -104,6 +112,7 @@ export function rememberedFor(d, clientId) {
   const retired = new Set();
   if (row && row.tags) for (const [t, v] of Object.entries(row.tags)) (v && v.retired ? retired : out).add(t);
   for (const [t, v] of Object.entries(d.approved || {})) {
+    if (v && v.basis === 'credential') continue;
     const cid = v && (v.client_id || (v.request && v.request.client_id));
     if (cid === clientId && !retired.has(t)) out.add(t);
   }
@@ -119,7 +128,7 @@ function remember(d, clientId, tag, { declared_name = null, basis = null, at, re
   if (renamed_from && row.tags[renamed_from]) row.tags[renamed_from] = { ...row.tags[renamed_from], retired: true, renamed_to: tag, retired_at: at };
 }
 
-/** Strict: returns null when the record does not parse (fail closed, the second reader 4). */
+/** Strict: returns null when the record does not parse (fail closed, Tester 4). */
 export function parseApprovals(content) {
   const m = /```json\n([\s\S]*?)\n```/.exec(String(content || ''));
   if (!m) return null;
@@ -160,7 +169,7 @@ export async function loadApprovals(deps, { fresh = false } = {}) {
 }
 
 /**
- * Compare-and-set (the second reader 3): mutations run one at a time in this process, each
+ * Compare-and-set (Tester 3): mutations run one at a time in this process, each
  * re-reads the record and writes with the version it read; a version moved by
  * another writer is retried on the fresh copy. `fn(data)` returns false to write nothing.
  */
@@ -197,7 +206,7 @@ export function personIsOwner(actor, ownerId) {
 }
 
 /**
- * The owner acting as the owner (the second reader A2 re-review). Over HTTP the person must be
+ * The owner acting as the owner (Tester A2 re-review). Over HTTP the person must be
  * the owner AND the call must carry the login's own tag (no declared or
  * generated tag) AND that tag must not be a bot tag. Every bot on the owner's
  * shared login is therefore not the owner. Stdio is the local owner.
@@ -239,7 +248,12 @@ export function autoTag(clientId) {
   return `auto-${slug}`;
 }
 
-function refusal(msg) { const e = new Error(msg); e.attributionRefusal = true; return e; }
+function refusal(msg, chooser) {
+  const e = new Error(msg);
+  e.attributionRefusal = true;
+  if (chooser) e.chooser = chooser;
+  return e;
+}
 
 export function bindSession(base, tag, extra = {}) {
   if (SESSION_BINDINGS.has(base)) return;
@@ -247,7 +261,7 @@ export function bindSession(base, tag, extra = {}) {
   SESSION_BINDINGS.set(base, { agent_tag: tag, ...extra, bound_at: new Date() });
 }
 
-/** Tags already on the session's stored rows (A4: survives a restart). Read only; fails closed (the second reader A4). */
+/** Tags already on the session's stored rows (A4: survives a restart). Read only; fails closed (Tester A4). */
 export async function storedSessionTags(db, base, layerCollections = []) {
   if (!base) return [];
   if (!db) throw refusal(`the store cannot be read to check who owns session ${base}; nothing was written.`);
@@ -336,6 +350,15 @@ export async function preflight(ctx, actor, args, toolName) {
     if (foreign) throw refusal(`source "${actor.subkeyTag}" is bound to another person's login, so this session may not write under it. Pass your own tag. Nothing was written.`);
   }
 
+  if (STRICT_TAG_TOOLS.has(toolName) && sophiaClaimOnSharedLogin(actor, declared)) {
+    const denied = refusal(
+      BOUND_LOGIN_MESSAGE,
+      chooserBinding({ kind: 'onboarding_required', grantId: actor.grantId, tag: CLAIM_TAG, door: 'member' })
+    );
+    denied.emetCode = 'EMET-AUTH-044';
+    throw denied;
+  }
+
   if (actor.subkeySession && actor.subkeyTag) {
     actor.declaredTag = null;
     actor.sourceBasis = 'subkey';
@@ -357,7 +380,7 @@ export async function preflight(ctx, actor, args, toolName) {
     return actor;
   }
 
-  // Remembered tags for this client_id (Alex 2026-10-12).
+  // Remembered tags for this client_id (the owner 2026-10-12).
   let remembered = [];
   if (deps && actor.clientId && actor.clientId !== 'http:visitor') {
     const cur0 = await loadApprovals(deps);
@@ -380,21 +403,29 @@ export async function preflight(ctx, actor, args, toolName) {
         };
         return true;
       });
-      throw refusal(`this client is remembered as ${remembered.map((t) => `"${t}"`).join(', ')}; "${declared}" is a rename and waits for ${cosTag() ? `the chief of staff (${cosTag()})` : 'the owner'} to approve it. Use your remembered tag. Nothing was written.`);
+      throw refusal(
+        `this client is remembered as ${remembered.map((t) => `"${t}"`).join(', ')}; "${declared}" is a rename and waits for ${cosTag() ? `the chief of staff (${cosTag()})` : 'the owner'} to approve it. Use your remembered tag. Nothing was written.`,
+        chooserBinding({ kind: 'rename_pending', grantId: actor.grantId, tag: declared, door: actor.door })
+      );
     }
     return actor;
   }
   const keptAuto = !declared && !bound && remembered.length === 1 ? remembered[0] : null;
-  const effective = declared || bound || keptAuto || (actor.clientId && actor.clientId !== 'http:visitor' ? autoTag(actor.clientId) : null);
-  const basis = declared && declared !== bound ? 'declared' : (bound ? 'login' : (keptAuto ? 'remembered' : (effective ? 'auto' : null)));
+  let effective = declared || bound || keptAuto || (actor.clientId && actor.clientId !== 'http:visitor' ? autoTag(actor.clientId) : null);
+  let basis = declared && declared !== bound ? 'declared' : (bound ? 'login' : (keptAuto ? 'remembered' : (effective ? 'auto' : null)));
+  const sophiaDoor = isSophiaCredential(actor) && (!declared || declared === CLAIM_TAG || declared === MB_TAG);
+  if (sophiaDoor) {
+    effective = CLAIM_TAG;
+    basis = 'credential';
+  }
   actor.declaredTag = basis === 'declared' || basis === 'auto' || basis === 'remembered' ? effective : null;
   actor.sourceBasis = basis;
   actor.effectiveTag = effective;
-  actor.approvalState = basis === 'login' ? 'login' : (registry.includes(effective) ? 'registered' : null);
+  actor.approvalState = basis === 'credential' ? 'credential' : (basis === 'login' ? 'login' : (registry.includes(effective) ? 'registered' : null));
 
-  // New-client gate (Alex 2026-10-12). Bound tags were approved at consent;
+  // New-client gate (the owner 2026-10-12). Bound tags were approved at consent;
   // registered tags by the owner's env. Everything else needs the record.
-  if (deps && effective && basis !== 'login' && !registry.includes(effective)) {
+  if (!sophiaDoor && deps && effective && basis !== 'login' && basis !== 'credential' && !registry.includes(effective)) {
     const cur = await loadApprovals(deps);
     if (cur.broken) {
       actor.approvalState = 'unreadable';
@@ -405,7 +436,10 @@ export async function preflight(ctx, actor, args, toolName) {
     if (Object.prototype.hasOwnProperty.call(appr.approved, effective)) actor.approvalState = 'approved';
     else if (Object.prototype.hasOwnProperty.call(appr.denied, effective)) {
       actor.approvalState = 'denied';
-      if (isWrite) throw refusal(`"${effective}" was denied as a client on this store; it may read only. Nothing was written.`);
+      if (isWrite) throw refusal(
+        `"${effective}" was denied as a client on this store; it may read only. Nothing was written.`,
+        chooserBinding({ kind: 'deny', grantId: actor.grantId, tag: effective, door: actor.door })
+      );
     } else {
       const fresh = cur.missing && registry.length === 0 && personIsOwner(actor, ownerId) && !(await storeHasOtherClients(db, prefix, actor));
       if (fresh && isWrite) {
@@ -415,7 +449,10 @@ export async function preflight(ctx, actor, args, toolName) {
           remember(d, actor.clientId, effective, { declared_name: declared || effective, basis, at: now.toISOString() });
           return true;
         });
-        if (!approvalsCache.data.approved[effective]) throw refusal(`"${effective}" is a new client and the store already has a primary; it waits for approval. Nothing was written.`);
+        if (!approvalsCache.data.approved[effective]) throw refusal(
+          `"${effective}" is a new client and the store already has a primary; it waits for approval. Nothing was written.`,
+          chooserBinding({ kind: 'onboarding_required', grantId: actor.grantId, tag: effective, door: actor.door })
+        );
         actor.approvalState = 'approved';
       } else {
         actor.approvalState = appr.pending[effective] ? 'pending' : 'new';
@@ -432,7 +469,10 @@ export async function preflight(ctx, actor, args, toolName) {
             return true;
           });
           actor.approvalState = 'pending';
-          throw refusal(`"${effective}" is a new client on this store and is read-limited until ${cosTag() ? `the chief of staff (${cosTag()})` : 'the owner'} approves it with emet_client_approve. The request is queued; nothing was written.`);
+          throw refusal(
+            `"${effective}" is a new client on this store and is read-limited until ${cosTag() ? `the chief of staff (${cosTag()})` : 'the owner'} approves it with emet_client_approve. The request is queued; nothing was written.`,
+            chooserBinding({ kind: 'onboarding_required', grantId: actor.grantId, tag: effective, door: actor.door })
+          );
         }
       }
     }
@@ -460,6 +500,7 @@ export function summarizeWrite(toolName, args) {
   const a = args || {};
   const parts = [toolName];
   if (a.doc_id) parts.push(`doc ${a.doc_id}`);
+  if (a.stage_id) parts.push(`stage ${a.stage_id}`);
   if (a.layer) parts.push(`layer ${a.layer}`);
   if (a.session_id) parts.push(`session ${a.session_id}`);
   const text = a.content || a.new_str || a.assistant_message || '';
@@ -482,8 +523,8 @@ export function approvalsView(data, actor, ownerId) {
 
 /**
  * emet_client_approve. Only the owner acting as the owner, or the configured
- * COS on its own login tag; never the client deciding itself (the second reader 1).
- * Idempotent: the same decision again writes nothing (the second reader 2).
+ * COS on its own login tag; never the client deciding itself (Tester 1).
+ * Idempotent: the same decision again writes nothing (Tester 2).
  */
 export async function clientApprove(deps, actor, ownerId, { tag, decision, reason, as, from } = {}, _registry = [], now = new Date()) {
   const t = typeof tag === 'string' ? tag.trim() : '';
@@ -494,6 +535,13 @@ export async function clientApprove(deps, actor, ownerId, { tag, decision, reaso
   const ownerOk = actorIsOwner(actor, ownerId);
   const cosOk = actorIsCos(actor);
   if (!(ownerOk || cosOk)) throw refusal(`emet_client_approve: only the owner${cosTag() ? ` or the chief of staff (${cosTag()})` : ''} may decide new clients. Nothing was changed.`);
+  if (isOwlIdentity(actor)) throw refusal('emet_client_approve: the owl MCP clone account was retired by R6 and cannot approve. the owner decides a new writer on /owner/chooser. Nothing was changed.');
+  if (decision === 'approve' && isMasterBlasterActor(actor) && !(actor && actor.ownerSession === true)) {
+    throw refusal('emet_client_approve: an AI cannot grant a writer. Master Hub prepares a request. the owner decides it on /owner/chooser. Nothing was changed.');
+  }
+  if (decision === 'approve' && cosOk && !(actor && actor.ownerSession === true)) {
+    throw refusal('emet_client_approve: an AI cannot grant a writer. Master Hub prepares a request. the owner decides it on /owner/chooser. Nothing was changed.');
+  }
   if (setting('SUBKEYS') === '1') {
     const { decideSubkeyIfPending } = await import('./subkeys.js');
     const decided = await decideSubkeyIfPending(deps, actor, ownerId, { tag: t, decision, reason }, now);
@@ -502,7 +550,7 @@ export async function clientApprove(deps, actor, ownerId, { tag, decision, reaso
   const by = ownerOk ? `owner (${actor && actor.personId || 'local'})` : `cos ${cosTag()}`;
   let result = null;
   await mutateApprovals(deps, (d) => {
-    // the second reader round 3: whatever path made the caller "owner" or "COS", it may never
+    // Tester round 3: whatever path made the caller "owner" or "COS", it may never
     // decide a request that its own connection queued (same client_id or same
     // grant), nor a tag equal to its own. A bot on a shared login that omits
     // `source` looks like the login; this catches it.
@@ -512,7 +560,7 @@ export async function clientApprove(deps, actor, ownerId, { tag, decision, reaso
       const sameGrant = !!req.grant_id && req.grant_id === (actor.grantId || null);
       if (sameClient || sameGrant) throw refusal('emet_client_approve: this connection queued the request for "' + t + '", so it may not decide it. Decide from another client. Nothing was changed.');
     }
-    // the second reader delta M2: a client_id that already has approved tags needs an explicit
+    // Tester delta M2: a client_id that already has approved tags needs an explicit
     // `as` ('add' keeps every sibling, 'rename' retires one named tag).
     const cidReq = (d.pending[t] && d.pending[t].client_id) || null;
     const siblings = decision === 'approve' && cidReq ? rememberedFor(d, cidReq).filter((x) => x !== t) : [];
@@ -540,7 +588,7 @@ export async function clientApprove(deps, actor, ownerId, { tag, decision, reaso
   return result;
 }
 
-/** What emet_initialize tells a client about its remembered tag (Alex 2026-10-12). */
+/** What emet_initialize tells a client about its remembered tag (the owner 2026-10-12). */
 export function rememberedView(actor) {
   const tags = actor && Array.isArray(actor.rememberedTags) ? actor.rememberedTags : [];
   if (!tags.length) return null;

@@ -86,9 +86,9 @@ export const CLOSE_PROTOCOL = Object.freeze([
   {
     step: 5,
     artifact: 'handoff - written LAST, in one write',
-    what: 'A new revision of the handoff record, written whole with write_doc and `supersedes` set to the version in force - a record is superseded, never patched or appended. What was in progress, why it stopped, the exact next steps, and the state a successor needs - documents touched, decisions made, anything half-finished - plus a close verification naming the artifacts above and the evidence each returned.',
+    what: 'A new revision of the handoff record, written whole with write_doc — or, when one call cannot carry it, write_doc_begin, write_doc_append, and write_doc_commit, which still land as one write_doc revision — and `supersedes` set to the version in force - a record is superseded, never patched or appended. What was in progress, why it stopped, the exact next steps, and the state a successor needs - documents touched, decisions made, anything half-finished - plus a close verification naming the artifacts above and the evidence each returned.',
     why: 'The next session begins with no context at all; this document is the only thing that crosses the gap. It is written last because its close verification attests to the other artifacts. Written earlier it attests to things that do not yet exist, and needs a patch afterwards - which is how one reference install ended up with a handoff whose section 6 cited saves made after it was written. If a session ends mid-close the prior handoff stands, and the position marker and session record already carry the session.',
-    tools: ['write_doc']
+    tools: ['write_doc', 'write_doc_begin', 'write_doc_append', 'write_doc_commit']
   }
 ]);
 
@@ -354,7 +354,7 @@ export async function corroborateCoverage(db, baseId) {
  * The store check above answers "do the artifacts exist". It could not answer
  * "did the host actually do each step", and a host that skipped a step, or
  * never read the transcript back, could still walk away with `complete`
- * because the store happened to look fine. the owner's requirement (procedural ref 388,
+ * because the store happened to look fine. Alex's requirement (procedural ref 388,
  * 389, 391): the wrap steps HAVE TO BE FOLLOWED, whichever model is hosting,
  * and a skipped step blocks the close the same way a skipped opening is caught
  * at initialize.

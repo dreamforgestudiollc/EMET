@@ -534,7 +534,7 @@ function selectorFor(doc) {
 function requireSlug(area, tool) {
   const slug = String(area || '').trim();
   if (!areaSlug(`areas/${slug}.md`)) {
-    throw new ValidationError('area', `${tool}: area must be a slug like "health".`, { code: 'EMET-PAGE-004' });
+    throw new ValidationError('area', `${tool}: area must be a slug like "finances".`, { code: 'EMET-PAGE-004' });
   }
   return slug;
 }

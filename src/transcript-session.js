@@ -5,7 +5,7 @@ import { setting } from './env.js';
 export const EXCHANGES_PER_PART = 8;
 
 /**
- * The zone a session id is dated in (2026-10-01, the owner's approval; dev team plan
+ * The zone a session id is dated in (2026-10-01, Alex's approval; dev team plan
  * Part B, fix 1). Ids were dated from UTC, so an evening session in New York
  * carried the next day's date (episodic ref 600: `2026-10-01_grok-init` minted on
  * the night of 9/30). The day is now the user's local day: EMET_TIMEZONE, an
@@ -37,10 +37,29 @@ export function localDate(date = new Date(), timeZone = DEFAULT_TIME_ZONE) {
   return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
+/**
+ * Mint grammar for a leading session date: YYYY-MM-DD_ with month 01-12 and
+ * day 01-31. This is the same shape the error log accepts. It is not a
+ * calendar check: 2026-02-31 matches, 2026-13-01 and 2026-10-32 do not, and a
+ * hyphen after the day (2026-10-27-foo) is not a prefix.
+ *
+ * board 125(d): a caller slug that already begins with this prefix is the base.
+ * The server does not prepend the local day, and it does not replace or
+ * refuse a well-formed prefix that is not today's date. The text after the
+ * prefix is still cleaned. -N reopen and _verbatim_partN are applied later.
+ */
+const DATED_SLUG_PREFIX = /^([0-9]{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12][0-9]|3[01]))_([\s\S]*)$/;
+
+function cleanSlugBody(raw) {
+  return String(raw || 'session').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'session';
+}
+
 export function sessionBaseId(date = new Date(), slug = 'session', timeZone = sessionTimeZone().zone) {
   const day = localDate(date, timeZone);
-  const clean = String(slug || 'session').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'session';
-  return `${day}_${clean}`;
+  const raw = typeof slug === 'string' ? slug.trim() : '';
+  const dated = raw ? DATED_SLUG_PREFIX.exec(raw) : null;
+  if (dated) return `${dated[1]}_${cleanSlugBody(dated[2])}`;
+  return `${day}_${cleanSlugBody(slug)}`;
 }
 
 export function partId(base, n) {
@@ -67,7 +86,7 @@ export function shouldStartNewPart(exchangeCount) {
 }
 
 /**
- * A closed session is never reopened (2026-10-01, the owner's approval; episodic
+ * A closed session is never reopened (2026-10-01, Alex's approval; episodic
  * 598: a session_open returned the previous night's CLOSED id and the next
  * append landed in it as exchange 9). Returns the first of base, base-2,
  * base-3, ... that is free, and the ids it passed over with the reason.

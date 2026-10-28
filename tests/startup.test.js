@@ -268,13 +268,13 @@ testGroup('8. Close-order tool survives a 20k truncate', () => {
     assert(ready.indexOf('tools_in_force') < i && i < ready.indexOf('session_close_protocol:'), 'instructions_short must sit between tools_in_force and session_close_protocol');
     assert(i < ready.indexOf('identity:'));
   });
-  // Code audit 2026-09-27 (2.3, Alex): seeds are served one line each.
+  // Code audit 2026-09-27 (2.3, the owner): seeds are served one line each.
   test('seedLine folds a seed to one line with title, status, dated cues and clipped topic cues', () => {
-    const s = summarizeSeed('seeds/x.md', '---\nstatus: DORMANT\ntrigger:\n  - kind: DATE\n    test: "2026-01-01 fires on or after"\n  - kind: TOPIC\n    test: "' + 'Alex raises the thing '.repeat(20) + '"\n---\n# SEED — Example seed\n', '2026-09-27');
+    const s = summarizeSeed('seeds/x.md', '---\nstatus: DORMANT\ntrigger:\n  - kind: DATE\n    test: "2026-01-01 fires on or after"\n  - kind: TOPIC\n    test: "' + 'the owner raises the thing '.repeat(20) + '"\n---\n# SEED — Example seed\n', '2026-09-27');
     const l = seedLine(s);
     assert.strictEqual(l.doc_id, 'seeds/x.md');
     assert.strictEqual(l.due, true);
-    assert.match(l.line, /^Example seed — DORMANT — DATE 2026-01-01 DUE · TOPIC: Alex raises the thing/);
+    assert.match(l.line, /^Example seed — DORMANT — DATE 2026-01-01 DUE · TOPIC: the owner raises the thing/);
     assert.ok(l.line.length < 220, `line is ${l.line.length} chars`);
     assert.ok(!('triggers' in l), 'the full trigger list must not ride along');
   });

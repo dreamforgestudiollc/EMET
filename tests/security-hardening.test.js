@@ -103,7 +103,7 @@ testGroup('module paths survive a Windows file URL', () => {
 const ANSWERS = {
   assistant_name: 'Ada',
   assistant_character: 'Direct and brief.',
-  user_name: 'Alex',
+  user_name: 'the owner',
   user_context: 'A project store.',
   more_than_one_bot: 'no'
 };

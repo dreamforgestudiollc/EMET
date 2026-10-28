@@ -6,7 +6,7 @@
  * from tools.js. Three things can drift apart silently: a tool declared but
  * dispatched on only one transport, a case that names a tool that no longer
  * exists, and a case present on one transport and absent on the other. The
- * `session_id` / `conversation_id` divergence (an earlier fix) was this class of
+ * `session_id` / `conversation_id` divergence (thatcommit) was this class of
  * defect. This test reads both switches and the declared list and fails on
  * any difference.
  */
@@ -95,7 +95,7 @@ testGroup('The dispatch table passes the right arguments to the doors', () => {
       assert.ok(!/source\s*[:=]\s*setting\(/.test(src), `${name} sets source from setting()`);
     }
   });
-  test('query_transcripts passes session_id and no legacy alias (the alias-drift class; audit 1.5a)', () => {
+  test('query_transcripts passes session_id and no legacy alias (the thatcommit class; audit 1.5a)', () => {
     const i = tableSrc.indexOf("case 'query_transcripts'");
     const line = tableSrc.slice(i, tableSrc.indexOf('\n', i));
     assert.ok(/args\.session_id/.test(line), 'query_transcripts dispatch does not pass session_id');
@@ -104,7 +104,7 @@ testGroup('The dispatch table passes the right arguments to the doors', () => {
   test('setupComplete receives the logger (the argument drift the audit found)', () => {
     assert.ok(/setupComplete\(args\.answers \|\| \{\}, logger[,)]/.test(tableSrc));
   });
-  // 2026-09-27 (code audit 1.5c, Alex): one name for the source tag on every write.
+  // 2026-09-27 (code audit 1.5c, the owner): one name for the source tag on every write.
   test('sourceOf prefers `source` and reads the four older names as aliases', () => {
     assert.strictEqual(sourceOf({ source: 'a', updated_by: 'b' }), 'a');
     assert.strictEqual(sourceOf({ updated_by: 'b' }), 'b');
@@ -121,7 +121,7 @@ testGroup('The dispatch table passes the right arguments to the doors', () => {
       assert.ok(!/args\.(updated_by|retired_by|accepted_by|channel)\b/.test(line), `${tool} still reads an old name directly`);
     }
   });
-  // 2026-09-27 (code audit 1.5d, Alex: "validate"): a transcript write names a registered host.
+  // 2026-09-27 (code audit 1.5d, the owner: "validate"): a transcript write names a registered host.
   test('a transcript write with an unregistered source tag is refused, naming the registry', () => {
     const prev = process.env.EMET_SOURCE_TAGS;
     process.env.EMET_SOURCE_TAGS = 'cli,mobile,cowork-cloud';
@@ -218,8 +218,9 @@ testGroup('Every tool call is audited on both transports (security audit H6, 202
     for (const file of ['index.js', 'http-remote.js']) {
       const line = handlerOf(file).match(/logger\.audit\(AuditOperation\.TOOL_CALL,[^\n]*/)[0];
       assert.ok(/tool: name/.test(line) && /success:/.test(line) && /durationMs/.test(line), `${file}: ${line}`);
+      assert.ok(/toolCallAuditDetails\(actor/.test(line), `${file}: the audit line must take identity from toolCallAuditDetails`);
       assert.ok(!/args/.test(line), `${file}: arguments must not reach the audit line`);
-      // 2026-09-27 (code audit 1.6, Alex): parameter NAMES are recorded, values never.
+      // 2026-09-27 (code audit 1.6, the owner): parameter NAMES are recorded, values never.
       assert.ok(/params: paramNames/.test(line), `${file}: the audit line does not carry the parameter names`);
       const decl = handlerOf(file).match(/const paramNames = ([^\n]*)/);
       assert.ok(decl && /Object\.keys\(/.test(decl[1]) && !/Object\.values|JSON\.stringify\(args/.test(decl[1]), `${file}: paramNames must be keys only`);

@@ -1,5 +1,5 @@
 /**
- * Importance buckets (Alex 2026-09-26): the word differentiates;
+ * Importance buckets (the owner 2026-09-26): the word differentiates;
  * the float is the midpoint unless a degree is named.
  */
 import { test, testGroup, summary } from './harness.js';

@@ -13,6 +13,12 @@ scoped user, and Atlas Network Access set to `0.0.0.0/0` — a hosted platform's
 dynamic, so it cannot be allowlisted. Security rests on the scoped user plus the OAuth
 passphrase; both are required.
 
+## Upgrading to 0.3.2
+
+0.3.2 adds door grants, the owner chooser, household rotation, and writer approval. Records already stored stay. After the deploy, reconnect each host so it loads the staged-write tools. The owner approves a new writer on `/owner/chooser`. An AI does not grant a writer. When `EMET_SUBKEYS=1`, a bot that shares the owner login uses its own key, `emet_session_open` returns `session_handle` once, and every later write in that session passes `session_handle`. A missing or different handle is refused, and nothing is written.
+
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
 ## Upgrading to 0.3.0
 
 Error-log rotation deletes from `error_log` (10,000 entries or 90 days; daily summaries are

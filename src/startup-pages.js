@@ -1,5 +1,5 @@
 /**
- * Paged startup (ref 358 amendment, paging; Alex approved 2026-10-03, design
+ * Paged startup (ref 358 amendment, paging; the owner approved 2026-10-03, design
  * paper question 1). The connector gateway cuts a tool result at 20,000 UTF-8
  * bytes, and the full startup is about 64K, so on those hosts the floor,
  * install notes, source tags, seeds_due, record gaps and lessons never
@@ -42,7 +42,7 @@ export function pageBudget(raw = process.env.EMET_INIT_PAGE_BYTES) {
 
 /** Binding first: the order keys are paged in. Keys not listed follow, in payload order. */
 export const PAGE_ORDER = Object.freeze([
-  'state', 'database', 'source_tag', 'source_basis', 'source_login', 'source_remembered', 'approval_state', 'person_id', 'client_approvals', 'unhandled_drops', 'unhandled_drops_more', 'retired_drops', 'emet_line', 'emet_line_if_unanswered',
+  'state', 'database', 'source_tag', 'grant_id', 'door', 'source_basis', 'source_login', 'source_remembered', 'approval_state', 'person_id', 'client_approvals', 'unhandled_drops', 'unhandled_drops_more', 'retired_drops', 'emet_line', 'emet_line_if_unanswered',
   'tools_in_force', 'instructions_short', 'session_close_protocol', 'operating_discipline', 'charter',
   'floor', 'floor_precedence', 'floor_reassertion', 'gems_available', 'gems_active',
   'seeds_due', 'seeds_evaluated_on', 'install_notes_doc_id',

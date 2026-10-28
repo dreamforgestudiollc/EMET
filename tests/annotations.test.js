@@ -68,7 +68,7 @@ testGroup('The declarations say what EMET actually is', () => {
     }
   });
   test('document replacement is marked destructive', () => {
-    for (const name of ['write_doc', 'patch_doc']) {
+    for (const name of ['write_doc', 'patch_doc', 'write_doc_commit']) {
       assert.strictEqual(TOOLS.find(t => t.name === name).annotations.destructiveHint, true, name);
     }
   });

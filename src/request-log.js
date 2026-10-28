@@ -29,7 +29,7 @@
 import { redactText } from './redact.js';
 
 // Paths always logged, whatever the status.
-export const LOGGED_PATH = /^\/(?:authorize|token|register|revoke|oauth\/approve|mcp|\.well-known\/[^\s]*)$/;
+export const LOGGED_PATH = /^\/(?:authorize|token|register|revoke|oauth\/approve|mcp|owner\/(?:chooser|break-glass|approvals)(?:\/[a-z]+(?:-[a-z]+)*)?|owner\/login|\.well-known\/[^\s]*)$/;
 
 const CLIP = 160;
 const clip = (v) => String(v).slice(0, CLIP);
@@ -68,7 +68,7 @@ export function requestLogEntry({ method, path, statusCode, ms, ip, query = {}, 
       entry.rpc = clip(b.method);
       if (b.method === 'tools/call' && b.params && b.params.name) {
         entry.tool = clip(b.params.name);
-        // Parameter NAMES only (Alex, 2026-09-27, code audit 1.6) - values never.
+        // Parameter NAMES only (the owner, 2026-09-27, code audit 1.6) - values never.
         const a = b.params.arguments;
         if (a && typeof a === 'object' && !Array.isArray(a)) entry.params = Object.keys(a).sort().map(clip);
       }

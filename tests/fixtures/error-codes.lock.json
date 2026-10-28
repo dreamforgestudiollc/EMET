@@ -194,6 +194,31 @@
     "status": "active",
     "internal": false
   },
+  "EMET-AUTH-040": {
+    "summary": "A claimed source tag cannot write after the kill date",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-041": {
+    "summary": "A credential was revoked by rotation",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-042": {
+    "summary": "A retired owl credential was refused",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-043": {
+    "summary": "A writer approval step was refused",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-AUTH-044": {
+    "summary": "A bound login cannot stamp another tag",
+    "status": "active",
+    "internal": false
+  },
   "EMET-CFG-001": {
     "summary": "Database name must be a plain name",
     "status": "active",
@@ -421,6 +446,11 @@
   },
   "EMET-DB-036": {
     "summary": "Failed corpus recall",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DB-037": {
+    "summary": "Failed to stage a document write",
     "status": "active",
     "internal": false
   },
@@ -716,6 +746,111 @@
   },
   "EMET-DOC-059": {
     "summary": "Patch edits overlap",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-060": {
+    "summary": "Stage not found for this writer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-061": {
+    "summary": "Stage has expired",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-062": {
+    "summary": "Stage was aborted",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-063": {
+    "summary": "Stage is already committed",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-064": {
+    "summary": "A staged chunk exceeds the part limit",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-065": {
+    "summary": "A staged append is out of order",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-066": {
+    "summary": "A staged part was already stored with different bytes",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-067": {
+    "summary": "Staged content would exceed the 2MB limit",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-068": {
+    "summary": "A staged write has too many parts",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-069": {
+    "summary": "Commit digest does not match the assembled content",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-070": {
+    "summary": "Commit part count does not match the stage",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-071": {
+    "summary": "A staged chunk must be a non-empty string",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-072": {
+    "summary": "A staged part index must be a whole number",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-073": {
+    "summary": "Commit sha256 must be a hex digest",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-074": {
+    "summary": "Too many open stages for this writer",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-075": {
+    "summary": "Commit names a different document than the stage",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-076": {
+    "summary": "This stage is already being committed",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-077": {
+    "summary": "Commit supersedes does not match the stage",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-078": {
+    "summary": "Commit reason does not match the stage",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-079": {
+    "summary": "This call's source does not match the stage",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-080": {
+    "summary": "This call's session does not match the stage",
     "status": "active",
     "internal": false
   },
@@ -1206,6 +1341,16 @@
   },
   "EMET-SESS-005": {
     "summary": "Session graph is unavailable",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-SESS-006": {
+    "summary": "Session close was blocked",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-SESS-007": {
+    "summary": "Session close escalated",
     "status": "active",
     "internal": false
   },

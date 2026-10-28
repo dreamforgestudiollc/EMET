@@ -45,6 +45,11 @@ Internal codes are raised inside a check that catches them before a caller sees 
 | EMET-AUTH-037 | Only the owner can create member access | active |
 | EMET-AUTH-038 | The error report is owner-only | active |
 | EMET-AUTH-039 | HTTP attribution preflight was refused | active |
+| EMET-AUTH-040 | A claimed source tag cannot write after the kill date | active |
+| EMET-AUTH-041 | A credential was revoked by rotation | active |
+| EMET-AUTH-042 | A retired owl credential was refused | active |
+| EMET-AUTH-043 | A writer approval step was refused | active |
+| EMET-AUTH-044 | A bound login cannot stamp another tag | active |
 | EMET-CFG-001 | Database name must be a plain name | active, internal |
 | EMET-CFG-002 | Collection prefix must be a plain name | active, internal |
 | EMET-CFG-004 | Hosted setup cannot turn sub-keys on from here | active |
@@ -91,6 +96,7 @@ Internal codes are raised inside a check that catches them before a caller sees 
 | EMET-DB-034 | Failed to patch a document | active |
 | EMET-DB-035 | Failed semantic recall | active |
 | EMET-DB-036 | Failed corpus recall | active |
+| EMET-DB-037 | Failed to stage a document write | active |
 | EMET-DOC-001 | doc_id must be a non-empty string | active |
 | EMET-DOC-002 | Document not found | active |
 | EMET-DOC-003 | No retained revision | active |
@@ -150,6 +156,27 @@ Internal codes are raised inside a check that catches them before a caller sees 
 | EMET-DOC-057 | old_str must be a non-empty string | active |
 | EMET-DOC-058 | new_str must be a string | active |
 | EMET-DOC-059 | Patch edits overlap | active |
+| EMET-DOC-060 | Stage not found for this writer | active |
+| EMET-DOC-061 | Stage has expired | active |
+| EMET-DOC-062 | Stage was aborted | active |
+| EMET-DOC-063 | Stage is already committed | active |
+| EMET-DOC-064 | A staged chunk exceeds the part limit | active |
+| EMET-DOC-065 | A staged append is out of order | active |
+| EMET-DOC-066 | A staged part was already stored with different bytes | active |
+| EMET-DOC-067 | Staged content would exceed the 2MB limit | active |
+| EMET-DOC-068 | A staged write has too many parts | active |
+| EMET-DOC-069 | Commit digest does not match the assembled content | active |
+| EMET-DOC-070 | Commit part count does not match the stage | active |
+| EMET-DOC-071 | A staged chunk must be a non-empty string | active |
+| EMET-DOC-072 | A staged part index must be a whole number | active |
+| EMET-DOC-073 | Commit sha256 must be a hex digest | active |
+| EMET-DOC-074 | Too many open stages for this writer | active |
+| EMET-DOC-075 | Commit names a different document than the stage | active |
+| EMET-DOC-076 | This stage is already being committed | active |
+| EMET-DOC-077 | Commit supersedes does not match the stage | active |
+| EMET-DOC-078 | Commit reason does not match the stage | active |
+| EMET-DOC-079 | This call's source does not match the stage | active |
+| EMET-DOC-080 | This call's session does not match the stage | active |
 | EMET-GEM-001 | Read-back found no document | active |
 | EMET-GEM-002 | Read-back content digest differs | active |
 | EMET-GEM-003 | Read-back version differs | active |
@@ -248,6 +275,8 @@ Internal codes are raised inside a check that catches them before a caller sees 
 | EMET-SESS-003 | timestamp_start must be before timestamp_end | active |
 | EMET-SESS-004 | session_id must be a string | active |
 | EMET-SESS-005 | Session graph is unavailable | active |
+| EMET-SESS-006 | Session close was blocked | active |
+| EMET-SESS-007 | Session close escalated | active |
 | EMET-TOOL-001 | A tool has no annotation entry | active, internal |
 | EMET-TOOL-002 | A source tag is required | active |
 | EMET-TOOL-003 | A source tag is required and none are registered | active |

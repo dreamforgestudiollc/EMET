@@ -28,11 +28,11 @@ testGroup('the role never grants delete on the record', () => {
     for (const c of Object.keys(DELETE_ALLOWED)) assert.ok(!/^(emet_(episodic|semantic|procedural|meta|identity|working)|documents|documents_history|transcripts|exchanges)$/.test(c), c);
   });
   test('the privilege strings are in Atlas CLI form', () => {
-    const p = atlasPrivileges('emet');
-    assert.ok(p.includes('FIND@emet') && p.includes('REMOVE@emet.emet_oauth_tokens') && p.includes('REMOVE@emet._emet_verify'));
-    assert.ok(p.includes('REMOVE@emet.error_log'));
-    assert.ok(!p.includes('DROP_COLLECTION@emet._emet_verify'));
-    assert.ok(!p.some((x) => x.startsWith('REMOVE@emet') && !x.includes('.')));
+    const p = atlasPrivileges('bound');
+    assert.ok(p.includes('FIND@bound') && p.includes('REMOVE@bound.emet_oauth_tokens') && p.includes('REMOVE@bound._emet_verify'));
+    assert.ok(p.includes('REMOVE@bound.error_log'));
+    assert.ok(!p.includes('DROP_COLLECTION@bound._emet_verify'));
+    assert.ok(!p.some((x) => x.startsWith('REMOVE@bound') && !x.includes('.')));
     assert.throws(() => atlasPrivileges('bad name'));
   });
   test('the role has a name', () => assert.strictEqual(ATLAS_ROLE_NAME, 'emetRecordKeeper'));

@@ -19,6 +19,8 @@ import {
   personIsOwner, actorIsOwner, actorIsCos, cosTag, sessionBaseOf,
   rememberSubkeySession
 } from './attribution.js';
+import { isOwlIdentity } from './owl.js';
+import { isMasterBlasterActor } from './writer-approval.js';
 import { parseReceipts } from './session.js';
 import { storeFor, sweepFlagOffLiveSessions } from './subkey-store.js';
 
@@ -428,6 +430,10 @@ export async function decideSubkeyIfPending(deps, actor, ownerId, { tag, decisio
   const ownerOk = actorIsOwner(actor, ownerId);
   const cosOk = actorIsCos(actor);
   if (!(ownerOk || cosOk)) throw refusal(`emet_client_approve: only the owner${cosTag() ? ` or the chief of staff (${cosTag()})` : ''} may decide a sub-key. Nothing was changed.`);
+  if (isOwlIdentity(actor)) throw refusal('emet_client_approve: the owl MCP clone account was retired by R6 and cannot approve. the owner decides a new writer on /owner/chooser. Nothing was changed.');
+  if (decision === 'approve' && (cosOk || isMasterBlasterActor(actor)) && actor.sourceTag !== 'owner') {
+    throw refusal('emet_client_approve: an AI cannot grant a writer. Master Hub prepares a request. the owner decides it on /owner/chooser. Nothing was changed.');
+  }
   const why = typeof reason === 'string' ? reason.trim() : '';
   const channel = typeof via === 'string' ? via.trim() : '';
   let result = null;
@@ -596,6 +602,61 @@ export async function revokeSubkey(deps, actor, ownerId, { tag, key_id, reason }
     return true;
   });
   return result;
+}
+
+const ROTATION_LIVE = new Set(['pending', 'approved', 'active', 'grace']);
+
+/**
+ * Retire sub-keys for a rotation. tags null is the household. An empty set
+ * matches nobody. Rows and session opens stay. Status revoked is not a grace.
+ */
+export async function retireSubkeysForRotation(deps, { eventId, tags = null, now = new Date() } = {}) {
+  if (!subkeysEnabled()) return { revoked: 0, sessions: 0, skipped: true };
+  const store = await storeFor(deps || {});
+  if (!store) return { revoked: 0, sessions: 0, unavailable: true };
+  if (tags instanceof Set && tags.size === 0) return { revoked: 0, sessions: 0, unavailable: false };
+  const at = (now instanceof Date ? now : new Date(now)).toISOString();
+  let revoked = 0;
+  let sessions = 0;
+  await edit(deps, (data) => {
+    ensureMaps(data);
+    const allow = tags instanceof Set ? tags : null;
+    for (const row of Object.values(data.keys)) {
+      if (!row || (allow && !allow.has(row.tag)) || !ROTATION_LIVE.has(row.status)) continue;
+      row.status = 'revoked';
+      row.revoked_at = at;
+      row.revoked_by = 'owner';
+      row.revoke_reason = 'rotation';
+      row.superseded_by = eventId;
+      row.retired = true;
+      row.deleted = false;
+      pushHistory(row, 'revoked', {
+        event_id: `h:${row.key_id}:${eventId}`,
+        at,
+        reason: 'rotation',
+        superseded_by: eventId
+      });
+      row.live_session_id = null;
+      row.live_set_at = null;
+      revoked += 1;
+    }
+    for (const s of data.sessions) {
+      if (!s || (s.state !== 'live' && s.state !== 'opening')) continue;
+      if (allow) {
+        const key = Object.values(data.keys).find((item) => item && item.key_id === s.key_id);
+        if (!key || !allow.has(key.tag)) continue;
+      }
+      s.state = 'revoked';
+      s.ended_at = at;
+      s.end_reason = 'rotation';
+      s.superseded_by = eventId;
+      s.retained = true;
+      s.deleted = false;
+      sessions += 1;
+    }
+    return revoked > 0 || sessions > 0;
+  });
+  return { revoked, sessions, unavailable: false };
 }
 
 /** End the key's live session without revoking the key. Owner login only. */

@@ -421,6 +421,12 @@ export function makeStore(opts = {}) {
         const v = clone(d); return opts.includeResultMetadata ? { value: v } : v;
       },
       async deleteOne(q) { note(name, 'delete'); const i = docs.findIndex((x) => matches(x, q)); if (i >= 0) docs.splice(i, 1); return { deletedCount: i >= 0 ? 1 : 0 }; },
+      async deleteMany(q) {
+        note(name, 'deleteMany');
+        const before = docs.length;
+        for (let i = docs.length - 1; i >= 0; i--) if (matches(docs[i], q)) docs.splice(i, 1);
+        return { deletedCount: before - docs.length };
+      },
       async countDocuments(q = {}) { return docs.filter((d) => matches(d, q)).length; },
       async estimatedDocumentCount() { return docs.length; },
       async distinct(k, q = {}) { return [...new Set(docs.filter((d) => matches(d, q)).map((d) => get(d, k)))]; },

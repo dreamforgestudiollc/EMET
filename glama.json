@@ -3,8 +3,8 @@
   "maintainers": [
     "dreamforgestudiollc"
   ],
-  "description": "EMET 0.3.1 is an MCP memory server: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true. Free and open source under the MIT License; no account, key or payment required to run it. Every error carries a stable code; the owner-only emet_error_report returns a report and an email draft the user sends. npm run verify drives the registered tools from a checkout, and docs/features is the map of every feature.",
-  "version": "0.3.1",
+  "description": "EMET 0.3.2 is an MCP memory server: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true. Free and open source under the MIT License; no account, key or payment required to run it.",
+  "version": "0.3.2",
   "tools": [
     "accept_nonconformance",
     "corpus_recall",
@@ -43,6 +43,10 @@
     "save_transcript",
     "semantic_recall",
     "validate_doc",
-    "write_doc"
+    "write_doc",
+    "write_doc_abort",
+    "write_doc_append",
+    "write_doc_begin",
+    "write_doc_commit"
   ]
 }

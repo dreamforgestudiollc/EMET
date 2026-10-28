@@ -32,7 +32,7 @@
  *
  * Source of the three-attempt rule and the scope line: Hanako, "Loops and
  * Graphs" (2026-08-23), read in full 2026-09-27; the user's decisions are in
- * staging/emet-lessons-to-checks.md.
+ * the staging note.
  */
 
 // ---------------------------------------------------------------------------

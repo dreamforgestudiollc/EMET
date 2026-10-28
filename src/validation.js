@@ -153,7 +153,7 @@ export class ValidationError extends Error {
   constructor(field, message, value = undefined) {
     // A trailing { code: 'EMET-...' } is the stable code. It is not a field value
     // and it is not part of the message. One-argument calls pass the whole message
-    // as `field` (the second reader's fix (b), 2026-10-02): that used to render
+    // as `field` (Tester's fix (b), 2026-10-02): that used to render
     // "Validation failed for '<message>': undefined".
     let emetCode;
     const fourth = arguments.length > 3 ? arguments[3] : undefined;

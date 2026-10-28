@@ -81,7 +81,7 @@ function packedTree() {
   const parsed = JSON.parse(r.stdout.slice(start));
   assert.ok(Array.isArray(parsed) && parsed[0], 'npm pack --json did not return a pack result');
   const entry = parsed[0];
-  assert.strictEqual(entry.filename, 'dreamforgestudiollc-emet-0.3.1.tgz');
+  assert.strictEqual(entry.filename, 'dreamforgestudiollc-emet-0.3.2.tgz');
   const tgz = path.join(dir, entry.filename);
   const read = (rel) => {
     const ex = spawnSync('tar', ['-xOf', tgz, `package/${rel}`], { encoding: 'utf8' });
@@ -94,7 +94,7 @@ function packedTree() {
 testGroup('npm publish metadata', () => {
   test('the package name, version, and registry manifest agree', () => {
     assert.strictEqual(pkg.name, '@dreamforgestudiollc/emet');
-    assert.strictEqual(pkg.version, '0.3.1');
+    assert.strictEqual(pkg.version, '0.3.2');
     assert.strictEqual(pkg.mcpName, 'io.github.dreamforgestudiollc/emet');
     assert.strictEqual(server.name, pkg.mcpName);
     assert.strictEqual(server.version, pkg.version);
@@ -102,7 +102,7 @@ testGroup('npm publish metadata', () => {
     assert.strictEqual(server.packages[0].version, pkg.version);
     assert.strictEqual(server.packages[0].registryType, 'npm');
     assert.strictEqual(server.packages[0].transport.type, 'stdio');
-    assert.strictEqual(server.description, '0.3.1. Free MIT; no account, key, or payment. Verifies record, not computation. Stable error codes.');
+    assert.strictEqual(server.description, '0.3.2. Free MIT; no account, key, or payment. Verifies record, not computation. Stable error codes.');
     assert.strictEqual(pkg.license, 'MIT');
     assert.strictEqual(pkg.homepage, 'https://dreamforgestudiollc.github.io/EMET/');
     assert.strictEqual(pkg.bugs.url, 'https://github.com/dreamforgestudiollc/EMET/issues');
@@ -125,7 +125,7 @@ testGroup('npm publish metadata', () => {
   test('npm pack --dry-run ships runtime files and docs, and leaves private paths out', () => {
     const packed = packDryRun();
     const paths = packed.files.map((f) => f.path);
-    for (const rel of ['package.json', 'src/index.js', 'src/host-reach.js', 'verification/load-gate/load-gate.mjs', 'verification/load-gate/corpus.json', 'src/http-remote.js', 'templates/BOARD.md', 'templates/AREA.md', 'areas/emet.md', 'areas/garden.md', 'areas/home.md', 'areas/health.md', 'areas/learning.md', 'areas/state.md', 'gems/neurendipity/gem.json', 'gems/neurendipity/floor.json', 'gems/neurendipity/guides/NEURODIVERGENT_SUPPORT.md', 'gems/lean-six-sigma/gem.json', 'gems/lean-six-sigma/runes/lss_capability.js', 'gems/lean-six-sigma/guides/FORMULAS.md', 'guides/README.md', 'CHARTER.md', 'CHANGELOG.md', 'server.json', 'docs/SETUP.md', 'docs/DEPLOY.md', '.env.example', 'README.md', 'LICENSE']) {
+    for (const rel of ['package.json', 'src/index.js', 'src/host-reach.js', 'verification/load-gate/load-gate.mjs', 'verification/load-gate/corpus.json', 'src/http-remote.js', 'templates/BOARD.md', 'templates/AREA.md', 'templates/SESSIONDISPOSITION.md', 'areas/emet.md', 'areas/garden.md', 'areas/home.md', 'areas/health.md', 'areas/learning.md', 'areas/state.md', 'gems/neurendipity/gem.json', 'gems/neurendipity/floor.json', 'gems/neurendipity/guides/NEURODIVERGENT_SUPPORT.md', 'gems/lean-six-sigma/gem.json', 'gems/lean-six-sigma/runes/lss_capability.js', 'gems/lean-six-sigma/guides/FORMULAS.md', 'guides/README.md', 'CHARTER.md', 'CHANGELOG.md', 'server.json', 'docs/SETUP.md', 'docs/DEPLOY.md', '.env.example', 'README.md', 'LICENSE']) {
       assert.ok(paths.includes(rel), rel);
     }
     assert.ok(!paths.includes('guides/NEURODIVERGENT_SUPPORT.md'), 'the guide text is not packed twice');

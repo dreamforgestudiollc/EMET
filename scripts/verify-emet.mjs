@@ -16,6 +16,7 @@
  *   node scripts/verify-emet.mjs --help
  */
 
+import { createHash } from 'crypto';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -74,7 +75,7 @@ export const FEATURES = Object.freeze([
   { id: 'memory', file: 'memory.md', title: 'Memory layers', tools: ['save_to_layer', 'recall', 'query_layer', 'revise_memory'] },
   { id: 'search', file: 'search.md', title: 'Search beyond keywords', tools: ['semantic_recall', 'corpus_recall'] },
   { id: 'transcripts', file: 'transcripts.md', title: 'Transcripts', tools: ['emet_session_open', 'emet_transcript_append', 'save_transcript', 'query_transcripts', 'revise_transcript', 'emet_session_close'] },
-  { id: 'documents', file: 'documents.md', title: 'Documents', tools: ['read_doc', 'read_doc_history', 'write_doc', 'list_docs', 'patch_doc', 'retire_doc', 'rename_doc', 'restore_doc', 'validate_doc', 'accept_nonconformance'] },
+  { id: 'documents', file: 'documents.md', title: 'Documents', tools: ['read_doc', 'read_doc_history', 'write_doc', 'write_doc_begin', 'write_doc_append', 'write_doc_commit', 'write_doc_abort', 'list_docs', 'patch_doc', 'retire_doc', 'rename_doc', 'restore_doc', 'validate_doc', 'accept_nonconformance'] },
   { id: 'pages', file: 'pages.md', title: 'Topic pages', tools: ['emet_page', 'emet_pages', 'emet_page_lint'] },
   { id: 'errors', file: 'errors.md', title: 'Error codes and the error log', tools: ['emet_error_report'] },
   { id: 'record', file: 'record.md', title: 'The record and the floor', tools: ['emet_gaps', 'emet_floor'] },
@@ -575,6 +576,39 @@ async function drive(only, flags, blanked, featureId = null) {
   }, { detail: (data) => `version ${data && data.version}` });
   if (note && note.version) state.noteVersion = note.version;
 
+  const stagedId = 'notes/verify-staged.md';
+  const stagedChunk = '# Staged verify\n\nSent in one part.\n';
+  const begun = await call('write_doc_begin', {
+    ...sessionArgs,
+    doc_id: stagedId,
+    reason: 'Standalone verify stage.'
+  }, { detail: (data) => data && data.stage_id ? 'stage open' : 'stage' });
+  if (begun && begun.stage_id) {
+    await call('write_doc_append', {
+      ...sessionArgs,
+      stage_id: begun.stage_id,
+      part: 1,
+      chunk: stagedChunk
+    }, { detail: () => 'part 1' });
+    await call('write_doc_commit', {
+      ...sessionArgs,
+      stage_id: begun.stage_id,
+      doc_id: stagedId,
+      sha256: createHash('sha256').update(stagedChunk).digest('hex'),
+      part_count: 1
+    }, { detail: () => 'committed' });
+  }
+  const abortStage = await call('write_doc_begin', {
+    ...sessionArgs,
+    doc_id: 'notes/verify-abort.md',
+    reason: 'Standalone verify abort.'
+  }, { required: wanted('write_doc_abort') && !wanted('write_doc_begin'), detail: () => 'abort stage' });
+  if (abortStage && abortStage.stage_id) {
+    await call('write_doc_abort', { ...sessionArgs, stage_id: abortStage.stage_id }, { detail: () => 'aborted' });
+  } else if (wanted('write_doc_abort') && begun && begun.stage_id) {
+    await call('write_doc_abort', { ...sessionArgs, stage_id: begun.stage_id }, { detail: () => 'aborted after commit' });
+  }
+
   await call('patch_doc', {
     ...sessionArgs,
     doc_id: state.noteId,
@@ -774,7 +808,7 @@ function needsWrite(selected) {
   if (!selected) return true;
   const writes = new Set([
     'emet_session_open', 'emet_transcript_append', 'save_transcript', 'revise_transcript', 'emet_session_close',
-    'write_doc', 'patch_doc', 'rename_doc', 'restore_doc', 'retire_doc', 'accept_nonconformance',
+    'write_doc', 'write_doc_begin', 'write_doc_append', 'write_doc_commit', 'write_doc_abort', 'patch_doc', 'rename_doc', 'restore_doc', 'retire_doc', 'accept_nonconformance',
     'save_to_layer', 'revise_memory', 'emet_page', 'emet_pages', 'emet_page_lint', 'emet_client_approve'
   ]);
   return [...selected].some((tool) => writes.has(tool));

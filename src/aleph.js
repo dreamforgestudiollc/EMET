@@ -350,7 +350,7 @@ export function signatureIntegrityOf(row, key) {
 
 /**
  * May a row be RE-SIGNED after one of the sanctioned metadata marks? (2026-10-02,
- * the reviewer's finding: the marks re-attested metadata_sha256 but left the
+ * Reviewer's finding: the marks re-attested metadata_sha256 but left the
  * signature over the old metadata digest, so every superseded or corrected
  * row read signed:false.)
  *
@@ -360,13 +360,25 @@ export function signatureIntegrityOf(row, key) {
  * metadata with only the back-pointers the server itself manages rolled back:
  *   - superseded_by / superseded_at: as stored, or absent;
  *   - corrected_by: as stored, or any shorter prefix of it, or absent
- *     ($addToSet appends, so every earlier list is a prefix of the current one).
+ *     ($addToSet appends, so every earlier list is a prefix of the current one);
+ *   - corrected_grant_id: omitted only while corrected_by is being rolled
+ *     back. It is the latest door that marked the parent (last-writer-wins),
+ *     not a prefix list. A grant key with no corrected_by is not rolled back.
+ *   - superseded_grant_id: omitted only together with superseded_by or
+ *     superseded_at. A grant key with neither pointer is not rolled back.
  * Anything else (no key, no signature, a signature from another key, or any
  * other metadata field changed since it was signed) returns false, and the
  * caller leaves the signature alone, so the row keeps reading signed:false
  * and the change stays visible.
  */
-export const SANCTIONED_MARK_FIELDS = ['superseded_by', 'superseded_at', 'corrected_by'];
+export const SANCTIONED_MARK_FIELDS = ['superseded_by', 'superseded_at', 'corrected_by', 'corrected_grant_id', 'superseded_grant_id'];
+
+function omitMark(obj, keys) {
+  const out = {};
+  for (const [k, v] of Object.entries(obj)) if (!keys.includes(k)) out[k] = v;
+  return out;
+}
+
 export function signatureCoversPriorMetadata(row, key) {
   if (!key || !row || typeof row !== 'object') return false;
   const sig = row.signature;
@@ -379,20 +391,29 @@ export function signatureCoversPriorMetadata(row, key) {
   if (typeof row.metadata_sha256 === 'string' && signDigests(row.sha256, row.metadata_sha256, key) === sig
       && metadataIntegrityOf(row) === true) return true;
   if (!md || typeof md !== 'object' || Array.isArray(md)) return false;
-  const supersededVariants = [md];
+  // A grant key rolls back only with its pointer. Stripping it alone would
+  // re-sign a row whose only change was the grant field.
+  const bases = [md];
   if ('superseded_by' in md || 'superseded_at' in md) {
-    const { superseded_by, superseded_at, ...rest } = md;
-    supersededVariants.push(rest);
+    const withoutPointers = omitMark(md, ['superseded_by', 'superseded_at']);
+    bases.push(withoutPointers);
+    if ('superseded_grant_id' in md) bases.push(omitMark(withoutPointers, ['superseded_grant_id']));
   }
-  for (const base of supersededVariants) {
+  for (const base of bases) {
     if (ok(base)) return true;
-    if (Array.isArray(base.corrected_by)) {
-      const list = base.corrected_by;
-      for (let k = list.length - 1; k >= 0; k--) {
-        if (ok({ ...base, corrected_by: list.slice(0, k) })) return true;
+    if (!Array.isArray(base.corrected_by)) continue;
+    const list = base.corrected_by;
+    const grantPresent = Object.prototype.hasOwnProperty.call(base, 'corrected_grant_id');
+    const candidates = [];
+    for (let k = list.length - 1; k >= 0; k--) candidates.push({ ...base, corrected_by: list.slice(0, k) });
+    const { corrected_by, ...withoutCorrected } = base;
+    candidates.push(withoutCorrected);
+    for (const candidate of candidates) {
+      if (ok(candidate)) return true;
+      if (grantPresent && Object.prototype.hasOwnProperty.call(candidate, 'corrected_grant_id')) {
+        const { corrected_grant_id, ...withoutGrant } = candidate;
+        if (ok(withoutGrant)) return true;
       }
-      const { corrected_by, ...withoutCorrected } = base;
-      if (ok(withoutCorrected)) return true;
     }
   }
   return false;
