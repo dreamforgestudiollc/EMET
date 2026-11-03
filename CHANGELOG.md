@@ -7,7 +7,11 @@ change before 1.0.
 
 ## Unreleased
 
-Nothing is waiting above 0.3.3.
+### Added
+- One instance per project. [docs/SECURITY-AT-SCALE.md](docs/SECURITY-AT-SCALE.md) is the public ladder. Rung A hardens one project (`EMET_SOURCE_TAGS` before a second writer, a unique `EMET_OAUTH_PASSPHRASE`, guest, member, and sub-keys off until needed, optional `EMET_SIGNING_KEY`, `PUBLIC_URL` exact, `/health` then `emet_status` probe after an environment change). Rung B is the clone recipe, including per-instance `EMET_ACTIVE_GEMS`, bot-team backup as the recommended interview answer, and Neurendipity and Lean Six Sigma as opt-in. Rung C is the inventory and the offboarding steps (a new passphrase, `rotate-all`, `revoke-member`, `emet_subkey_revoke`). Rung D, a control plane that only provisions isolated instances, stays a seed in [docs/ROADMAP.md](docs/ROADMAP.md). `CHARTER.md` is unchanged. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
+### Fixed
+- `EMET-MEM-018` runs on the append that opens the transcript, and on an append that would become the lowest stored index, whatever `exchange_index` that is. A refused exchange 1 no longer lets a higher index start the transcript. Nothing is written. With no machine table in the install notes, the check stays not enforced. [docs/BOOTSTRAP.md](docs/BOOTSTRAP.md), [docs/SETUP.md](docs/SETUP.md), [docs/DEPLOY.md](docs/DEPLOY.md), and [docs/GUARDRAILS-AND-MONORAILS.md](docs/GUARDRAILS-AND-MONORAILS.md) state that order and the cost of skipping it. The monorail stays enforce only. The stale README note that npm still installed 0.3.2 is removed. 0.3.3 is the published release. Changing `EMET_OAUTH_PASSPHRASE` stops new owner sign-ins that use the old value. It does not, by itself, revoke tokens already issued. `rotate-all` does that. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
 ## 0.3.3 - 2026-11-03
 

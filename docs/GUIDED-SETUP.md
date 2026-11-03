@@ -66,12 +66,9 @@ Your AI will hand you a **passphrase** and a **URL** at the end. Keep both somew
 
 ### Every conversation from now on: two words
 
-**"initialize"** as your first message — your AI loads who it is, who you are, and where you
-left off. **"wrap up"** as your last — it writes the handoff, the state, a session entry and
-the word-for-word transcript, then confirms with `emet_session_close` that everything landed.
-Wait for it to say **complete** before you close the window. Skip the first and it answers from
-guesswork; skip the second and the next session inherits a hole. The README's *Every session
-after that* section says why.
+**"initialize"** as your first message. Your AI calls `emet_initialize`, fetches every startup page, and opens the session with that startup's `load_id`. **"wrap up"** as your last. It appends each exchange as you go, then follows the close order and calls `emet_session_close`. Wait for it to say **complete** before you close the window.
+
+Skip initialize and the session open is refused, so later writes are refused too. Skip a page and the open is refused. Skip the machine line on the first successful transcript append and that append is refused, including a higher exchange index. Skip the close, or close before the steps land, and the result is not complete. The next session cannot see work that was never written. The block to paste is [BOOTSTRAP.md](BOOTSTRAP.md). The gates are [GUARDRAILS-AND-MONORAILS.md](GUARDRAILS-AND-MONORAILS.md).
 
 ---
 
@@ -300,8 +297,7 @@ into their project instructions, so future sessions consult the memory without b
 Tell the person, in plain words:
 
 - what was set up (local server, remote server, or both) and where the code lives on disk;
-- the connector URL and that the passphrase is the whole perimeter — rotate it by changing
-  `EMET_OAUTH_PASSPHRASE` on Railway and redeploying, which invalidates every device;
+- the connector URL and that the passphrase is the whole perimeter. A new `EMET_OAUTH_PASSPHRASE`, then a redeploy, stops new owner sign-ins that use the old one. Tokens already issued keep working until the owner confirms `rotate-all` at `/owner/break-glass`. See [SECURITY-AT-SCALE.md](SECURITY-AT-SCALE.md);
 - that every host has its own source tag (a local entry's `EMET_SOURCE_TAG`; on the shared
   remote server, the `source` each host passes, registered in `EMET_SOURCE_TAGS`), and what
   this one's is;

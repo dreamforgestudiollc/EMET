@@ -59,7 +59,8 @@ testGroup('0.3.2 release notes reject private leaks', () => {
     assert.ok(change.includes('## 0.3.3'), '## 0.3.3 is missing');
     assert.ok(headingSlice(change, '## 0.3.3').includes('`server.json`, `package.json`, and `glama.json` descriptions lead with ISO 9001 7.5.3 / ISO 13485 4.2.5 document control.'));
     assert.ok(change.includes('## Unreleased'));
-    assert.ok(headingSlice(change, '## Unreleased').includes('Nothing is waiting above 0.3.3.'));
+    assert.ok(headingSlice(change, '## Unreleased').includes('docs/SECURITY-AT-SCALE.md'));
+    assert.ok(headingSlice(change, '## Unreleased').includes('EMET-MEM-018'));
   });
 
   test('the 0.3.2 and Unreleased sections have no leave-here path or live client id', () => {

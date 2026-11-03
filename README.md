@@ -10,7 +10,7 @@ EMET is an MCP (Model Context Protocol) memory server, persistent shared memory 
 
 **Website:** <https://dreamforgestudiollc.github.io/EMET/>
 
-See also: [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md) · [SECURITY](SECURITY.md) · [Charter](CHARTER.md) · [Feature map](docs/features/README.md) · [Development practices](docs/DEVELOPMENT-PRACTICES.md)
+See also: [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md) · [SECURITY](SECURITY.md) · [Charter](CHARTER.md) · [One instance per project](docs/SECURITY-AT-SCALE.md) · [Feature map](docs/features/README.md) · [Development practices](docs/DEVELOPMENT-PRACTICES.md)
 
 ## What it does
 
@@ -48,10 +48,6 @@ EMET is built for document control in environments that work under ISO 9001 and 
 - **Guided setup:** [docs/GUIDED-SETUP.md](docs/GUIDED-SETUP.md) — never deployed anything. Your assistant installs, configures, deploys, and verifies. You sign in when asked and paste the connector URL.
 - **Setup:** [docs/SETUP.md](docs/SETUP.md) — the manual walkthrough: MongoDB, both transports, and the first-run interview.
 - **Deploy:** [docs/DEPLOY.md](docs/DEPLOY.md) — remote HTTP with OAuth, so a phone, a browser, or another vendor's agent reaches the same store.
-
-> **npm lags the repo.** `npx -y @dreamforgestudiollc/emet` installs 0.3.2 until 0.3.3 is
-> published. For 0.3.3, clone this repo and run `npm ci && npm start`, or deploy the
-> repository itself.
 
 > **Status: 0.x. The stored document shapes are not frozen yet.** Breaking changes to the
 > schema may land before 1.0. Pin a version if you depend on it.
@@ -209,7 +205,12 @@ host known to read long results whole. Pass the `load_id` from those pages to
 `emet_session_open`. An open with no `load_id`, with a page missing, or with a `load_id` the
 server has no record of (one from before a restart, or 60 minutes past its last page) is
 refused, and the reply says what to call. The page check runs on your own startup, and a
-skipped page is refused before anything is written. See [docs/BOOTSTRAP.md](docs/BOOTSTRAP.md)
+skipped page is refused before anything is written. After every reply, append that one
+exchange. The first successful append must carry the measured machine line, or the words
+`no local shell MCP`. A refused exchange 1 does not let a higher index open the transcript.
+At the end, follow `session_close_protocol` and call `emet_session_close`. Say the session
+is saved only when the state is `complete`. A skipped step is refused and nothing is written.
+There is no off switch. See [docs/BOOTSTRAP.md](docs/BOOTSTRAP.md)
 and [docs/BOTS.md](docs/BOTS.md).
 
 **Set the source-tag list before more than one host or bot writes.** The guards that refuse
@@ -436,7 +437,7 @@ assistant learned survives unless it was written to the store, and the moment to
 arrives without warning — a closed tab, a context limit, a phone call. So every session has
 one word at the start and one at the end.
 
-**Start: say "initialize".** Your assistant calls `emet_initialize`, which returns who it is,
+**Start: say "initialize".** Your assistant calls `emet_initialize`, fetches every startup page, opens the session with that startup's `load_id`, and returns who it is,
 who you are, where things were left and the operating disciplines, and picks up from there.
 Before it asks you anything, it names your items from the handoff and state documents: anything
 left half-finished, what is dated in the next seven days, each open item you own with its next
@@ -447,11 +448,14 @@ you actually came to ask. A session that skips it is a session that answers from
 and saves nothing.
 
 **End: say "wrap up"** (or goodbye, or that you are opening a new session). Your assistant
-then writes four things — the handoff, the state document, an episodic entry for the session,
-and the **verbatim transcript** — and calls `emet_session_close`, which checks that each one
+appends each exchange as the session runs. The first successful append carries the measured
+machine line, or the words `no local shell MCP`. It then follows `session_close_protocol`
+(working documents, the episodic entry, the board, the transcript already appended, and the
+handoff last) and calls `emet_session_close`, which checks that each one
 actually landed and returns `state: "complete"`. **Wait for that word before you close the
 window.** If it comes back anything else, something did not save, and the assistant will say
-which.
+which. A skipped step is refused. Nothing is written for that step. The next session cannot
+see work that never landed.
 
 Why both, every time: the layers are curated meaning and the transcript is the word-for-word
 record; the next session reads the first and can reach into the second by timestamp. Close
@@ -891,7 +895,9 @@ Honest list, because the point of this project is that it behaves predictably:
   implementation does.
 - No export / import / restore-and-compare yet.
 - The document store is not prefixed, so one database holds one instance's identity. Run
-  separate databases rather than separate prefixes if you want separate memories.
+  separate databases rather than separate prefixes if you want separate memories. One
+  collaborative project is one instance (one database, one deploy, one passphrase). See
+  [docs/SECURITY-AT-SCALE.md](docs/SECURITY-AT-SCALE.md).
 - Dynamic Client Registration is still served beside Client ID Metadata Documents; the MCP
   specification's deprecation window closes around 2027-07. It is scheduled to come off on
   2027-06-01.
