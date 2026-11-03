@@ -51,13 +51,15 @@ export function releaseNoteLeaks(text) {
 
 testGroup('0.3.2 release notes reject private leaks', () => {
   const change = read('CHANGELOG.md');
-  const notes = `${headingSlice(change, '## Unreleased')}\n${headingSlice(change, '## 0.3.2')}`;
+  const notes = `${headingSlice(change, '## Unreleased')}\n${headingSlice(change, '## 0.3.3')}\n${headingSlice(change, '## 0.3.2')}`;
 
   test('## 0.3.2 is present and Unreleased is included when it exists', () => {
     assert.ok(change.includes('## 0.3.2'), '## 0.3.2 is missing');
     assert.ok(headingSlice(change, '## 0.3.2').includes('### Added'));
+    assert.ok(change.includes('## 0.3.3'), '## 0.3.3 is missing');
+    assert.ok(headingSlice(change, '## 0.3.3').includes('`server.json`, `package.json`, and `glama.json` descriptions lead with ISO 9001 7.5.3 / ISO 13485 4.2.5 document control.'));
     assert.ok(change.includes('## Unreleased'));
-    assert.ok(headingSlice(change, '## Unreleased').includes('`server.json`, `package.json`, and `glama.json` descriptions lead with ISO 9001 7.5.3 / ISO 13485 4.2.5 document control.'));
+    assert.ok(headingSlice(change, '## Unreleased').includes('Nothing is waiting above 0.3.3.'));
   });
 
   test('the 0.3.2 and Unreleased sections have no leave-here path or live client id', () => {

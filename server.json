@@ -3,7 +3,7 @@
   "name": "io.github.dreamforgestudiollc/emet",
   "title": "EMET",
   "description": "ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control memory for AI agents. Nothing is deleted.",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "websiteUrl": "https://dreamforgestudiollc.github.io/EMET/",
   "repository": {
     "url": "https://github.com/dreamforgestudiollc/EMET",
@@ -22,7 +22,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@dreamforgestudiollc/emet",
-      "version": "0.3.2",
+      "version": "0.3.3",
       "transport": {
         "type": "stdio"
       },
