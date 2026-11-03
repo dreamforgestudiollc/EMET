@@ -262,6 +262,17 @@ URL `https://<host>/mcp` → connect → you are sent to a passphrase page → e
 Then verify from that device: `emet_status` with `probe: true`, followed by a `recall` of something
 you saved elsewhere. If the remote host sees what the laptop wrote, the deployment is real.
 
+Paste the block from [BOOTSTRAP.md](BOOTSTRAP.md) into the project instructions before the first real session. The server enforces this order. There is no off switch.
+
+1. `emet_initialize`, then every startup page, keeping `startup_page.load_id`.
+2. `emet_session_open` with that `load_id`.
+3. `emet_transcript_append` after every reply. The first successful append carries the measured machine line, or the words `no local shell MCP`. A higher index does not open the transcript without that line.
+4. `session_close_protocol`, then `emet_session_close`. Say the session is saved only when the state is `complete`.
+
+A skipped step is refused and nothing is written. The next session cannot see work that never landed. After a deploy or a restart, fetch the startup again. The page record lives in this one process for 60 minutes. See [GUARDRAILS-AND-MONORAILS.md](GUARDRAILS-AND-MONORAILS.md).
+
+One project is one instance. A second project is a new database, a new deploy, and a new passphrase. See [SECURITY-AT-SCALE.md](SECURITY-AT-SCALE.md).
+
 ## Notes
 
 - **Release note: startup stage 1 (the ref 358 amendment).** Three behaviour changes take effect
@@ -284,5 +295,8 @@ you saved elsewhere. If the remote host sees what the laptop wrote, the deployme
   host: phone, desktop, CLI, anything else. This is the last-mile step people forget.
 - **Costs.** A small Atlas cluster plus a hobby-tier host runs in the low tens of dollars a
   month. Both have free tiers adequate for a single user.
-- **The passphrase is the whole perimeter.** There is no second factor. Rotate it by changing
-  the variable and redeploying; existing device authorizations are invalidated.
+- **The passphrase is the whole perimeter.** There is no second factor. Set a new
+  `EMET_OAUTH_PASSPHRASE` and redeploy to stop new owner sign-ins that use the old one.
+  Tokens already issued keep working until you revoke them. End every grant and every
+  sub-key from `/owner/break-glass` with the exact confirm `rotate-all`. Rows are
+  superseded, retired, and retained. See [SECURITY-AT-SCALE.md](SECURITY-AT-SCALE.md).

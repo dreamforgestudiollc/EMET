@@ -2243,6 +2243,36 @@ async function subkeyHandleForOpen(actor, base, now) {
   }
 }
 
+function exchangeIndexes(exchanges) {
+  if (!Array.isArray(exchanges)) return [];
+  const out = [];
+  for (const row of exchanges) {
+    const n = Number(row && row.exchange_index);
+    if (Number.isInteger(n) && n >= 1) out.push(n);
+  }
+  return out;
+}
+
+/** Indexes already stored under other ids of this session. The current part is not included. */
+async function exchangeIndexesOnOtherParts(col, sessionId) {
+  const { partId, partNumber, baseFromPart } = await import('./transcript-session.js');
+  const base = baseFromPart(sessionId);
+  const ids = [];
+  if (sessionId !== base) ids.push(base);
+  const n = partNumber(sessionId);
+  for (let i = 1; i < n; i++) {
+    const id = partId(base, i);
+    if (id !== sessionId) ids.push(id);
+  }
+  const found = [];
+  for (const id of ids) {
+    const doc = await col.findOne({ session_id: id, superseded_by: { $in: [null, undefined] } })
+      || await col.findOne({ session_id: id });
+    found.push(...exchangeIndexes(doc && doc.exchanges));
+  }
+  return found;
+}
+
 export async function transcriptAppend(args = {}, logger = null) {
   const session_id = args.session_id;
   const user_message = args.user_message;
@@ -2304,20 +2334,32 @@ export async function transcriptAppend(args = {}, logger = null) {
       row.source_basis = 'subkey';
     }
 
-    // Build 1 (2026-09-27): the first append of a session must carry the
-    // measured machine line, or say there is no local shell. The rule lived in
-    // host instructions and was skipped twice on 2026-09-26; the server now
-    // refuses to start a transcript without it. Known names come from the
-    // user's install notes; with none, the check is reported as not enforced.
+    // Build 1 (2026-09-27): the first successful append of a session must carry
+    // the measured machine line, or say there is no local shell. The rule lived
+    // in host instructions and was skipped twice on 2026-09-26. On 2026-11-03
+    // the door ran only when the index was 1, so a refused exchange 1 was
+    // followed by an accepted exchange 2 and the transcript opened without the
+    // line. The check now runs on any append that opens the transcript, and on
+    // any append that would become the lowest stored index. Known names come
+    // from the user's install notes; with none, the check is reported as not
+    // enforced.
     let machineCheck = null;
-    if (!live && partNumber(part) === 1 && idx === 1) {
-      const { knownMachinesFromInstallNotes, machineLineCheck } = await import('./lessons-to-checks.js');
-      const { installDoc } = await import('./setup.js');
-      const notes = await client.db(MONGODB_DB).collection('documents')
-        .findOne({ doc_id: installDoc(), retired: { $ne: true } }, { projection: { content: 1 } });
-      machineCheck = machineLineCheck(assistant_message, knownMachinesFromInstallNotes(notes && notes.content));
-      if (!machineCheck.ok) throw new ValidationError(machineCheck.reason, { code: 'EMET-MEM-018' });
+    const here = exchangeIndexes(exchanges);
+    const mightOpen = here.length === 0 || idx < Math.min(...here);
+    if (mightOpen) {
+      const { machineLineRequired, knownMachinesFromInstallNotes, machineLineCheck } = await import('./lessons-to-checks.js');
+      const stored = here.concat(await exchangeIndexesOnOtherParts(col, part));
+      if (machineLineRequired(stored, idx)) {
+        const { installDoc } = await import('./setup.js');
+        const notes = await client.db(MONGODB_DB).collection('documents')
+          .findOne({ doc_id: installDoc(), retired: { $ne: true } }, { projection: { content: 1 } });
+        machineCheck = machineLineCheck(assistant_message, knownMachinesFromInstallNotes(notes && notes.content));
+        if (!machineCheck.ok) throw new ValidationError(machineCheck.reason, { code: 'EMET-MEM-018' });
+      }
     }
+    const machineLineField = () => (machineCheck
+      ? { machine_line: machineCheck.enforced ? `checked: ${machineCheck.matched}` : machineCheck.reason }
+      : {});
 
     if (!live) {
       const start = typeof session_start === 'number' ? session_start : Date.now() / 1000;
@@ -2334,7 +2376,7 @@ export async function transcriptAppend(args = {}, logger = null) {
         session_id: part, exchange_index: idx, exchange_count: 1, rolled: part !== session_id,
         grant_id: appendStamp.grant_id,
         ...(appendClaim.warning ? { claimed_tag_warning: appendClaim.warning } : {}),
-        ...(machineCheck ? { machine_line: machineCheck.enforced ? `checked: ${machineCheck.matched}` : machineCheck.reason } : {})
+        ...machineLineField()
       };
     }
 
@@ -2350,7 +2392,8 @@ export async function transcriptAppend(args = {}, logger = null) {
       rolled: part !== session_id,
       next_part_after: EXCHANGES_PER_PART,
       grant_id: appendStamp.grant_id,
-      ...(appendClaim.warning ? { claimed_tag_warning: appendClaim.warning } : {})
+      ...(appendClaim.warning ? { claimed_tag_warning: appendClaim.warning } : {}),
+      ...machineLineField()
     };
   } finally {
     await client.close();
@@ -4317,7 +4360,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_transcript_append",
-    description: "Append ONE exchange to the session transcript. Call after every reply. Idempotent on exchange_index. Rolls to a new part after 8 exchanges. After a complete close the session takes exactly ONE more append - its closing exchange, numbered next, within EMET_CLOSE_GRACE_MINUTES (default 5) of the close; it is written into the session's last part whatever session_id it names, and the result's `closing_exchange` says it was accepted and that the session is now locked. A retry of that exchange number is answered as already saved and writes nothing. exchange_index, when given, must be a whole number of 1 or more (a number or its text). Any other append to a closed session is refused and nothing is written; that exchange belongs in the next session you open the usual way. THE FIRST APPEND OF A SESSION IS CHECKED: its assistant_message must carry the measured machine line - a machine name from the install notes plus the clock reading, as the shell returned them - or the words `no local shell MCP`. Without one of those the append is refused and the transcript does not start.",
+    description: "Append ONE exchange to the session transcript. Call after every reply. Idempotent on exchange_index. Rolls to a new part after 8 exchanges. After a complete close the session takes exactly ONE more append - its closing exchange, numbered next, within EMET_CLOSE_GRACE_MINUTES (default 5) of the close; it is written into the session's last part whatever session_id it names, and the result's `closing_exchange` says it was accepted and that the session is now locked. A retry of that exchange number is answered as already saved and writes nothing. exchange_index, when given, must be a whole number of 1 or more (a number or its text). Any other append to a closed session is refused and nothing is written; that exchange belongs in the next session you open the usual way. THE FIRST SUCCESSFUL APPEND OF A SESSION IS CHECKED, at whatever exchange_index opens the transcript or becomes the lowest stored index. A refused exchange 1 does not let a higher index start the transcript. Its assistant_message must carry the measured machine line - a machine name from the install notes plus the clock reading, as the shell returned them - or the words `no local shell MCP`. Without one of those the append is refused and nothing is written.",
     inputSchema: {
       type: "object",
       properties: {

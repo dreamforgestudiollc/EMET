@@ -335,17 +335,29 @@ host, `emet_status` with `probe: true` still passes.
 
 ## Stage 4 — tell your assistant to use it
 
-Setup gives the store an identity. It does not tell your assistant to consult it. See
-**[BOOTSTRAP.md](BOOTSTRAP.md)** for the short instruction block to paste into your project,
-and for what to expect on hosts that offer no instructions field.
+Setup gives the store an identity. It does not tell your assistant to consult it. Paste the block from **[BOOTSTRAP.md](BOOTSTRAP.md)** into the project instructions. On a host with no instructions field, paste that block as the first message.
+
+The path the server enforces, on every host:
+
+1. Call `emet_initialize` and fetch every startup page. Keep `startup_page.load_id`.
+2. Call `emet_session_open` with that `load_id`.
+3. After every reply, call `emet_transcript_append` for that one exchange. The first successful append must carry the measured machine line, or the words `no local shell MCP`. A refused exchange 1 does not let a higher index open the transcript.
+4. At the end, follow `session_close_protocol`, then call `emet_session_close`. Tell the user the session is saved only when the state is `complete`.
+
+The monorail is enforce only. A skipped step is refused and nothing is written. There is no off switch. The cost of each skip is in [BOOTSTRAP.md](BOOTSTRAP.md). The gates are in [GUARDRAILS-AND-MONORAILS.md](GUARDRAILS-AND-MONORAILS.md).
+
+One project is one instance: one database, one deploy, and one passphrase. See [SECURITY-AT-SCALE.md](SECURITY-AT-SCALE.md).
 
 ## Verifying it worked
 
 ```
-emet_status              → initialized: true (false until the setup interview is done)
-emet_status probe:true   → every probe check passed
-emet_session_open        → a session_id
-save_to_layer            → with that session_id, then recall it from a different device
+emet_initialize           → fetch every page, keep startup_page.load_id
+emet_status               → initialized: true (false until the setup interview is done)
+emet_status probe:true    → every probe check passed
+emet_session_open         → pass that load_id, get a session_id
+emet_transcript_append    → exchange 1 carries the machine line, or the words no local shell MCP
+save_to_layer             → with that session_id, then recall it from a different device
+emet_session_close        → state "complete" only after the close steps landed
 ```
 
 Ask your assistant to remember something and it makes these calls. A `semantic` or

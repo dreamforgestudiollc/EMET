@@ -5,7 +5,7 @@ The word-for-word tier. `emet_session_open` starts a session. `emet_transcript_a
 ## Sub-features
 
 - transcript-open: `emet_session_open` needs `load_id` from startup. A closed id is not reopened; the next id gets a numeric suffix.
-- transcript-append: `emet_transcript_append` stores one exchange. The first exchange must carry a measured machine line, or the words `no local shell MCP`.
+- transcript-append: `emet_transcript_append` stores one exchange. The append that opens the transcript, or that becomes the lowest stored index, must carry a measured machine line, or the words `no local shell MCP`.
 - transcript-batch: `save_transcript` stores a whole session when append-per-reply is impossible.
 - transcript-read: `query_transcripts` reads by time range or session id.
 - transcript-revise: `revise_transcript` writes a new part and marks the parent superseded. `reason` is required.
@@ -27,7 +27,7 @@ The drive has no local shell, so the first append uses `no local shell MCP`. The
 
 ## Gotchas
 
-- The first append is refused without a machine line or `no local shell MCP`. Nothing is written.
+- The first successful append is refused without a machine line or `no local shell MCP`, whatever `exchange_index` opens the transcript. A refused exchange 1 does not let a higher index start it. Nothing is written. The code is `EMET-MEM-018`. `save_transcript` does not run that check.
 - A closed session takes one closing exchange inside the grace window, then it locks.
 - Close receipts have to match the store. Invented ids come back `blocked` or `incomplete`.
 - A receipt close blocked only because a later session holds HANDOFF or STATE is not counted. Close that session with `carry_forward`, not by retrying the old receipts.

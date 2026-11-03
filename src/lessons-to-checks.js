@@ -12,11 +12,16 @@
  * without a database. The wiring lives in tools.js (transcript append),
  * session.js (close) and setup.js (initialize).
  *
- *   1. machineLineCheck   - the first transcript append of a session must carry
- *                           a measured machine name and a clock reading, or the
- *                           words `no local shell MCP`. Two sessions on
- *                           2026-09-26 skipped the machine check and still got a
- *                           transcript started.
+ *   1. machineLineCheck   - the first successful transcript append of a session
+ *                           must carry a measured machine name and a clock
+ *                           reading, or the words `no local shell MCP`. The
+ *                           check is on the append that opens the transcript,
+ *                           or that becomes the lowest stored index, whatever
+ *                           exchange_index that is. Two sessions on 2026-09-26
+ *                           skipped the machine check and still got a transcript
+ *                           started. On 2026-11-03 a refused exchange 1 was
+ *                           followed by an accepted exchange 2, because the
+ *                           door only ran when the index was 1.
  *   2. applyCloseCap      - three blocked closes on one session escalate to the
  *                           user instead of retrying. A host looping on close
  *                           burns attempts; after three, the wrap plan is wrong
@@ -40,6 +45,24 @@
 // ---------------------------------------------------------------------------
 
 export const NO_SHELL_PHRASE = 'no local shell MCP';
+
+/**
+ * Whether this append is the one the machine line must ride on.
+ * `storedIndexes` are the exchange indexes already stored for the session.
+ * True when nothing is stored yet, so any index would open the transcript.
+ * True when `incoming` is lower than every stored index, so it becomes the
+ * lowest. A refused exchange 1 leaves the store empty, and a later index
+ * still has to pass.
+ */
+export function machineLineRequired(storedIndexes, incoming) {
+  const stored = (Array.isArray(storedIndexes) ? storedIndexes : [])
+    .map((n) => Number(n))
+    .filter((n) => Number.isInteger(n) && n >= 1);
+  if (stored.length === 0) return true;
+  const n = Number(incoming);
+  if (!Number.isInteger(n) || n < 1) return false;
+  return n < Math.min(...stored);
+}
 
 /**
  * Reads the known machine names out of the user's install notes. The notes are
@@ -359,7 +382,7 @@ export function checkLessonFields(layer, metadata) {
 }
 
 export default {
-  NO_SHELL_PHRASE, knownMachinesFromInstallNotes, machineLineCheck,
+  NO_SHELL_PHRASE, machineLineRequired, knownMachinesFromInstallNotes, machineLineCheck,
   CLOSE_CAP, applyCloseCap, scopeFor, escalateSpeak,
   LESSON_REPEAT_THRESHOLD, DISPOSITION_KINDS, pendingLessons,
   LESSON_KEY_PATTERN, suggestLessonKey, checkLessonFields
