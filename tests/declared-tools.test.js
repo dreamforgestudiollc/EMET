@@ -40,7 +40,10 @@ testGroup('declared tool names match the registry', () => {
     const server = JSON.parse(fs.readFileSync(path.join(ROOT, 'server.json'), 'utf8'));
     const listed = server._meta['io.modelcontextprotocol.registry/publisher-provided'].tools;
     assert.deepStrictEqual([...listed].sort(), names);
+    const listingLead = 'ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control memory for AI agents. Nothing is deleted.';
+    assert.strictEqual(server.description, listingLead);
     assert.ok(server.description.length <= 100);
+    assert.ok(glama.description.startsWith(`${listingLead} `));
     assert.match(glama.description, /no account, key or payment required to run it/);
     assert.match(fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), /## License and access\n\nEMET is free and open source under the MIT License \(see LICENSE\)\. No account, key or payment is required to run it\./);
   });

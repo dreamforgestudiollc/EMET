@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.dreamforgestudiollc/emet",
   "title": "EMET",
-  "description": "0.3.2. Free MIT; no account, key, or payment. Verifies record, not computation. Stable error codes.",
+  "description": "ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control memory for AI agents. Nothing is deleted.",
   "version": "0.3.2",
   "websiteUrl": "https://dreamforgestudiollc.github.io/EMET/",
   "repository": {

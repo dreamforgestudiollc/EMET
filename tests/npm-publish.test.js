@@ -102,7 +102,9 @@ testGroup('npm publish metadata', () => {
     assert.strictEqual(server.packages[0].version, pkg.version);
     assert.strictEqual(server.packages[0].registryType, 'npm');
     assert.strictEqual(server.packages[0].transport.type, 'stdio');
-    assert.strictEqual(server.description, '0.3.2. Free MIT; no account, key, or payment. Verifies record, not computation. Stable error codes.');
+    const listingLead = 'ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control memory for AI agents. Nothing is deleted.';
+    assert.strictEqual(server.description, listingLead);
+    assert.strictEqual(pkg.description, `${listingLead} EMET 0.3.2 — Enduring Memory & Epistemic Tiers. An MCP memory server with persistent shared memory for AI agents, bot teams and chats: layered memory, verified writes, a verbatim transcript tier, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true. Every error carries a stable code; the owner-only emet_error_report returns a report and an email draft the user sends. npm run verify drives the registered tools from a checkout, and docs/features is the map of every feature.`);
     assert.strictEqual(pkg.license, 'MIT');
     assert.strictEqual(pkg.homepage, 'https://dreamforgestudiollc.github.io/EMET/');
     assert.strictEqual(pkg.bugs.url, 'https://github.com/dreamforgestudiollc/EMET/issues');

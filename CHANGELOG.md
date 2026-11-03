@@ -7,7 +7,7 @@ change before 1.0.
 
 ## Unreleased
 
-Nothing is waiting above 0.3.2.
+`server.json`, `package.json`, and `glama.json` descriptions lead with ISO 9001 7.5.3 / ISO 13485 4.2.5 document control. The registry description stays within 100 characters. It says "Nothing is deleted.", which is `CHARTER.md` §3 commitment 2. Version stays 0.3.2. This change does not publish to npm or the MCP Registry. The charter repository description and the README document-control section are unchanged.
 
 ## 0.3.2 - 2026-10-28
 
