@@ -47,7 +47,9 @@ export async function liveSizedStore() {
   const s = makeStore();
   await withStore(s, () => setupComplete({ assistant_name: 'Ada', assistant_character: 'Plain and careful.', user_name: 'Sam Example', user_context: 'Testing.', source_tag: 'example-host', more_than_one_bot: 'no' }));
   const docs = s.collection('documents');
-  const now = new Date('2026-10-02T12:00:00Z');
+  // Last-30-day layer_health (setup.js recentSince) must still see these
+  // rows. A fixed 2026-10-02 stamp falls outside that window.
+  const now = new Date(Date.now() - 24 * 60 * 60 * 1000);
   // The live store keeps its character document as bootstrap/SOUL.md; setup
   // wrote bootstrap/CHARACTER.md, which would win resolution, so it goes.
   docs.docs.splice(docs.docs.findIndex((d) => d.doc_id === 'bootstrap/CHARACTER.md'), 1);

@@ -57,7 +57,7 @@ testGroup('0.3.2 release notes reject private leaks', () => {
     assert.ok(change.includes('## 0.3.2'), '## 0.3.2 is missing');
     assert.ok(headingSlice(change, '## 0.3.2').includes('### Added'));
     assert.ok(change.includes('## Unreleased'));
-    assert.ok(notes.includes('Nothing is waiting above 0.3.2.'));
+    assert.ok(headingSlice(change, '## Unreleased').includes('`server.json`, `package.json`, and `glama.json` descriptions lead with ISO 9001 7.5.3 / ISO 13485 4.2.5 document control.'));
   });
 
   test('the 0.3.2 and Unreleased sections have no leave-here path or live client id', () => {
