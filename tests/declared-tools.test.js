@@ -45,6 +45,10 @@ testGroup('declared tool names match the registry', () => {
     assert.ok(server.description.length <= 100);
     assert.ok(glama.description.startsWith(`${listingLead} `));
     assert.match(glama.description, /no account, key or payment required to run it/);
+    const plugin = JSON.parse(fs.readFileSync(path.join(ROOT, '.cursor-plugin/plugin.json'), 'utf8'));
+    assert.ok(plugin.description.startsWith(`${listingLead} `), 'plugin.json description must lead with the ISO document-control line');
+    assert.match(plugin.description, /holds no certification and claims no conformity/);
+    assert.match(plugin.description, /Connects to your own self-hosted EMET server over remote HTTP with OAuth/);
     assert.match(fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8'), /## License and access\n\nEMET is free and open source under the MIT License \(see LICENSE\)\. No account, key or payment is required to run it\./);
   });
 });
