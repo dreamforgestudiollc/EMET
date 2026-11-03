@@ -7,7 +7,18 @@ change before 1.0.
 
 ## Unreleased
 
-`server.json`, `package.json`, and `glama.json` descriptions lead with ISO 9001 7.5.3 / ISO 13485 4.2.5 document control. The registry description stays within 100 characters. It says "Nothing is deleted.", which is `CHARTER.md` §3 commitment 2. `.cursor-plugin/plugin.json` is in scope. Its description leads with the same line. Version stays 0.3.2. This change does not publish to npm or the MCP Registry. The charter repository description and the README document-control section are unchanged.
+Nothing is waiting above 0.3.3.
+
+## 0.3.3 - 2026-11-03
+
+Listing text from public pull request #24, plus the public parts of private #97 and #98. Private #95 (session disposition) and #96 (the 0.3.2 public sync) are already in 0.3.2. Stored data shapes are unchanged. This change does not publish to npm or the MCP Registry. Filled disposition inventories stay in the private repository.
+
+### Added
+- Carry-forward close. `emet_session_close` takes `carry_forward` with `disposition_doc`, `disposition_version`, and `citations` when a later session already advanced HANDOFF or STATE. The owner door, or the credential that wrote the session, cites a current conforming session disposition (`CARRIED_FORWARD`, `SUPERSEDED_BY_LATER_SESSION`, or `ABANDONED_NO_TRANSCRIPT`) and those later versions. `RETAINED_OPEN_CRITICAL` stays open. A declared source is not authority. Transcripts stay. A refused call is not counted. A receipt close blocked only because a later session holds HANDOFF or STATE stays blocked and is not counted. From private #97. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+- Owner page portrait. `/owner/chooser` and `/owner/break-glass` use `site/assets/portrait.webp` as the page background, served at `/owner/assets/portrait.webp`. The sheet is a scrim. A missing file leaves the page without a portrait and does not stop startup. The npm package does not ship `site/`. The deploy image copies the portrait. From private #98. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
+### Fixed
+- Version 0.3.3. `server.json`, `package.json`, and `glama.json` descriptions lead with ISO 9001 7.5.3 / ISO 13485 4.2.5 document control. The registry description stays within 100 characters. It says "Nothing is deleted.", which is `CHARTER.md` §3 commitment 2. `.cursor-plugin/plugin.json` leads with the same line. The wording landed in public pull request #24 at version 0.3.2 and was not published. `CHARTER.md` §7, `templates/STANDARD.md`, and the README document-control section are unchanged. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
 ## 0.3.2 - 2026-10-28
 

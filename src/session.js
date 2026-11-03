@@ -38,6 +38,7 @@ import { LAYERS } from './layers.js';
 import { parseMetadata } from './metadata.js';
 import { applyCloseCap, scopeFor, escalateSpeak, CLOSE_CAP } from './lessons-to-checks.js';
 import { isBotTag, botHandoffDoc, botRecordDir, mainRecordIds, echoId } from './session-graph.js';
+import { hasCarryForward, runCarryForwardClose, supersededStrikeSkipped, foreignContinuityProblems } from './carry-forward-close.js';
 
 const DOCS_COLLECTION = 'documents';
 const TRANSCRIPTS_COLLECTION = 'transcripts';
@@ -700,6 +701,7 @@ export async function sessionClose(options = {}) {
   try {
     const conn = await connect();
     client = conn.client;
+    if (hasCarryForward(options)) return await runCarryForwardClose(conn.db, options);
     // Baselines are bookkeeping on the document row, not a new revision.
     // A writeDoc here would archive a revision that changed nothing the user wrote.
     const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -783,7 +785,7 @@ export async function sessionClose(options = {}) {
     const readDoc = async (docId) => {
       const found = await docs.findOne(
         { doc_id: docId },
-        { projection: { doc_id: 1, version: 1, updated_at: 1, updated_by: 1, size: 1 } }
+        { projection: { doc_id: 1, version: 1, updated_at: 1, updated_by: 1, size: 1, session_id: 1 } }
       );
       const updatedMs = found ? toMillis(found.updated_at) : null;
       return {
@@ -792,13 +794,17 @@ export async function sessionClose(options = {}) {
         version: found ? found.version : null,
         updated_at: found && found.updated_at ? new Date(updatedMs).toISOString() : null,
         updated_by: found ? found.updated_by || null : null,
+        session_id: found && typeof found.session_id === 'string' ? found.session_id : null,
         in_window: updatedMs !== null && updatedMs >= startMs
       };
     };
     const documents = [];
+    const continuityWriters = new Map();
     const attributionWarnings = [];
     for (const docId of wanted) {
-      const { in_window, ...d } = await readDoc(docId);
+      const read = await readDoc(docId);
+      continuityWriters.set(docId, read.session_id);
+      const { in_window, session_id: _writerSession, ...d } = read;
       if (bot) {
         // Revised this session = in the window AND by this session's tag.
         documents.push({ ...d, updated_this_session: in_window && d.updated_by === bot.tag, updated_in_window: in_window });
@@ -817,7 +823,8 @@ export async function sessionClose(options = {}) {
     const mainRecords = [];
     if (bot) {
       for (const docId of bot.main_records) {
-        const { in_window, ...d } = await readDoc(docId);
+        const read = await readDoc(docId);
+        const { in_window, session_id: _writerSession, ...d } = read;
         mainRecords.push({ ...d, revised_by_session_tag: in_window && d.updated_by === bot.tag });
       }
     }
@@ -981,6 +988,17 @@ export async function sessionClose(options = {}) {
       ...(bot ? { bot } : {})
     });
     for (const p of receiptCheck.problems) missing.push(p);
+    const foreign = foreignContinuityProblems({
+      receipts,
+      writers: continuityWriters,
+      handoffDoc: sessionHandoff,
+      sessionBase: transcript && transcript.base_session_id ? transcript.base_session_id : null,
+      documents
+    });
+    for (const p of foreign) {
+      receiptCheck.problems.push(p);
+      missing.push(p);
+    }
     if (uncorroborated) {
       missing.push(
         'transcript coverage is uncorroborated - no layer entry written this session cites the transcript. ' +
@@ -1003,9 +1021,19 @@ export async function sessionClose(options = {}) {
       const row = await attempts.findOne({ base_session_id: baseId }, { projection: { blocked_count: 1 } });
       priorBlocked = row && typeof row.blocked_count === 'number' ? row.blocked_count : 0;
     }
-    const capped = applyCloseCap(computed, priorBlocked);
+    const strikeSkipped = computed === 'blocked' && supersededStrikeSkipped(receiptCheck.problems, {
+      writers: continuityWriters,
+      handoffDoc: sessionHandoff,
+      sessionBase: baseId
+    });
+    // A later session advanced HANDOFF or STATE. The receipt close stays
+    // blocked. It does not count, and it does not escalate, including when
+    // an earlier retry of this same mismatch already filled the cap.
+    const capped = strikeSkipped
+      ? { state: 'blocked', blocked_count: priorBlocked, escalated: false, strike_skipped: true }
+      : applyCloseCap(computed, priorBlocked);
     const state = capped.state;
-    if (baseId && computed === 'blocked' && capped.blocked_count !== priorBlocked) {
+    if (baseId && computed === 'blocked' && !strikeSkipped && capped.blocked_count !== priorBlocked) {
       await attempts.updateOne(
         { base_session_id: baseId },
         { $set: { blocked_count: capped.blocked_count, last_state: state, updated_at: new Date() },
@@ -1027,11 +1055,21 @@ export async function sessionClose(options = {}) {
     });
 
     if (state === 'escalate') speak.push(...escalateSpeak(missing));
+    if (strikeSkipped) {
+      const note = 'HANDOFF or STATE was written by a later session, so this receipt close stays blocked and is not counted. Close with carry_forward. Do not retry this receipt close.';
+      warnings.push(note);
+      speak.push(note);
+    }
 
     return {
       state,
       speak,
-      close_attempts: { blocked_count: capped.blocked_count, cap: CLOSE_CAP, escalated: state === 'escalate' },
+      close_attempts: {
+        blocked_count: capped.blocked_count,
+        cap: CLOSE_CAP,
+        escalated: state === 'escalate',
+        ...(strikeSkipped ? { strike_skipped: true, counted: false } : {})
+      },
       scope: scoped,
       window,
       checked: {
@@ -1075,6 +1113,11 @@ export async function sessionClose(options = {}) {
             'Say the `speak` lines, including the list, and wait for the user\'s word. The counter does not reset ' +
             'on a changed receipt; a close that would be complete is still accepted if the user directs the fix. ' +
             'Each line of `missing` has a `scope` in `scope`: touch only what it names.'
+          : strikeSkipped
+          ? 'The session is NOT saved. HANDOFF or STATE moved because a later session wrote them, so these receipts cannot match. ' +
+            'This blocked close was not counted, and it does not escalate. Do not retry this receipt close. ' +
+            'Close with carry_forward: the owner door, or the credential that wrote this session, cites the current records/ disposition and the later HANDOFF and STATE versions. ' +
+            'Transcripts stay. A declared source is not authority.'
           : state === 'blocked'
           ? 'The session is NOT saved. The store holds the artifacts, but the close is BLOCKED: a receipt is ' +
             'missing or disagrees with the store, the handoff was not the last write, or the transcript is not ' +

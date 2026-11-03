@@ -4600,7 +4600,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_session_close",
-    description: "Call this when the session is ending - the user says goodbye, asks you to wrap up, mentions restarting or opening a new session, or you are about to run out of room. An acknowledgement of the turn just completed - thanks, great, perfect - is not a session end; if it is ambiguous, ask rather than close. Checks whether this session's work has actually been written to the store and reports exactly what is missing. It does not write anything itself. RECEIPTS ARE REQUIRED: pass `receipts` naming what you wrote and read back for each close step - working documents, the episodic session record id, the board and its version, the transcript part ids and highest exchange index as query_transcripts returned them, and the handoff version (written last). Each receipt is compared with the store; omitted or mismatched receipts, a handoff that was not the last write, or a transcript no layer entry cites (derived_from) return state 'blocked'. Each missing line carries a `scope`: touch only what it names. THREE blocked closes on one session return state 'escalate': stop retrying, say the `speak` lines, and hand the user the list - the counter does not reset on a changed receipt, only with a new session. Say every line of the returned `speak` to the user, in order - a wrap that leaves it out is a failed close. A records/ session disposition is not a receipt and does not make this call complete. Never tell the user their session is saved unless this returns state 'complete'.",
+    description: "Call this when the session is ending - the user says goodbye, asks you to wrap up, mentions restarting or opening a new session, or you are about to run out of room. An acknowledgement of the turn just completed - thanks, great, perfect - is not a session end; if it is ambiguous, ask rather than close. Checks whether this session's work has actually been written to the store and reports exactly what is missing. It does not write anything itself. RECEIPTS ARE REQUIRED: pass `receipts` naming what you wrote and read back for each close step - working documents, the episodic session record id, the board and its version, the transcript part ids and highest exchange index as query_transcripts returned them, and the handoff version (written last). Each receipt is compared with the store; omitted or mismatched receipts, a handoff that was not the last write, or a transcript no layer entry cites (derived_from) return state 'blocked'. Each missing line carries a `scope`: touch only what it names. THREE blocked closes on one session return state 'escalate': stop retrying, say the `speak` lines, and hand the user the list - the counter does not reset on a changed receipt, only with a new session. Say every line of the returned `speak` to the user, in order - a wrap that leaves it out is a failed close. A records/ session disposition is not a receipt and does not make this call complete. Pass carry_forward only for an old open session whose HANDOFF and STATE a later session already advanced. The owner door, or the credential that wrote the session, cites the current conforming records/ disposition (CARRIED_FORWARD, SUPERSEDED_BY_LATER_SESSION, or ABANDONED_NO_TRANSCRIPT) and those later versions. RETAINED_OPEN_CRITICAL stays open. A declared source is not authority. Transcripts are not deleted. A refused carry_forward is not counted. A receipt close blocked only because a later session holds HANDOFF or STATE stays blocked and is not counted. A same-session close is unchanged. Never tell the user their session is saved unless this returns state 'complete'.",
     inputSchema: {
       type: "object",
       properties: {
@@ -4622,7 +4622,26 @@ const TOOL_DEFINITIONS = [
         session_id: { type: "string", description: "The session_id used (or to be used) for this session's transcript, e.g. '2026-09-03_short-description'. Without it the transcript cannot be checked; receipts.transcript_session_id is used when this is omitted." },
         session_start: { type: "number", description: "Unix seconds when the session began. Defaults to 12 hours ago, which makes the answer approximate." },
         thread_docs: { type: "array", items: { type: "string" }, description: "Additional document ids this session should have updated, e.g. ['threads/some-project.md']." },
-        source: { type: "string", description: "Your host's source tag: the registered tag this session was written under. The close is never refused for it; an unregistered tag, one that did not write this session, or none (with no server default) gets a warning that the close is not attributed." }
+        source: { type: "string", description: "Your host's source tag: the registered tag this session was written under. The close is never refused for it; an unregistered tag, one that did not write this session, or none (with no server default) gets a warning that the close is not attributed." },
+        carry_forward: {
+          type: "object",
+          description: "Disposition-backed close for an old open session. Omit it for a normal receipt close. Not a receipt, and not authority by itself.",
+          properties: {
+            disposition_doc: { type: "string", description: "records/ document id of the current conforming session disposition." },
+            disposition_version: { type: "number", description: "Version of that document now in force." },
+            citations: {
+              type: "array",
+              description: "Later continuity records that superseded this session's receipts. A host session cites the current HANDOFF and STATE versions. A bot session cites its own handoff.",
+              items: {
+                type: "object",
+                properties: {
+                  doc_id: { type: "string" },
+                  version: { type: "number" }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

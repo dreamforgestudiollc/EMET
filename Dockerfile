@@ -28,6 +28,9 @@ COPY gem-library ./gem-library
 # src/host-reach.js imports the RUNE load gate. Leaving this directory out
 # crashes startup: ERR_MODULE_NOT_FOUND .../verification/load-gate/load-gate.mjs
 COPY verification ./verification
+# Owner pages use site/assets/portrait.webp as a background. The npm package
+# does not ship site/. A missing file leaves the page without a portrait.
+COPY site/assets/portrait.webp ./site/assets/portrait.webp
 
 # Hosts inject PORT; the app honours it. 8080 is only the fallback.
 ENV PORT=8080

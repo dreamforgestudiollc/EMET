@@ -52,7 +52,7 @@ try {
       assert.match(html, /R4/);
       assert.match(html, /href="\/owner\/chooser"/);
       assert.match(html, /retained/i);
-      assert.equal(html.includes('type="password"'), false);
+      assert.equal(/<input[^>]*type="password"/.test(html), false);
       assert.equal(page.headers.get('set-cookie'), null);
       assert.equal(page.headers.get('cache-control'), 'no-store');
       const posted = await fetch(`${base}/owner/approvals/login`, {

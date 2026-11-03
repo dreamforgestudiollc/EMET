@@ -10,6 +10,7 @@ The word-for-word tier. `emet_session_open` starts a session. `emet_transcript_a
 - transcript-read: `query_transcripts` reads by time range or session id.
 - transcript-revise: `revise_transcript` writes a new part and marks the parent superseded. `reason` is required.
 - transcript-close: `emet_session_close` compares your receipts with the store. `complete` means the receipts matched. Anything else is not saved.
+- transcript-carry-forward: pass `carry_forward` only when a later session already advanced HANDOFF or STATE. Cite the current conforming `records/` disposition and those later versions. `RETAINED_OPEN_CRITICAL` stays open. A refused call is not counted. Transcripts stay.
 
 ## How to get to it (user POV)
 
@@ -29,3 +30,4 @@ The drive has no local shell, so the first append uses `no local shell MCP`. The
 - The first append is refused without a machine line or `no local shell MCP`. Nothing is written.
 - A closed session takes one closing exchange inside the grace window, then it locks.
 - Close receipts have to match the store. Invented ids come back `blocked` or `incomplete`.
+- A receipt close blocked only because a later session holds HANDOFF or STATE is not counted. Close that session with `carry_forward`, not by retrying the old receipts.
