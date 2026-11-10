@@ -248,6 +248,14 @@ it should come back `ready` with your existing identity, not `setup_required`. I
 `setup_required`, one of the four variables above is wrong; **do not run the setup interview,
 which would write a new identity over your existing one.**
 
+## Upgrading to 0.3.4
+
+0.3.3 and 0.3.4 leave stored data shapes as they were in 0.3.2. Deploy over 0.3.2 or 0.3.3 as is.
+
+From 0.3.4, `EMET-MEM-018` is checked on the append that opens a transcript, and on an append that would become the lowest stored index. Send the measured machine line on that first append, or the words `no local shell MCP`. A refused exchange 1 does not let a higher index start the transcript. With no machine table in the install notes, the check stays not enforced.
+
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
 ## Upgrading to 0.3.2
 
 0.3.2 adds door grants, the owner chooser, household rotation, and writer approval. An existing store keeps its records. After you deploy:

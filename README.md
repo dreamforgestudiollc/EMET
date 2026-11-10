@@ -693,7 +693,7 @@ are in [`docs/GUARDRAILS-AND-MONORAILS.md`](docs/GUARDRAILS-AND-MONORAILS.md).
 
 ## Tools
 
-Thirty-four tools are registered with sub-keys off. With `EMET_SUBKEYS=1`, four more (`emet_subkey_request`, `emet_subkey_claim`, `emet_subkey_revoke`, `emet_subkey_end_session`) and the `subkey` and `session_handle` arguments. The names below are every tool the registry registers, both sets together.
+Thirty-eight tools are registered with sub-keys off. With `EMET_SUBKEYS=1`, four more (`emet_subkey_request`, `emet_subkey_claim`, `emet_subkey_revoke`, `emet_subkey_end_session`) and the `subkey` and `session_handle` arguments. The names below are every tool the registry registers, both sets together.
 
 <!-- emet-tools -->
 ```
@@ -786,7 +786,7 @@ at session *start*, which is the only moment early enough to matter.
 
 Every tool declares MCP annotations — `readOnlyHint`, `destructiveHint`, `idempotentHint`,
 `openWorldHint` — in one table in `src/annotations.js`, which is also the complete statement of
-what EMET does to a store. **15 of the 34 tools cannot modify anything**; four can replace the
+what EMET does to a store. **15 of the 38 tools cannot modify anything**; five can replace the
 visible content of a document; `openWorldHint` is false everywhere. The tools reach this
 server's own database and nothing else: no filesystem and no shell. The sign-in server fetches
 a client's metadata document, and only from a public address it has already checked.

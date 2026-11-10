@@ -511,7 +511,8 @@ testGroup('a kept result is sealed', () => {
     const spec = fs.readFileSync(path.join(ROOT, 'gem-library/SPEC.md'), 'utf8');
     const section = spec.slice(spec.indexOf('**Serve log.**'), spec.indexOf('**Principal binding.**'));
     const change = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
-    const fixed = change.slice(change.indexOf('### Fixed'), change.indexOf('### Changed'));
+    const v026 = change.slice(change.indexOf('## 0.2.6'), change.indexOf('## 0.2.5'));
+    const fixed = v026.slice(v026.indexOf('### Fixed'), v026.indexOf('### Changed'));
     const gate = fs.readFileSync(path.join(ROOT, 'tests/write-path.test.js'), 'utf8');
     const note = gate.slice(gate.indexOf('ADDED 2026-10-16 with the serve log'), gate.indexOf("'rune-dispatch.js'"));
     assert.ok(SERVE_COLLECTION.endsWith('gem_serves'));

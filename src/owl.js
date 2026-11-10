@@ -1,11 +1,10 @@
 /**
  * Owl MCP clone account (R6).
  *
- * The account `user-EMET--owl` was a second OAuth client so an approval
- * queued by one grant could be decided by another client_id. R6 retires
- * that role. the owner decides a new writer on /owner/chooser. Master Hub
- * prepares the request. The server validates it. This account does not
- * approve.
+ * A second OAuth client account (the owl clone) let an approval queued by
+ * one grant be decided by another client_id. R6 retires that role. The
+ * owner decides a new writer on /owner/chooser. The request is prepared.
+ * The server validates it. This account does not approve.
  *
  * ISO 9001 7.5.3 / ISO 13485 4.2.5: supersede, retire, retain. Rows are
  * not deleted. A startup check fails loudly (stderr and the owl

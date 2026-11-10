@@ -11,14 +11,16 @@ Nothing is waiting above 0.3.4.
 
 ## 0.3.4 - 2026-11-10
 
-Public pull request #26, the changes since 0.3.3. Stored data shapes are unchanged. The declared version is 0.3.4.
+Public pull request #26, the changes since 0.3.3. Stored data shapes are unchanged. 0.3.4 was published to npm and the MCP Registry on 2026-11-10. The declared version is 0.3.4.
 
 ### Added
 - One instance per project. [docs/SECURITY-AT-SCALE.md](docs/SECURITY-AT-SCALE.md) is the public ladder. Rung A hardens one project (`EMET_SOURCE_TAGS` before a second writer, a unique `EMET_OAUTH_PASSPHRASE`, guest, member, and sub-keys off until needed, optional `EMET_SIGNING_KEY`, `PUBLIC_URL` exact, `/health` then `emet_status` probe after an environment change). Rung B is the clone recipe, including per-instance `EMET_ACTIVE_GEMS`, bot-team backup as the recommended interview answer, and Neurendipity and Lean Six Sigma as opt-in. Rung C is the inventory and the offboarding steps (a new passphrase, `rotate-all`, `revoke-member`, `emet_subkey_revoke`). Rung D, a control plane that only provisions isolated instances, stays a seed in [docs/ROADMAP.md](docs/ROADMAP.md). [SECURITY.md](SECURITY.md) points at that ladder. `CHARTER.md` is unchanged. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
+### Changed
+- Version 0.3.4. `package.json`, `package-lock.json`, `server.json`, `glama.json`, `.cursor-plugin/plugin.json`, and `src/version.js` agree. The README and the public site name the same version. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
 ### Fixed
 - `EMET-MEM-018` runs on the append that opens the transcript, and on an append that would become the lowest stored index, whatever `exchange_index` that is. A refused exchange 1 no longer lets a higher index start the transcript. Nothing is written. With no machine table in the install notes, the check stays not enforced. [docs/BOOTSTRAP.md](docs/BOOTSTRAP.md), [docs/SETUP.md](docs/SETUP.md), [docs/GUIDED-SETUP.md](docs/GUIDED-SETUP.md), [docs/DEPLOY.md](docs/DEPLOY.md), [docs/GUARDRAILS-AND-MONORAILS.md](docs/GUARDRAILS-AND-MONORAILS.md), and [docs/features/transcripts.md](docs/features/transcripts.md) state that order and the cost of skipping it. The monorail stays enforce only. The README no longer says that npm lags the repository. That note said `npx -y @dreamforgestudiollc/emet` installed 0.3.2 until 0.3.3 was published. 0.3.3 was already the release on npm. Changing `EMET_OAUTH_PASSPHRASE` stops new owner sign-ins that use the old value. It does not, by itself, revoke tokens already issued. `rotate-all` does that. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
-- Version 0.3.4. `package.json`, `package-lock.json`, `server.json`, `glama.json`, `.cursor-plugin/plugin.json`, and `src/version.js` agree. The README and the public site name the same version. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
 ## 0.3.3 - 2026-11-03
 
@@ -155,7 +157,7 @@ A board fix, a public website, and the first npm package, `@dreamforgestudiollc/
 - A static website in `site/`, for search, and a GitHub Actions workflow that publishes that folder to GitHub Pages on pushes to `main`.
 - `glama.json` at the repo root names `dreamforgestudiollc` as maintainer for the Glama directory listing.
 - The README records the origin in the same words as the site: EMET was built by Dreamforge Studio LLC from a neurodivergent user’s own need for an AI assistant that remembers. The word coined for that is neurendipity: neurodivergent and serendipity.
-- The public-scrub suite reads the Pages workflow's deploy job `if` and requires it to be exactly `github.repository == 'dreamforgestudiollc/EMET' && github.ref == 'refs/heads/main'`. A repository name that only contains that text, such as `dreamforgestudiollc/EMET-private`, does not pass.
+- The public-scrub suite reads the Pages workflow's deploy job `if` and requires it to be exactly `github.repository == 'dreamforgestudiollc/EMET' && github.ref == 'refs/heads/main'`. A repository name that only contains that text, such as `dreamforgestudiollc/EMET-fork`, does not pass.
 - The same suite requires `site/sitemap.xml`, `site/robots.txt`, `site/.nojekyll`, and every image the site HTML references to be present on the scrub and publish walk. Removing one of those files fails the suite.
 - `server.json` for the Official MCP Registry. Its name is `io.github.dreamforgestudiollc/emet`, the same value as `mcpName` in package.json. The npm package it names is the stdio server at version 0.2.4.
 - The pack test reads the text inside the tarball. On a scrubbed tree, an install-specific name in any packed file fails it. On this private tree that check waits, because the publish scrub has not rewritten those files yet.

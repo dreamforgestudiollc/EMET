@@ -3,9 +3,9 @@
  *
  * Operational metric for this process, in the same family as the owl
  * retirement and rotate-all lines. The controlled record is the proof pack
- * under docs/proof/R7/ in the EMET-private repo. This module does not write
+ * under docs/proof/R7/ in the private operator repository. This module does not write
  * the memory store, does not mint a grant, and does not rotate credentials.
- * A fresh process reports not_run. Railway EMET therefore reports not_run
+ * A fresh process reports not_run. A hosted deployment therefore reports not_run
  * until a harness run is recorded in that process.
  *
  * ISO 9001 7.5.3 / ISO 13485 4.2.5: a later run does not delete an earlier
