@@ -9,7 +9,7 @@
  * the write is kept and the receipt warns. On that day and after, the write
  * is refused. Unset uses PROPOSED_CLAIMED_TAG_KILL_DATE.
  *
- * The traffic counter is this process. Railway EMET is one long-lived process.
+ * The traffic counter is this process. A hosted deployment is one long-lived process.
  * It is not a backfill of older rows.
  */
 

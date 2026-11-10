@@ -803,7 +803,7 @@ enforcement: what is actually auto-approved is a host-side setting. See
 
 `emet_error_report` is owner-only and read-only. It reads the operational error log and returns the full report, a `mailto:` draft, and a structured email `{to, subject, body_text, short_id, version}`. EMET does not send mail and does not open a network connection for this tool.
 
-Read the report first. The draft is addressed to `EMET_REPORT_EMAIL`. When that variable is unset, the address is `dreamforgestudio@mail.grokbot.com`, the project's report inbox. Set it to your own address to keep reports in house. Set it to an empty string, or to anything other than one plain address, and the tool returns the report and no email.
+Read the report first. The draft is addressed to `EMET_REPORT_EMAIL`. When that variable is unset, the address is `dreamforgestudio@mail.hubbot.com`, the address in `src/error-report.js`. Set it to your own address to keep reports in house. Set it to an empty string, or to anything other than one plain address, and the tool returns the report and no email.
 
 A calling assistant that has its own email address may pass that structured email to its own email tool. The calling assistant may send this report only after showing the report to its user and getting their OK. EMET will not send it. The code table is [docs/ERROR-CODES.md](docs/ERROR-CODES.md), and the behavior is written up in [docs/ERROR-CODES-SPEC.md](docs/ERROR-CODES-SPEC.md).
 

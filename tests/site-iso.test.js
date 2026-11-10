@@ -97,9 +97,9 @@ const SEQUENCES = [
   ],
   [
     [
-      "emet_initialize (it can provision a missing board; it stays a read), save_to_layer, revise_memory, save_transcript, revise_transcript, emet_session_open, emet_transcript_append, emet_session_close, rename_doc, accept_nonconformance.",
+      "emet_initialize (it can provision a missing board; it stays a read), save_to_layer, revise_memory, save_transcript, revise_transcript, emet_session_open, emet_transcript_append, emet_session_close, rename_doc, accept_nonconformance, write_doc_begin, write_doc_append, write_doc_abort.",
       "They add.",
-      "They do not remove or replace.",
+      "They do not remove or replace a current document, and a staged begin, append, or abort changes only the server’s own stage.",
       "Opening a session still needs emet.write, because it stamps the drop list a board edit trusts.",
     ],
     1,
@@ -178,7 +178,7 @@ const SEQUENCES = [
 
 const SENTENCE_PIN = new Map([
   ["EMET supports that work; it holds no certification and claims no conformity.", 1],
-  ["emet_initialize (it can provision a missing board; it stays a read), save_to_layer, revise_memory, save_transcript, revise_transcript, emet_session_open, emet_transcript_append, emet_session_close, rename_doc, accept_nonconformance.", 1],
+  ["emet_initialize (it can provision a missing board; it stays a read), save_to_layer, revise_memory, save_transcript, revise_transcript, emet_session_open, emet_transcript_append, emet_session_close, rename_doc, accept_nonconformance, write_doc_begin, write_doc_append, write_doc_abort.", 1],
   ["It stays counted at session start until a later revision corrects it or accept_nonconformance dispositions it.", 1],
   ["restore_doc is the one whole-document recovery, for an owner-listed tag, and only a stored conforming revision whose digest matches.", 1],
   ["It holds no certification and claims no conformity.", 1],

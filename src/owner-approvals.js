@@ -29,7 +29,7 @@ function retired(req, res) {
 
 /**
  * @param {import('express').Express} app
- * @param {object} [_options] kept so the Railway EMET mount stays the same call.
+ * @param {object} [_options] kept so a hosted deployment mount stays the same call.
  */
 export function mountOwnerApprovals(app, _options = {}) {
   app.get('/owner/approvals', retired);

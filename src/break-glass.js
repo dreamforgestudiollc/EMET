@@ -1,7 +1,7 @@
 /**
  * Break-glass recovery (R4b).
  *
- * One stable URL on Railway EMET: /owner/break-glass. The owner passphrase
+ * One stable URL on a hosted deployment: /owner/break-glass. The owner passphrase
  * session is the only credential. A member or guest grant does not open it,
  * and no AI client is required. Each authenticated use is logged and counted
  * on emet_status.break_glass.

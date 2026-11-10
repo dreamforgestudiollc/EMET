@@ -11,7 +11,7 @@
  * retirement metric; the process does not exit) when an owl grant is
  * active again. Rotate-all (R5) already revokes every grant; the invite step
  * skips this account so a rotation does not hand it a fresh code. This
- * module does not call Railway EMET and does not run a rotation.
+ * module does not call a hosted deployment and does not run a rotation.
  */
 
 import { COLLECTION_PREFIX } from './database.js';

@@ -353,32 +353,28 @@ curl https://&lt;host&gt;/.well-known/oauth-authorization-server</code></pre>
         <p class="prose">One EMET, one owner login. If more than one bot or AI writes through that login, each bot that can keep a key file gets its own key. The server stamps the tag on the key. This is the same server, not a second product. It stays off unless setup is told that more than one bot or AI will use the memory, and the server has restarted with <code>EMET_SUBKEYS=1</code>. With the flag off, the tool list does not grow.</p>
         <ol class="steps">
           <li>Say “initialize.” Leaving the question out is the same as no. No leaves sub-keys off.</li>
-          <li>Yes, on a server that reads <code>.env</code>, writes <code>EMET_SUBKEYS=1</code>, a generated pepper, and <code>EMET_SUBKEY_PEPPER_VERSION=1</code> into that file after the identity documents are saved. They do not turn on in the process that is already running. Restart once. The tools and <code>/owner/approvals</code> appear together after that.</li>
+          <li>Yes, on a server that reads <code>.env</code>, writes <code>EMET_SUBKEYS=1</code>, a generated pepper, and <code>EMET_SUBKEY_PEPPER_VERSION=1</code> into that file after the identity documents are saved. They do not turn on in the process that is already running. Restart once. The tools and <code>/owner/chooser</code> appear together after that.</li>
           <li>Yes, on a server that takes settings from the platform, is refused before anything is saved. Set <code>EMET_SUBKEYS=1</code>, an owner-generated <code>EMET_SUBKEY_PEPPER</code> of at least 32 bytes, and <code>EMET_SUBKEY_PEPPER_VERSION=1</code>, then redeploy. Do not paste the pepper into the chat or into an EMET document.</li>
           <li>List each bot’s tag in <code>EMET_SOURCE_TAGS</code> before it asks. An empty list refuses every request.</li>
-          <li>The bot calls <code>emet_subkey_request</code>. Approve it on <code>/owner/approvals</code> with the same passphrase used to connect a device. A correct passphrase opens a session of 15 minutes. The bot claims the key within 24 hours with <code>emet_subkey_claim</code> and keeps it where the other bots cannot read it. The key is never written into EMET.</li>
+          <li>The bot calls <code>emet_subkey_request</code>. Approve it on <code>/owner/chooser</code> with the same passphrase used to connect a device. A correct passphrase opens a session of 15 minutes. The bot claims the key within 24 hours with <code>emet_subkey_claim</code> and keeps it where the other bots cannot read it. The key is never written into EMET.</li>
         </ol>
         <p class="prose">A bot then opens a session with that key and passes the session handle on later writes. The server stamps the key’s tag, whatever <code>source</code> the caller sends. A key lasts 30 days (<code>EMET_SUBKEY_TTL_DAYS</code>, default 30, at most 90). To renew it, the bot asks again, you approve it, and the bot claims the new key within 24 hours. The previous key stays valid for <code>EMET_SUBKEY_GRACE_MINUTES</code> (default 10) while the bot switches. Earlier writes stay as they were written.</p>
         <p class="prose">The four tools, registered only when the flag is on, are <code>emet_subkey_request</code>, <code>emet_subkey_claim</code>, <code>emet_subkey_revoke</code>, and <code>emet_subkey_end_session</code>. Write tools gain <code>session_handle</code>. <code>emet_session_open</code> and <code>emet_session_close</code> gain <code>subkey</code>.</p>
 
         <h3>What the tools are allowed to do</h3>
-        <p class="prose">Thirty tools are registered with sub-keys off. Every tool declares MCP annotations in <code>src/annotations.js</code>: <code>readOnlyHint</code>, <code>destructiveHint</code>, <code>idempotentHint</code>, and <code>openWorldHint</code>. The hints let a host stop asking about reads. They are hints, not enforcement. What is actually auto-approved is a host-side setting. <code>openWorldHint</code> is false on every tool. The tools reach this server’s database and nothing else: no filesystem and no shell. The sign-in server fetches a client’s metadata document, and only from a public address it has already checked.</p>
+        <p class="prose">Thirty-eight tools are registered with sub-keys off. Every tool declares MCP annotations in <code>src/annotations.js</code>: <code>readOnlyHint</code>, <code>destructiveHint</code>, <code>idempotentHint</code>, and <code>openWorldHint</code>. The hints let a host stop asking about reads. They are hints, not enforcement. What is actually auto-approved is a host-side setting. <code>openWorldHint</code> is false on every tool. The tools reach this server’s database and nothing else: no filesystem and no shell. The sign-in server fetches a client’s metadata document, and only from a public address it has already checked.</p>
         <dl class="facts">
           <div>
-            <dt>11 read-only</dt>
-            <dd><code>emet_gaps</code>, <code>emet_floor</code>, <code>recall</code>, <code>semantic_recall</code>, <code>corpus_recall</code>, <code>query_layer</code>, <code>query_transcripts</code>, <code>read_doc</code>, <code>read_doc_history</code>, <code>list_docs</code>, <code>validate_doc</code>. These cannot change the store under any arguments.</dd>
+            <dt>15 read-only</dt>
+            <dd><code>emet_gaps</code>, <code>emet_page</code>, <code>emet_pages</code>, <code>emet_page_lint</code>, <code>emet_error_report</code>, <code>emet_floor</code>, <code>recall</code>, <code>semantic_recall</code>, <code>corpus_recall</code>, <code>query_layer</code>, <code>query_transcripts</code>, <code>read_doc</code>, <code>read_doc_history</code>, <code>list_docs</code>, <code>validate_doc</code>. These cannot change the store under any arguments. <code>emet_error_report</code> is owner-only. It reads the error log and returns a report and an email draft. It writes nothing and sends nothing.</dd>
           </div>
           <div>
-            <dt><code>emet_error_report</code></dt>
-            <dd>owner-only, read-only. Reads the error log and returns a report and an email draft. Writes nothing, sends nothing.</dd>
+            <dt>13 additive writes</dt>
+            <dd><code>emet_initialize</code> (it can provision a missing board; it stays a read), <code>save_to_layer</code>, <code>revise_memory</code>, <code>save_transcript</code>, <code>revise_transcript</code>, <code>emet_session_open</code>, <code>emet_transcript_append</code>, <code>emet_session_close</code>, <code>rename_doc</code>, <code>accept_nonconformance</code>, <code>write_doc_begin</code>, <code>write_doc_append</code>, <code>write_doc_abort</code>. They add. They do not remove or replace a current document, and a staged begin, append, or abort changes only the server’s own stage. Opening a session still needs <code>emet.write</code>, because it stamps the drop list a board edit trusts.</dd>
           </div>
           <div>
-            <dt>10 additive writes</dt>
-            <dd><code>emet_initialize</code> (it can provision a missing board; it stays a read), <code>save_to_layer</code>, <code>revise_memory</code>, <code>save_transcript</code>, <code>revise_transcript</code>, <code>emet_session_open</code>, <code>emet_transcript_append</code>, <code>emet_session_close</code>, <code>rename_doc</code>, <code>accept_nonconformance</code>. They add. They do not remove or replace. Opening a session still needs <code>emet.write</code>, because it stamps the drop list a board edit trusts.</dd>
-          </div>
-          <div>
-            <dt>7 that replace or hand out access</dt>
-            <dd><code>write_doc</code>, <code>patch_doc</code>, <code>restore_doc</code>, <code>emet_setup_complete</code>, <code>emet_invite_create</code>, <code>emet_member_access_create</code>, <code>emet_client_approve</code>. Prior versions of a document are archived first. A code that grants access is marked the same way.</dd>
+            <dt>8 that replace or hand out access</dt>
+            <dd><code>write_doc</code>, <code>write_doc_commit</code>, <code>patch_doc</code>, <code>restore_doc</code>, <code>emet_setup_complete</code>, <code>emet_invite_create</code>, <code>emet_member_access_create</code>, <code>emet_client_approve</code>. Prior versions of a document are archived first. A code that grants access is marked the same way.</dd>
           </div>
           <div>
             <dt><code>retire_doc</code> and <code>emet_status</code></dt>
@@ -606,7 +602,7 @@ save_to_layer</code></pre>
         <pre><code>curl https://&lt;host&gt;/health</code></pre>
 
         <h3>Reporting a problem</h3>
-        <p class="prose">Run <code>emet_error_report</code> as the owner. It returns the report and a <code>mailto:</code> link addressed to <code>dreamforgestudio@mail.grokbot.com</code>. Read the report, open the link, check the email in your own mail app, then send it. To send reports somewhere else, set <code>EMET_REPORT_EMAIL</code>. Set it to an empty string and you get the report with no email.</p>
+        <p class="prose">Run <code>emet_error_report</code> as the owner. It returns the report and a <code>mailto:</code> link addressed to <code>dreamforgestudio@mail.hubbot.com</code>. Read the report, open the link, check the email in your own mail app, then send it. To send reports somewhere else, set <code>EMET_REPORT_EMAIL</code>. Set it to an empty string and you get the report with no email.</p>
         <p class="prose">The report holds codes, counts, times and the version. It holds no message text, arguments, document content, names or secrets.</p>
 
         <h3>Check the tools</h3>
@@ -853,10 +849,10 @@ EMET_ACTIVE_GEMS=neurendipity,lean-six-sigma</code></pre>
         <p class="prose">Stored data shapes are unchanged. 0.3.3 was published to npm on 2026-11-03. <code>emet_session_close</code> takes <code>carry_forward</code> when a later session already advanced HANDOFF or STATE. <code>/owner/chooser</code> and <code>/owner/break-glass</code> use <code>site/assets/portrait.webp</code> as the page background. <code>server.json</code>, <code>package.json</code>, and <code>glama.json</code> descriptions lead with the document-control line.</p>
 
         <h3>What 0.3.2 changed</h3>
-        <p class="prose">0.3.2 is the access ladder and the work after 0.3.1. npm is not published from this change. New writes stamp <code>grant_id</code> and <code>door</code> from the login. <code>/owner/chooser</code> is where the owner sets a door, and <code>/owner/break-glass</code> is the recovery page. A new writer is prepared, checked by the server, and decided by the owner on <code>/owner/chooser</code>. Staged document writes are <code>write_doc_begin</code>, <code>write_doc_append</code>, <code>write_doc_commit</code>, and <code>write_doc_abort</code>.</p>
+        <p class="prose">0.3.2 is the access ladder and the work after 0.3.1. 0.3.2 was published to npm on 2026-10-28. New writes stamp <code>grant_id</code> and <code>door</code> from the login. <code>/owner/chooser</code> is where the owner sets a door, and <code>/owner/break-glass</code> is the recovery page. A new writer is prepared, checked by the server, and decided by the owner on <code>/owner/chooser</code>. Staged document writes are <code>write_doc_begin</code>, <code>write_doc_append</code>, <code>write_doc_commit</code>, and <code>write_doc_abort</code>.</p>
 
         <h3>What 0.3.1 changed</h3>
-        <p class="prose"><code>EMET_REPORT_EMAIL</code> defaults to <code>dreamforgestudio@mail.grokbot.com</code>. <code>npm run verify</code> runs <code>scripts/verify-emet.mjs</code>. <code>docs/features/</code> is the feature map. <code>docs/DEVELOPMENT-PRACTICES.md</code> says docs ship in the same pull request as the feature.</p>
+        <p class="prose"><code>npm run verify</code> runs <code>scripts/verify-emet.mjs</code>. <code>docs/features/</code> is the feature map. <code>docs/DEVELOPMENT-PRACTICES.md</code> says docs ship in the same pull request as the feature.</p>
 
         <h3>What 0.3.0 changed</h3>
         <p class="prose">Every error EMET returns carries a stable code in a separate field. The existing error code stays as it is. The same meaning keeps the same code. An owner can read a report of recent codes. EMET itself does not send that report. The owner runs <code>emet_error_report</code> to get the report and an email draft to send from their own mail app. The operational error log is capped at 10,000 entries or 90 days, and daily summaries are kept. Topic pages are views computed on each request. Area selectors are controlled documents checked against <code>templates/AREA.md</code>. Only the owner creates or edits an area, and only the owner can read a page.</p>
@@ -887,7 +883,7 @@ EMET_ACTIVE_GEMS=neurendipity,lean-six-sigma</code></pre>
           </div>
           <div>
             <dt><code>docs/</code></dt>
-            <dd>Setup, deploy, permissions, bots, sub-keys, and the instruction block. The working roadmap is <code>docs/ROADMAP.md</code>. It is not a commitment. Its status date is 2026-10-11.</dd>
+            <dd>Setup, deploy, permissions, bots, sub-keys, and the instruction block. The working roadmap is <code>docs/ROADMAP.md</code>. It is not a commitment. Its status date is 2026-11-10.</dd>
           </div>
           <div>
             <dt><code>gem-library/</code></dt>
@@ -948,7 +944,7 @@ npm run start:http</code></pre>
           </li>
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/ROADMAP.md">Roadmap</a>
-            <span>A working list, not a commitment. Status as of 2026-10-11.</span>
+            <span>A working list, not a commitment. Status as of 2026-11-10.</span>
           </li>
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/server.json">server.json</a>
