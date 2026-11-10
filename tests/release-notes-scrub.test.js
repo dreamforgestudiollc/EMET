@@ -51,11 +51,14 @@ export function releaseNoteLeaks(text) {
 
 testGroup('0.3.2 release notes reject private leaks', () => {
   const change = read('CHANGELOG.md');
-  const notes = `${headingSlice(change, '## Unreleased')}\n${headingSlice(change, '## 0.3.4')}\n${headingSlice(change, '## 0.3.3')}\n${headingSlice(change, '## 0.3.2')}`;
+  const notes = `${headingSlice(change, '## Unreleased')}\n${headingSlice(change, '## 0.3.5')}\n${headingSlice(change, '## 0.3.4')}\n${headingSlice(change, '## 0.3.3')}\n${headingSlice(change, '## 0.3.2')}`;
 
   test('## 0.3.2 is present and Unreleased is included when it exists', () => {
     assert.ok(change.includes('## 0.3.2'), '## 0.3.2 is missing');
     assert.ok(headingSlice(change, '## 0.3.2').includes('### Added'));
+    assert.ok(change.includes('## 0.3.5'), '## 0.3.5 is missing');
+    assert.ok(headingSlice(change, '## 0.3.5').includes('No behaviour change.'));
+    assert.ok(headingSlice(change, '## 0.3.5').includes('38 tools with sub-keys off, 15 of them read-only, and 42'));
     assert.ok(change.includes('## 0.3.4'), '## 0.3.4 is missing');
     assert.ok(headingSlice(change, '## 0.3.4').includes('docs/SECURITY-AT-SCALE.md'));
     assert.ok(headingSlice(change, '## 0.3.4').includes('EMET-MEM-018'));
@@ -65,7 +68,7 @@ testGroup('0.3.2 release notes reject private leaks', () => {
     assert.ok(headingSlice(change, '## 0.3.3').includes('0.3.3 was published to npm on 2026-11-03.'));
     assert.ok(!headingSlice(change, '## 0.3.3').includes('does not publish to npm'));
     assert.ok(change.includes('## Unreleased'));
-    assert.ok(headingSlice(change, '## Unreleased').includes('Nothing is waiting above 0.3.4.'));
+    assert.ok(headingSlice(change, '## Unreleased').includes('Nothing is waiting above 0.3.5.'));
   });
 
   test('the 0.3.2 and Unreleased sections have no leave-here path or live client id', () => {

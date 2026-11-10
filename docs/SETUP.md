@@ -248,6 +248,12 @@ it should come back `ready` with your existing identity, not `setup_required`. I
 `setup_required`, one of the four variables above is wrong; **do not run the setup interview,
 which would write a new identity over your existing one.**
 
+## Upgrading to 0.3.5
+
+0.3.5 changes documentation only. There is no behaviour change. Stored data shapes are unchanged. Deploy over 0.3.4 as is.
+
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
 ## Upgrading to 0.3.4
 
 0.3.3 and 0.3.4 leave stored data shapes as they were in 0.3.2. Deploy over 0.3.2 or 0.3.3 as is.

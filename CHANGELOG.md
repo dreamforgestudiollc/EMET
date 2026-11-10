@@ -7,7 +7,15 @@ change before 1.0.
 
 ## Unreleased
 
-Nothing is waiting above 0.3.4.
+Nothing is waiting above 0.3.5.
+
+## 0.3.5 - 2026-11-10
+
+Documentation only. This release brings the public docs current with the code. No behaviour change. Stored data shapes are unchanged. Deploy over 0.3.4 as is. The declared version is 0.3.5.
+
+### Changed
+- The README counts 38 tools with sub-keys off, 15 of them read-only, and 42 with `EMET_SUBKEYS=1`. `docs/ROADMAP.md` names the same live count, and GEM socket PR 4 is shipped in 0.2.6. `docs/SETUP.md` and `docs/DEPLOY.md` carry upgrading notes through 0.3.5. The public site has What-changed sections for 0.3.1, 0.3.2, 0.3.3, and 0.3.4. Comments no longer name the private repository or the retired account id. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+- Version 0.3.5. `package.json`, `package-lock.json`, `server.json`, `glama.json`, `.cursor-plugin/plugin.json`, and `src/version.js` agree. The README and the public site name the same version. `mcp.json` has no version. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
 ## 0.3.4 - 2026-11-10
 

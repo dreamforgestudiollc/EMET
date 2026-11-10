@@ -13,6 +13,12 @@ scoped user, and Atlas Network Access set to `0.0.0.0/0` — a hosted platform's
 dynamic, so it cannot be allowlisted. Security rests on the scoped user plus the OAuth
 passphrase; both are required.
 
+## Upgrading to 0.3.5
+
+0.3.5 changes documentation only. There is no behaviour change. Stored data shapes are unchanged. Deploy over 0.3.4 as is.
+
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
 ## Upgrading to 0.3.4
 
 0.3.3 and 0.3.4 leave stored data shapes as they were in 0.3.2. Deploy over 0.3.2 or 0.3.3 as is. From 0.3.4, `EMET-MEM-018` is checked on the append that opens a transcript, and on an append that would become the lowest stored index. Send the measured machine line on that first append, or the words `no local shell MCP`. A refused exchange 1 does not let a higher index start the transcript. With no machine table in the install notes, the check stays not enforced.
