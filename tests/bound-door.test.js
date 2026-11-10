@@ -934,7 +934,7 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
       const posted = await fetch(`${base}/owner/chooser/decide`, {
         method: 'POST',
         headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ csrf: csrf[1], door: 'member', tag: LEGACY_BOUND_TAG }).toString()
+        body: new URLSearchParams({ csrf: csrf[1], decision: 'member', tag: LEGACY_BOUND_TAG }).toString()
       });
       const body = await posted.text();
       assert.strictEqual(posted.status, 400, body.slice(0, 400));

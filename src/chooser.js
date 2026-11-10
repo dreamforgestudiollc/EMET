@@ -322,7 +322,7 @@ export function mountChooser(app, options = {}) {
 
   async function finishDecide(req, res) {
     const session = gate.sessionOf(req);
-    const raw = req.body && (req.body.decision || req.body.door);
+    const raw = req.body && req.body.decision;
     const decision = DOORS.includes(raw) ? raw : (raw == null || raw === '' ? 'guest' : null);
     if (!ownerMayGrant(session, decision || 'guest')) {
       res.locals.reason = 'owner_only';
