@@ -257,7 +257,7 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
       const { isLegacyBoundHostSpelling } = await import('./bound-door.js');
       if (isLegacyBoundHostSpelling(requested)) {
         res.locals.reason = 'legacy_bound_tag';
-        return res.status(400).end('use bound-host');
+        return res.status(400).end('use bound-host (EMET-AUTH-045)');
       }
       sourceTag = requested || null;
     }

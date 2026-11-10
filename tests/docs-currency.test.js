@@ -227,6 +227,8 @@ const REPORT_ADDRESS = 'dreamforgestudio@mail.grokbot.com';
 const WRONG_REPORT_ADDRESS = 'dreamforgestudio@mail.hubbot.com';
 
 function siteWithoutReleaseHistory(html) {
+  const marks = html.match(/What 0\.3\.5 changed/g) || [];
+  assert.strictEqual(marks.length, 1);
   const start = html.indexOf('What 0.3.5 changed');
   const end = html.indexOf('What 0.3.4 changed');
   assert.ok(start >= 0 && end > start);
@@ -326,6 +328,8 @@ testGroup('the charter names the built socket, and install names stay out of pub
       assert.ok(note.includes('refused'));
       assert.ok(note.includes('writer request'));
       assert.ok(note.includes('member or guest code'));
+      assert.ok(note.includes('setup'));
+      assert.ok(note.includes('chooser'));
     }
   });
 

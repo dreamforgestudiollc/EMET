@@ -22,6 +22,7 @@ import {
 import { isOwlIdentity } from './owl.js';
 import { isMasterBlasterActor } from './writer-approval.js';
 import { isLegacyBoundHostSpelling } from './bound-door.js';
+import { assignCode } from './error-codes.js';
 import { parseReceipts } from './session.js';
 import { storeFor, sweepFlagOffLiveSessions } from './subkey-store.js';
 
@@ -385,7 +386,7 @@ export async function requestSubkey(deps, actor, { tag } = {}, registry = [], no
   const list = registryOf(registry);
   const t = tagAllowed(tag, list);
   if (!t) throw refusal('emet_subkey_request: "tag" must be an exact member of EMET_SOURCE_TAGS. Nothing was changed.');
-  if (isLegacyBoundHostSpelling(t)) throw refusal('emet_subkey_request: use bound-host. Nothing was changed.');
+  if (isLegacyBoundHostSpelling(t)) throw assignCode(refusal('emet_subkey_request: use bound-host. Nothing was changed.'), 'EMET-AUTH-045');
   const nonce = `${NONCE_PREFIX}${b64(32)}`;
   const key_id = hexId();
   let created = null;

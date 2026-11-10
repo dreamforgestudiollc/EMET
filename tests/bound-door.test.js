@@ -746,6 +746,7 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
     }));
     assert.strictEqual(posted.status, 400, posted.text.slice(0, 400));
     assert.match(posted.text, /use bound-host/);
+    assert.match(posted.text, /EMET-AUTH-045/);
     assert.strictEqual(posted.location, null);
     assert.strictEqual(await listedTag(posted.db), null);
   });
@@ -852,6 +853,7 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
       const body = await posted.text();
       assert.strictEqual(posted.status, 400, body.slice(0, 400));
       assert.match(body, /use bound-host/);
+      assert.match(body, /EMET-AUTH-045/);
       assert.strictEqual(db.collection('invites').docs.length, 0);
     } finally {
       await closeServer(server);
@@ -895,8 +897,94 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
     const { setupComplete } = await import('../src/setup.js');
     await assert.rejects(
       () => setupComplete({ source_tag: LEGACY_BOUND_TAG }),
-      /use bound-host/
+      (error) => error.emetCode === 'EMET-AUTH-045' && /use bound-host/.test(error.message)
     );
+  });
+
+  test('a chooser decision under the legacy tag is refused', async () => {
+    const express = (await import('express')).default;
+    const { ApproveThrottle } = await import('../src/approve-throttle.js');
+    const { MongoOAuthProvider } = await import('../src/oauth-provider.js');
+    const { mountChooser } = await import('../src/chooser.js');
+    const { createOwnerGate } = await import('../src/owner-session.js');
+    const db = makeStore();
+    const provider = new MongoOAuthProvider(() => db, { passphrase: PASSPHRASE, cimd: false });
+    const gate = createOwnerGate({
+      checkPassphrase: (input) => provider.checkPassphrase(input),
+      throttle: new ApproveThrottle()
+    });
+    const app = express();
+    app.set('trust proxy', 1);
+    mountChooser(app, { gate, ownerId: 'alex', db: () => db, prefix: 'emet_', provider, deps: () => ({}) });
+    const server = await new Promise((resolve) => { const listening = app.listen(0, '127.0.0.1', () => resolve(listening)); });
+    try {
+      const base = `http://127.0.0.1:${server.address().port}`;
+      const login = await fetch(`${base}/owner/login`, {
+        method: 'POST',
+        redirect: 'manual',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ passphrase: PASSPHRASE, next: '/owner/chooser' }).toString()
+      });
+      assert.strictEqual(login.status, 303, await login.text());
+      const cookie = login.headers.get('set-cookie').split(';')[0];
+      const page = await fetch(`${base}/owner/chooser`, { headers: { cookie } });
+      const html = await page.text();
+      const csrf = /name="csrf" value="([0-9a-f]{64})"/.exec(html);
+      assert.ok(csrf, html.slice(0, 400));
+      const posted = await fetch(`${base}/owner/chooser/decide`, {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ csrf: csrf[1], door: 'member', tag: LEGACY_BOUND_TAG }).toString()
+      });
+      const body = await posted.text();
+      assert.strictEqual(posted.status, 400, body.slice(0, 400));
+      assert.match(body, /use bound-host/);
+      assert.match(body, /EMET-AUTH-045/);
+      assert.strictEqual(db.collection('invites').docs.length, 0);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('every legacy refusal returns the one new code', async () => {
+    const { ERROR_CODES } = await import('../src/error-codes.js');
+    assert.strictEqual(ERROR_CODES['EMET-AUTH-045'].summary, 'The previous bound-door spelling is refused for a new choice');
+    const { memberAccessCreate, inviteCreate } = await import('../src/tools.js');
+    const { requestSubkey } = await import('../src/subkeys.js');
+    const { prepareWriterRequest, _resetWriterApprovalsForTests } = await import('../src/writer-approval.js');
+    const { setupComplete } = await import('../src/setup.js');
+    const db = makeStore();
+    const dbManager = { db, async getConnection() { return {}; } };
+    const code = (error) => error.emetCode === 'EMET-AUTH-045' && /use bound-host/.test(error.message);
+    await withEnv({
+      EMET_SOURCE_TAGS: [MB_TAG, CLAIM_TAG, LEGACY_BOUND_TAG].join(','),
+      EMET_SUBKEYS: '1',
+      EMET_SUBKEY_PEPPER: '0123456789abcdef0123456789abcdef'
+    }, async () => {
+      await assert.rejects(
+        () => actorStore.run({ transport: 'stdio' }, () => memberAccessCreate(dbManager, { display_name: 'x', source: LEGACY_BOUND_TAG })),
+        code
+      );
+      await assert.rejects(
+        () => actorStore.run({ transport: 'stdio' }, () => inviteCreate(dbManager, { display_name: 'x', source: LEGACY_BOUND_TAG })),
+        code
+      );
+      await assert.rejects(
+        () => requestSubkey({ read() { throw new Error('store'); } }, {
+          transport: 'http', authenticated: true, personId: 'alex', ownerId: 'alex', sourceTag: MB_TAG
+        }, { tag: LEGACY_BOUND_TAG }, [LEGACY_BOUND_TAG]),
+        code
+      );
+      _resetWriterApprovalsForTests();
+      await assert.rejects(() => prepareWriterRequest(db, 'emet_', {
+        transport: 'http', authenticated: true, sourceBasis: 'login', sourceTag: MB_TAG,
+        personId: 'alex', ownerId: 'alex', clientId: SHARED_GROK_CLIENT, grantId: 'mbgrant00000000000001'
+      }, {
+        decision: 'prepare', client: 'bound-login', claimed_tag: LEGACY_BOUND_TAG, door: 'member',
+        reason: 'BOUND needs her own door', correlation_id: 'c1b2c3d4e5f60719'
+      }), code);
+      await assert.rejects(() => setupComplete({ source_tag: LEGACY_BOUND_TAG }), code);
+    });
   });
 });
 

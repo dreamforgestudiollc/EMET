@@ -25,7 +25,7 @@ import {
   esc, sendHtml, loginForm, ownerPageActor, ownerMayGrant, mountOwnerLogin, readCookie, createOwnerGate
 } from './owner-session.js';
 import { rotationForms } from './rotate.js';
-import { boundHostListingAfterWriterIssue, isBoundHostTag, CLAIM_TAG } from './bound-door.js';
+import { boundHostListingAfterWriterIssue, isBoundHostTag, isLegacyBoundHostSpelling, CLAIM_TAG } from './bound-door.js';
 
 const CHOOSER_COOKIE = 'emet_chooser';
 const REASON_MAX = 500;
@@ -322,7 +322,7 @@ export function mountChooser(app, options = {}) {
 
   async function finishDecide(req, res) {
     const session = gate.sessionOf(req);
-    const raw = req.body && req.body.decision;
+    const raw = req.body && (req.body.decision || req.body.door);
     const decision = DOORS.includes(raw) ? raw : (raw == null || raw === '' ? 'guest' : null);
     if (!ownerMayGrant(session, decision || 'guest')) {
       res.locals.reason = 'owner_only';
@@ -361,6 +361,11 @@ export function mountChooser(app, options = {}) {
     if ((decision === 'member' || decision === 'guest') && tag === 'unknown') {
       res.locals.reason = 'tag_required';
       sendHtml(res, 400, '<p>A tag is required for member or guest. Nothing was granted.</p>', 'EMET chooser');
+      return;
+    }
+    if (isLegacyBoundHostSpelling(tag)) {
+      res.locals.reason = 'legacy_bound_tag';
+      sendHtml(res, 400, '<p>use bound-host (EMET-AUTH-045). Nothing was granted.</p>', 'EMET chooser');
       return;
     }
     let db = null;

@@ -727,7 +727,7 @@
   {
     "file": "setup.js",
     "message": "throw new ValidationError(field, 'use bound-host. Nothing was written.')",
-    "code": "EMET-CFG-009"
+    "code": "EMET-AUTH-045"
   },
   {
     "file": "staged-write.js",
@@ -923,6 +923,11 @@
     "file": "subkey-store.js",
     "message": "throw new Error('superseded by a concurrent open; this open was not made live.')",
     "code": "EMET-AUTH-026"
+  },
+  {
+    "file": "subkeys.js",
+    "message": "throw refusal('emet_subkey_request: use bound-host. Nothing was changed.')",
+    "code": "EMET-AUTH-045"
   },
   {
     "file": "tools.js",
@@ -1477,12 +1482,12 @@
   {
     "file": "tools.js",
     "message": "throw new ValidationError('source', 'use bound-host. Nothing was created.')",
-    "code": "EMET-AUTH-032"
+    "code": "EMET-AUTH-045"
   },
   {
     "file": "tools.js",
     "message": "throw new ValidationError('source', 'use bound-host. Nothing was created.')",
-    "code": "EMET-AUTH-035"
+    "code": "EMET-AUTH-045"
   },
   {
     "file": "tools.js",
@@ -1938,5 +1943,10 @@
     "file": "validation.js",
     "message": "throw new ValidationError(key, 'Value must be a string', typeof value)",
     "code": "EMET-VAL-026"
+  },
+  {
+    "file": "writer-approval.js",
+    "message": "throw refusal('emet_client_approve: use bound-host. Nothing was changed.')",
+    "code": "EMET-AUTH-045"
   }
 ]

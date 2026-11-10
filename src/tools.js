@@ -3984,7 +3984,7 @@ export async function inviteCreate(dbManager, { display_name, scopes, days, sour
     throw new ValidationError('source', 'A guest invite source must be a registered tag. Nothing was created.', { code: 'EMET-AUTH-032' });
   }
   if (isLegacyBoundHostSpelling(tag)) {
-    throw new ValidationError('source', 'use bound-host. Nothing was created.', { code: 'EMET-AUTH-032' });
+    throw new ValidationError('source', 'use bound-host. Nothing was created.', { code: 'EMET-AUTH-045' });
   }
   const out = await createInvite(dbManager.db, {
     created_by: actor,
@@ -4025,7 +4025,7 @@ export async function memberAccessCreate(dbManager, { display_name, days, source
     throw new ValidationError('source', 'A member code source must be a registered tag. Nothing was created.', { code: 'EMET-AUTH-035' });
   }
   if (isLegacyBoundHostSpelling(tag)) {
-    throw new ValidationError('source', 'use bound-host. Nothing was created.', { code: 'EMET-AUTH-035' });
+    throw new ValidationError('source', 'use bound-host. Nothing was created.', { code: 'EMET-AUTH-045' });
   }
   const out = await createMemberAccess(dbManager.db, { created_by: actor, display_name, days: days || 14, source_tag: tag || null });
   logger?.info?.('EMET Member Access created', { display_name: out.display_name });

@@ -79,6 +79,7 @@ export const ERROR_CODES = Object.freeze({
   'EMET-AUTH-042': Object.freeze({ area: 'AUTH', summary: "A retired owl credential was refused", status: 'active', internal: false }),
   'EMET-AUTH-043': Object.freeze({ area: 'AUTH', summary: "A writer approval step was refused", status: 'active', internal: false }),
   'EMET-AUTH-044': Object.freeze({ area: 'AUTH', summary: "A bound login cannot stamp another tag", status: 'active', internal: false }),
+  'EMET-AUTH-045': Object.freeze({ area: 'AUTH', summary: "The previous bound-door spelling is refused for a new choice", status: 'active', internal: false }),
   'EMET-CFG-001': Object.freeze({ area: 'CFG', summary: "Database name must be a plain name", status: 'active', internal: true }),
   'EMET-CFG-002': Object.freeze({ area: 'CFG', summary: "Collection prefix must be a plain name", status: 'active', internal: true }),
   'EMET-CFG-004': Object.freeze({ area: 'CFG', summary: "Hosted setup cannot turn sub-keys on from here", status: 'active', internal: false }),

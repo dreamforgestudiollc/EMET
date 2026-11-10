@@ -1,6 +1,6 @@
 # Error codes and the error log
 
-Every error carries a stable code, such as `EMET-INT-001`, next to the existing error field. The registry is `src/error-codes.js`. The table is `docs/ERROR-CODES.md`. A code's meaning does not change. A removed code stays retired and its number is not reused.
+Every error carries a stable code, such as `EMET-INT-001`, next to the existing error field. A new choice of the previous bound-door spelling is `EMET-AUTH-045`. The registry is `src/error-codes.js`. The table is `docs/ERROR-CODES.md`. A code's meaning does not change. A removed code stays retired and its number is not reused.
 
 Operational errors go to a separate log, `error_log`. It is not a controlled record. It keeps up to 10,000 entries or 90 days, whichever is smaller, and a daily summary of each day is kept in `error_log_summary` with no end date. Rotation removes entries from `error_log` only. The log holds codes, counts, times, and the version. It holds no message text, arguments, document content, names, or secrets.
 

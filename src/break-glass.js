@@ -453,7 +453,7 @@ export function mountBreakGlass(app, options = {}) {
     }
     if (isLegacyBoundHostSpelling(tag)) {
       res.locals.reason = 'legacy_bound_tag';
-      sendHtml(res, 400, '<p>use bound-host. Nothing was issued.</p>', 'EMET break-glass');
+      sendHtml(res, 400, '<p>use bound-host (EMET-AUTH-045). Nothing was issued.</p>', 'EMET break-glass');
       return;
     }
     let note = 'Owner door is the passphrase consent on this host. This page did not mint a token.';

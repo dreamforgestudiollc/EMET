@@ -1378,7 +1378,7 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
       , { code: 'EMET-CFG-009' });
     }
     if (declared && isLegacyBoundHostSpelling(declared)) {
-      throw new ValidationError(field, 'use bound-host. Nothing was written.', { code: 'EMET-CFG-009' });
+      throw new ValidationError(field, 'use bound-host. Nothing was written.', { code: 'EMET-AUTH-045' });
     }
   }
   const missing = SETUP_INTERVIEW.filter(q => q.required && !String(answers[q.key] || '').trim())

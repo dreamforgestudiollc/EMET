@@ -18,6 +18,7 @@ import { COLLECTION_PREFIX } from './database.js';
 import { logClientId, logGrantId } from './grants.js';
 import { isOwlIdentity } from './owl.js';
 import { isLegacyBoundHostSpelling } from './bound-door.js';
+import { assignCode } from './error-codes.js';
 
 export const MB_TAG = 'hub-bot';
 export const SERVER_VALIDATOR = 'server';
@@ -174,7 +175,7 @@ export async function prepareWriterRequest(db, prefix = COLLECTION_PREFIX, actor
   const at = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
   const checked = validateWriterDraft(fields, actor);
   if (isLegacyBoundHostSpelling(checked.claimed_tag)) {
-    throw refusal('emet_client_approve: use bound-host. Nothing was changed.');
+    throw assignCode(refusal('emet_client_approve: use bound-host. Nothing was changed.'), 'EMET-AUTH-045');
   }
   const prior = [...memory.values()].find((row) => row && row.correlation_id === checked.correlation_id && checked.correlation_id !== 'none');
   if (prior) {

@@ -50,6 +50,7 @@ Internal codes are raised inside a check that catches them before a caller sees 
 | EMET-AUTH-042 | A retired owl credential was refused | active |
 | EMET-AUTH-043 | A writer approval step was refused | active |
 | EMET-AUTH-044 | A bound login cannot stamp another tag | active |
+| EMET-AUTH-045 | The previous bound-door spelling is refused for a new choice | active |
 | EMET-CFG-001 | Database name must be a plain name | active, internal |
 | EMET-CFG-002 | Collection prefix must be a plain name | active, internal |
 | EMET-CFG-004 | Hosted setup cannot turn sub-keys on from here | active |
