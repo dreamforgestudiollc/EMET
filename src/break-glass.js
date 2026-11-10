@@ -25,6 +25,7 @@ import {
 import {
   esc, sendHtml, loginForm, mountOwnerLogin, createOwnerGate
 } from './owner-session.js';
+import { isLegacyBoundHostSpelling } from './bound-door.js';
 
 export { breakGlassMetric };
 
@@ -448,6 +449,11 @@ export function mountBreakGlass(app, options = {}) {
     }
     if (door !== 'owner' && !tag) {
       sendHtml(res, 400, '<p>A tag is required for member or guest. Nothing was issued.</p>', 'EMET break-glass');
+      return;
+    }
+    if (isLegacyBoundHostSpelling(tag)) {
+      res.locals.reason = 'legacy_bound_tag';
+      sendHtml(res, 400, '<p>use bound-host. Nothing was issued.</p>', 'EMET break-glass');
       return;
     }
     let note = 'Owner door is the passphrase consent on this host. This page did not mint a token.';

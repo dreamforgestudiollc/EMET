@@ -725,6 +725,11 @@
     "code": "EMET-CFG-013"
   },
   {
+    "file": "setup.js",
+    "message": "throw new ValidationError(field, 'use bound-host. Nothing was written.')",
+    "code": "EMET-CFG-009"
+  },
+  {
     "file": "staged-write.js",
     "message": "throw new DatabaseError(`Failed to stage a document write: ${error.message}`, tool)",
     "code": "EMET-DB-037"
@@ -1467,6 +1472,16 @@
   {
     "file": "tools.js",
     "message": "throw new ValidationError('source', 'A member code source must be a registered tag. Nothing was created.')",
+    "code": "EMET-AUTH-035"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('source', 'use bound-host. Nothing was created.')",
+    "code": "EMET-AUTH-032"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError('source', 'use bound-host. Nothing was created.')",
     "code": "EMET-AUTH-035"
   },
   {

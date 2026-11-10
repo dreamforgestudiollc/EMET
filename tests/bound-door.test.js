@@ -786,6 +786,118 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
       correlation_id: 'b1b2c3d4e5f60719'
     }), /use bound-host/);
   });
+
+  test('a member code under the legacy tag is refused', async () => {
+    const { memberAccessCreate } = await import('../src/tools.js');
+    const db = makeStore();
+    const dbManager = { db, async getConnection() { return {}; } };
+    await withEnv({ EMET_SOURCE_TAGS: [MB_TAG, CLAIM_TAG, LEGACY_BOUND_TAG].join(',') }, async () => {
+      await assert.rejects(
+        () => actorStore.run({ transport: 'stdio' }, () => memberAccessCreate(dbManager, { display_name: 'x', source: LEGACY_BOUND_TAG })),
+        /use bound-host/
+      );
+    });
+    assert.strictEqual(db.collection('invites').docs.length, 0);
+  });
+
+  test('a guest invite under the legacy tag is refused', async () => {
+    const { inviteCreate } = await import('../src/tools.js');
+    const db = makeStore();
+    const dbManager = { db, async getConnection() { return {}; } };
+    await withEnv({ EMET_SOURCE_TAGS: [MB_TAG, CLAIM_TAG, LEGACY_BOUND_TAG].join(',') }, async () => {
+      await assert.rejects(
+        () => actorStore.run({ transport: 'stdio' }, () => inviteCreate(dbManager, { display_name: 'x', source: LEGACY_BOUND_TAG })),
+        /use bound-host/
+      );
+    });
+    assert.strictEqual(db.collection('invites').docs.length, 0);
+  });
+
+  test('a break-glass member code under the legacy tag is refused', async () => {
+    const express = (await import('express')).default;
+    const { ApproveThrottle } = await import('../src/approve-throttle.js');
+    const { MongoOAuthProvider } = await import('../src/oauth-provider.js');
+    const { mountBreakGlass, _resetBreakGlassForTests } = await import('../src/break-glass.js');
+    const { createOwnerGate } = await import('../src/owner-session.js');
+    _resetBreakGlassForTests();
+    const db = makeStore();
+    const provider = new MongoOAuthProvider(() => db, { passphrase: PASSPHRASE, cimd: false });
+    const gate = createOwnerGate({
+      checkPassphrase: (input) => provider.checkPassphrase(input),
+      throttle: new ApproveThrottle()
+    });
+    const app = express();
+    app.set('trust proxy', 1);
+    mountBreakGlass(app, { gate, ownerId: 'alex', db: () => db, prefix: 'emet_', provider });
+    const server = await new Promise((resolve) => { const listening = app.listen(0, '127.0.0.1', () => resolve(listening)); });
+    try {
+      const base = `http://127.0.0.1:${server.address().port}`;
+      const login = await fetch(`${base}/owner/login`, {
+        method: 'POST',
+        redirect: 'manual',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ passphrase: PASSPHRASE, next: '/owner/break-glass' }).toString()
+      });
+      assert.strictEqual(login.status, 303, await login.text());
+      const cookie = login.headers.get('set-cookie').split(';')[0];
+      const page = await fetch(`${base}/owner/break-glass`, { headers: { cookie } });
+      const html = await page.text();
+      const csrf = /name="csrf" value="([0-9a-f]{64})"/.exec(html);
+      assert.ok(csrf, html.slice(0, 400));
+      const posted = await fetch(`${base}/owner/break-glass/reissue`, {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ csrf: csrf[1], door: 'member', tag: LEGACY_BOUND_TAG }).toString()
+      });
+      const body = await posted.text();
+      assert.strictEqual(posted.status, 400, body.slice(0, 400));
+      assert.match(body, /use bound-host/);
+      assert.strictEqual(db.collection('invites').docs.length, 0);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('a stored member code under the legacy tag still redeems', async () => {
+    const db = makeStore();
+    const { createMemberAccess } = await import('../src/invites.js');
+    const invite = await createMemberAccess(db, { created_by: 'alex', display_name: 'stored', source_tag: LEGACY_BOUND_TAG });
+    const http = await httpApp();
+    http.remote.dbManager.db = db;
+    await db.collection('emet_oauth_clients').insertOne(oauthClient('legacy-member-login'));
+    const att = await import('../src/attribution.js');
+    att._resetForTests();
+    const posted = await withStore(db, async () => {
+      const res = await fetch(`${http.base}/oauth/approve`, {
+        method: 'POST',
+        redirect: 'manual',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: 'legacy-member-login',
+          redirect_uri: APPROVE_REDIRECT,
+          code_challenge: 'bound-challenge',
+          invite_code: invite.code
+        }).toString()
+      });
+      return { status: res.status, text: await res.text(), location: res.headers.get('location') };
+    });
+    assert.strictEqual(posted.status, 302, posted.text.slice(0, 400));
+    assert.match(posted.location, /[?&]code=/);
+    const { tokenDigest } = await import('../src/oauth-provider.js');
+    const code = new URL(posted.location).searchParams.get('code');
+    const stored = db.collection('emet_oauth_codes').docs.find((row) => row.code === tokenDigest(code));
+    assert.ok(stored, 'the redeemed code was not stored');
+    assert.strictEqual(stored.source_tag, LEGACY_BOUND_TAG);
+    assert.strictEqual(stored.issued_via, 'member');
+  });
+
+  test('setup refuses the legacy tag as a new source', async () => {
+    const { setupComplete } = await import('../src/setup.js');
+    await assert.rejects(
+      () => setupComplete({ source_tag: LEGACY_BOUND_TAG }),
+      /use bound-host/
+    );
+  });
 });
 
 test('the BOUND HTTP listener is closed', async () => {

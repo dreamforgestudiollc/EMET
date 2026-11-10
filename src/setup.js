@@ -1365,6 +1365,7 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
   // write the identity documents as the bot. The tag that would be written
   // (with its service-wide fallback) is checked too.
   const { isBotTag } = await import('./session-graph.js');
+  const { isLegacyBoundHostSpelling } = await import('./bound-door.js');
   // ONE tag, used for this check and for every write below (setup's own
   // records name it), so the checked tag and the written tag cannot differ.
   const tag = String(answers.source_tag || options.source || setting('SOURCE_TAG') || 'setup').trim();
@@ -1375,6 +1376,9 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
         field,
         `First-time setup is the owner's: ${declared} is a bot tag. Stop and tell the user. Nothing was written.`
       , { code: 'EMET-CFG-009' });
+    }
+    if (declared && isLegacyBoundHostSpelling(declared)) {
+      throw new ValidationError(field, 'use bound-host. Nothing was written.', { code: 'EMET-CFG-009' });
     }
   }
   const missing = SETUP_INTERVIEW.filter(q => q.required && !String(answers[q.key] || '').trim())

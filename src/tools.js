@@ -20,7 +20,7 @@ import { replacedByOf } from './setup.js';
 import { currentActor, rawActor, writerStamp, boundSourceTag, declaredAttribution, LOCAL_SUBJECT } from './persons.js';
 import { guardClaimedTag } from './claimed-tag.js';
 import { approvedTags, APPROVALS_DOC } from './attribution.js';
-import { refuseBoundHostDoor, boundHostActor, boundHostCredentialOverrides, boundHostClaimOnSharedLogin, isBoundHostTag, CLAIM_TAG } from './bound-door.js';
+import { refuseBoundHostDoor, boundHostActor, boundHostCredentialOverrides, boundHostClaimOnSharedLogin, isBoundHostTag, isLegacyBoundHostSpelling, CLAIM_TAG } from './bound-door.js';
 import { sealAttestation, frozenAttestation } from './rune-dispatch.js';
 
 /** Approvals record io for attribution.js (server-kept doc, written as emet-server). */
@@ -3983,6 +3983,9 @@ export async function inviteCreate(dbManager, { display_name, scopes, days, sour
   if (registry.length && tag && !registry.includes(tag)) {
     throw new ValidationError('source', 'A guest invite source must be a registered tag. Nothing was created.', { code: 'EMET-AUTH-032' });
   }
+  if (isLegacyBoundHostSpelling(tag)) {
+    throw new ValidationError('source', 'use bound-host. Nothing was created.', { code: 'EMET-AUTH-032' });
+  }
   const out = await createInvite(dbManager.db, {
     created_by: actor,
     display_name,
@@ -4020,6 +4023,9 @@ export async function memberAccessCreate(dbManager, { display_name, days, source
   const tag = typeof source === 'string' ? source.trim() : '';
   if (registry.length && tag && !registry.includes(tag)) {
     throw new ValidationError('source', 'A member code source must be a registered tag. Nothing was created.', { code: 'EMET-AUTH-035' });
+  }
+  if (isLegacyBoundHostSpelling(tag)) {
+    throw new ValidationError('source', 'use bound-host. Nothing was created.', { code: 'EMET-AUTH-035' });
   }
   const out = await createMemberAccess(dbManager.db, { created_by: actor, display_name, days: days || 14, source_tag: tag || null });
   logger?.info?.('EMET Member Access created', { display_name: out.display_name });

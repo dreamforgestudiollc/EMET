@@ -223,19 +223,46 @@ testGroup('operator settings in setting() are in the example and the deploy tabl
     assert.deepStrictEqual(listed(directPart).sort(), [...direct].sort());
   });
 
+const REPORT_ADDRESS = 'dreamforgestudio@mail.grokbot.com';
+const WRONG_REPORT_ADDRESS = 'dreamforgestudio@mail.hubbot.com';
+
+function siteWithoutReleaseHistory(html) {
+  const start = html.indexOf('What 0.3.5 changed');
+  const end = html.indexOf('What 0.3.4 changed');
+  assert.ok(start >= 0 && end > start);
+  return html.slice(0, start) + html.slice(end);
+}
+
+function siteReportAddressFaults(html) {
+  const body = siteWithoutReleaseHistory(html);
+  const faults = [];
+  if (!body.includes(REPORT_ADDRESS)) faults.push('missing');
+  if (body.includes(WRONG_REPORT_ADDRESS)) faults.push('wrong');
+  return faults;
+}
+
   test('src and the docs name the report address in the code', () => {
-    const address = 'dreamforgestudio@mail.grokbot.com';
-    const wrong = 'dreamforgestudio@mail.hubbot.com';
-    assert.strictEqual(DEFAULT_REPORT_EMAIL, address);
-    const surfaces = ['src/error-report.js', 'README.md', 'site/index.html', '.env.example', 'docs/features/errors.md', 'docs/DEPLOY.md', 'docs/ERROR-CODES-SPEC.md', 'CHANGELOG.md'];
-    for (const rel of surfaces) assert.ok(read(rel).includes(address), rel);
+    assert.strictEqual(DEFAULT_REPORT_EMAIL, REPORT_ADDRESS);
+    const surfaces = ['src/error-report.js', 'README.md', '.env.example', 'docs/features/errors.md', 'docs/DEPLOY.md', 'docs/ERROR-CODES-SPEC.md', 'CHANGELOG.md'];
+    for (const rel of surfaces) assert.ok(read(rel).includes(REPORT_ADDRESS), rel);
     for (const rel of ['src/error-report.js', 'README.md', '.env.example', 'docs/features/errors.md', 'docs/DEPLOY.md', 'docs/ERROR-CODES-SPEC.md']) {
-      assert.ok(!read(rel).includes(wrong), rel);
+      assert.ok(!read(rel).includes(WRONG_REPORT_ADDRESS), rel);
     }
-    const history = between(read('site/index.html'), 'What 0.3.5 changed', 'What 0.3.4 changed');
-    assert.ok(history.includes(address));
-    assert.ok(history.includes(wrong));
+    const site = read('site/index.html');
+    assert.deepStrictEqual(siteReportAddressFaults(site), []);
+    const history = between(site, 'What 0.3.5 changed', 'What 0.3.4 changed');
+    assert.ok(history.includes(REPORT_ADDRESS));
+    assert.ok(history.includes(WRONG_REPORT_ADDRESS));
     assert.ok(history.includes('was wrong'));
+  });
+
+  test('a wrong address planted in the site how-to fails the check', () => {
+    const html = read('site/index.html');
+    const at = html.indexOf('link addressed to');
+    assert.ok(at > 0);
+    const planted = html.slice(0, at) + WRONG_REPORT_ADDRESS + ' ' + html.slice(at);
+    assert.ok(siteReportAddressFaults(planted).includes('wrong'));
+    assert.deepStrictEqual(siteReportAddressFaults(html), []);
   });
 });
 
@@ -298,6 +325,7 @@ testGroup('the charter names the built socket, and install names stay out of pub
       assert.ok(note.includes('new consent'));
       assert.ok(note.includes('refused'));
       assert.ok(note.includes('writer request'));
+      assert.ok(note.includes('member or guest code'));
     }
   });
 
