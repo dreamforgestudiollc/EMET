@@ -223,14 +223,19 @@ testGroup('operator settings in setting() are in the example and the deploy tabl
     assert.deepStrictEqual(listed(directPart).sort(), [...direct].sort());
   });
 
-  test('the report address in current docs is the code default', () => {
-    assert.strictEqual(DEFAULT_REPORT_EMAIL, 'dreamforgestudio@mail.hubbot.com');
-    for (const rel of ['README.md', 'site/index.html', '.env.example', 'docs/features/errors.md', 'docs/DEPLOY.md', 'docs/ERROR-CODES-SPEC.md', 'CHANGELOG.md']) {
-      assert.ok(read(rel).includes(DEFAULT_REPORT_EMAIL), rel);
+  test('src and the docs name the report address in the code', () => {
+    const address = 'dreamforgestudio@mail.grokbot.com';
+    const wrong = 'dreamforgestudio@mail.hubbot.com';
+    assert.strictEqual(DEFAULT_REPORT_EMAIL, address);
+    const surfaces = ['src/error-report.js', 'README.md', 'site/index.html', '.env.example', 'docs/features/errors.md', 'docs/DEPLOY.md', 'docs/ERROR-CODES-SPEC.md', 'CHANGELOG.md'];
+    for (const rel of surfaces) assert.ok(read(rel).includes(address), rel);
+    for (const rel of ['src/error-report.js', 'README.md', '.env.example', 'docs/features/errors.md', 'docs/DEPLOY.md', 'docs/ERROR-CODES-SPEC.md']) {
+      assert.ok(!read(rel).includes(wrong), rel);
     }
-    for (const rel of ['README.md', 'site/index.html', '.env.example', 'docs/features/errors.md']) {
-      assert.ok(!read(rel).includes('dreamforgestudio@mail.grokbot.com'), rel);
-    }
+    const history = between(read('site/index.html'), 'What 0.3.5 changed', 'What 0.3.4 changed');
+    assert.ok(history.includes(address));
+    assert.ok(history.includes(wrong));
+    assert.ok(history.includes('was wrong'));
   });
 });
 
@@ -291,6 +296,8 @@ testGroup('the charter names the built socket, and install names stay out of pub
       assert.ok(note.includes(stamp), note.slice(0, 240));
       assert.ok(note.includes('stored data only'));
       assert.ok(note.includes('new consent'));
+      assert.ok(note.includes('refused'));
+      assert.ok(note.includes('writer request'));
     }
   });
 
@@ -300,8 +307,9 @@ testGroup('the charter names the built socket, and install names stay out of pub
     assert.ok(shipped.includes('dreamforgestudio@mail.grokbot.com'));
     assert.ok(!shipped.includes('dreamforgestudio@mail.hubbot.com'));
     const current = between(log, '## 0.3.5 - ', '## 0.3.4 - ');
-    assert.ok(current.includes('In 0.3.2 the default'));
+    assert.ok(current.includes('dreamforgestudio@mail.grokbot.com'));
     assert.ok(current.includes('dreamforgestudio@mail.hubbot.com'));
+    assert.ok(current.includes('was wrong'));
   });
 
   test('SETUP §6, the README, and the site list every unprefixed collection src opens', () => {
@@ -317,6 +325,8 @@ testGroup('the charter names the built socket, and install names stay out of pub
       assert.ok(readme.includes('`' + name + '`'), `README ${name}`);
       for (const block of siteLists) assert.ok(block.includes('>' + name + '<'), `site ${name}`);
     }
+    const prefixed = between(read('docs/SETUP.md'), '`EMET_COLLECTION_PREFIX` also governs', 'Your old `CASCADE_SOURCE_TAG`');
+    assert.ok(prefixed.includes('`graph_lab`'));
   });
 });
 

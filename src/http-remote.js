@@ -254,6 +254,11 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
         res.locals.reason = 'bad_source';
         return res.status(400).end('source tag is not registered');
       }
+      const { isLegacyBoundHostSpelling } = await import('./bound-door.js');
+      if (isLegacyBoundHostSpelling(requested)) {
+        res.locals.reason = 'legacy_bound_tag';
+        return res.status(400).end('use bound-host');
+      }
       sourceTag = requested || null;
     }
     const { isOwlIdentity } = await import('./owl.js');
@@ -294,8 +299,7 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
     if (sourceTag) {
       const { recordBoundHostCredential, CLAIM_TAG } = await import('./bound-door.js');
       // A new consent lists the door only for the current tag. The previous
-      // spelling still counts on data already stored, and those writes stamp
-      // bound-host. Typing it at consent does not open the door.
+      // spelling is refused above, before a token is issued.
       if (sourceTag === CLAIM_TAG) {
         try {
           const door = inviteSubject ? (inviteDoor === 'member' ? 'member' : 'guest') : 'owner';

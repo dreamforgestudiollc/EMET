@@ -231,7 +231,7 @@ it is.
 `EMET_COLLECTION_PREFIX` also governs the counters collection, the three OAuth
 collections (`oauth_clients`, `oauth_codes`, `oauth_tokens`), and `sessions`,
 `subkeys`, `subkeys_history`, `rotations`, `meta`, `doc_stages`, `gem_serves`,
-`writer_approvals`, and `owl_retirement`, so **devices you have already authorized stay authorized** - there is no
+`writer_approvals`, `owl_retirement`, and `graph_lab`, so **devices you have already authorized stay authorized** - there is no
 re-consent step.
 
 Your old `CASCADE_SOURCE_TAG` and `CASCADE_OAUTH_PASSPHRASE` continue to work; the `EMET_`
@@ -253,7 +253,7 @@ which would write a new identity over your existing one.**
 
 ## Upgrading to 0.3.5
 
-0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound door's tag is `bound-host`. Writes from a stored legacy token or sub-key are stamped `bound-host`. The alias covers stored data only. A new consent under the previous tag does not get the bound door.
+0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound door's tag is `bound-host`. Writes from a stored legacy token or sub-key are stamped `bound-host`. The alias covers stored data only. The previous spelling is refused for a new consent, a new sub-key request, and a new writer request.
 
 ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 

@@ -528,6 +528,8 @@ export function mountChooser(app, options = {}) {
     const bits = [`Recorded ${decision} for ${recorded.claimed_tag}.`];
     if (issued.note) bits.push(issued.note);
     if (issued.invite && issued.invite.code) bits.push(`Invite code, shown once: ${issued.invite.code}`);
+    // A request already stored under the previous spelling still lists the door.
+    // prepareWriterRequest refuses that spelling when it is newly chosen.
     if (issued.issued && isBoundHostTag(recorded.claimed_tag)) {
       let boundHostNote = 'The BOUND door listing was not written. The invite code above is still the door.';
       try {

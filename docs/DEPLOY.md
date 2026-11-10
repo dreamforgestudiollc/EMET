@@ -15,7 +15,7 @@ passphrase; both are required.
 
 ## Upgrading to 0.3.5
 
-0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound door's tag is `bound-host`. Writes from a stored legacy token or sub-key are stamped `bound-host`. The alias covers stored data only. A new consent under the previous tag does not get the bound door.
+0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound door's tag is `bound-host`. Writes from a stored legacy token or sub-key are stamped `bound-host`. The alias covers stored data only. The previous spelling is refused for a new consent, a new sub-key request, and a new writer request.
 
 ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
@@ -95,7 +95,7 @@ Atlas UI for the new privilege: Database Access → Custom Roles → edit the ro
 | `EMET_SUBKEY_FAIL_MAX` | optional | Failed presentations before lockout. Default 5. |
 | `EMET_SUBKEY_FAIL_WINDOW_MS` | optional | How long a failed presentation counts, in milliseconds. Default 900000. A value below 1000 is ignored. |
 | `EMET_AUDIT_LOG` | optional | Path for the audit log. Unset leaves it off. |
-| `EMET_REPORT_EMAIL` | optional | Address for the error-report draft. Unset uses `dreamforgestudio@mail.hubbot.com`. An empty string returns the report and no email. |
+| `EMET_REPORT_EMAIL` | optional | Address for the error-report draft. Unset uses `dreamforgestudio@mail.grokbot.com`. An empty string returns the report and no email. |
 | `EMET_HANDOFF_DOC` | optional | Handoff document id. Default `HANDOFF.md`. |
 | `EMET_STATE_DOC` | optional | Board document id. Default `STATE.md`. |
 | `EMET_INSTALL_DOC` | optional | Install-notes document id. Default `bootstrap/INSTALL.md`. |

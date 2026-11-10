@@ -14,7 +14,7 @@ import { logClientId, logDoor, logGrantId } from './grants.js';
 import { queryErrorLog, logSessionId } from './error-log.js';
 
 export const SEND_INSTRUCTION = 'The calling assistant may send this report only after showing the report to its user and getting their OK.';
-export const DEFAULT_REPORT_EMAIL = 'dreamforgestudio@mail.hubbot.com';
+export const DEFAULT_REPORT_EMAIL = 'dreamforgestudio@mail.grokbot.com';
 export const MAILTO_MAX = 1800;
 
 /**

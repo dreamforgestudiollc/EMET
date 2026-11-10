@@ -49,6 +49,13 @@ export function isBoundHostTag(tag) {
   return boundHostTagDigest(text) === LEGACY_CLAIM_TAG_DIGEST;
 }
 
+/** The stored 0.3.4 spelling. A newly chosen consent, sub-key, or writer request must not use it. */
+export function isLegacyBoundHostSpelling(tag) {
+  if (typeof tag !== 'string') return false;
+  const text = tag.trim();
+  return text !== CLAIM_TAG && isBoundHostTag(text);
+}
+
 function boundHostMapKey(map) {
   if (!map || typeof map !== 'object') return null;
   if (Object.prototype.hasOwnProperty.call(map, CLAIM_TAG)) return CLAIM_TAG;

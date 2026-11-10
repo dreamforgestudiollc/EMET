@@ -739,13 +739,52 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
     assert.strictEqual(listed.approved.grant_id, null);
   });
 
-  test('owner consent with the legacy source tag does not list the door', async () => {
+  test('owner consent with the legacy source tag is refused', async () => {
     const posted = await withEnv({ EMET_SOURCE_TAGS: [MB_TAG, CLAIM_TAG, LEGACY_BOUND_TAG].join(',') }, () => postApprove({
       client_id: 'legacy-owner-login',
       source: LEGACY_BOUND_TAG
     }));
-    assert.strictEqual(posted.status, 302, posted.text.slice(0, 400));
+    assert.strictEqual(posted.status, 400, posted.text.slice(0, 400));
+    assert.match(posted.text, /use bound-host/);
+    assert.strictEqual(posted.location, null);
     assert.strictEqual(await listedTag(posted.db), null);
+  });
+
+  test('a new sub-key request under the legacy tag is refused', async () => {
+    const { requestSubkey } = await import('../src/subkeys.js');
+    await withEnv({
+      EMET_SUBKEYS: '1',
+      EMET_SUBKEY_PEPPER: '0123456789abcdef0123456789abcdef'
+    }, async () => {
+      await assert.rejects(
+        () => requestSubkey({ read() { throw new Error('store'); } }, {
+          transport: 'http', authenticated: true, personId: 'alex', ownerId: 'alex', sourceTag: MB_TAG
+        }, { tag: LEGACY_BOUND_TAG }, [LEGACY_BOUND_TAG]),
+        /use bound-host/
+      );
+    });
+  });
+
+  test('a new writer request under the legacy tag is refused', async () => {
+    const { prepareWriterRequest, _resetWriterApprovalsForTests } = await import('../src/writer-approval.js');
+    _resetWriterApprovalsForTests();
+    await assert.rejects(() => prepareWriterRequest(makeStore(), 'emet_', {
+      transport: 'http',
+      authenticated: true,
+      sourceBasis: 'login',
+      sourceTag: MB_TAG,
+      personId: 'alex',
+      ownerId: 'alex',
+      clientId: SHARED_GROK_CLIENT,
+      grantId: 'mbgrant00000000000001'
+    }, {
+      decision: 'prepare',
+      client: 'bound-login',
+      claimed_tag: LEGACY_BOUND_TAG,
+      door: 'member',
+      reason: 'BOUND needs her own door',
+      correlation_id: 'b1b2c3d4e5f60719'
+    }), /use bound-host/);
   });
 });
 

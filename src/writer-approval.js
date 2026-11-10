@@ -17,6 +17,7 @@ import crypto from 'node:crypto';
 import { COLLECTION_PREFIX } from './database.js';
 import { logClientId, logGrantId } from './grants.js';
 import { isOwlIdentity } from './owl.js';
+import { isLegacyBoundHostSpelling } from './bound-door.js';
 
 export const MB_TAG = 'hub-bot';
 export const SERVER_VALIDATOR = 'server';
@@ -172,6 +173,9 @@ export async function prepareWriterRequest(db, prefix = COLLECTION_PREFIX, actor
   await hydrateWriterApprovals(db, prefix);
   const at = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
   const checked = validateWriterDraft(fields, actor);
+  if (isLegacyBoundHostSpelling(checked.claimed_tag)) {
+    throw refusal('emet_client_approve: use bound-host. Nothing was changed.');
+  }
   const prior = [...memory.values()].find((row) => row && row.correlation_id === checked.correlation_id && checked.correlation_id !== 'none');
   if (prior) {
     logStep({

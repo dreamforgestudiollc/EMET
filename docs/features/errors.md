@@ -10,7 +10,7 @@ Operational errors go to a separate log, `error_log`. It is not a controlled rec
 
 - errors-codes: each returned error includes `error.emet_code`. An uncoded error that reaches a caller is `EMET-INT-001`.
 - errors-log: `error_log` and `error_log_summary` are operational. They are not superseded documents.
-- errors-report: `emet_error_report` reads the log and builds a `mailto:` draft. The address is `EMET_REPORT_EMAIL` when that variable is set. When it is unset, the address is `dreamforgestudio@mail.hubbot.com`. An empty string returns the report and no email.
+- errors-report: `emet_error_report` reads the log and builds a `mailto:` draft. The address is `EMET_REPORT_EMAIL` when that variable is set. When it is unset, the address is `dreamforgestudio@mail.grokbot.com`. An empty string returns the report and no email.
 
 ## How to get to it (user POV)
 
