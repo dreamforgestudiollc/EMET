@@ -13,15 +13,15 @@ import { test, summary } from './harness.js';
 import { makeStore } from './memstore.js';
 
 process.env.MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/emet-http-drops';
-process.env.EMET_SOURCE_TAG = 'grok-project';
-process.env.EMET_SOURCE_TAGS = 'grok-project';
-process.env.EMET_RESTORE_TAGS = 'grok-project';
+process.env.EMET_SOURCE_TAG = 'bound-host';
+process.env.EMET_SOURCE_TAGS = 'bound-host';
+process.env.EMET_RESTORE_TAGS = 'bound-host';
 process.env.EMET_DROP_LIST_TIMEOUT_MS = '50';
 process.env.EMET_REQUEST_LOG = '0';
 process.env.LOG_LEVEL = 'error';
 
 const REASON = 'empty unhandled list is a loaded list';
-const HOST = 'grok-project';
+const HOST = 'bound-host';
 const storeOpts = { failUnhandledDropRead: false };
 const db = makeStore(storeOpts);
 const shared = { http: null, loadId: null };

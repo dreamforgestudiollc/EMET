@@ -9,7 +9,7 @@
  * Pending sub-keys from the retired /owner/approvals path are listed here.
  * Their records stay in the sub-key store.
  *
- * Prepared writer requests are listed here too. Master Hub prepares.
+ * Prepared writer requests are listed here too. The hub login prepares.
  * The server validates. This owner session decides. The request row stays.
  */
 
@@ -25,6 +25,7 @@ import {
   esc, sendHtml, loginForm, ownerPageActor, ownerMayGrant, mountOwnerLogin, readCookie, createOwnerGate
 } from './owner-session.js';
 import { rotationForms } from './rotate.js';
+import { boundHostListingAfterWriterIssue, CLAIM_TAG } from './bound-door.js';
 
 const CHOOSER_COOKIE = 'emet_chooser';
 const REASON_MAX = 500;
@@ -83,7 +84,7 @@ function writerSection(session, writers) {
     return `<tr><td>${esc(row.claimed_tag)}</td><td>${esc(row.door)}</td><td>${esc(row.status)}</td><td>${esc(row.preparer)}</td><td>${esc(row.validator)}</td><td>${esc(row.correlation_id)}</td><td>${buttons}</td></tr>`;
   }).join('\n');
   return `<h2>Writer requests</h2>
-<p>Master Hub prepares. The server validates. Only this owner session decides.</p>
+<p>The hub login prepares. The server validates. Only this owner session decides.</p>
 <table><thead><tr><th>Tag</th><th>Door</th><th>Status</th><th>Preparer</th><th>Validator</th><th>Correlation</th><th></th></tr></thead><tbody>${body}</tbody></table>`;
 }
 
@@ -527,16 +528,15 @@ export function mountChooser(app, options = {}) {
     const bits = [`Recorded ${decision} for ${recorded.claimed_tag}.`];
     if (issued.note) bits.push(issued.note);
     if (issued.invite && issued.invite.code) bits.push(`Invite code, shown once: ${issued.invite.code}`);
-    if (issued.issued && recorded.claimed_tag === 'grok-project') {
-      let sophiaNote = 'The BOUND door listing was not written. The invite code above is still the door.';
+    if (issued.issued && recorded.claimed_tag === CLAIM_TAG) {
+      let boundHostNote = 'The BOUND door listing was not written. The invite code above is still the door.';
       try {
-        const { sophiaListingAfterWriterIssue } = await import('./bound-door.js');
-        const listing = await sophiaListingAfterWriterIssue({
+        const listing = await boundHostListingAfterWriterIssue({
           recorded, issued, deps: depsOf(), by: personId, now: new Date(now())
         });
-        if (listing.written) sophiaNote = 'Listed grok-project as its own door.';
+        if (listing.written) boundHostNote = `Listed ${CLAIM_TAG} as its own door.`;
       } catch { /* the invite still stands */ }
-      bits.push(sophiaNote);
+      bits.push(boundHostNote);
     }
     await render(req, res, bits.join(' '));
   }

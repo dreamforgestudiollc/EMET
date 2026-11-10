@@ -15,7 +15,7 @@ passphrase; both are required.
 
 ## Upgrading to 0.3.5
 
-0.3.5 changes documentation only. There is no behaviour change. Stored data shapes are unchanged. Deploy over 0.3.4 as is.
+0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound-door tag the server matches is `bound-host`. Deploy over 0.3.4 as is for every other setting.
 
 ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
@@ -110,7 +110,7 @@ Atlas UI for the new privilege: Database Access → Custom Roles → edit the ro
 
 Read this before you deploy the release that follows 0.2.2. It does not change a version number. It is the list of settings and client habits that will start failing if you leave them as they were.
 
-- **`EMET_SOURCE_TAGS` must list every real host tag**, as an exact member. Tags named in this repository's example env, docs, and live-tag checks are: `cli`, `mobile`, `desktop-cowork`, `cowork-cloud`, `grok-project`, `hub-bot` (the hub; do not also list it in `EMET_RECORD_DOCS`), `reviewer-bot`, `tester-bot`, `memory-bot`, `intake-bot`, and `research-bot`. Your install may use a shorter list. A tag that is not an exact member is refused, and the refusal does not print the list.
+- **`EMET_SOURCE_TAGS` must list every real host tag**, as an exact member. Tags named in this repository's example env, docs, and live-tag checks are: `cli`, `mobile`, `desktop-cowork`, `cowork-cloud`, `bound-host`, `hub-bot` (the hub; do not also list it in `EMET_RECORD_DOCS`), `reviewer-bot`, `tester-bot`, `memory-bot`, `intake-bot`, and `research-bot`. Your install may use a shorter list. A tag that is not an exact member is refused, and the refusal does not print the list.
 - When a new bot joins the roster, append its tag to the end of `EMET_SOURCE_TAGS` and keep every existing tag in order, before its first write. The standing rule, including `EMET_RECORD_DOCS` and the `/health` and `emet_status` check after the redeploy, is [BOTS.md](BOTS.md) §4.
 - **`EMET_STRICT_LOGIN_TAG=1`** (off by default) makes a login's bound tag final: a write that declares a different `source` is refused, and so are `emet_setup_complete` and `emet_initialize` with a mismatched tag. Leave it off while bots share one login, because with it on every bot except the login's own would be refused. Turn it on only once each bot has its own login, for example a Member Access code bound to its tag.
 - **A scheduled job that still sends a `cloud-scheduled-` prefix must switch to an exact registered tag.** `cloud-scheduled-intake` was retired on 2026-10-02. A prefix is not a tag. The weekly intake runs under `intake-bot`.

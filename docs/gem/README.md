@@ -4,7 +4,7 @@ The GEM standard is maintained in the GEM library, not in this file.
 
 The copy under review in this repository is [`gem-library/`](../../gem-library/README.md). Its canonical home is the private repository [EMET-GEMs](https://github.com/dreamforgestudiollc/EMET-GEMs). When that folder is moved, this page should point at that repository and stop pointing at a second copy.
 
-The socket, once built, takes these rules from the library:
+The socket takes these rules from the library:
 
 - Validate each `gem.json` against `gem.schema.json` (spec revision `2026-10-12`).
 - On every `emet_initialize`, serve `gems_available` for each installed GEM, active or not, and `gems_active` for those that are on.

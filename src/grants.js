@@ -146,7 +146,7 @@ export const OWL_ACCOUNT = 'user-EMET--owl';
 /**
  * R6. The owl MCP clone account was a second OAuth client used only to get a
  * different client_id. R6 retires it. the owner decides a new writer on the
- * chooser. Master Hub prepares. The server validates. Rows stay.
+ * chooser. The hub login prepares. The server validates. Rows stay.
  * delete_wiring stays false: the name and the historical grants are retained.
  */
 export const OWL_KILL = Object.freeze({

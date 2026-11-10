@@ -1,10 +1,10 @@
 /**
  * Writer approval (R6a).
  *
- * Master Hub prepares a request: client, claimed tag, door, reason,
+ * The hub login prepares a request: client, claimed tag, door, reason,
  * correlation_id. The server validates that draft. Validation is a check.
  * It does not approve. the owner decides on /owner/chooser with the owner
- * passphrase session. No AI grants a writer, including Master Hub and
+ * passphrase session. No AI grants a writer, including the hub login and
  * the retired owl account.
  *
  * The validator that runs is the server. the owner can later name another
@@ -68,7 +68,7 @@ export function writerApprovalMetric() {
   };
 }
 
-/** Login or sub-key for Master Hub. A declared tag is a claim, not this credential. */
+/** Login or sub-key for the hub login. A declared tag is a claim, not this credential. */
 export function mbCredential(actor) {
   if (!actor || actor.transport !== 'http' || actor.authenticated !== true) return false;
   if (isOwlIdentity(actor)) return false;
@@ -80,7 +80,7 @@ export function mbCredential(actor) {
   return typeof tag === 'string' && tag.trim() === MB_TAG;
 }
 
-/** Master Hub, including a declared copy. Used to refuse approval, not to authorize preparation. */
+/** The hub login, including a declared copy. Used to refuse approval, not to authorize preparation. */
 export function isMasterBlasterActor(actor) {
   if (!actor || typeof actor !== 'object') return false;
   return [actor.effectiveTag, actor.sourceTag, actor.declaredTag].some((tag) => typeof tag === 'string' && tag.trim() === MB_TAG);
@@ -164,10 +164,10 @@ export async function prepareWriterRequest(db, prefix = COLLECTION_PREFIX, actor
     throw refusal('emet_client_approve: the owl MCP clone account was retired by R6 and cannot prepare or approve. the owner decides a new writer on /owner/chooser. Nothing was changed.');
   }
   if (!mbCredential(actor)) {
-    throw refusal('emet_client_approve: only Master Hub, on its own login or sub-key, prepares a writer request. A declared tag does not. Nothing was changed.');
+    throw refusal('emet_client_approve: only the hub login, on its own login or sub-key, prepares a writer request. A declared tag does not. Nothing was changed.');
   }
   if (fields.decision && fields.decision !== 'prepare') {
-    throw refusal('emet_client_approve: Master Hub prepares a writer request and cannot approve it. the owner decides it on /owner/chooser. Nothing was changed.');
+    throw refusal('emet_client_approve: The hub login prepares a writer request and cannot approve it. the owner decides it on /owner/chooser. Nothing was changed.');
   }
   await hydrateWriterApprovals(db, prefix);
   const at = now instanceof Date ? now.toISOString() : new Date(now).toISOString();

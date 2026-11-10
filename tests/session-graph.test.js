@@ -172,10 +172,10 @@ testGroup('lab results: every check, timestamped', () => {
   const fine = { mode: 'enforce', base: '2026-09-30_x', highest: 7, decision: { verdict: 'ok', gate: null, reason: null, next: 'x' } };
   test('a row carries time, session, host, tool, the claim, the position and the verdict', () => {
     const t = new Date('2026-09-30T03:00:00Z');
-    const r = labRow('save_to_layer', { session_id: SID, exchange: 9, source: 'grok-project' }, skipped, t);
+    const r = labRow('save_to_layer', { session_id: SID, exchange: 9, source: 'bound-host' }, skipped, t);
     assert.strictEqual(r.ts, t);
     assert.strictEqual(r.session, '2026-09-30_x');
-    assert.strictEqual(r.source, 'grok-project');
+    assert.strictEqual(r.source, 'bound-host');
     assert.strictEqual(r.exchange_declared, 9);
     assert.strictEqual(r.highest_appended, 7);
     assert.strictEqual(r.mode, 'enforce');
@@ -184,7 +184,7 @@ testGroup('lab results: every check, timestamped', () => {
   });
   test('no graph, no row', () => assert.strictEqual(labRow('recall', {}, null), null));
   test('the row takes the source from metadata.source (save_to_layer, revise_memory) and from the aliases (2026-10-03 lab fix)', () => {
-    assert.strictEqual(labRow('save_to_layer', { metadata: { source: 'grok-project' } }, skipped).source, 'grok-project');
+    assert.strictEqual(labRow('save_to_layer', { metadata: { source: 'bound-host' } }, skipped).source, 'bound-host');
     assert.strictEqual(labRow('revise_memory', { metadata: { source: ' host-a ' } }, skipped).source, 'host-a');
     assert.strictEqual(labRow('patch_doc', { doc_id: 'x.md', updated_by: 'host-b' }, skipped).source, 'host-b');
     assert.strictEqual(labRow('write_doc', { doc_id: 'x.md', source: 'host-c', metadata: { source: 'other' } }, skipped).source, 'host-c');

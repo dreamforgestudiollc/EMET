@@ -16,7 +16,7 @@ console.log('\n=== delegated client sub-keys ===');
 const CLIENT = 'bound-login-client';
 const PEPPER = 'pepper-pepper-pepper-pepper-pepper-32b';
 const PREV = 'previous-pepper-previous-pepper-32b!';
-const REG = ['hub-bot', 'intake-bot', 'grok-project', 'cowork-cloud'];
+const REG = ['hub-bot', 'intake-bot', 'bound-host', 'cowork-cloud'];
 const ON = {
   EMET_SUBKEYS: '1',
   EMET_SUBKEY_PEPPER: PEPPER,
@@ -26,7 +26,7 @@ const ON = {
   EMET_SUBKEY_TTL_DAYS: '30',
   EMET_STRICT_LOGIN_TAG: undefined,
   EMET_COS_TAG: undefined,
-  EMET_RECORD_DOCS: 'bots/hub-bot/HANDOFF.md,bots/intake-bot/HANDOFF.md,bots/grok-project/HANDOFF.md',
+  EMET_RECORD_DOCS: 'bots/hub-bot/HANDOFF.md,bots/intake-bot/HANDOFF.md,bots/bound-host/HANDOFF.md',
   EMET_SUBKEY_PEPPER_VERSION: undefined,
   EMET_SUBKEY_PEPPER_PREV: undefined,
   EMET_SUBKEY_PEPPER_PREV_VERSION: undefined
@@ -382,8 +382,8 @@ testGroup('11. failed-present throttle', () => {
     await assert.rejects(() => sk.claimSubkey(deps, bot, { key_id: a.key_id, nonce: wrong }, NOW), /does not match/);
     const got = await sk.claimSubkey(deps, bot, { key_id: a.key_id, nonce: a.nonce }, NOW);
     assert.match(got.subkey, /^emk_/);
-    const b = await sk.requestSubkey(deps, bot, { tag: 'grok-project' }, REG, NOW);
-    await sk.decideSubkeyIfPending(deps, ownerHost(), 'alex', { tag: 'grok-project', decision: 'approve' }, NOW);
+    const b = await sk.requestSubkey(deps, bot, { tag: 'bound-host' }, REG, NOW);
+    await sk.decideSubkeyIfPending(deps, ownerHost(), 'alex', { tag: 'bound-host', decision: 'approve' }, NOW);
     await assert.rejects(() => sk.claimSubkey(deps, bot, { key_id: b.key_id, nonce: wrong }, NOW), /does not match/);
     await assert.rejects(() => sk.claimSubkey(deps, bot, { key_id: b.key_id, nonce: wrong }, NOW), /does not match/);
     await assert.rejects(() => sk.claimSubkey(deps, bot, { key_id: b.key_id, nonce: wrong }, NOW), /too many failed/);
@@ -438,16 +438,16 @@ testGroup('13. who may use a sub-key', () => {
   test('a sub-key session cannot call owner-only tools', async () => withEnv(ON, async () => {
     const { att, sk } = await fresh();
     const { deps, c } = world();
-    const { claimed } = await issue(deps, sk, { tag: 'grok-project' });
+    const { claimed } = await issue(deps, sk, { tag: 'bound-host' });
     const { base, handle } = await openKey(att, sk, c, deps, claimed, { slug: 'proj' });
     for (const tool of ['emet_client_approve', 'emet_subkey_request', 'emet_subkey_revoke', 'emet_invite_create', 'emet_member_access_create', 'emet_setup_complete']) {
       await assert.rejects(
-        () => att.preflight(c, ownerHost(), { session_id: base, session_handle: handle, tag: 'grok-project', decision: 'approve' }, tool),
+        () => att.preflight(c, ownerHost(), { session_id: base, session_handle: handle, tag: 'bound-host', decision: 'approve' }, tool),
         /cannot call this tool/
       );
     }
     await assert.rejects(
-      () => att.preflight(c, ownerHost(), { session_id: base, session_handle: 'emh_' + 'a'.repeat(43), tag: 'grok-project', decision: 'approve' }, 'emet_client_approve'),
+      () => att.preflight(c, ownerHost(), { session_id: base, session_handle: 'emh_' + 'a'.repeat(43), tag: 'bound-host', decision: 'approve' }, 'emet_client_approve'),
       /does not match/
     );
   }));
@@ -525,7 +525,7 @@ testGroup('extras', () => {
     await withEnv({ ...ON, EMET_SUBKEY_PEPPER: PREV, EMET_SUBKEY_PEPPER_VERSION: '2', EMET_SUBKEY_PEPPER_PREV: PEPPER, EMET_SUBKEY_PEPPER_PREV_VERSION: '1' }, async () => {
       await att.preflight(c, actorFor(), { slug: 'rotated-pepper', subkey: claimed.subkey }, 'emet_session_open');
       const bot = actorFor();
-      const req = await sk.requestSubkey(deps, bot, { tag: 'grok-project' }, REG, NOW);
+      const req = await sk.requestSubkey(deps, bot, { tag: 'bound-host' }, REG, NOW);
       const row = (await records(deps, sk)).keys[req.key_id];
       assert.equal(row.nonce_hmac.pepper_version, 2);
       await withEnv({ ...ON, EMET_SUBKEY_PEPPER: PREV, EMET_SUBKEY_PEPPER_VERSION: '2', EMET_SUBKEY_PEPPER_PREV: undefined }, async () => {
@@ -569,7 +569,7 @@ testGroup('extras', () => {
     assert.equal(a.subkeySession, undefined);
     assert.equal(sk.subkeysView({ subkeys: { a: { tag: 't', key_id: 'a', status: 'active' } } }, ownerHost(), 'alex', NOW), null);
     const initial = att.renderApprovals({
-      approved: {}, pending: { 'grok-project': { client_id: 'someone-else', first_seen: NOW.toISOString() } },
+      approved: {}, pending: { 'bound-host': { client_id: 'someone-else', first_seen: NOW.toISOString() } },
       denied: {}, clients: {}
     });
     const deps = memDeps(initial);
@@ -579,10 +579,10 @@ testGroup('extras', () => {
       data.sessions = [{ open_id: 's1', session_id: 's1', key_id: 'abc', state: 'live' }];
       return true;
     });
-    await att.clientApprove(deps, ownerHost(), 'alex', { tag: 'grok-project', decision: 'approve' }, REG, NOW);
+    await att.clientApprove(deps, ownerHost(), 'alex', { tag: 'bound-host', decision: 'approve' }, REG, NOW);
     const parsed = att.parseApprovals(deps.store.content);
     assert.equal(parsed.subkeys, undefined);
-    assert.equal(parsed.approved['grok-project'] != null, true);
+    assert.equal(parsed.approved['bound-host'] != null, true);
     const kept = await deps.subkeys.snapshot();
     assert.equal(kept.keys.abc.status, 'active');
     assert.equal(kept.sessions[0].state, 'live');
@@ -934,7 +934,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
         throw e;
       };
       await assert.rejects(
-        () => sk.requestSubkey(deps, actorFor(), { tag: 'grok-project' }, REG, NOW),
+        () => sk.requestSubkey(deps, actorFor(), { tag: 'bound-host' }, REG, NOW),
         /E11000|sub-key store failed/
       );
       hist.insertOne = real;
@@ -1157,7 +1157,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
       };
       await issue(deps, sk);
       assert.equal(built, 1);
-      await sk.requestSubkey(deps, actorFor(), { tag: 'grok-project' }, REG, NOW);
+      await sk.requestSubkey(deps, actorFor(), { tag: 'bound-host' }, REG, NOW);
       assert.equal(built, 1);
     });
   }));

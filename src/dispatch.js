@@ -33,7 +33,7 @@ import {
   resolvedSourceTag,
   TOOLS
 } from './tools.js';
-import { refuseSophiaDoor, sophiaActor } from './bound-door.js';
+import { refuseBoundHostDoor, boundHostActor } from './bound-door.js';
 import { beginStagedDoc, appendStagedChunk, commitStagedDoc, abortStagedDoc } from './staged-write.js';
 import { reserveToolNames } from './rune-registry.js';
 import { applyCheckpoint, checkpointOnError, checkpointStatus } from './checkpoint.js';
@@ -59,7 +59,7 @@ export function sourceOf(args) {
   // Stdio still reads the argument, and requireRegisteredSource checks the registry.
   const caller = args.source ?? args.updated_by ?? args.retired_by ?? args.accepted_by ?? args.channel ?? null;
   const decision = resolvedSourceTag(caller);
-  if (decision.from === 'bound-door') refuseSophiaDoor(sophiaActor());
+  if (decision.from === 'bound-door') refuseBoundHostDoor(boundHostActor());
   return decision.tag;
 }
 

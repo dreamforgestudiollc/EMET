@@ -432,7 +432,7 @@ export async function decideSubkeyIfPending(deps, actor, ownerId, { tag, decisio
   if (!(ownerOk || cosOk)) throw refusal(`emet_client_approve: only the owner${cosTag() ? ` or the chief of staff (${cosTag()})` : ''} may decide a sub-key. Nothing was changed.`);
   if (isOwlIdentity(actor)) throw refusal('emet_client_approve: the owl MCP clone account was retired by R6 and cannot approve. the owner decides a new writer on /owner/chooser. Nothing was changed.');
   if (decision === 'approve' && (cosOk || isMasterBlasterActor(actor)) && actor.sourceTag !== 'owner') {
-    throw refusal('emet_client_approve: an AI cannot grant a writer. Master Hub prepares a request. the owner decides it on /owner/chooser. Nothing was changed.');
+    throw refusal('emet_client_approve: an AI cannot grant a writer. The hub login prepares a request. the owner decides it on /owner/chooser. Nothing was changed.');
   }
   const why = typeof reason === 'string' ? reason.trim() : '';
   const channel = typeof via === 'string' ? via.trim() : '';

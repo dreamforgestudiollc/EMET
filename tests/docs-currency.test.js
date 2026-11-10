@@ -192,6 +192,52 @@ testGroup('operator settings in setting() are in the example and the deploy tabl
   });
 });
 
+testGroup('the charter names the built socket, and install names stay out of public text', () => {
+  test('CHARTER §4 says the socket is built and points at its code and note', () => {
+    const charter = read('CHARTER.md');
+    const row = charter.slice(charter.indexOf('**Extension socket**'), charter.indexOf('## §5'));
+    assert.ok(row.includes('The socket is built.'));
+    assert.ok(row.includes('`src/socket.js`'));
+    assert.ok(row.includes('`docs/gem/README.md`'));
+    assert.ok(!row.includes('socket not built'));
+    assert.ok(read('docs/gem/README.md').includes('The socket is `src/socket.js`.'));
+    assert.ok(!read('docs/gem/README.md').includes('once built'));
+  });
+
+  test('src, docs, the site, the README, the changelog, and server.json do not name the scrubbed install words', () => {
+    const roots = ['src', 'docs', 'site', 'README.md', 'CHANGELOG.md', 'server.json', 'CHARTER.md', '.env.example'];
+    const bad = [];
+    const files = [];
+    for (const rel of roots) {
+      const abs = path.join(ROOT, rel);
+      if (fs.statSync(abs).isDirectory()) files.push(...walkJs(abs), ...walkText(abs));
+      else files.push(abs);
+    }
+    const seen = new Set();
+    for (const file of files) {
+      if (seen.has(file)) continue;
+      seen.add(file);
+      const text = fs.readFileSync(file, 'utf8');
+      const banned = ['Master Hub', 'sop' + 'hia', 'grok-' + 'project'];
+      const lower = text.toLowerCase();
+      if (banned.some((word) => lower.includes(word.toLowerCase()))) bad.push(path.relative(ROOT, file));
+    }
+    assert.deepStrictEqual(bad, []);
+  });
+});
+
+function walkText(dir, out = []) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const abs = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name !== 'node_modules') walkText(abs, out);
+      continue;
+    }
+    if (/\.(md|html|json|example)$/.test(entry.name) || entry.name === '.env.example') out.push(abs);
+  }
+  return out;
+}
+
 testGroup('hosted-deployment comments do not name the old host', () => {
   test('src comments do not say Railway EMET', () => {
     const hits = [];

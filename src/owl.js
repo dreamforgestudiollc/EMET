@@ -19,7 +19,7 @@ import { assignCode, newCorrelationId } from './error-codes.js';
 import { OWL_ACCOUNT, doorFromIssuedVia, grantIdFromFamily, logClientId, logDoor, logGrantId } from './grants.js';
 import { InvalidGrantError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 
-const POINTER = 'this owl MCP clone account was retired by R6. A new writer is prepared by Master Hub, validated on the server, and decided by the owner at /owner/chooser. This account cannot approve. Records are retained.';
+const POINTER = 'this owl MCP clone account was retired by R6. A new writer is prepared by the hub login, validated on the server, and decided by the owner at /owner/chooser. This account cannot approve. Records are retained.';
 const MARKER_ID = 'owl-mcp-clone';
 
 const metric = {

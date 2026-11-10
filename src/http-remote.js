@@ -291,13 +291,15 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
       issued_via: inviteSubject ? (inviteDoor === 'member' ? 'member' : 'invite') : 'owner',
       source_tag: sourceTag,
     });
-    if (sourceTag === 'grok-project') {
-      try {
-        const { recordSophiaCredential } = await import('./bound-door.js');
-        const door = inviteSubject ? (inviteDoor === 'member' ? 'member' : 'guest') : 'owner';
-        await recordSophiaCredential(t.approvalsDeps, { client_id, door, grant_id: null, by: 'consent' });
-      } catch {
-        console.error('[emet] bound door listing was not written');
+    if (sourceTag) {
+      const { recordBoundHostCredential, CLAIM_TAG } = await import('./bound-door.js');
+      if (sourceTag === CLAIM_TAG) {
+        try {
+          const door = inviteSubject ? (inviteDoor === 'member' ? 'member' : 'guest') : 'owner';
+          await recordBoundHostCredential(t.approvalsDeps, { client_id, door, grant_id: null, by: 'consent' });
+        } catch {
+          console.error('[emet] bound door listing was not written');
+        }
       }
     }
     const u = new URL(redirect_uri);

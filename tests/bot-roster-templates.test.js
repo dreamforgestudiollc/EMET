@@ -51,7 +51,7 @@ testGroup('the configured value: five bots are bots, the hub stays a host', () =
     for (const t of BOTS) assert.strictEqual(isBotTag(t), true, t);
   }));
   test('the hub tag and host tags are not bot tags', () => withEnv(env, () => {
-    for (const t of [HUB, 'grok-project', 'mobile', 'cli', 'unspecified']) assert.strictEqual(isBotTag(t), false, t);
+    for (const t of [HUB, 'bound-host', 'mobile', 'cli', 'unspecified']) assert.strictEqual(isBotTag(t), false, t);
   }));
   test('unset, no tag is a bot tag (the state Tester found live)', () => withEnv(CLEAN, () => {
     for (const t of BOTS) assert.strictEqual(isBotTag(t), false, t);

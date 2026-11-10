@@ -20,7 +20,7 @@ const SID = '2026-10-27_staged';
 const REASON = 'staged close of this session';
 const ada = {
   transport: 'http', personId: 'ada', clientId: 'login-9', grantId: 'fam-1', door: 'member',
-  authenticated: true, scopes: ['emet.write'], sourceTag: 'grok-project'
+  authenticated: true, scopes: ['emet.write'], sourceTag: 'bound-host'
 };
 
 function handoffBody() {
@@ -53,15 +53,15 @@ function readyStore() {
 }
 
 async function asAda(db, fn) {
-  return withEnv({ EMET_SOURCE_TAGS: 'grok-project' }, () => withStore(db, () => actorStore.run(ada, fn)));
+  return withEnv({ EMET_SOURCE_TAGS: 'bound-host' }, () => withStore(db, () => actorStore.run(ada, fn)));
 }
 
 async function call(db, name, args, now) {
-  return asAda(db, () => dispatchTool(name, { session_id: SID, source: 'grok-project', ...args }, { dbManager: db, logger: null, now }));
+  return asAda(db, () => dispatchTool(name, { session_id: SID, source: 'bound-host', ...args }, { dbManager: db, logger: null, now }));
 }
 
 async function seed(db) {
-  await asAda(db, () => writeDoc('HANDOFF.md', 'short handoff v1 for the staged write test.', 'grok-project', null, null, { session_id: SID }));
+  await asAda(db, () => writeDoc('HANDOFF.md', 'short handoff v1 for the staged write test.', 'bound-host', null, null, { session_id: SID }));
 }
 
 testGroup('the handoff gate', () => {
@@ -214,8 +214,8 @@ testGroup('staged handoff write', () => {
   test('a read-scoped caller is refused before a stage exists', async () => {
     const db = readyStore();
     const guest = { ...ada, scopes: ['emet.read'], door: 'guest' };
-    const refused = await withEnv({ EMET_SOURCE_TAGS: 'grok-project' }, () => withStore(db, () => actorStore.run(guest, () => dispatchTool('write_doc_begin', {
-      doc_id: 'HANDOFF.md', session_id: SID, source: 'grok-project', supersedes: 1, reason: REASON
+    const refused = await withEnv({ EMET_SOURCE_TAGS: 'bound-host' }, () => withStore(db, () => actorStore.run(guest, () => dispatchTool('write_doc_begin', {
+      doc_id: 'HANDOFF.md', session_id: SID, source: 'bound-host', supersedes: 1, reason: REASON
     }, { dbManager: db, logger: null }))));
     assert.strictEqual(codeOf(refused), 'EMET-TOOL-005');
     assert.strictEqual(db.collection('emet_doc_stages').docs.length, 0);
@@ -225,7 +225,7 @@ testGroup('staged handoff write', () => {
   test('an unregistered source cannot begin a handoff', async () => {
     const db = readyStore();
     const local = { personId: 'ada', clientId: 'stdio', scopes: ['emet.write'] };
-    const refused = await withEnv({ EMET_SOURCE_TAGS: 'grok-project' }, () => withStore(db, () => actorStore.run(local, () => dispatchTool('write_doc_begin', {
+    const refused = await withEnv({ EMET_SOURCE_TAGS: 'bound-host' }, () => withStore(db, () => actorStore.run(local, () => dispatchTool('write_doc_begin', {
       doc_id: 'HANDOFF.md', session_id: SID, source: 'stranger', supersedes: 1, reason: REASON
     }, { dbManager: db, logger: null }))));
     assert.strictEqual(codeOf(refused), 'EMET-DOC-014');
@@ -237,8 +237,8 @@ testGroup('staged handoff write', () => {
     await seed(db);
     const begun = parsed(await call(db, 'write_doc_begin', { doc_id: 'HANDOFF.md', supersedes: 1, reason: REASON }));
     const bob = { ...ada, personId: 'bob', clientId: 'login-8' };
-    const refused = await withEnv({ EMET_SOURCE_TAGS: 'grok-project' }, () => withStore(db, () => actorStore.run(bob, () => dispatchTool('write_doc_append', {
-      stage_id: begun.data.stage_id, part: 1, chunk: 'not bob', session_id: SID, source: 'grok-project'
+    const refused = await withEnv({ EMET_SOURCE_TAGS: 'bound-host' }, () => withStore(db, () => actorStore.run(bob, () => dispatchTool('write_doc_append', {
+      stage_id: begun.data.stage_id, part: 1, chunk: 'not bob', session_id: SID, source: 'bound-host'
     }, { dbManager: db, logger: null }))));
     assert.strictEqual(codeOf(refused), 'EMET-DOC-060');
     const appended = parsed(await call(db, 'write_doc_append', { stage_id: begun.data.stage_id, part: 1, chunk: 'ada owns this part' }));
@@ -281,7 +281,7 @@ function snap(db) {
 }
 
 const OPEN_ENV = {
-  EMET_SOURCE_TAGS: 'grok-project,other-host',
+  EMET_SOURCE_TAGS: 'bound-host,other-host',
   EMET_STRICT_LOGIN_TAG: undefined,
   EMET_SUBKEYS: undefined,
   CASCADE_SUBKEYS: undefined
@@ -296,7 +296,7 @@ async function httpCall(db, tool, args, env) {
     const actor = { ...ada };
     try {
       await actorStore.run(actor, () => att.preflight({
-        db, prefix: 'emet_', ownerId: ada.personId, registry: ['grok-project', 'other-host']
+        db, prefix: 'emet_', ownerId: ada.personId, registry: ['bound-host', 'other-host']
       }, actor, args, tool));
     } catch (e) {
       if (e && e.attributionRefusal) {
@@ -339,7 +339,7 @@ function strictAttack(tool, stage) {
 }
 
 function handleAttack(tool, stage) {
-  const common = { session_id: SID, source: 'grok-project', session_handle: HANDLE };
+  const common = { session_id: SID, source: 'bound-host', session_handle: HANDLE };
   if (tool === 'write_doc_begin') return { ...common, doc_id: 'notes/handle-next.md' };
   if (tool === 'write_doc_append') return { ...common, stage_id: stage.stage_id, part: 2, chunk: 'second part' };
   if (tool === 'write_doc_commit') return { ...common, stage_id: stage.stage_id, doc_id: stage.doc_id, sha256: stage.sha, part_count: 1 };
