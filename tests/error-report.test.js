@@ -467,12 +467,12 @@ testGroup('error report', () => {
   });
 
   test('the default report address is accepted', async () => {
-    process.env.EMET_REPORT_EMAIL = 'dreamforgestudio@mail.hubbot.com';
+    delete process.env.EMET_REPORT_EMAIL;
     store.entries.length = 0;
     try {
       const result = await asStdio(() => runErrorReport({}));
-      assert.strictEqual(result.email.to, 'dreamforgestudio@mail.hubbot.com');
-      assert.ok(result.email.mailto.startsWith('mailto:dreamforgestudio@mail.hubbot.com?'));
+      assert.strictEqual(result.email.to, DEFAULT_REPORT_EMAIL);
+      assert.ok(result.email.mailto.startsWith(`mailto:${DEFAULT_REPORT_EMAIL}?`));
       assert.ok(!JSON.stringify(result).includes('email":null'));
     } finally {
       restoreEmail();

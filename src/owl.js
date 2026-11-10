@@ -1,18 +1,17 @@
 /**
  * Owl MCP clone account (R6).
  *
- * The account `user-EMET--owl` was a second OAuth client so an approval
- * queued by one grant could be decided by another client_id. R6 retires
- * that role. the owner decides a new writer on /owner/chooser. Master Hub
- * prepares the request. The server validates it. This account does not
- * approve.
+ * A second OAuth client account (the owl clone) let an approval queued by
+ * one grant be decided by another client_id. R6 retires that role. The
+ * owner decides a new writer on /owner/chooser. The request is prepared.
+ * The server validates it. This account does not approve.
  *
  * ISO 9001 7.5.3 / ISO 13485 4.2.5: supersede, retire, retain. Rows are
  * not deleted. A startup check fails loudly (stderr and the owl
  * retirement metric; the process does not exit) when an owl grant is
  * active again. Rotate-all (R5) already revokes every grant; the invite step
  * skips this account so a rotation does not hand it a fresh code. This
- * module does not call Railway EMET and does not run a rotation.
+ * module does not call a hosted deployment and does not run a rotation.
  */
 
 import { COLLECTION_PREFIX } from './database.js';
@@ -20,7 +19,7 @@ import { assignCode, newCorrelationId } from './error-codes.js';
 import { OWL_ACCOUNT, doorFromIssuedVia, grantIdFromFamily, logClientId, logDoor, logGrantId } from './grants.js';
 import { InvalidGrantError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 
-const POINTER = 'this owl MCP clone account was retired by R6. A new writer is prepared by Master Hub, validated on the server, and decided by the owner at /owner/chooser. This account cannot approve. Records are retained.';
+const POINTER = 'this owl MCP clone account was retired by R6. A new writer is prepared by the hub login, validated on the server, and decided by the owner at /owner/chooser. This account cannot approve. Records are retained.';
 const MARKER_ID = 'owl-mcp-clone';
 
 const metric = {

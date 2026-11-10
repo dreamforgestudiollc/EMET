@@ -26,7 +26,7 @@ See also: [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md) · [SECUR
 - **Per-client attribution and approvals.** Every write is attributed to the client that made it. A new client is read-limited until it is approved. The approval is recorded.
 - **Error codes and problem reports.** Every error carries a stable `EMET-<AREA>-<NNN>` code. An operational error log keeps 10,000 entries or 90 days, plus daily summaries. The owner-only `emet_error_report` returns the report and an email draft that you send yourself. See [Reporting a problem](#reporting-a-problem).
 - **verify-emet and the feature map.** `npm run verify` runs `scripts/verify-emet.mjs` from a checkout. It starts EMET in a temporary directory on the in-memory test database, with no `.env`, and drives every registered tool. A tool that needs a service a plain install does not have is reported as a gap. A run whose only problems are gaps exits 3. A failed tool exits 1. The map is [docs/features/README.md](docs/features/README.md).
-- **MIT.** Version 0.3.4. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
+- **MIT.** Version 0.3.5. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
 
 The store has one owner, and other people can join only through the optional Guest
 (read-only) and Member (read and write) access, both off by default.
@@ -693,7 +693,7 @@ are in [`docs/GUARDRAILS-AND-MONORAILS.md`](docs/GUARDRAILS-AND-MONORAILS.md).
 
 ## Tools
 
-Thirty-four tools are registered with sub-keys off. With `EMET_SUBKEYS=1`, four more (`emet_subkey_request`, `emet_subkey_claim`, `emet_subkey_revoke`, `emet_subkey_end_session`) and the `subkey` and `session_handle` arguments. The names below are every tool the registry registers, both sets together.
+Thirty-eight tools are registered with sub-keys off. With `EMET_SUBKEYS=1`, four more (`emet_subkey_request`, `emet_subkey_claim`, `emet_subkey_revoke`, `emet_subkey_end_session`) and the `subkey` and `session_handle` arguments. The names below are every tool the registry registers, both sets together.
 
 <!-- emet-tools -->
 ```
@@ -786,7 +786,7 @@ at session *start*, which is the only moment early enough to matter.
 
 Every tool declares MCP annotations — `readOnlyHint`, `destructiveHint`, `idempotentHint`,
 `openWorldHint` — in one table in `src/annotations.js`, which is also the complete statement of
-what EMET does to a store. **15 of the 34 tools cannot modify anything**; four can replace the
+what EMET does to a store. **15 of the 38 tools cannot modify anything**; five can replace the
 visible content of a document; `openWorldHint` is false everywhere. The tools reach this
 server's own database and nothing else: no filesystem and no shell. The sign-in server fetches
 a client's metadata document, and only from a public address it has already checked.
@@ -803,7 +803,7 @@ enforcement: what is actually auto-approved is a host-side setting. See
 
 `emet_error_report` is owner-only and read-only. It reads the operational error log and returns the full report, a `mailto:` draft, and a structured email `{to, subject, body_text, short_id, version}`. EMET does not send mail and does not open a network connection for this tool.
 
-Read the report first. The draft is addressed to `EMET_REPORT_EMAIL`. When that variable is unset, the address is `dreamforgestudio@mail.grokbot.com`, the project's report inbox. Set it to your own address to keep reports in house. Set it to an empty string, or to anything other than one plain address, and the tool returns the report and no email.
+Read the report first. The draft is addressed to `EMET_REPORT_EMAIL`. When that variable is unset, the address is `dreamforgestudio@mail.grokbot.com`, the address in `src/error-report.js`. Set it to your own address to keep reports in house. Set it to an empty string, or to anything other than one plain address, and the tool returns the report and no email.
 
 A calling assistant that has its own email address may pass that structured email to its own email tool. The calling assistant may send this report only after showing the report to its user and getting their OK. EMET will not send it. The code table is [docs/ERROR-CODES.md](docs/ERROR-CODES.md), and the behavior is written up in [docs/ERROR-CODES-SPEC.md](docs/ERROR-CODES-SPEC.md).
 
@@ -894,9 +894,11 @@ Honest list, because the point of this project is that it behaves predictably:
 - `save_transcript`'s description does not state that it stores content verbatim; the
   implementation does.
 - No export / import / restore-and-compare yet.
-- The document store is not prefixed, so one database holds one instance's identity. Run
-  separate databases rather than separate prefixes if you want separate memories. One
-  collaborative project is one instance (one database, one deploy, one passphrase). See
+- These collections are not prefixed: `documents`, `documents_history`, `transcripts`,
+  `exchanges`, `persons`, `invites`, `close_attempts`, `error_log`, `error_log_summary`,
+  and `_emet_verify`. One database holds one instance. Run separate databases rather than
+  separate prefixes if you want separate memories. One collaborative project is one
+  instance (one database, one deploy, one passphrase). See
   [docs/SECURITY-AT-SCALE.md](docs/SECURITY-AT-SCALE.md).
 - Dynamic Client Registration is still served beside Client ID Metadata Documents; the MCP
   specification's deprecation window closes around 2027-07. It is scheduled to come off on

@@ -1,7 +1,7 @@
 /**
  * Break-glass recovery (R4b).
  *
- * One stable URL on Railway EMET: /owner/break-glass. The owner passphrase
+ * One stable URL on a hosted deployment: /owner/break-glass. The owner passphrase
  * session is the only credential. A member or guest grant does not open it,
  * and no AI client is required. Each authenticated use is logged and counted
  * on emet_status.break_glass.
@@ -25,6 +25,7 @@ import {
 import {
   esc, sendHtml, loginForm, mountOwnerLogin, createOwnerGate
 } from './owner-session.js';
+import { isLegacyBoundHostSpelling } from './bound-door.js';
 
 export { breakGlassMetric };
 
@@ -448,6 +449,11 @@ export function mountBreakGlass(app, options = {}) {
     }
     if (door !== 'owner' && !tag) {
       sendHtml(res, 400, '<p>A tag is required for member or guest. Nothing was issued.</p>', 'EMET break-glass');
+      return;
+    }
+    if (isLegacyBoundHostSpelling(tag)) {
+      res.locals.reason = 'legacy_bound_tag';
+      sendHtml(res, 400, '<p>use bound-host (EMET-AUTH-045). Nothing was issued.</p>', 'EMET break-glass');
       return;
     }
     let note = 'Owner door is the passphrase consent on this host. This page did not mint a token.';

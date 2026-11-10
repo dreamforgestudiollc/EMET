@@ -3,7 +3,7 @@
  * description's phrase, "built for ISO 9001 / ISO 13485 document control".
  * The lede, the meta description, og:description, twitter:description, and
  * the JSON-LD description each fail here if either standard is dropped.
- * Version 0.3.4 stays in the four descriptions.
+ * Version 0.3.5 stays in the four descriptions.
  * The What it is disclaimer stays: no certification or conformity is claimed.
  * Noun and verb families of certify, comply, conform, and accredit fail
  * anywhere in site/index.html, including visible text, meta, and JSON-LD.
@@ -80,8 +80,8 @@ const PAGE_JOINS = [
   ['<code>certified</code>', '<code>certified</code>'],
 ];
 const LEDE = 'An MCP memory server built for ISO 9001 / ISO 13485 document control: persistent, shared memory.';
-const SHARED = 'EMET 0.3.4 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
-const JSONLD = 'EMET 0.3.4 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
+const SHARED = 'EMET 0.3.5 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
+const JSONLD = 'EMET 0.3.5 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
 const CONFORMANCE_LINK = 'Conformance';
 const CONFORMANCE_HREF = 'https://github.com/dreamforgestudiollc/EMET/blob/main/gem-library/CONFORMANCE.md';
 
@@ -97,9 +97,9 @@ const SEQUENCES = [
   ],
   [
     [
-      "emet_initialize (it can provision a missing board; it stays a read), save_to_layer, revise_memory, save_transcript, revise_transcript, emet_session_open, emet_transcript_append, emet_session_close, rename_doc, accept_nonconformance.",
+      "emet_initialize (it can provision a missing board; it stays a read), save_to_layer, revise_memory, save_transcript, revise_transcript, emet_session_open, emet_transcript_append, emet_session_close, rename_doc, accept_nonconformance, write_doc_begin, write_doc_append, write_doc_abort.",
       "They add.",
-      "They do not remove or replace.",
+      "They do not remove or replace a current document, and a staged begin, append, or abort changes only the server’s own stage.",
       "Opening a session still needs emet.write, because it stamps the drop list a board edit trusts.",
     ],
     1,
@@ -178,7 +178,7 @@ const SEQUENCES = [
 
 const SENTENCE_PIN = new Map([
   ["EMET supports that work; it holds no certification and claims no conformity.", 1],
-  ["emet_initialize (it can provision a missing board; it stays a read), save_to_layer, revise_memory, save_transcript, revise_transcript, emet_session_open, emet_transcript_append, emet_session_close, rename_doc, accept_nonconformance.", 1],
+  ["emet_initialize (it can provision a missing board; it stays a read), save_to_layer, revise_memory, save_transcript, revise_transcript, emet_session_open, emet_transcript_append, emet_session_close, rename_doc, accept_nonconformance, write_doc_begin, write_doc_append, write_doc_abort.", 1],
   ["It stays counted at session start until a later revision corrects it or accept_nonconformance dispositions it.", 1],
   ["restore_doc is the one whole-document recovery, for an owner-listed tag, and only a stored conforming revision whose digest matches.", 1],
   ["It holds no certification and claims no conformity.", 1],
@@ -522,7 +522,7 @@ testGroup('the public site keeps ISO 9001 and ISO 13485', () => {
     assert.strictEqual(surfaces.lede, LEDE);
   });
 
-  test('the four descriptions keep 0.3.4 and the rest of each sentence', () => {
+  test('the four descriptions keep 0.3.5 and the rest of each sentence', () => {
     assert.strictEqual(surfaces['meta description'], SHARED);
     assert.strictEqual(surfaces['og:description'], SHARED);
     assert.strictEqual(surfaces['twitter:description'], SHARED);

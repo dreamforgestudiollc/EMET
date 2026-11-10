@@ -9,7 +9,7 @@
  * inside this generation or marked superseded. Fresh invites are new rows.
  * An old grant is never made live again.
  *
- * Railway EMET checks the generation on the next token request. This module
+ * A hosted deployment checks the generation on the next token request. This module
  * does not call a deploy target.
  */
 

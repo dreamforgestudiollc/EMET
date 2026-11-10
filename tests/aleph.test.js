@@ -261,7 +261,7 @@ testGroup('verifyLayerEntry - metadata attestation at the write (C1)', () => {
 testGroup('signed digests - key never in the row', () => {
   const key = 'test-signing-key';
   const c = digest('body');
-  const m = digestMetadata({ source: 'grok-project' });
+  const m = digestMetadata({ source: 'bound-host' });
   test('sign is deterministic for the same digests and key', () => {
     assert.strictEqual(signDigests(c, m, key), signDigests(c, m, key));
   });

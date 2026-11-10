@@ -103,11 +103,12 @@ when you want a second device to reach the same memory.
 5. **Pick a database name** and set `MONGODB_DB`. It defaults to `emet`. Collections (`emet_episodic`, `emet_semantic`, …) are
    created on first write — there is nothing to pre-create.
 
-6. **One database per EMET instance.** The document store (`documents`,
-   `documents_history`) is deliberately *not* prefixed, so two instances pointed at the same
-   database will share their identity and continuity documents even if their memory
-   collections use different prefixes. If you want two separate memories, give them separate
-   databases - not just separate prefixes.
+6. **One database per EMET instance.** These collections are not prefixed:
+   `documents`, `documents_history`, `transcripts`, `exchanges`, `persons`, `invites`,
+   `close_attempts`, `error_log`, `error_log_summary`, and `_emet_verify`. Two instances
+   pointed at the same database share all of them, even when their memory collections use
+   different prefixes. If you want two separate memories, give them separate databases -
+   not just separate prefixes.
 
 7. **Vector index — only if you want `semantic_recall`.** Keyword search works without it.
    For meaning-based search, create an Atlas Vector Search index named
@@ -227,8 +228,10 @@ it is.
 | `EMET_VECTOR_INDEX` | `cascade_content_auto` | the Atlas Vector Search index `semantic_recall` uses |
 | `EMET_CORPORA` | your corpus names, comma-separated | only if you use `corpus_recall`; leave unset otherwise |
 
-`EMET_COLLECTION_PREFIX` also governs the counters collection and the three OAuth
-collections, so **devices you have already authorized stay authorized** - there is no
+`EMET_COLLECTION_PREFIX` also governs the counters collection, the three OAuth
+collections (`oauth_clients`, `oauth_codes`, `oauth_tokens`), and `sessions`,
+`subkeys`, `subkeys_history`, `rotations`, `meta`, `doc_stages`, `gem_serves`,
+`writer_approvals`, `owl_retirement`, and `graph_lab`, so **devices you have already authorized stay authorized** - there is no
 re-consent step.
 
 Your old `CASCADE_SOURCE_TAG` and `CASCADE_OAUTH_PASSPHRASE` continue to work; the `EMET_`
@@ -247,6 +250,20 @@ what you had, and that `vector_index` reports the index you expect. Then `emet_i
 it should come back `ready` with your existing identity, not `setup_required`. If it says
 `setup_required`, one of the four variables above is wrong; **do not run the setup interview,
 which would write a new identity over your existing one.**
+
+## Upgrading to 0.3.5
+
+0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound door's tag is `bound-host`. Writes from a stored legacy token or sub-key are stamped `bound-host`. The alias covers stored data only. The previous spelling is refused for a new consent, a new sub-key request, a new writer request, a new member or guest code, a new setup source, and a chooser decision.
+
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
+## Upgrading to 0.3.4
+
+0.3.3 and 0.3.4 leave stored data shapes as they were in 0.3.2. Deploy over 0.3.2 or 0.3.3 as is.
+
+From 0.3.4, `EMET-MEM-018` is checked on the append that opens a transcript, and on an append that would become the lowest stored index. Send the measured machine line on that first append, or the words `no local shell MCP`. A refused exchange 1 does not let a higher index start the transcript. With no machine table in the install notes, the check stays not enforced.
+
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
 ## Upgrading to 0.3.2
 

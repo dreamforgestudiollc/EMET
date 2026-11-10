@@ -20,7 +20,7 @@ import { replacedByOf } from './setup.js';
 import { currentActor, rawActor, writerStamp, boundSourceTag, declaredAttribution, LOCAL_SUBJECT } from './persons.js';
 import { guardClaimedTag } from './claimed-tag.js';
 import { approvedTags, APPROVALS_DOC } from './attribution.js';
-import { refuseSophiaDoor, sophiaActor, sophiaCredentialOverrides, sophiaClaimOnSharedLogin, CLAIM_TAG } from './bound-door.js';
+import { refuseBoundHostDoor, boundHostActor, boundHostCredentialOverrides, boundHostClaimOnSharedLogin, isBoundHostTag, isLegacyBoundHostSpelling, CLAIM_TAG } from './bound-door.js';
 import { sealAttestation, frozenAttestation } from './rune-dispatch.js';
 
 /** Approvals record io for attribution.js (server-kept doc, written as emet-server). */
@@ -558,7 +558,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     // stored (no bound tag) may use the caller's tag only when that tag is an
     // exact member of EMET_SOURCE_TAGS. The shared default is not applied there.
     const sourceDecision = resolvedSourceTag(validatedMetadata.source);
-    if (sourceDecision.from === 'bound-door') refuseSophiaDoor(sophiaActor());
+    if (sourceDecision.from === 'bound-door') refuseBoundHostDoor(boundHostActor());
     if (sourceDecision.from === 'caller') {
       const defaultTag = setting('SOURCE_TAG');
       if (sourceDecision.tag) {
@@ -2850,9 +2850,9 @@ export function resolvedSourceTag(caller) {
   const bound = boundSourceTag();
   const tag = typeof caller === 'string' ? caller.trim() : '';
   if (bound === undefined) return { tag: tag || null, from: 'caller' };
-  const actor = sophiaActor();
-  if (sophiaCredentialOverrides(actor, tag)) {
-    const sub = actor.subkeySession === true && actor.subkeyTag === CLAIM_TAG;
+  const actor = boundHostActor();
+  if (boundHostCredentialOverrides(actor, tag)) {
+    const sub = actor.subkeySession === true && isBoundHostTag(actor.subkeyTag);
     return {
       tag: CLAIM_TAG,
       from: sub ? 'subkey' : 'credential',
@@ -2860,7 +2860,7 @@ export function resolvedSourceTag(caller) {
       ...(sub && actor.subkeyId ? { key_id: actor.subkeyId } : {})
     };
   }
-  if (sophiaClaimOnSharedLogin(actor, tag)) return { tag: null, from: 'bound-door', login: bound || null };
+  if (boundHostClaimOnSharedLogin(actor, tag)) return { tag: null, from: 'bound-door', login: bound || null };
   // Attribution v2: the per-request tag decided by attribution.preflight is the
   // stamp (declared, or generated for a login with none). Rights stay the
   // login's: see rightsTags().
@@ -2873,10 +2873,10 @@ export function resolvedSourceTag(caller) {
   return { tag: null, from: 'legacy' };
 }
 
-/** A BOUND credential stamp replaces a forged Master Hub string. A door claim throws. */
+/** A BOUND credential stamp replaces a forged hub-login string. A door claim throws. */
 function stampedSource(decision, fallback) {
-  if (decision && decision.from === 'bound-door') refuseSophiaDoor(sophiaActor());
-  if (decision && (decision.from === 'credential' || (decision.from === 'subkey' && decision.tag === CLAIM_TAG))) return decision.tag;
+  if (decision && decision.from === 'bound-door') refuseBoundHostDoor(boundHostActor());
+  if (decision && (decision.from === 'credential' || (decision.from === 'subkey' && isBoundHostTag(decision.tag)))) return decision.tag;
   return fallback;
 }
 
@@ -3983,6 +3983,9 @@ export async function inviteCreate(dbManager, { display_name, scopes, days, sour
   if (registry.length && tag && !registry.includes(tag)) {
     throw new ValidationError('source', 'A guest invite source must be a registered tag. Nothing was created.', { code: 'EMET-AUTH-032' });
   }
+  if (isLegacyBoundHostSpelling(tag)) {
+    throw new ValidationError('source', 'use bound-host. Nothing was created.', { code: 'EMET-AUTH-045' });
+  }
   const out = await createInvite(dbManager.db, {
     created_by: actor,
     display_name,
@@ -4020,6 +4023,9 @@ export async function memberAccessCreate(dbManager, { display_name, days, source
   const tag = typeof source === 'string' ? source.trim() : '';
   if (registry.length && tag && !registry.includes(tag)) {
     throw new ValidationError('source', 'A member code source must be a registered tag. Nothing was created.', { code: 'EMET-AUTH-035' });
+  }
+  if (isLegacyBoundHostSpelling(tag)) {
+    throw new ValidationError('source', 'use bound-host. Nothing was created.', { code: 'EMET-AUTH-045' });
   }
   const out = await createMemberAccess(dbManager.db, { created_by: actor, display_name, days: days || 14, source_tag: tag || null });
   logger?.info?.('EMET Member Access created', { display_name: out.display_name });
@@ -4597,7 +4603,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_client_approve",
-    description: "Approve or deny a pending client tag, or prepare a new writer. decision prepare drafts a writer request: client, claimed tag, door (member or guest), reason, and correlation_id. Master Hub prepares that draft. The server validates it. Validation is a check and is not approval. Alex decides a new writer on /owner/chooser with the owner session. No AI grants a writer, including Master Hub and the retired owl account. The owner login may still approve or deny a pending client tag. Pending client tags are listed in emet_initialize and emet_status as client_approvals.",
+    description: "Approve or deny a pending client tag, or prepare a new writer. decision prepare drafts a writer request: client, claimed tag, door (member or guest), reason, and correlation_id. The hub login prepares that draft. The server validates it. Validation is a check and is not approval. Alex decides a new writer on /owner/chooser with the owner session. No AI grants a writer, including the hub login and the retired owl account. The owner login may still approve or deny a pending client tag. Pending client tags are listed in emet_initialize and emet_status as client_approvals.",
     inputSchema: {
       type: "object",
       properties: {

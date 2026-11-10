@@ -9,7 +9,7 @@
  *  stamped with (source_basis "declared", source_login = the login's tag),
  *  but a declared tag never gains rights beyond the login's tag (A3): every
  *  guard is run for BOTH tags and the write must pass both (rightsTags()).
- *  grok-project on the token bound to hub-bot is not that
+ *  bound-host on the token bound to hub-bot is not that
  *  claim: it is refused (BOUND's own door). A credential row (basis
  *  "credential") is not a remembered tag for the shared client.
  *
@@ -40,7 +40,7 @@ import { setting } from './env.js';
 import { chooserBinding } from './deep-links.js';
 import { isOwlIdentity } from './owl.js';
 import { isMasterBlasterActor } from './writer-approval.js';
-import { isSophiaCredential, sophiaClaimOnSharedLogin, BOUND_LOGIN_MESSAGE, CLAIM_TAG, MB_TAG } from './bound-door.js';
+import { isBoundHostCredential, isBoundHostTag, boundHostClaimOnSharedLogin, BOUND_LOGIN_MESSAGE, CLAIM_TAG, MB_TAG } from './bound-door.js';
 
 export const APPROVALS_DOC = 'emet/CLIENT_APPROVALS.md';
 export const WRITE_TOOLS = new Set([
@@ -350,7 +350,7 @@ export async function preflight(ctx, actor, args, toolName) {
     if (foreign) throw refusal(`source "${actor.subkeyTag}" is bound to another person's login, so this session may not write under it. Pass your own tag. Nothing was written.`);
   }
 
-  if (STRICT_TAG_TOOLS.has(toolName) && sophiaClaimOnSharedLogin(actor, declared)) {
+  if (STRICT_TAG_TOOLS.has(toolName) && boundHostClaimOnSharedLogin(actor, declared)) {
     const denied = refusal(
       BOUND_LOGIN_MESSAGE,
       chooserBinding({ kind: 'onboarding_required', grantId: actor.grantId, tag: CLAIM_TAG, door: 'member' })
@@ -413,8 +413,8 @@ export async function preflight(ctx, actor, args, toolName) {
   const keptAuto = !declared && !bound && remembered.length === 1 ? remembered[0] : null;
   let effective = declared || bound || keptAuto || (actor.clientId && actor.clientId !== 'http:visitor' ? autoTag(actor.clientId) : null);
   let basis = declared && declared !== bound ? 'declared' : (bound ? 'login' : (keptAuto ? 'remembered' : (effective ? 'auto' : null)));
-  const sophiaDoor = isSophiaCredential(actor) && (!declared || declared === CLAIM_TAG || declared === MB_TAG);
-  if (sophiaDoor) {
+  const boundHostDoor = isBoundHostCredential(actor) && (!declared || isBoundHostTag(declared) || declared === MB_TAG);
+  if (boundHostDoor) {
     effective = CLAIM_TAG;
     basis = 'credential';
   }
@@ -425,7 +425,7 @@ export async function preflight(ctx, actor, args, toolName) {
 
   // New-client gate (the owner 2026-10-12). Bound tags were approved at consent;
   // registered tags by the owner's env. Everything else needs the record.
-  if (!sophiaDoor && deps && effective && basis !== 'login' && basis !== 'credential' && !registry.includes(effective)) {
+  if (!boundHostDoor && deps && effective && basis !== 'login' && basis !== 'credential' && !registry.includes(effective)) {
     const cur = await loadApprovals(deps);
     if (cur.broken) {
       actor.approvalState = 'unreadable';
@@ -537,10 +537,10 @@ export async function clientApprove(deps, actor, ownerId, { tag, decision, reaso
   if (!(ownerOk || cosOk)) throw refusal(`emet_client_approve: only the owner${cosTag() ? ` or the chief of staff (${cosTag()})` : ''} may decide new clients. Nothing was changed.`);
   if (isOwlIdentity(actor)) throw refusal('emet_client_approve: the owl MCP clone account was retired by R6 and cannot approve. the owner decides a new writer on /owner/chooser. Nothing was changed.');
   if (decision === 'approve' && isMasterBlasterActor(actor) && !(actor && actor.ownerSession === true)) {
-    throw refusal('emet_client_approve: an AI cannot grant a writer. Master Hub prepares a request. the owner decides it on /owner/chooser. Nothing was changed.');
+    throw refusal('emet_client_approve: an AI cannot grant a writer. The hub login prepares a request. the owner decides it on /owner/chooser. Nothing was changed.');
   }
   if (decision === 'approve' && cosOk && !(actor && actor.ownerSession === true)) {
-    throw refusal('emet_client_approve: an AI cannot grant a writer. Master Hub prepares a request. the owner decides it on /owner/chooser. Nothing was changed.');
+    throw refusal('emet_client_approve: an AI cannot grant a writer. The hub login prepares a request. the owner decides it on /owner/chooser. Nothing was changed.');
   }
   if (setting('SUBKEYS') === '1') {
     const { decideSubkeyIfPending } = await import('./subkeys.js');

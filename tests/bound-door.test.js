@@ -2,18 +2,20 @@
  * BOUND door (init audit items 3 and 5, 2026-10-27).
  *
  * Client bound-login-client bound to hub-bot must not stamp
- * that tag on a grok-project claim. A grok-project credential stamps grok-project.
- * Episodic ref 697 is corrected by a later note, not by revise_memory.
+ * that tag on a bound-host claim. A bound-host credential stamps bound-host.
+ * A later note corrects a misattributed row. It does not revise that row.
  */
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { test, testGroup, summary } from './harness.js';
 import { layerHonouringDb, makeStore, withStore, withEnv } from './memstore.js';
 import { actorStore } from '../src/persons.js';
 import { saveMemory, resolvedSourceTag, writeDoc, saveTranscript, transcriptAppend } from '../src/tools.js';
 import {
-  CLAIM_TAG, MB_TAG, SHARED_GROK_CLIENT, EPISODIC_697_ID, CORRECTION_NOTE_DATE,
-  BOUND_LOGIN_MESSAGE, episodic697CorrectionNote, recordSophiaCredential, sophiaListingAfterWriterIssue,
-  isSophiaCredential, sophiaClaimOnSharedLogin
+  CLAIM_TAG, MB_TAG, SHARED_GROK_CLIENT, CORRECTION_NOTE_DATE,
+  BOUND_LOGIN_MESSAGE, boundHostCorrectionNote, recordBoundHostCredential, boundHostListingAfterWriterIssue,
+  isBoundHostCredential, boundHostClaimOnSharedLogin
 } from '../src/bound-door.js';
 
 // Invites and the HTTP listener freeze these at import. Set them before either module loads.
@@ -172,7 +174,7 @@ async function postApprove(fields) {
   return { db, ...posted };
 }
 
-testGroup('a grok-project claim on the Master Hub login is not stamped Master Hub', () => {
+testGroup('a bound-host claim on the hub login is not stamped the hub login', () => {
   test('without preflight the caller tag is not replaced by the bound tag', () => {
     const decision = actorStore.run(mb(), () => resolvedSourceTag(CLAIM_TAG));
     assert.notStrictEqual(decision.tag, MB_TAG);
@@ -217,7 +219,7 @@ testGroup('a grok-project claim on the Master Hub login is not stamped Master Hu
   });
 });
 
-testGroup('a grok-project credential stamps grok-project', () => {
+testGroup('a bound-host credential stamps bound-host', () => {
   test('a caller tag of hub-bot does not stick', async () => {
     const att = await import('../src/attribution.js');
     att._resetForTests();
@@ -234,7 +236,7 @@ testGroup('a grok-project credential stamps grok-project', () => {
     assert.strictEqual(db.row('episodic', saved.id).metadata.source_basis, 'credential');
   });
 
-  test('Master Hub with no grok-project claim still stamps Master Hub', () => {
+  test('the hub login with no bound-host claim still stamps the hub login', () => {
     const omitted = actorStore.run(mb(), () => resolvedSourceTag(undefined));
     assert.strictEqual(omitted.tag, MB_TAG);
     assert.strictEqual(omitted.from, 'bound');
@@ -244,13 +246,13 @@ testGroup('a grok-project credential stamps grok-project', () => {
 
   test('a guest door is not the BOUND writer credential', () => {
     const guest = bound({ door: 'guest' });
-    assert.strictEqual(isSophiaCredential(guest), false);
+    assert.strictEqual(isBoundHostCredential(guest), false);
     const decision = actorStore.run(guest, () => resolvedSourceTag(MB_TAG));
     assert.notStrictEqual(decision.from, 'credential');
     assert.strictEqual(decision.tag, CLAIM_TAG);
   });
 
-  test('a grok-project sub-key on the shared login is a credential', () => {
+  test('a bound-host sub-key on the shared login is a credential', () => {
     const actor = mb();
     actor.subkeySession = true;
     actor.subkeyTag = CLAIM_TAG;
@@ -263,7 +265,7 @@ testGroup('a grok-project credential stamps grok-project', () => {
 });
 
 testGroup('the approvals row is a credential, not a remembered claim on 8xm', () => {
-  test('recordSophiaCredential lists the door and does not remember grok-project onto 8xm', async () => {
+  test('recordBoundHostCredential lists the door and does not remember bound-host onto 8xm', async () => {
     const att = await import('../src/attribution.js');
     att._resetForTests();
     const deps = memDeps(att.renderApprovals({
@@ -272,7 +274,7 @@ testGroup('the approvals row is a credential, not a remembered claim on 8xm', ()
       denied: {},
       clients: { [SHARED_GROK_CLIENT]: { tags: { [MB_TAG]: { basis: 'login' } } } }
     }));
-    const listed = await recordSophiaCredential(deps, {
+    const listed = await recordBoundHostCredential(deps, {
       client_id: SHARED_GROK_CLIENT, door: 'member', grant_id: null, by: 'alex'
     });
     assert.strictEqual(listed.written, true);
@@ -284,7 +286,7 @@ testGroup('the approvals row is a credential, not a remembered claim on 8xm', ()
     const data = att.parseApprovals(deps.store.content);
     assert.strictEqual(data.pending[CLAIM_TAG], undefined);
     assert.deepStrictEqual(att.rememberedFor(data, SHARED_GROK_CLIENT), [MB_TAG]);
-    const again = await recordSophiaCredential(deps, {
+    const again = await recordBoundHostCredential(deps, {
       client_id: SHARED_GROK_CLIENT, door: 'member', grant_id: null, by: 'alex'
     });
     assert.strictEqual(again.written, false);
@@ -294,14 +296,14 @@ testGroup('the approvals row is a credential, not a remembered claim on 8xm', ()
     const att = await import('../src/attribution.js');
     att._resetForTests();
     const deps = memDeps();
-    const skipped = await sophiaListingAfterWriterIssue({
+    const skipped = await boundHostListingAfterWriterIssue({
       recorded: { claimed_tag: CLAIM_TAG, door: 'guest', client_id: 'bound-login', grant_id: 'mb-grant' },
       issued: { issued: true },
       deps, by: 'alex'
     });
     assert.strictEqual(skipped.reason, 'guest');
     assert.strictEqual(deps.store.writes, 0);
-    const listed = await sophiaListingAfterWriterIssue({
+    const listed = await boundHostListingAfterWriterIssue({
       recorded: { claimed_tag: CLAIM_TAG, door: 'member', client_id: 'bound-login', grant_id: 'mb-grant' },
       issued: { issued: true },
       deps, by: 'alex'
@@ -313,14 +315,14 @@ testGroup('the approvals row is a credential, not a remembered claim on 8xm', ()
   });
 });
 
-testGroup('episodic ref 697 correction note', () => {
-  test('the dated note cites 697 and the same shape marks a parent without superseding it', async () => {
-    const note = episodic697CorrectionNote();
+testGroup('bound-door correction note', () => {
+  test('the dated note marks a parent without superseding it', async () => {
+    const note = boundHostCorrectionNote();
     assert.strictEqual(note.layer, 'episodic');
-    assert.strictEqual(note.metadata.corrects, EPISODIC_697_ID);
-    assert.strictEqual(note.metadata.corrects, 697);
+    assert.strictEqual(note.metadata.corrects, undefined);
+    assert.ok(!note.content.includes('697'));
     assert.match(note.content, new RegExp(CORRECTION_NOTE_DATE));
-    assert.match(note.content, /grok-project/);
+    assert.match(note.content, /bound-host/);
     assert.match(note.content, /hub-bot/);
     assert.match(note.content, new RegExp(SHARED_GROK_CLIENT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.match(note.content, /original row is retained/);
@@ -341,7 +343,7 @@ testGroup('episodic ref 697 correction note', () => {
 });
 
 testGroup('write_doc stamps the credential and refuses the shared-login claim', () => {
-  test('write_doc stores grok-project when the caller string is hub-bot', async () => {
+  test('write_doc stores bound-host when the caller string is hub-bot', async () => {
     const db = makeStore();
     await withEnv({ EMET_SOURCE_TAGS: BOTH_TAGS }, () => withStore(db, () => actorStore.run(bound(), () =>
       writeDoc('threads/bound-stamp.md', '# BOUND stamp\n', MB_TAG))));
@@ -352,7 +354,7 @@ testGroup('write_doc stamps the credential and refuses the shared-login claim', 
     assert.strictEqual(row.source_basis, 'credential');
   });
 
-  test('write_doc on the shared login refuses grok-project with EMET-AUTH-044 and writes nothing', async () => {
+  test('write_doc on the shared login refuses bound-host with EMET-AUTH-044 and writes nothing', async () => {
     const db = makeStore();
     await withEnv({ EMET_SOURCE_TAGS: BOTH_TAGS }, () => withStore(db, async () => {
       await assert.rejects(
@@ -368,7 +370,7 @@ testGroup('write_doc stamps the credential and refuses the shared-login claim', 
 testGroup('transcript stamps the credential and refuses the shared-login claim', () => {
   const exchange = { user_message: 'hello from BOUND', assistant_message: 'a reply with no machine line' };
 
-  test('save_transcript stores grok-project when the caller channel is hub-bot', async () => {
+  test('save_transcript stores bound-host when the caller channel is hub-bot', async () => {
     const db = makeStore();
     const saved = await withStore(db, () => actorStore.run(bound(), () => saveTranscript(
       '2026-10-27_claim_save', 1761600000, 1761600060, [exchange], MB_TAG
@@ -381,7 +383,7 @@ testGroup('transcript stamps the credential and refuses the shared-login claim',
     assert.strictEqual(session.exchanges[0].source, CLAIM_TAG);
   });
 
-  test('save_transcript on the shared login refuses grok-project with EMET-AUTH-044 and writes nothing', async () => {
+  test('save_transcript on the shared login refuses bound-host with EMET-AUTH-044 and writes nothing', async () => {
     const db = makeStore();
     await withStore(db, async () => {
       await assert.rejects(
@@ -394,7 +396,7 @@ testGroup('transcript stamps the credential and refuses the shared-login claim',
     assert.strictEqual(db.transcripts().length, 0);
   });
 
-  test('transcript_append stores grok-project when the caller channel is hub-bot', async () => {
+  test('transcript_append stores bound-host when the caller channel is hub-bot', async () => {
     const db = makeStore();
     await withStore(db, () => actorStore.run(bound(), () => transcriptAppend({
       session_id: '2026-10-27_claim_append',
@@ -409,7 +411,7 @@ testGroup('transcript stamps the credential and refuses the shared-login claim',
     assert.strictEqual(session.exchanges[0].source, CLAIM_TAG);
   });
 
-  test('transcript_append on the shared login refuses grok-project with EMET-AUTH-044 and writes nothing', async () => {
+  test('transcript_append on the shared login refuses bound-host with EMET-AUTH-044 and writes nothing', async () => {
     const db = makeStore();
     await withStore(db, async () => {
       await assert.rejects(
@@ -430,8 +432,8 @@ testGroup('the HTTP wire returns EMET-AUTH-044 for the shared-login claim', () =
   test('a non-http or unauthenticated actor is not the shared-login claim', () => {
     const stdio = { ...mb(), transport: 'stdio', authenticated: true };
     const anon = { ...mb(), authenticated: false };
-    assert.strictEqual(sophiaClaimOnSharedLogin(stdio, CLAIM_TAG), false);
-    assert.strictEqual(sophiaClaimOnSharedLogin(anon, CLAIM_TAG), false);
+    assert.strictEqual(boundHostClaimOnSharedLogin(stdio, CLAIM_TAG), false);
+    assert.strictEqual(boundHostClaimOnSharedLogin(anon, CLAIM_TAG), false);
     const decision = actorStore.run(stdio, () => resolvedSourceTag(CLAIM_TAG));
     assert.strictEqual(decision.from, 'caller');
     assert.strictEqual(decision.tag, CLAIM_TAG);
@@ -478,7 +480,7 @@ testGroup('the HTTP wire returns EMET-AUTH-044 for the shared-login claim', () =
 });
 
 testGroup('oauth consent lists the door it actually granted', () => {
-  test('owner consent lists grok-project with door owner', async () => {
+  test('owner consent lists bound-host with door owner', async () => {
     const posted = await withEnv({ EMET_SOURCE_TAGS: BOTH_TAGS }, () => postApprove({
       client_id: 'bound-owner-login',
       source: CLAIM_TAG
@@ -492,7 +494,7 @@ testGroup('oauth consent lists the door it actually granted', () => {
     assert.strictEqual(listed.grant_id, null);
   });
 
-  test('member consent lists grok-project with door member', async () => {
+  test('member consent lists bound-host with door member', async () => {
     const db = makeStore();
     const { createMemberAccess } = await import('../src/invites.js');
     const invite = await createMemberAccess(db, { created_by: 'alex', display_name: CLAIM_TAG, source_tag: CLAIM_TAG });
@@ -524,7 +526,7 @@ testGroup('oauth consent lists the door it actually granted', () => {
     assert.strictEqual(listed.grant_id, null);
   });
 
-  test('guest consent writes no grok-project credential', async () => {
+  test('guest consent writes no bound-host credential', async () => {
     const db = makeStore();
     const { createInvite } = await import('../src/invites.js');
     const invite = await createInvite(db, { created_by: 'alex', display_name: CLAIM_TAG, source_tag: CLAIM_TAG });
@@ -553,8 +555,8 @@ testGroup('oauth consent lists the door it actually granted', () => {
   });
 });
 
-testGroup('Alex issuing a writer lists grok-project on the chooser', () => {
-  test('after Alex issues, /owner/chooser lists grok-project as its own door', async () => {
+testGroup('Alex issuing a writer lists bound-host on the chooser', () => {
+  test('after Alex issues, /owner/chooser lists bound-host as its own door', async () => {
     const express = (await import('express')).default;
     const { ApproveThrottle } = await import('../src/approve-throttle.js');
     const { MongoOAuthProvider } = await import('../src/oauth-provider.js');
@@ -641,7 +643,7 @@ testGroup('Alex issuing a writer lists grok-project on the chooser', () => {
       });
       const issuedHtml = await issued.text();
       assert.strictEqual(issued.status, 200, issuedHtml.slice(0, 500));
-      assert.match(issuedHtml, /Listed grok-project as its own door\./);
+      assert.match(issuedHtml, /Listed bound-host as its own door\./);
       assert.ok(approvals.content, issuedHtml.slice(0, 500));
       const data = att.parseApprovals(approvals.content);
       const listed = data.approved[CLAIM_TAG];
@@ -655,6 +657,334 @@ testGroup('Alex issuing a writer lists grok-project on the chooser', () => {
       chooserHold.server = null;
       await closeServer(server);
     }
+  });
+});
+
+const LEGACY_BOUND_TAG = 'grok-project';
+
+testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => {
+  test('the shipped source matches the old tag by digest and does not spell it', async () => {
+    const { isBoundHostTag, boundHostTagDigest, LEGACY_CLAIM_TAG_DIGEST } = await import('../src/bound-door.js');
+    const src = fs.readFileSync(fileURLToPath(new URL('../src/bound-door.js', import.meta.url)), 'utf8');
+    assert.strictEqual(boundHostTagDigest(LEGACY_BOUND_TAG), LEGACY_CLAIM_TAG_DIGEST);
+    assert.strictEqual(isBoundHostTag(LEGACY_BOUND_TAG), true);
+    assert.strictEqual(isBoundHostTag(LEGACY_BOUND_TAG.toUpperCase()), false);
+    assert.strictEqual(isBoundHostTag(CLAIM_TAG), true);
+    assert.strictEqual(isBoundHostTag(CLAIM_TAG.toUpperCase()), false);
+    assert.strictEqual(isBoundHostTag(MB_TAG), false);
+    assert.ok(!src.includes(LEGACY_BOUND_TAG));
+  });
+
+  test('a stored legacy token that declares hub-bot is stamped bound-host', async () => {
+    const att = await import('../src/attribution.js');
+    att._resetForTests();
+    const actor = bound({ sourceTag: LEGACY_BOUND_TAG });
+    await att.preflight({ db: { collection() { return { find() { return { limit() { return { toArray: async () => [] }; } }; } }; } }, prefix: 'emet_', deps: memDeps(), registry: [CLAIM_TAG, MB_TAG, LEGACY_BOUND_TAG] }, actor, { source: MB_TAG }, 'save_to_layer');
+    const decision = actorStore.run(actor, () => resolvedSourceTag(MB_TAG));
+    assert.strictEqual(decision.tag, CLAIM_TAG);
+    assert.strictEqual(decision.from, 'credential');
+    assert.notStrictEqual(decision.tag, MB_TAG);
+  });
+
+  test('a legacy sub-key stamps bound-host', () => {
+    const actor = mb();
+    actor.subkeySession = true;
+    actor.subkeyTag = LEGACY_BOUND_TAG;
+    actor.subkeyId = 'key-legacy';
+    const decision = actorStore.run(actor, () => resolvedSourceTag(MB_TAG));
+    assert.strictEqual(decision.tag, CLAIM_TAG);
+    assert.strictEqual(decision.from, 'subkey');
+  });
+
+  test('a legacy claim on the hub login is refused the same way', () => {
+    const decision = actorStore.run(mb(), () => resolvedSourceTag(LEGACY_BOUND_TAG));
+    assert.strictEqual(decision.from, 'bound-door');
+    assert.strictEqual(decision.tag, null);
+  });
+
+  test('an approvals row stored under the legacy tag stays that door', async () => {
+    const att = await import('../src/attribution.js');
+    att._resetForTests();
+    const deps = memDeps(att.renderApprovals({
+      approved: {
+        [LEGACY_BOUND_TAG]: {
+          basis: 'credential', door: 'member', client_id: SHARED_GROK_CLIENT, grant_id: null, source_tag: LEGACY_BOUND_TAG
+        }
+      },
+      pending: {},
+      denied: {},
+      clients: {}
+    }));
+    const listed = await recordBoundHostCredential(deps, {
+      client_id: SHARED_GROK_CLIENT, door: 'member', grant_id: null, by: 'alex'
+    });
+    assert.strictEqual(listed.written, false);
+    assert.strictEqual(listed.approved.client_id, SHARED_GROK_CLIENT);
+    const data = att.parseApprovals(deps.store.content);
+    assert.ok(data.approved[LEGACY_BOUND_TAG]);
+    assert.strictEqual(data.approved[CLAIM_TAG], undefined);
+  });
+
+  test('a writer request stored under the legacy tag still lists the door', async () => {
+    const att = await import('../src/attribution.js');
+    att._resetForTests();
+    const deps = memDeps(att.renderApprovals({ approved: {}, pending: {}, denied: {}, clients: {} }));
+    const listed = await boundHostListingAfterWriterIssue({
+      recorded: { claimed_tag: LEGACY_BOUND_TAG, door: 'member', client_id: 'bound-login', grant_id: 'mb-grant' },
+      issued: { issued: true },
+      deps, by: 'alex'
+    });
+    assert.strictEqual(listed.written, true);
+    assert.strictEqual(listed.approved.source_tag, CLAIM_TAG);
+    assert.strictEqual(listed.approved.grant_id, null);
+  });
+
+  test('owner consent with the legacy source tag is refused', async () => {
+    const posted = await withEnv({ EMET_SOURCE_TAGS: [MB_TAG, CLAIM_TAG, LEGACY_BOUND_TAG].join(',') }, () => postApprove({
+      client_id: 'legacy-owner-login',
+      source: LEGACY_BOUND_TAG
+    }));
+    assert.strictEqual(posted.status, 400, posted.text.slice(0, 400));
+    assert.match(posted.text, /use bound-host/);
+    assert.match(posted.text, /EMET-AUTH-045/);
+    assert.strictEqual(posted.location, null);
+    assert.strictEqual(await listedTag(posted.db), null);
+  });
+
+  test('a new sub-key request under the legacy tag is refused', async () => {
+    const { requestSubkey } = await import('../src/subkeys.js');
+    await withEnv({
+      EMET_SUBKEYS: '1',
+      EMET_SUBKEY_PEPPER: '0123456789abcdef0123456789abcdef'
+    }, async () => {
+      await assert.rejects(
+        () => requestSubkey({ read() { throw new Error('store'); } }, {
+          transport: 'http', authenticated: true, personId: 'alex', ownerId: 'alex', sourceTag: MB_TAG
+        }, { tag: LEGACY_BOUND_TAG }, [LEGACY_BOUND_TAG]),
+        /use bound-host/
+      );
+    });
+  });
+
+  test('a new writer request under the legacy tag is refused', async () => {
+    const { prepareWriterRequest, _resetWriterApprovalsForTests } = await import('../src/writer-approval.js');
+    _resetWriterApprovalsForTests();
+    await assert.rejects(() => prepareWriterRequest(makeStore(), 'emet_', {
+      transport: 'http',
+      authenticated: true,
+      sourceBasis: 'login',
+      sourceTag: MB_TAG,
+      personId: 'alex',
+      ownerId: 'alex',
+      clientId: SHARED_GROK_CLIENT,
+      grantId: 'mbgrant00000000000001'
+    }, {
+      decision: 'prepare',
+      client: 'bound-login',
+      claimed_tag: LEGACY_BOUND_TAG,
+      door: 'member',
+      reason: 'BOUND needs her own door',
+      correlation_id: 'b1b2c3d4e5f60719'
+    }), /use bound-host/);
+  });
+
+  test('a member code under the legacy tag is refused', async () => {
+    const { memberAccessCreate } = await import('../src/tools.js');
+    const db = makeStore();
+    const dbManager = { db, async getConnection() { return {}; } };
+    await withEnv({ EMET_SOURCE_TAGS: [MB_TAG, CLAIM_TAG, LEGACY_BOUND_TAG].join(',') }, async () => {
+      await assert.rejects(
+        () => actorStore.run({ transport: 'stdio' }, () => memberAccessCreate(dbManager, { display_name: 'x', source: LEGACY_BOUND_TAG })),
+        /use bound-host/
+      );
+    });
+    assert.strictEqual(db.collection('invites').docs.length, 0);
+  });
+
+  test('a guest invite under the legacy tag is refused', async () => {
+    const { inviteCreate } = await import('../src/tools.js');
+    const db = makeStore();
+    const dbManager = { db, async getConnection() { return {}; } };
+    await withEnv({ EMET_SOURCE_TAGS: [MB_TAG, CLAIM_TAG, LEGACY_BOUND_TAG].join(',') }, async () => {
+      await assert.rejects(
+        () => actorStore.run({ transport: 'stdio' }, () => inviteCreate(dbManager, { display_name: 'x', source: LEGACY_BOUND_TAG })),
+        /use bound-host/
+      );
+    });
+    assert.strictEqual(db.collection('invites').docs.length, 0);
+  });
+
+  test('a break-glass member code under the legacy tag is refused', async () => {
+    const express = (await import('express')).default;
+    const { ApproveThrottle } = await import('../src/approve-throttle.js');
+    const { MongoOAuthProvider } = await import('../src/oauth-provider.js');
+    const { mountBreakGlass, _resetBreakGlassForTests } = await import('../src/break-glass.js');
+    const { createOwnerGate } = await import('../src/owner-session.js');
+    _resetBreakGlassForTests();
+    const db = makeStore();
+    const provider = new MongoOAuthProvider(() => db, { passphrase: PASSPHRASE, cimd: false });
+    const gate = createOwnerGate({
+      checkPassphrase: (input) => provider.checkPassphrase(input),
+      throttle: new ApproveThrottle()
+    });
+    const app = express();
+    app.set('trust proxy', 1);
+    mountBreakGlass(app, { gate, ownerId: 'alex', db: () => db, prefix: 'emet_', provider });
+    const server = await new Promise((resolve) => { const listening = app.listen(0, '127.0.0.1', () => resolve(listening)); });
+    try {
+      const base = `http://127.0.0.1:${server.address().port}`;
+      const login = await fetch(`${base}/owner/login`, {
+        method: 'POST',
+        redirect: 'manual',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ passphrase: PASSPHRASE, next: '/owner/break-glass' }).toString()
+      });
+      assert.strictEqual(login.status, 303, await login.text());
+      const cookie = login.headers.get('set-cookie').split(';')[0];
+      const page = await fetch(`${base}/owner/break-glass`, { headers: { cookie } });
+      const html = await page.text();
+      const csrf = /name="csrf" value="([0-9a-f]{64})"/.exec(html);
+      assert.ok(csrf, html.slice(0, 400));
+      const posted = await fetch(`${base}/owner/break-glass/reissue`, {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ csrf: csrf[1], door: 'member', tag: LEGACY_BOUND_TAG }).toString()
+      });
+      const body = await posted.text();
+      assert.strictEqual(posted.status, 400, body.slice(0, 400));
+      assert.match(body, /use bound-host/);
+      assert.match(body, /EMET-AUTH-045/);
+      assert.strictEqual(db.collection('invites').docs.length, 0);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('a stored member code under the legacy tag still redeems', async () => {
+    const db = makeStore();
+    const { createMemberAccess } = await import('../src/invites.js');
+    const invite = await createMemberAccess(db, { created_by: 'alex', display_name: 'stored', source_tag: LEGACY_BOUND_TAG });
+    const http = await httpApp();
+    http.remote.dbManager.db = db;
+    await db.collection('emet_oauth_clients').insertOne(oauthClient('legacy-member-login'));
+    const att = await import('../src/attribution.js');
+    att._resetForTests();
+    const posted = await withStore(db, async () => {
+      const res = await fetch(`${http.base}/oauth/approve`, {
+        method: 'POST',
+        redirect: 'manual',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: 'legacy-member-login',
+          redirect_uri: APPROVE_REDIRECT,
+          code_challenge: 'bound-challenge',
+          invite_code: invite.code
+        }).toString()
+      });
+      return { status: res.status, text: await res.text(), location: res.headers.get('location') };
+    });
+    assert.strictEqual(posted.status, 302, posted.text.slice(0, 400));
+    assert.match(posted.location, /[?&]code=/);
+    const { tokenDigest } = await import('../src/oauth-provider.js');
+    const code = new URL(posted.location).searchParams.get('code');
+    const stored = db.collection('emet_oauth_codes').docs.find((row) => row.code === tokenDigest(code));
+    assert.ok(stored, 'the redeemed code was not stored');
+    assert.strictEqual(stored.source_tag, LEGACY_BOUND_TAG);
+    assert.strictEqual(stored.issued_via, 'member');
+  });
+
+  test('setup refuses the legacy tag as a new source', async () => {
+    const { setupComplete } = await import('../src/setup.js');
+    await assert.rejects(
+      () => setupComplete({ source_tag: LEGACY_BOUND_TAG }),
+      (error) => error.emetCode === 'EMET-AUTH-045' && /use bound-host/.test(error.message)
+    );
+  });
+
+  test('a chooser decision under the legacy tag is refused', async () => {
+    const express = (await import('express')).default;
+    const { ApproveThrottle } = await import('../src/approve-throttle.js');
+    const { MongoOAuthProvider } = await import('../src/oauth-provider.js');
+    const { mountChooser } = await import('../src/chooser.js');
+    const { createOwnerGate } = await import('../src/owner-session.js');
+    const db = makeStore();
+    const provider = new MongoOAuthProvider(() => db, { passphrase: PASSPHRASE, cimd: false });
+    const gate = createOwnerGate({
+      checkPassphrase: (input) => provider.checkPassphrase(input),
+      throttle: new ApproveThrottle()
+    });
+    const app = express();
+    app.set('trust proxy', 1);
+    mountChooser(app, { gate, ownerId: 'alex', db: () => db, prefix: 'emet_', provider, deps: () => ({}) });
+    const server = await new Promise((resolve) => { const listening = app.listen(0, '127.0.0.1', () => resolve(listening)); });
+    try {
+      const base = `http://127.0.0.1:${server.address().port}`;
+      const login = await fetch(`${base}/owner/login`, {
+        method: 'POST',
+        redirect: 'manual',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ passphrase: PASSPHRASE, next: '/owner/chooser' }).toString()
+      });
+      assert.strictEqual(login.status, 303, await login.text());
+      const cookie = login.headers.get('set-cookie').split(';')[0];
+      const page = await fetch(`${base}/owner/chooser`, { headers: { cookie } });
+      const html = await page.text();
+      const csrf = /name="csrf" value="([0-9a-f]{64})"/.exec(html);
+      assert.ok(csrf, html.slice(0, 400));
+      const posted = await fetch(`${base}/owner/chooser/decide`, {
+        method: 'POST',
+        headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ csrf: csrf[1], decision: 'member', tag: LEGACY_BOUND_TAG }).toString()
+      });
+      const body = await posted.text();
+      assert.strictEqual(posted.status, 400, body.slice(0, 400));
+      assert.match(body, /use bound-host/);
+      assert.match(body, /EMET-AUTH-045/);
+      assert.strictEqual(db.collection('invites').docs.length, 0);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('every legacy refusal returns the one new code', async () => {
+    const { ERROR_CODES } = await import('../src/error-codes.js');
+    assert.strictEqual(ERROR_CODES['EMET-AUTH-045'].summary, 'The previous bound-door spelling is refused for a new choice');
+    const { memberAccessCreate, inviteCreate } = await import('../src/tools.js');
+    const { requestSubkey } = await import('../src/subkeys.js');
+    const { prepareWriterRequest, _resetWriterApprovalsForTests } = await import('../src/writer-approval.js');
+    const { setupComplete } = await import('../src/setup.js');
+    const db = makeStore();
+    const dbManager = { db, async getConnection() { return {}; } };
+    const code = (error) => error.emetCode === 'EMET-AUTH-045' && /use bound-host/.test(error.message);
+    await withEnv({
+      EMET_SOURCE_TAGS: [MB_TAG, CLAIM_TAG, LEGACY_BOUND_TAG].join(','),
+      EMET_SUBKEYS: '1',
+      EMET_SUBKEY_PEPPER: '0123456789abcdef0123456789abcdef'
+    }, async () => {
+      await assert.rejects(
+        () => actorStore.run({ transport: 'stdio' }, () => memberAccessCreate(dbManager, { display_name: 'x', source: LEGACY_BOUND_TAG })),
+        code
+      );
+      await assert.rejects(
+        () => actorStore.run({ transport: 'stdio' }, () => inviteCreate(dbManager, { display_name: 'x', source: LEGACY_BOUND_TAG })),
+        code
+      );
+      await assert.rejects(
+        () => requestSubkey({ read() { throw new Error('store'); } }, {
+          transport: 'http', authenticated: true, personId: 'alex', ownerId: 'alex', sourceTag: MB_TAG
+        }, { tag: LEGACY_BOUND_TAG }, [LEGACY_BOUND_TAG]),
+        code
+      );
+      _resetWriterApprovalsForTests();
+      await assert.rejects(() => prepareWriterRequest(db, 'emet_', {
+        transport: 'http', authenticated: true, sourceBasis: 'login', sourceTag: MB_TAG,
+        personId: 'alex', ownerId: 'alex', clientId: SHARED_GROK_CLIENT, grantId: 'mbgrant00000000000001'
+      }, {
+        decision: 'prepare', client: 'bound-login', claimed_tag: LEGACY_BOUND_TAG, door: 'member',
+        reason: 'BOUND needs her own door', correlation_id: 'c1b2c3d4e5f60719'
+      }), code);
+      await assert.rejects(() => setupComplete({ source_tag: LEGACY_BOUND_TAG }), code);
+    });
   });
 });
 

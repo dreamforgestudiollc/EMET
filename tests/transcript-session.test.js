@@ -211,9 +211,9 @@ testGroup('session ids: a closed id is never reused (failure a, episodic ref 598
   test('a slug whose id is already CLOSED opens as <id>-2, and the response says why', async () => {
     const { sessionOpen } = await import('../src/tools.js');
     const { baseOf } = await import('../src/session-graph.js');
-    const first = await sessionOpen({ slug: 'grok-project-init' }, null, fakeSessions(), EVENING);
+    const first = await sessionOpen({ slug: 'bound-host-init' }, null, fakeSessions(), EVENING);
     const db = fakeSessions([first.base]);
-    const r = await sessionOpen({ slug: 'grok-project-init' }, null, db, EVENING);
+    const r = await sessionOpen({ slug: 'bound-host-init' }, null, db, EVENING);
     assert.strictEqual(r.base, `${first.base}-2`);
     assert.strictEqual(r.session_id, `${first.base}-2_verbatim_part1`);
     assert.ok(r.suffix_applied, 'no suffix_applied block');
@@ -301,7 +301,7 @@ testGroup('session ids: a suffix never collides with a real slug ending in -N (r
 });
 
 testGroup('transcript writes into a closed session (review fix 1; Alex 2026-10-01: one closing exchange, corrections allowed)', () => {
-  const CLOSED = '2026-09-30_grok-project-init';
+  const CLOSED = '2026-09-30_bound-host-init';
   const P1 = `${CLOSED}_verbatim_part1`;
   const CLOSED_AT = EVENING;
   const msg = { user_message: 'u', assistant_message: 'a', source: 'test' };
@@ -478,7 +478,7 @@ testGroup('transcript writes into a closed session (review fix 1; Alex 2026-10-0
 });
 
 testGroup('closed sessions: a retry or an odd id can write nothing (Tester review 3 and Reviewer gate on thatcommit)', () => {
-  const CLOSED = '2026-09-30_grok-project-init';
+  const CLOSED = '2026-09-30_bound-host-init';
   const P1 = `${CLOSED}_verbatim_part1`;
   const CLOSED_AT = EVENING;
   const msg = { user_message: 'u', assistant_message: 'a', source: 'test' };

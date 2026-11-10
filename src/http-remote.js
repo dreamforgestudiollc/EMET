@@ -254,6 +254,11 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
         res.locals.reason = 'bad_source';
         return res.status(400).end('source tag is not registered');
       }
+      const { isLegacyBoundHostSpelling } = await import('./bound-door.js');
+      if (isLegacyBoundHostSpelling(requested)) {
+        res.locals.reason = 'legacy_bound_tag';
+        return res.status(400).end('use bound-host (EMET-AUTH-045)');
+      }
       sourceTag = requested || null;
     }
     const { isOwlIdentity } = await import('./owl.js');
@@ -291,13 +296,17 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
       issued_via: inviteSubject ? (inviteDoor === 'member' ? 'member' : 'invite') : 'owner',
       source_tag: sourceTag,
     });
-    if (sourceTag === 'grok-project') {
-      try {
-        const { recordSophiaCredential } = await import('./bound-door.js');
-        const door = inviteSubject ? (inviteDoor === 'member' ? 'member' : 'guest') : 'owner';
-        await recordSophiaCredential(t.approvalsDeps, { client_id, door, grant_id: null, by: 'consent' });
-      } catch {
-        console.error('[emet] bound door listing was not written');
+    if (sourceTag) {
+      const { recordBoundHostCredential, CLAIM_TAG } = await import('./bound-door.js');
+      // A new consent lists the door only for the current tag. The previous
+      // spelling is refused above, before a token is issued.
+      if (sourceTag === CLAIM_TAG) {
+        try {
+          const door = inviteSubject ? (inviteDoor === 'member' ? 'member' : 'guest') : 'owner';
+          await recordBoundHostCredential(t.approvalsDeps, { client_id, door, grant_id: null, by: 'consent' });
+        } catch {
+          console.error('[emet] bound door listing was not written');
+        }
       }
     }
     const u = new URL(redirect_uri);

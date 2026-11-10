@@ -219,6 +219,11 @@
     "status": "active",
     "internal": false
   },
+  "EMET-AUTH-045": {
+    "summary": "The previous bound-door spelling is refused for a new choice",
+    "status": "active",
+    "internal": false
+  },
   "EMET-CFG-001": {
     "summary": "Database name must be a plain name",
     "status": "active",

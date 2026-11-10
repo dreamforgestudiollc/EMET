@@ -1,5 +1,5 @@
 /**
- * Attribution per session v2 (2026-10-12). Regression for BOUND (grok-project)
+ * Attribution per session v2 (2026-10-12). Regression for BOUND (bound-host)
  * and Intake (intake-bot) stamped hub-bot on the shared Grok
  * client bound-login-client, for Tester's review findings A1-A4 of PR 32,
  * and for the owner's new-client requirements (COS flag, owner fallback, solo
@@ -43,10 +43,10 @@ function memDeps(initial = null) {
 const ownerHost = (extra = {}) => ({ personId: 'alex', ownerId: 'alex', clientId: 'claude-host', transport: 'http', authenticated: true, sourceTag: 'cowork-cloud', sourceBasis: 'login', scopes: [], ...extra });
 const actorFor = (extra = {}) => ({ personId: 'alex', ownerId: 'alex', clientId: CLIENT, transport: 'http', authenticated: true, sourceTag: 'hub-bot', scopes: [], ...extra });
 async function fresh() { const a = await import('../src/attribution.js'); a._resetForTests(); return a; }
-const ctx = (over = {}) => ({ db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps: memDeps(), registry: ['hub-bot', 'intake-bot', 'grok-project', 'cowork-cloud'], ...over });
+const ctx = (over = {}) => ({ db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps: memDeps(), registry: ['hub-bot', 'intake-bot', 'bound-host', 'cowork-cloud'], ...over });
 
 testGroup('stamp', () => {
-  test('Intake declared on the Master Hub login is stamped intake-bot, login kept', async () => {
+  test('Intake declared on the hub login is stamped intake-bot, login kept', async () => {
     const att = await fresh();
     const { resolvedSourceTag } = await import('../src/tools.js');
     const { actorStore } = await import('../src/persons.js');
@@ -62,7 +62,7 @@ testGroup('stamp', () => {
   });
   test('stdio is unchanged', async () => {
     const { resolvedSourceTag } = await import('../src/tools.js');
-    assert.deepStrictEqual(resolvedSourceTag('grok-project'), { tag: 'grok-project', from: 'caller' });
+    assert.deepStrictEqual(resolvedSourceTag('bound-host'), { tag: 'bound-host', from: 'caller' });
   });
 });
 
@@ -113,19 +113,19 @@ testGroup('A2 owner status needs the owner acting as the owner', () => {
 });
 
 testGroup('A3 no rights beyond the login tag', () => {
-  test('a intake-bound login declaring grok-project cannot write HANDOFF.md, STATE.md or another bot dir', async () => {
+  test('a intake-bound login declaring bound-host cannot write HANDOFF.md, STATE.md or another bot dir', async () => {
     const att = await fresh();
     const { refuseBotMainRecord, refuseBotRetireRename } = await import('../src/tools.js');
     const { actorStore } = await import('../src/persons.js');
     process.env.EMET_RECORD_DOCS = 'bots/intake-bot/HANDOFF.md,bots/tester-bot/HANDOFF.md';
-    process.env.EMET_SOURCE_TAGS = 'hub-bot,intake-bot,grok-project';
+    process.env.EMET_SOURCE_TAGS = 'hub-bot,intake-bot,bound-host';
     const a = actorFor({ sourceTag: 'intake-bot' });
-    await att.preflight(ctx(), a, { source: 'grok-project' }, 'write_doc');
+    await att.preflight(ctx(), a, { source: 'bound-host' }, 'write_doc');
     actorStore.run(a, () => {
-      assert.throws(() => refuseBotMainRecord('HANDOFF.md', 'grok-project', 'write_doc'), /bot tag/);
-      assert.throws(() => refuseBotMainRecord('STATE.md', 'grok-project', 'patch_doc'), /bot tag/);
-      assert.throws(() => refuseBotMainRecord('bots/tester-bot/HANDOFF.md', 'grok-project', 'write_doc'), /outside/);
-      assert.throws(() => refuseBotRetireRename('grok-project', 'retire_doc'), /not a bot tool/);
+      assert.throws(() => refuseBotMainRecord('HANDOFF.md', 'bound-host', 'write_doc'), /bot tag/);
+      assert.throws(() => refuseBotMainRecord('STATE.md', 'bound-host', 'patch_doc'), /bot tag/);
+      assert.throws(() => refuseBotMainRecord('bots/tester-bot/HANDOFF.md', 'bound-host', 'write_doc'), /outside/);
+      assert.throws(() => refuseBotRetireRename('bound-host', 'retire_doc'), /not a bot tool/);
     });
     delete process.env.EMET_RECORD_DOCS; delete process.env.EMET_SOURCE_TAGS;
   });
@@ -414,18 +414,18 @@ testGroup('(d) remembered client tags (the owner 2026-10-12)', () => {
 });
 
 testGroup('(e) Tester delta M2: explicit as on a client with approved tags', () => {
-  test("the owner's case: client 8xm with Intake approved, approving grok-project keeps Intake", async () => {
+  test("the owner's case: client 8xm with Intake approved, approving bound-host keeps Intake", async () => {
     const att = await fresh();
     const c = ctx({ registry: ['cowork-cloud'] });
     const on8xm = () => actorFor({ sourceTag: null, clientId: 'bound-login-client', grantId: 'g-8xm' });
     await assert.rejects(() => att.preflight(c, on8xm(), { source: 'intake-bot', content: 'x' }, 'write_doc'));
     await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'intake-bot', decision: 'approve' });
-    await assert.rejects(() => att.preflight(c, on8xm(), { source: 'grok-project', content: 'x' }, 'write_doc'));
-    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'grok-project', decision: 'approve' }), /already has approved tags \(intake-bot\)/);
-    assert.ok(att.parseApprovals(c.deps.store.content).pending['grok-project'], 'unchanged on refusal');
-    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'grok-project', decision: 'approve', as: 'add' });
+    await assert.rejects(() => att.preflight(c, on8xm(), { source: 'bound-host', content: 'x' }, 'write_doc'));
+    await assert.rejects(() => att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'bound-host', decision: 'approve' }), /already has approved tags \(intake-bot\)/);
+    assert.ok(att.parseApprovals(c.deps.store.content).pending['bound-host'], 'unchanged on refusal');
+    await att.clientApprove(c.deps, ownerHost(), 'alex', { tag: 'bound-host', decision: 'approve', as: 'add' });
     const d = att.parseApprovals(c.deps.store.content);
-    assert.deepStrictEqual(att.rememberedFor(d, 'bound-login-client').sort(), ['grok-project', 'intake-bot']);
+    assert.deepStrictEqual(att.rememberedFor(d, 'bound-login-client').sort(), ['bound-host', 'intake-bot']);
     assert.ok(!d.clients['bound-login-client'].tags['intake-bot'].retired);
   });
   test('rename on a client with several tags must name the one it replaces', async () => {

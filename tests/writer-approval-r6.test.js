@@ -41,7 +41,7 @@ const OWNER = 'alex';
 const MB_GRANT = 'mbgrant00000000000001';
 const CORR = 'abcdefabcdefabcd';
 const OWL = 'user-EMET--owl';
-const AI_CANNOT_GRANT = 'emet_client_approve: an AI cannot grant a writer. Master Hub prepares a request. the owner decides it on /owner/chooser. Nothing was changed.';
+const AI_CANNOT_GRANT = 'emet_client_approve: an AI cannot grant a writer. The hub login prepares a request. the owner decides it on /owner/chooser. Nothing was changed.';
 const holder = { db: null };
 const provider = new MongoOAuthProvider(() => holder.db, { passphrase: SECRET, cimd: false });
 const throttle = new ApproveThrottle();
@@ -271,7 +271,7 @@ try {
   });
 
   await testGroup('prepare and decide', async () => {
-    await test('Master Hub prepares, the server records validation, and Master Hub cannot approve', async () => {
+    await test('the hub login prepares, the server records validation, and the hub login cannot approve', async () => {
       _resetWriterApprovalsForTests();
       holder.db = makeStore();
       const caught = await quiet(() => prepareWriterRequest(holder.db, 'emet_', mbActor(), draft()));
@@ -294,7 +294,7 @@ try {
       assert.equal(again.unchanged, true);
       assert.equal(again.request_id, row.request_id);
       const declared = mbActor({ sourceTag: 'intake-bot', sourceBasis: 'declared', declaredTag: 'hub-bot', effectiveTag: 'hub-bot' });
-      await assert.rejects(() => prepareWriterRequest(holder.db, 'emet_', declared, draft({ correlation_id: 'bbbbbbbbbbbbbbb1' })), /only Master Hub/);
+      await assert.rejects(() => prepareWriterRequest(holder.db, 'emet_', declared, draft({ correlation_id: 'bbbbbbbbbbbbbbb1' })), /only the hub login/);
       await assert.rejects(() => prepareWriterRequest(holder.db, 'emet_', mbActor(), draft({ decision: 'approve' })), /cannot approve/);
       const att = await import('../src/attribution.js');
       att._resetForTests();
@@ -485,7 +485,7 @@ try {
       assert.equal(getWriterRequest(prepared.request_id).issued, true);
     });
 
-    await test('a chief of staff who is not Master Hub cannot approve a pending client', async () => {
+    await test('a chief of staff who is not the hub login cannot approve a pending client', async () => {
       const att = await import('../src/attribution.js');
       att._resetForTests();
       const actor = cosActor();
@@ -754,7 +754,7 @@ try {
       assert.match(metric.last_line, /OWL RETIREMENT CHECK FAILED/);
     });
 
-    await test('a sub-key is not approved by owl, Master Hub, or the chief of staff', async () => {
+    await test('a sub-key is not approved by owl, the hub login, or the chief of staff', async () => {
       const sk = await import('../src/subkeys.js');
       const att = await import('../src/attribution.js');
       const deps = { subkeys: createMemoryStore() };

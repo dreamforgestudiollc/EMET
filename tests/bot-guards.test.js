@@ -29,7 +29,7 @@ for (const k of ['EMET_CLOSE_GRACE_MINUTES', 'CASCADE_CLOSE_GRACE_MINUTES', 'EME
 const INTAKE = 'intake-bot';
 const TESTER = 'tester-bot';
 const HUB = 'hub-bot';
-const HOST = 'grok-project';
+const HOST = 'bound-host';
 const RECORD_DOCS = `bots/${INTAKE}/HANDOFF.md,bots/${TESTER}/HANDOFF.md`;
 const REGISTRY = `cli,mobile,desktop-cowork,cowork-cloud,${HOST},${HUB},${INTAKE},${TESTER}`;
 process.env.EMET_RECORD_DOCS = RECORD_DOCS;
@@ -78,7 +78,7 @@ const C1_TEXT = (tag) => new RegExp(`is a main record and ${tag} is a bot tag - 
 const unchanged = (db) => { assert.strictEqual(versionOf(db, 'STATE.md'), 7); assert.strictEqual(versionOf(db, 'HANDOFF.md'), 3); };
 
 testGroup('1. registered hosts only on the main records (EMET_SOURCE_TAGS set)', () => {
-  test('the hub host patches STATE.md and supersedes HANDOFF.md; Master Hub writes STATE.md (no lock-out)', () => withEnv(REG, async () => {
+  test('the hub host patches STATE.md and supersedes HANDOFF.md; the hub login writes STATE.md (no lock-out)', () => withEnv(REG, async () => {
     const db = seeded();
     const p = await go(db, 'patch_doc', { doc_id: 'STATE.md', old_str: 'active: hub work', new_str: 'active: hub work, patched', source: HOST });
     assert.ok(!p.isError, text(p).slice(0, 300));
@@ -169,8 +169,8 @@ testGroup('1. registered hosts only on the main records (EMET_SOURCE_TAGS set)',
     assert.strictEqual(versionOf(db, 'STATE.md'), 8);
   }));
   test('the live registry includes every recent main-record writer and the hub', () => {
-    const live = 'cli,mobile,desktop-cowork,cowork-cloud,grok-project,hub-bot,reviewer-bot,tester-bot,memory-bot,intake-bot,research-bot'.split(',');
-    for (const t of ['grok-project', 'cowork-cloud', 'hub-bot']) assert.ok(live.includes(t), t);
+    const live = 'cli,mobile,desktop-cowork,cowork-cloud,bound-host,hub-bot,reviewer-bot,tester-bot,memory-bot,intake-bot,research-bot'.split(',');
+    for (const t of ['bound-host', 'cowork-cloud', 'hub-bot']) assert.ok(live.includes(t), t);
   });
 });
 
@@ -264,7 +264,7 @@ testGroup('2. each bot in its own directory (bots/<tag>/ only)', () => {
       assert.ok(!own.isError, text(own).slice(0, 300));
     });
   });
-  test('a listed bot that is not in the registry still writes its own folder (the bots/ registry check is for non-bot tags)', () => withEnv({ EMET_SOURCE_TAGS: 'cli,grok-project,hub-bot' }, async () => {
+  test('a listed bot that is not in the registry still writes its own folder (the bots/ registry check is for non-bot tags)', () => withEnv({ EMET_SOURCE_TAGS: 'cli,bound-host,hub-bot' }, async () => {
     const db = seeded();
     const own = await go(db, 'patch_doc', { doc_id: `bots/${INTAKE}/notes.md`, old_str: 'Intake notes', new_str: 'Intake notes, own', source: INTAKE });
     assert.ok(!own.isError, text(own).slice(0, 300));
@@ -318,7 +318,7 @@ testGroup('2. each bot in its own directory (bots/<tag>/ only)', () => {
       assert.ok(!db.doc('bots/ROSTER.md'));
     });
   });
-  test('with a registry set, registered hosts still write under bots/: grok-project, cowork-cloud, hub-bot', () => withEnv(REG, async () => {
+  test('with a registry set, registered hosts still write under bots/: bound-host, cowork-cloud, hub-bot', () => withEnv(REG, async () => {
     const db = seeded();
     let v = 1;
     for (const src of [HOST, 'cowork-cloud', HUB]) {
