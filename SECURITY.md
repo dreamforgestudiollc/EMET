@@ -10,4 +10,4 @@ EMET is 0.x. Only the latest release ([releases](https://github.com/dreamforgest
 
 ## Scope
 
-EMET runs on infrastructure you control: your host, your MongoDB, your `EMET_OAUTH_PASSPHRASE`. Securing that deployment is yours. Reports about EMET's own code are in scope, including OAuth, source-tag guards (`EMET_SOURCE_TAGS`), access grants, the no-delete write path, and the GEM socket and `gem-check`.
+EMET runs on infrastructure you control: your host, your MongoDB, your `EMET_OAUTH_PASSPHRASE`. Securing that deployment is yours. One collaborative project is one instance. The steps are [docs/SECURITY-AT-SCALE.md](docs/SECURITY-AT-SCALE.md). Reports about EMET's own code are in scope, including OAuth, source-tag guards (`EMET_SOURCE_TAGS`), access grants, the no-delete write path, and the GEM socket and `gem-check`.
