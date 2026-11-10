@@ -40,7 +40,7 @@ import { setting } from './env.js';
 import { chooserBinding } from './deep-links.js';
 import { isOwlIdentity } from './owl.js';
 import { isMasterBlasterActor } from './writer-approval.js';
-import { isBoundHostCredential, boundHostClaimOnSharedLogin, BOUND_LOGIN_MESSAGE, CLAIM_TAG, MB_TAG } from './bound-door.js';
+import { isBoundHostCredential, isBoundHostTag, boundHostClaimOnSharedLogin, BOUND_LOGIN_MESSAGE, CLAIM_TAG, MB_TAG } from './bound-door.js';
 
 export const APPROVALS_DOC = 'emet/CLIENT_APPROVALS.md';
 export const WRITE_TOOLS = new Set([
@@ -413,7 +413,7 @@ export async function preflight(ctx, actor, args, toolName) {
   const keptAuto = !declared && !bound && remembered.length === 1 ? remembered[0] : null;
   let effective = declared || bound || keptAuto || (actor.clientId && actor.clientId !== 'http:visitor' ? autoTag(actor.clientId) : null);
   let basis = declared && declared !== bound ? 'declared' : (bound ? 'login' : (keptAuto ? 'remembered' : (effective ? 'auto' : null)));
-  const boundHostDoor = isBoundHostCredential(actor) && (!declared || declared === CLAIM_TAG || declared === MB_TAG);
+  const boundHostDoor = isBoundHostCredential(actor) && (!declared || isBoundHostTag(declared) || declared === MB_TAG);
   if (boundHostDoor) {
     effective = CLAIM_TAG;
     basis = 'credential';

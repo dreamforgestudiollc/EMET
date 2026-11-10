@@ -181,9 +181,26 @@ testGroup('operator settings in setting() are in the example and the deploy tabl
     assert.deepStrictEqual(missing, []);
   });
 
+  test('the DEPLOY legacy lists are the setting() names and the direct process.env names', () => {
+    const setting = new Set();
+    const direct = new Set();
+    for (const file of walkJs(path.join(ROOT, 'src'))) {
+      const text = fs.readFileSync(file, 'utf8');
+      for (const match of text.matchAll(/setting\(\s*'([A-Z0-9_]+)'/g)) setting.add(match[1]);
+      for (const match of text.matchAll(/process\.env\.EMET_([A-Z0-9_]+)/g)) direct.add(match[1]);
+      for (const match of text.matchAll(/process\.env\[['"]EMET_([A-Z0-9_]+)['"]\]/g)) direct.add(match[1]);
+    }
+    for (const name of setting) direct.delete(name);
+    const block = between(read('docs/DEPLOY.md'), '**Legacy `CASCADE_` names.**', '**The two-pass deploy');
+    const [settingPart, directPart] = block.split('These read `process.env` directly');
+    const listed = (part) => [...part.matchAll(/`EMET_([A-Z0-9_]+)`/g)].map((match) => match[1]);
+    assert.deepStrictEqual(listed(settingPart).sort(), [...setting].sort());
+    assert.deepStrictEqual(listed(directPart).sort(), [...direct].sort());
+  });
+
   test('the report address in current docs is the code default', () => {
     assert.strictEqual(DEFAULT_REPORT_EMAIL, 'dreamforgestudio@mail.hubbot.com');
-    for (const rel of ['README.md', 'site/index.html', '.env.example', 'docs/features/errors.md', 'docs/DEPLOY.md', 'docs/ERROR-CODES-SPEC.md']) {
+    for (const rel of ['README.md', 'site/index.html', '.env.example', 'docs/features/errors.md', 'docs/DEPLOY.md', 'docs/ERROR-CODES-SPEC.md', 'CHANGELOG.md']) {
       assert.ok(read(rel).includes(DEFAULT_REPORT_EMAIL), rel);
     }
     for (const rel of ['README.md', 'site/index.html', '.env.example', 'docs/features/errors.md']) {
@@ -199,13 +216,19 @@ testGroup('the charter names the built socket, and install names stay out of pub
     assert.ok(row.includes('The socket is built.'));
     assert.ok(row.includes('`src/socket.js`'));
     assert.ok(row.includes('`docs/gem/README.md`'));
+    assert.ok(row.includes('`gem-library/SPEC.md`'));
+    assert.ok(charter.includes('revised with the user\'s approval 2026-11-10 (the extension socket is built; §4 Extension socket)'));
     assert.ok(!row.includes('socket not built'));
-    assert.ok(read('docs/gem/README.md').includes('The socket is `src/socket.js`.'));
-    assert.ok(!read('docs/gem/README.md').includes('once built'));
+    const gem = read('docs/gem/README.md');
+    assert.ok(gem.includes('The socket is `src/socket.js`.'));
+    assert.ok(gem.includes('four bundled GEMs'));
+    assert.ok(!gem.includes('once built'));
+    assert.ok(!gem.includes('both lines say'));
+    assert.ok(!gem.includes('for one release'));
   });
 
-  test('src, docs, the site, the README, the changelog, and server.json do not name the scrubbed install words', () => {
-    const roots = ['src', 'docs', 'site', 'README.md', 'CHANGELOG.md', 'server.json', 'CHARTER.md', '.env.example'];
+  test('src, docs, the site, gems, templates, the README, the changelog, and server.json do not name the scrubbed install words', () => {
+    const roots = ['src', 'docs', 'site', 'gems', 'gem-library', 'templates', 'README.md', 'CHANGELOG.md', 'server.json', 'CHARTER.md', '.env.example'];
     const bad = [];
     const files = [];
     for (const rel of roots) {
@@ -214,13 +237,14 @@ testGroup('the charter names the built socket, and install names stay out of pub
       else files.push(abs);
     }
     const seen = new Set();
+    const masterHub = /master[\s*]+hub/i;
+    const legacyTag = new RegExp('grok' + '[-_]project', 'i');
+    const person = new RegExp('\\b' + 'sop' + 'hia' + '\\b', 'i');
     for (const file of files) {
       if (seen.has(file)) continue;
       seen.add(file);
       const text = fs.readFileSync(file, 'utf8');
-      const banned = ['Master Hub', 'sop' + 'hia', 'grok-' + 'project'];
-      const lower = text.toLowerCase();
-      if (banned.some((word) => lower.includes(word.toLowerCase()))) bad.push(path.relative(ROOT, file));
+      if (masterHub.test(text) || legacyTag.test(text) || person.test(text)) bad.push(path.relative(ROOT, file));
     }
     assert.deepStrictEqual(bad, []);
   });

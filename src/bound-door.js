@@ -1,8 +1,8 @@
 /**
  * BOUND's door (init audit items 3 and 5, 2026-10-27).
  *
- * bound-host is a host tag. It is not a declared claim on the Master
- * Hub token that shares OAuth client bound-login-client. That token
+ * bound-host is a host tag. It is not a declared claim on the hub login's
+ * token that shares OAuth client bound-login-client. That token
  * is bound to hub-bot. A bound-host claim on it is refused
  * and is not stamped hub-bot.
  *
@@ -15,11 +15,14 @@
  * live key and does not approve a production client.
  */
 
+import crypto from 'node:crypto';
 import { rawActor } from './persons.js';
 import { chooserBinding } from './deep-links.js';
 import { ValidationError } from './validation.js';
 
 export const CLAIM_TAG = 'bound-host';
+/** First 16 hex of sha256(the 0.3.4 bound-door tag). The spelling stays out of this file. */
+export const LEGACY_CLAIM_TAG_DIGEST = '43897607a89a6b2e';
 /** Same string as writer-approval.js MB_TAG. */
 export const MB_TAG = 'hub-bot';
 export const SHARED_GROK_CLIENT = 'bound-login-client';
@@ -34,12 +37,34 @@ export const BOUND_LOGIN_MESSAGE =
  * Guest is not a writer credential. A declared tag does not remove a login
  * credential and is not itself a credential.
  */
+export function boundHostTagDigest(tag) {
+  return crypto.createHash('sha256').update(String(tag).trim().toLowerCase()).digest('hex').slice(0, 16);
+}
+
+/** Current `bound-host`, or the 0.3.4 tag still stored on a consent, approval, writer request, or sub-key. */
+export function isBoundHostTag(tag) {
+  if (typeof tag !== 'string') return false;
+  const text = tag.trim();
+  if (!text) return false;
+  if (text === CLAIM_TAG) return true;
+  return boundHostTagDigest(text) === LEGACY_CLAIM_TAG_DIGEST;
+}
+
+function boundHostMapKey(map) {
+  if (!map || typeof map !== 'object') return null;
+  if (Object.prototype.hasOwnProperty.call(map, CLAIM_TAG)) return CLAIM_TAG;
+  for (const key of Object.keys(map)) {
+    if (isBoundHostTag(key)) return key;
+  }
+  return null;
+}
+
 export function isBoundHostCredential(actor) {
   if (!actor || actor.transport !== 'http' || actor.authenticated !== true) return false;
   if (actor.door === 'guest') return false;
-  if (actor.subkeySession === true && actor.subkeyTag === CLAIM_TAG) return true;
+  if (actor.subkeySession === true && isBoundHostTag(actor.subkeyTag)) return true;
   const login = typeof actor.sourceTag === 'string' ? actor.sourceTag.trim() : '';
-  if (login !== CLAIM_TAG) return false;
+  if (!isBoundHostTag(login)) return false;
   return actor.door === 'member' || actor.door === 'owner' || actor.door == null;
 }
 
@@ -56,14 +81,14 @@ export function boundHostClaimOnSharedLogin(actor, callerTag) {
   if (bound !== MB_TAG) return false;
   if (isBoundHostCredential(actor)) return false;
   const declared = typeof callerTag === 'string' ? callerTag.trim() : '';
-  return declared === CLAIM_TAG;
+  return isBoundHostTag(declared);
 }
 
 /** Stamp bound-host when the credential's caller is empty, itself, or the hub login. */
 export function boundHostCredentialOverrides(actor, callerTag) {
   if (!isBoundHostCredential(actor)) return false;
   const caller = typeof callerTag === 'string' ? callerTag.trim() : '';
-  return caller === '' || caller === CLAIM_TAG || caller === MB_TAG;
+  return caller === '' || isBoundHostTag(caller) || caller === MB_TAG;
 }
 
 export function refuseBoundHostDoor(actor) {
@@ -74,7 +99,7 @@ export function refuseBoundHostDoor(actor) {
 }
 
 /**
- * Dated episodic correction for 697. The parent stays. This is not
+ * Dated correction note. The parent stays. This is not
  * revise_memory and it does not supersede the row. The hub login writes it
  * on the live store after merge, from the hub login, and does not
  * pass source bound-host on that login.
@@ -84,7 +109,7 @@ export function episodic697CorrectionNote() {
     layer: 'episodic',
     content: [
       `Correction note dated ${CORRECTION_NOTE_DATE}.`,
-      `Episodic ${EPISODIC_697_ID} was written from client ${SHARED_GROK_CLIENT} and stamped ${MB_TAG}.`,
+      `Row ${EPISODIC_697_ID} was written from client ${SHARED_GROK_CLIENT} and stamped ${MB_TAG}.`,
       `That stamp is a misattribution when the writer was BOUND (${CLAIM_TAG}).`,
       'The original row is retained. This note does not edit it in place and does not supersede it.',
       `A BOUND write carries ${CLAIM_TAG} from its own door.`,
@@ -120,8 +145,10 @@ export async function recordBoundHostCredential(deps, { client_id, door, grant_i
   const { mutateApprovals } = await import('./attribution.js');
   const at = (now instanceof Date ? now : new Date(now)).toISOString();
   const out = await mutateApprovals(deps, (d) => {
-    const prev = d.approved[CLAIM_TAG];
-    const pending = d.pending && d.pending[CLAIM_TAG];
+    const key = boundHostMapKey(d.approved) || CLAIM_TAG;
+    const prev = d.approved[key];
+    const pendingKey = boundHostMapKey(d.pending);
+    const pending = pendingKey ? d.pending[pendingKey] : undefined;
     const same = prev
       && prev.basis === 'credential'
       && prev.door === doorName
@@ -129,27 +156,28 @@ export async function recordBoundHostCredential(deps, { client_id, door, grant_i
       && (prev.grant_id || null) === grant
       && !pending;
     if (same) return false;
-    d.approved[CLAIM_TAG] = {
+    d.approved[key] = {
       basis: 'credential',
       door: doorName,
       client_id: clientId,
       grant_id: grant,
-      source_tag: CLAIM_TAG,
+      source_tag: key,
       separate_from_client: SHARED_GROK_CLIENT,
       separate_from_tag: MB_TAG,
       by: by || 'owner',
       at,
-      rule: `separate login, then assign ${CLAIM_TAG}, then initialize`
+      rule: `separate login, then assign ${key}, then initialize`
     };
-    if (d.pending && d.pending[CLAIM_TAG]) delete d.pending[CLAIM_TAG];
+    if (pendingKey) delete d.pending[pendingKey];
     return true;
   });
-  return { written: out.written, approved: out.data.approved[CLAIM_TAG] };
+  const storedKey = boundHostMapKey(out.data.approved) || CLAIM_TAG;
+  return { written: out.written, approved: out.data.approved[storedKey] };
 }
 
 /** After the owner's chooser issues a bound-host door. The preparer's grant is not stored. */
 export async function boundHostListingAfterWriterIssue({ recorded, issued, deps, by, now } = {}) {
-  if (!recorded || recorded.claimed_tag !== CLAIM_TAG) return { written: false, reason: 'tag' };
+  if (!recorded || !isBoundHostTag(recorded.claimed_tag)) return { written: false, reason: 'tag' };
   if (!issued || issued.issued !== true) return { written: false, reason: 'not-issued' };
   if (recorded.door === 'guest') return { written: false, reason: 'guest' };
   try {

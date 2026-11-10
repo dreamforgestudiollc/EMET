@@ -250,7 +250,7 @@ which would write a new identity over your existing one.**
 
 ## Upgrading to 0.3.5
 
-0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound-door tag the server matches is `bound-host`. Deploy over 0.3.4 as is for every other setting.
+0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound door's tag is `bound-host`. Consent tokens, approval rows, writer requests, and sub-keys stored under the previous tag are still that door.
 
 ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 

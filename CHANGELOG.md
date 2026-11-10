@@ -11,7 +11,10 @@ Nothing is waiting above 0.3.5.
 
 ## 0.3.5 - 2026-11-10
 
-This release brings the public docs current with the code. Stored data shapes are unchanged. The bound-door tag the server matches is `bound-host`. Deploy over 0.3.4 as is for every other setting. The declared version is 0.3.5.
+This release brings the public docs current with the code. Stored data shapes are unchanged. The declared version is 0.3.5.
+
+### Upgrade
+- The bound door's tag is `bound-host`. Consent tokens, approval rows, writer requests, and sub-keys stored under the previous tag are still that door. The alias is a digest, so this package does not spell the old tag.
 
 ### Changed
 - `CHARTER.md` §4 says the extension socket is built. It is `src/socket.js`. Its note is `docs/gem/README.md`. Public text no longer names an install-specific hub or host tag. Writer-approval text says the hub login. The tag that login matches is still `hub-bot`. The bound-door tag the server matches is `bound-host`. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
@@ -70,7 +73,7 @@ Release notes for the access ladder and the work after 0.3.1. npm is not publish
 
 ## 0.3.1 - 2026-10-21
 
-- Changed: `EMET_REPORT_EMAIL` defaults to `dreamforgestudio@mail.grokbot.com`.
+- Changed: `EMET_REPORT_EMAIL` defaults to `dreamforgestudio@mail.hubbot.com`.
 - Added: `scripts/verify-emet.mjs`, also `npm run verify`. Subcommands are `doctor`, `list`, `run`, and `feature`. `--json` prints one object. `--dry-run` skips a call that replaces stored text or hands out access, and says what it would have called. The command uses a temporary directory and the in-memory test database. It does not read `.env`. A tool that needs a service or setting a plain install does not have is reported as a gap. A run whose only problems are gaps exits 3. A failed tool exits 1.
 - Changed: the Official MCP Registry description in `server.json` stays within the registry's 100-character limit and names stable error codes.
 - Added: `docs/features/` is the feature map, one file per feature, including error codes, the error log, and `emet_error_report`. `tests/feature-map.test.js` fails if a registered tool is missing from the map.

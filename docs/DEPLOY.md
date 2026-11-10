@@ -15,7 +15,7 @@ passphrase; both are required.
 
 ## Upgrading to 0.3.5
 
-0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound-door tag the server matches is `bound-host`. Deploy over 0.3.4 as is for every other setting.
+0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound door's tag is `bound-host`. Consent tokens, approval rows, writer requests, and sub-keys stored under the previous tag are still that door.
 
 ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
@@ -110,7 +110,7 @@ Atlas UI for the new privilege: Database Access → Custom Roles → edit the ro
 
 Read this before you deploy the release that follows 0.2.2. It does not change a version number. It is the list of settings and client habits that will start failing if you leave them as they were.
 
-- **`EMET_SOURCE_TAGS` must list every real host tag**, as an exact member. Tags named in this repository's example env, docs, and live-tag checks are: `cli`, `mobile`, `desktop-cowork`, `cowork-cloud`, `bound-host`, `hub-bot` (the hub; do not also list it in `EMET_RECORD_DOCS`), `reviewer-bot`, `tester-bot`, `memory-bot`, `intake-bot`, and `research-bot`. Your install may use a shorter list. A tag that is not an exact member is refused, and the refusal does not print the list.
+- **`EMET_SOURCE_TAGS` must list every real host tag**, as an exact member. Tags named in this repository's example env, docs, and live-tag checks are: `cli`, `mobile`, `desktop-cowork`, `cowork-cloud`, `hub-bot` (the hub; do not also list it in `EMET_RECORD_DOCS`), `reviewer-bot`, `tester-bot`, `memory-bot`, `intake-bot`, and `research-bot`. Your install may use a shorter list. A tag that is not an exact member is refused, and the refusal does not print the list.
 - When a new bot joins the roster, append its tag to the end of `EMET_SOURCE_TAGS` and keep every existing tag in order, before its first write. The standing rule, including `EMET_RECORD_DOCS` and the `/health` and `emet_status` check after the redeploy, is [BOTS.md](BOTS.md) §4.
 - **`EMET_STRICT_LOGIN_TAG=1`** (off by default) makes a login's bound tag final: a write that declares a different `source` is refused, and so are `emet_setup_complete` and `emet_initialize` with a mismatched tag. Leave it off while bots share one login, because with it on every bot except the login's own would be refused. Turn it on only once each bot has its own login, for example a Member Access code bound to its tag.
 - **A scheduled job that still sends a `cloud-scheduled-` prefix must switch to an exact registered tag.** `cloud-scheduled-intake` was retired on 2026-10-02. A prefix is not a tag. The weekly intake runs under `intake-bot`.
@@ -235,16 +235,11 @@ guards, so it can still write the main records and any bot's folder. To fence a 
 variables in one change. **With `EMET_SOURCE_TAGS` unset, both guards are opt-in and off:** any
 caller can write the main records and every bot folder, so set the registry on any shared install.
 
-**Legacy `CASCADE_` names.** Only the settings read through `setting()` in `src/env.js` also accept
-the legacy `CASCADE_...` name as a deprecated fallback (the `EMET_` name wins when both are set):
-`EMET_SOURCE_TAG`, `EMET_SOURCE_TAGS`, `EMET_OAUTH_PASSPHRASE`, `EMET_AUDIT_LOG`, `EMET_HANDOFF_DOC`,
-`EMET_STATE_DOC`, `EMET_INSTALL_DOC`, `EMET_CHARACTER_DOC`, `EMET_TEMPLATE_MAP`, `EMET_RECORD_DOCS`,
-`EMET_READ_DOC_PAGE`, `EMET_SIGNING_KEY`, `EMET_GAP_BASELINE`, `EMET_CIMD`, `EMET_INVITES`,
-`EMET_TIMEZONE`, `EMET_CLOSE_GRACE_MINUTES` and `EMET_ACTIVE_GEMS`. These read `process.env` directly, so **only the
-`EMET_` name works** and a `CASCADE_` name is ignored: `EMET_COLLECTION_PREFIX`,
-`EMET_VECTOR_INDEX`, `EMET_CORPUS_INDEX`, `EMET_CORPORA`, `EMET_CORPUS_COLLECTION`,
-`EMET_REQUEST_LOG` and `EMET_CRASH_LOG`. (`MONGODB_URI`, `MONGODB_DB`, `PUBLIC_URL`, `PORT`, `HOST`,
-`LOG_LEVEL`, `LOG_FORMAT` and `DEBUG` have no prefix. `TRUST_PROXY` is not read: the server trusts exactly one proxy hop (Railway's edge).) Use the `EMET_` names.
+**Legacy `CASCADE_` names.** A setting read through `setting()` also accepts the legacy `CASCADE_` name. The `EMET_` name wins when both are set. The complete list is:
+`EMET_ACTIVE_GEMS`, `EMET_AUDIT_LOG`, `EMET_CHARACTER_DOC`, `EMET_CIMD`, `EMET_CLAIMED_TAG_KILL_DATE`, `EMET_CLOSE_GRACE_MINUTES`, `EMET_COS_TAG`, `EMET_DEEP_LINK_TTL_MINUTES`, `EMET_GAP_BASELINE`, `EMET_HANDOFF_DOC`, `EMET_INSTALL_DOC`, `EMET_INVITES`, `EMET_MEMBER_ACCESS`, `EMET_OAUTH_PASSPHRASE`, `EMET_READ_DOC_PAGE`, `EMET_RECORD_DOCS`, `EMET_RESTORE_TAGS`, `EMET_SIGNING_KEY`, `EMET_SOURCE_TAG`, `EMET_SOURCE_TAGS`, `EMET_STATE_DOC`, `EMET_STRICT_LOGIN_TAG`, `EMET_SUBKEY_FAIL_MAX`, `EMET_SUBKEY_FAIL_WINDOW_MS`, `EMET_SUBKEY_GRACE_MINUTES`, `EMET_SUBKEY_PEPPER`, `EMET_SUBKEY_PEPPER_PREV`, `EMET_SUBKEY_PEPPER_PREV_VERSION`, `EMET_SUBKEY_PEPPER_VERSION`, `EMET_SUBKEY_TTL_DAYS`, `EMET_SUBKEYS`, `EMET_TEMPLATE_MAP`, `EMET_TIMEZONE`.
+These read `process.env` directly, so a `CASCADE_` name is ignored. The complete list is:
+`EMET_COLLECTION_PREFIX`, `EMET_CORPORA`, `EMET_CORPUS_COLLECTION`, `EMET_CORPUS_INDEX`, `EMET_CRASH_LOG`, `EMET_DROP_LIST_TIMEOUT_MS`, `EMET_HTTP_LISTEN`, `EMET_INIT_PAGE_BYTES`, `EMET_REPORT_EMAIL`, `EMET_REQUEST_LOG`, `EMET_VECTOR_INDEX`.
+(`MONGODB_URI`, `MONGODB_DB`, `PUBLIC_URL`, `PORT`, `HOST`, `LOG_LEVEL`, `LOG_FORMAT` and `DEBUG` have no prefix. `TRUST_PROXY` is not read: the server trusts exactly one proxy hop (Railway's edge).) Use the `EMET_` names.
 
 **The two-pass deploy is not optional.** `PUBLIC_URL` is the OAuth issuer; until it matches
 the real URL, authorization fails in ways that look like a client problem.

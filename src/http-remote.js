@@ -292,8 +292,8 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
       source_tag: sourceTag,
     });
     if (sourceTag) {
-      const { recordBoundHostCredential, CLAIM_TAG } = await import('./bound-door.js');
-      if (sourceTag === CLAIM_TAG) {
+      const { recordBoundHostCredential, isBoundHostTag } = await import('./bound-door.js');
+      if (isBoundHostTag(sourceTag)) {
         try {
           const door = inviteSubject ? (inviteDoor === 'member' ? 'member' : 'guest') : 'owner';
           await recordBoundHostCredential(t.approvalsDeps, { client_id, door, grant_id: null, by: 'consent' });

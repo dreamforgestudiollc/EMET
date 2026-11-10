@@ -57,7 +57,8 @@ testGroup('0.3.2 release notes reject private leaks', () => {
     assert.ok(change.includes('## 0.3.2'), '## 0.3.2 is missing');
     assert.ok(headingSlice(change, '## 0.3.2').includes('### Added'));
     assert.ok(change.includes('## 0.3.5'), '## 0.3.5 is missing');
-    assert.ok(headingSlice(change, '## 0.3.5').includes('The bound-door tag the server matches is `bound-host`.'));
+    assert.ok(headingSlice(change, '## 0.3.5').includes('### Upgrade'));
+    assert.ok(headingSlice(change, '## 0.3.5').includes('The bound door\'s tag is `bound-host`.'));
     assert.ok(headingSlice(change, '## 0.3.5').includes('38 tools with sub-keys off, 15 of them read-only, and 42'));
     assert.ok(change.includes('## 0.3.4'), '## 0.3.4 is missing');
     assert.ok(headingSlice(change, '## 0.3.4').includes('docs/SECURITY-AT-SCALE.md'));

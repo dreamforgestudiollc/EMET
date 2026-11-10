@@ -48,7 +48,7 @@ function banned(rel) {
     || /(?:\.backup_|\.sqlite_backup|\.deleted_|_smoke_|_probe|_canary)/.test(rel);
 }
 
-const INSTALL_SOURCE_TAGS = ['desktop-cowork', 'cowork-cloud', 'grok-project'];
+const INSTALL_SOURCE_TAGS = ['desktop-cowork', 'cowork-cloud', 'grok-project', 'bound-host'];
 
 /** Why a packed example must not ship. Empty means the public example. */
 export function envExampleFaults(text) {

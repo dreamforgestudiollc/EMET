@@ -6,6 +6,8 @@
  * Episodic ref 697 is corrected by a later note, not by revise_memory.
  */
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { test, testGroup, summary } from './harness.js';
 import { layerHonouringDb, makeStore, withStore, withEnv } from './memstore.js';
 import { actorStore } from '../src/persons.js';
@@ -655,6 +657,97 @@ testGroup('Alex issuing a writer lists bound-host on the chooser', () => {
       chooserHold.server = null;
       await closeServer(server);
     }
+  });
+});
+
+const LEGACY_BOUND_TAG = 'grok-project';
+
+testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => {
+  test('the shipped source matches the old tag by digest and does not spell it', async () => {
+    const { isBoundHostTag, boundHostTagDigest, LEGACY_CLAIM_TAG_DIGEST } = await import('../src/bound-door.js');
+    const src = fs.readFileSync(fileURLToPath(new URL('../src/bound-door.js', import.meta.url)), 'utf8');
+    assert.strictEqual(boundHostTagDigest(LEGACY_BOUND_TAG), LEGACY_CLAIM_TAG_DIGEST);
+    assert.strictEqual(isBoundHostTag(LEGACY_BOUND_TAG), true);
+    assert.strictEqual(isBoundHostTag(CLAIM_TAG), true);
+    assert.strictEqual(isBoundHostTag(MB_TAG), false);
+    assert.ok(!src.includes(LEGACY_BOUND_TAG));
+  });
+
+  test('a stored legacy token that declares hub-bot is stamped bound-host', async () => {
+    const att = await import('../src/attribution.js');
+    att._resetForTests();
+    const actor = bound({ sourceTag: LEGACY_BOUND_TAG });
+    await att.preflight({ db: { collection() { return { find() { return { limit() { return { toArray: async () => [] }; } }; } }; } }, prefix: 'emet_', deps: memDeps(), registry: [CLAIM_TAG, MB_TAG, LEGACY_BOUND_TAG] }, actor, { source: MB_TAG }, 'save_to_layer');
+    const decision = actorStore.run(actor, () => resolvedSourceTag(MB_TAG));
+    assert.strictEqual(decision.tag, CLAIM_TAG);
+    assert.strictEqual(decision.from, 'credential');
+    assert.notStrictEqual(decision.tag, MB_TAG);
+  });
+
+  test('a legacy sub-key stamps bound-host', () => {
+    const actor = mb();
+    actor.subkeySession = true;
+    actor.subkeyTag = LEGACY_BOUND_TAG;
+    actor.subkeyId = 'key-legacy';
+    const decision = actorStore.run(actor, () => resolvedSourceTag(MB_TAG));
+    assert.strictEqual(decision.tag, CLAIM_TAG);
+    assert.strictEqual(decision.from, 'subkey');
+  });
+
+  test('a legacy claim on the hub login is refused the same way', () => {
+    const decision = actorStore.run(mb(), () => resolvedSourceTag(LEGACY_BOUND_TAG));
+    assert.strictEqual(decision.from, 'bound-door');
+    assert.strictEqual(decision.tag, null);
+  });
+
+  test('an approvals row stored under the legacy tag stays that door', async () => {
+    const att = await import('../src/attribution.js');
+    att._resetForTests();
+    const deps = memDeps(att.renderApprovals({
+      approved: {
+        [LEGACY_BOUND_TAG]: {
+          basis: 'credential', door: 'member', client_id: SHARED_GROK_CLIENT, grant_id: null, source_tag: LEGACY_BOUND_TAG
+        }
+      },
+      pending: {},
+      denied: {},
+      clients: {}
+    }));
+    const listed = await recordBoundHostCredential(deps, {
+      client_id: SHARED_GROK_CLIENT, door: 'member', grant_id: null, by: 'alex'
+    });
+    assert.strictEqual(listed.written, false);
+    assert.strictEqual(listed.approved.client_id, SHARED_GROK_CLIENT);
+    const data = att.parseApprovals(deps.store.content);
+    assert.ok(data.approved[LEGACY_BOUND_TAG]);
+    assert.strictEqual(data.approved[CLAIM_TAG], undefined);
+  });
+
+  test('a writer request stored under the legacy tag still lists the door', async () => {
+    const att = await import('../src/attribution.js');
+    att._resetForTests();
+    const deps = memDeps(att.renderApprovals({ approved: {}, pending: {}, denied: {}, clients: {} }));
+    const listed = await boundHostListingAfterWriterIssue({
+      recorded: { claimed_tag: LEGACY_BOUND_TAG, door: 'member', client_id: 'bound-login', grant_id: 'mb-grant' },
+      issued: { issued: true },
+      deps, by: 'alex'
+    });
+    assert.strictEqual(listed.written, true);
+    assert.strictEqual(listed.approved.source_tag, CLAIM_TAG);
+    assert.strictEqual(listed.approved.grant_id, null);
+  });
+
+  test('owner consent with the legacy source tag lists the door', async () => {
+    const posted = await withEnv({ EMET_SOURCE_TAGS: [MB_TAG, CLAIM_TAG, LEGACY_BOUND_TAG].join(',') }, () => postApprove({
+      client_id: 'legacy-owner-login',
+      source: LEGACY_BOUND_TAG
+    }));
+    assert.strictEqual(posted.status, 302, posted.text.slice(0, 400));
+    const listed = await listedTag(posted.db);
+    assert.ok(listed, approvalsOf(posted.db));
+    assert.strictEqual(listed.basis, 'credential');
+    assert.strictEqual(listed.door, 'owner');
+    assert.strictEqual(listed.client_id, 'legacy-owner-login');
   });
 });
 

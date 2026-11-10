@@ -25,7 +25,7 @@ import {
   esc, sendHtml, loginForm, ownerPageActor, ownerMayGrant, mountOwnerLogin, readCookie, createOwnerGate
 } from './owner-session.js';
 import { rotationForms } from './rotate.js';
-import { boundHostListingAfterWriterIssue, CLAIM_TAG } from './bound-door.js';
+import { boundHostListingAfterWriterIssue, isBoundHostTag, CLAIM_TAG } from './bound-door.js';
 
 const CHOOSER_COOKIE = 'emet_chooser';
 const REASON_MAX = 500;
@@ -528,7 +528,7 @@ export function mountChooser(app, options = {}) {
     const bits = [`Recorded ${decision} for ${recorded.claimed_tag}.`];
     if (issued.note) bits.push(issued.note);
     if (issued.invite && issued.invite.code) bits.push(`Invite code, shown once: ${issued.invite.code}`);
-    if (issued.issued && recorded.claimed_tag === CLAIM_TAG) {
+    if (issued.issued && isBoundHostTag(recorded.claimed_tag)) {
       let boundHostNote = 'The BOUND door listing was not written. The invite code above is still the door.';
       try {
         const listing = await boundHostListingAfterWriterIssue({

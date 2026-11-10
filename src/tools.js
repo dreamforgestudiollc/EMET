@@ -20,7 +20,7 @@ import { replacedByOf } from './setup.js';
 import { currentActor, rawActor, writerStamp, boundSourceTag, declaredAttribution, LOCAL_SUBJECT } from './persons.js';
 import { guardClaimedTag } from './claimed-tag.js';
 import { approvedTags, APPROVALS_DOC } from './attribution.js';
-import { refuseBoundHostDoor, boundHostActor, boundHostCredentialOverrides, boundHostClaimOnSharedLogin, CLAIM_TAG } from './bound-door.js';
+import { refuseBoundHostDoor, boundHostActor, boundHostCredentialOverrides, boundHostClaimOnSharedLogin, isBoundHostTag, CLAIM_TAG } from './bound-door.js';
 import { sealAttestation, frozenAttestation } from './rune-dispatch.js';
 
 /** Approvals record io for attribution.js (server-kept doc, written as emet-server). */
@@ -2852,7 +2852,7 @@ export function resolvedSourceTag(caller) {
   if (bound === undefined) return { tag: tag || null, from: 'caller' };
   const actor = boundHostActor();
   if (boundHostCredentialOverrides(actor, tag)) {
-    const sub = actor.subkeySession === true && actor.subkeyTag === CLAIM_TAG;
+    const sub = actor.subkeySession === true && isBoundHostTag(actor.subkeyTag);
     return {
       tag: CLAIM_TAG,
       from: sub ? 'subkey' : 'credential',
@@ -2876,7 +2876,7 @@ export function resolvedSourceTag(caller) {
 /** A BOUND credential stamp replaces a forged hub-login string. A door claim throws. */
 function stampedSource(decision, fallback) {
   if (decision && decision.from === 'bound-door') refuseBoundHostDoor(boundHostActor());
-  if (decision && (decision.from === 'credential' || (decision.from === 'subkey' && decision.tag === CLAIM_TAG))) return decision.tag;
+  if (decision && (decision.from === 'credential' || (decision.from === 'subkey' && isBoundHostTag(decision.tag)))) return decision.tag;
   return fallback;
 }
 
