@@ -21,12 +21,11 @@ import { chooserBinding } from './deep-links.js';
 import { ValidationError } from './validation.js';
 
 export const CLAIM_TAG = 'bound-host';
-/** First 16 hex of sha256(the 0.3.4 bound-door tag). The spelling stays out of this file. */
+/** First 16 hex of sha256(the exact 0.3.4 bound-door tag). The spelling stays out of this file. */
 export const LEGACY_CLAIM_TAG_DIGEST = '43897607a89a6b2e';
 /** Same string as writer-approval.js MB_TAG. */
 export const MB_TAG = 'hub-bot';
 export const SHARED_GROK_CLIENT = 'bound-login-client';
-export const EPISODIC_697_ID = 697;
 export const CORRECTION_NOTE_DATE = '2026-10-27';
 
 export const BOUND_LOGIN_MESSAGE =
@@ -38,10 +37,10 @@ export const BOUND_LOGIN_MESSAGE =
  * credential and is not itself a credential.
  */
 export function boundHostTagDigest(tag) {
-  return crypto.createHash('sha256').update(String(tag).trim().toLowerCase()).digest('hex').slice(0, 16);
+  return crypto.createHash('sha256').update(String(tag).trim()).digest('hex').slice(0, 16);
 }
 
-/** Current `bound-host`, or the 0.3.4 tag still stored on a consent, approval, writer request, or sub-key. */
+/** Current `bound-host`, or the exact 0.3.4 spelling still stored on a token, approval row, writer request, or sub-key. A different case is not that door. */
 export function isBoundHostTag(tag) {
   if (typeof tag !== 'string') return false;
   const text = tag.trim();
@@ -104,19 +103,18 @@ export function refuseBoundHostDoor(actor) {
  * on the live store after merge, from the hub login, and does not
  * pass source bound-host on that login.
  */
-export function episodic697CorrectionNote() {
+export function boundHostCorrectionNote() {
   return {
     layer: 'episodic',
     content: [
       `Correction note dated ${CORRECTION_NOTE_DATE}.`,
-      `Row ${EPISODIC_697_ID} was written from client ${SHARED_GROK_CLIENT} and stamped ${MB_TAG}.`,
+      `A row written from client ${SHARED_GROK_CLIENT} and stamped ${MB_TAG}.`,
       `That stamp is a misattribution when the writer was BOUND (${CLAIM_TAG}).`,
       'The original row is retained. This note does not edit it in place and does not supersede it.',
       `A BOUND write carries ${CLAIM_TAG} from its own door.`,
       `The hub login writes this note on the live store after merge, from the hub login, and does not pass source ${CLAIM_TAG} on that login.`
     ].join(' '),
     metadata: {
-      corrects: EPISODIC_697_ID,
       assertion_origin: 'assistant',
       custom: {
         correction: 'misattribution',

@@ -894,9 +894,11 @@ Honest list, because the point of this project is that it behaves predictably:
 - `save_transcript`'s description does not state that it stores content verbatim; the
   implementation does.
 - No export / import / restore-and-compare yet.
-- The document store is not prefixed, so one database holds one instance's identity. Run
-  separate databases rather than separate prefixes if you want separate memories. One
-  collaborative project is one instance (one database, one deploy, one passphrase). See
+- These collections are not prefixed: `documents`, `documents_history`, `transcripts`,
+  `exchanges`, `persons`, `invites`, `close_attempts`, `error_log`, `error_log_summary`,
+  and `_emet_verify`. One database holds one instance. Run separate databases rather than
+  separate prefixes if you want separate memories. One collaborative project is one
+  instance (one database, one deploy, one passphrase). See
   [docs/SECURITY-AT-SCALE.md](docs/SECURITY-AT-SCALE.md).
 - Dynamic Client Registration is still served beside Client ID Metadata Documents; the MCP
   specification's deprecation window closes around 2027-07. It is scheduled to come off on

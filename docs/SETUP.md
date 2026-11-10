@@ -103,11 +103,12 @@ when you want a second device to reach the same memory.
 5. **Pick a database name** and set `MONGODB_DB`. It defaults to `emet`. Collections (`emet_episodic`, `emet_semantic`, …) are
    created on first write — there is nothing to pre-create.
 
-6. **One database per EMET instance.** The document store (`documents`,
-   `documents_history`) is deliberately *not* prefixed, so two instances pointed at the same
-   database will share their identity and continuity documents even if their memory
-   collections use different prefixes. If you want two separate memories, give them separate
-   databases - not just separate prefixes.
+6. **One database per EMET instance.** These collections are not prefixed:
+   `documents`, `documents_history`, `transcripts`, `exchanges`, `persons`, `invites`,
+   `close_attempts`, `error_log`, `error_log_summary`, and `_emet_verify`. Two instances
+   pointed at the same database share all of them, even when their memory collections use
+   different prefixes. If you want two separate memories, give them separate databases -
+   not just separate prefixes.
 
 7. **Vector index — only if you want `semantic_recall`.** Keyword search works without it.
    For meaning-based search, create an Atlas Vector Search index named
@@ -227,8 +228,10 @@ it is.
 | `EMET_VECTOR_INDEX` | `cascade_content_auto` | the Atlas Vector Search index `semantic_recall` uses |
 | `EMET_CORPORA` | your corpus names, comma-separated | only if you use `corpus_recall`; leave unset otherwise |
 
-`EMET_COLLECTION_PREFIX` also governs the counters collection and the three OAuth
-collections, so **devices you have already authorized stay authorized** - there is no
+`EMET_COLLECTION_PREFIX` also governs the counters collection, the three OAuth
+collections (`oauth_clients`, `oauth_codes`, `oauth_tokens`), and `sessions`,
+`subkeys`, `subkeys_history`, `rotations`, `meta`, `doc_stages`, `gem_serves`,
+`writer_approvals`, and `owl_retirement`, so **devices you have already authorized stay authorized** - there is no
 re-consent step.
 
 Your old `CASCADE_SOURCE_TAG` and `CASCADE_OAUTH_PASSPHRASE` continue to work; the `EMET_`
@@ -250,7 +253,7 @@ which would write a new identity over your existing one.**
 
 ## Upgrading to 0.3.5
 
-0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound door's tag is `bound-host`. Consent tokens, approval rows, writer requests, and sub-keys stored under the previous tag are still that door.
+0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound door's tag is `bound-host`. Writes from a stored legacy token or sub-key are stamped `bound-host`. The alias covers stored data only. A new consent under the previous tag does not get the bound door.
 
 ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 

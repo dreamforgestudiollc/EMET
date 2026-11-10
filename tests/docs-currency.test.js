@@ -34,15 +34,40 @@ function between(text, start, end) {
 }
 
 function walkJs(dir, out = []) {
+  return walkCode(dir, out, false);
+}
+
+function walkCode(dir, out = [], mjs = false) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const abs = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (entry.name !== 'node_modules') walkJs(abs, out);
+      if (entry.name !== 'node_modules') walkCode(abs, out, mjs);
       continue;
     }
-    if (entry.name.endsWith('.js')) out.push(abs);
+    if (entry.name.endsWith('.js') || (mjs && entry.name.endsWith('.mjs'))) out.push(abs);
   }
   return out;
+}
+
+/** Unprefixed collections public src opens: a string passed to collection(), or a same-file const used that way. */
+function unprefixedCollections() {
+  const names = new Set();
+  for (const file of walkJs(path.join(ROOT, 'src'))) {
+    const text = fs.readFileSync(file, 'utf8');
+    for (const match of text.matchAll(/\.collection\(\s*'([A-Za-z0-9_]+)'\s*\)/g)) names.add(match[1]);
+    for (const match of text.matchAll(/const\s+([A-Z0-9_]+)\s*=\s*'([A-Za-z0-9_]+)'/g)) {
+      if (new RegExp(`\\.collection\\(\\s*${match[1]}\\s*\\)`).test(text)) names.add(match[2]);
+    }
+  }
+  return [...names].sort();
+}
+
+const masterHub = /master[\s*]+hub/i;
+const legacyTag = new RegExp('grok' + '[-_]project', 'i');
+const person = new RegExp('sop' + 'hia', 'i');
+
+function namesInstall(text) {
+  return masterHub.test(text) || legacyTag.test(text) || person.test(text);
 }
 
 /** setting() names that exist only for a test double. Production names stay out. */
@@ -221,32 +246,77 @@ testGroup('the charter names the built socket, and install names stay out of pub
     assert.ok(!row.includes('socket not built'));
     const gem = read('docs/gem/README.md');
     assert.ok(gem.includes('The socket is `src/socket.js`.'));
-    assert.ok(gem.includes('four bundled GEMs'));
+    assert.ok(gem.includes('EMET bundles four GEMs'));
+    assert.ok(!gem.includes('This release'));
     assert.ok(!gem.includes('once built'));
     assert.ok(!gem.includes('both lines say'));
     assert.ok(!gem.includes('for one release'));
   });
 
-  test('src, docs, the site, gems, templates, the README, the changelog, and server.json do not name the scrubbed install words', () => {
-    const roots = ['src', 'docs', 'site', 'gems', 'gem-library', 'templates', 'README.md', 'CHANGELOG.md', 'server.json', 'CHARTER.md', '.env.example'];
+  test('src, docs, the site, gems, templates, packed guides, the README, the changelog, and server.json do not name the scrubbed install words', () => {
+    const roots = ['src', 'docs', 'site', 'gems', 'gem-library', 'templates', 'areas', 'guides', 'verification', 'README.md', 'CHANGELOG.md', 'server.json', 'CHARTER.md', '.env.example'];
     const bad = [];
     const files = [];
     for (const rel of roots) {
       const abs = path.join(ROOT, rel);
-      if (fs.statSync(abs).isDirectory()) files.push(...walkJs(abs), ...walkText(abs));
+      if (fs.statSync(abs).isDirectory()) files.push(...walkCode(abs, [], true), ...walkText(abs));
       else files.push(abs);
     }
     const seen = new Set();
-    const masterHub = /master[\s*]+hub/i;
-    const legacyTag = new RegExp('grok' + '[-_]project', 'i');
-    const person = new RegExp('\\b' + 'sop' + 'hia' + '\\b', 'i');
     for (const file of files) {
       if (seen.has(file)) continue;
       seen.add(file);
-      const text = fs.readFileSync(file, 'utf8');
-      if (masterHub.test(text) || legacyTag.test(text) || person.test(text)) bad.push(path.relative(ROOT, file));
+      if (namesInstall(fs.readFileSync(file, 'utf8'))) bad.push(path.relative(ROOT, file));
     }
     assert.deepStrictEqual(bad, []);
+  });
+
+  test('a camelCase or snake_case form of the scrubbed name is flagged', () => {
+    assert.ok(namesInstall('const ' + 'sop' + 'hia' + 'Actor = 1'));
+    assert.ok(namesInstall('const ' + 'sop' + 'hia' + '_door = 1'));
+    assert.ok(namesInstall('function is' + 'Sop' + 'hia' + 'Credential() {}'));
+    assert.ok(!namesInstall('a grok project'));
+  });
+
+  test('the 0.3.5 upgrade note stamps bound-host and limits the alias to stored data', () => {
+    const stamp = 'stamped `bound-host`';
+    const flat = (text) => text.replace(/<code>/g, '`').replace(/<\/code>/g, '`');
+    const notes = [
+      between(read('CHANGELOG.md'), '### Upgrade', '### Changed'),
+      between(read('docs/DEPLOY.md'), '## Upgrading to 0.3.5', '## Upgrading to 0.3.4'),
+      between(read('docs/SETUP.md'), '## Upgrading to 0.3.5', '## Upgrading to 0.3.4'),
+      between(read('site/index.html'), 'What 0.3.5 changed', 'What 0.3.4 changed'),
+    ].map(flat);
+    for (const note of notes) {
+      assert.ok(note.includes(stamp), note.slice(0, 240));
+      assert.ok(note.includes('stored data only'));
+      assert.ok(note.includes('new consent'));
+    }
+  });
+
+  test('the 0.3.1 changelog records the address that release shipped', () => {
+    const log = read('CHANGELOG.md');
+    const shipped = between(log, '## 0.3.1 - ', '## 0.3.0 - ');
+    assert.ok(shipped.includes('dreamforgestudio@mail.grokbot.com'));
+    assert.ok(!shipped.includes('dreamforgestudio@mail.hubbot.com'));
+    const current = between(log, '## 0.3.5 - ', '## 0.3.4 - ');
+    assert.ok(current.includes('In 0.3.2 the default'));
+    assert.ok(current.includes('dreamforgestudio@mail.hubbot.com'));
+  });
+
+  test('SETUP §6, the README, and the site list every unprefixed collection src opens', () => {
+    const names = unprefixedCollections();
+    assert.ok(names.includes('persons'));
+    assert.ok(names.includes('invites'));
+    const setup = between(read('docs/SETUP.md'), '6. **One database per EMET instance.**', '\n7. **');
+    const readme = between(read('README.md'), '- These collections are not prefixed', '\n- Dynamic Client');
+    const siteLists = [...read('site/index.html').matchAll(/These collections are not prefixed:([\s\S]*?)<\/li>/g)].map((match) => match[1]);
+    assert.strictEqual(siteLists.length, 2);
+    for (const name of names) {
+      assert.ok(setup.includes('`' + name + '`'), `SETUP §6 ${name}`);
+      assert.ok(readme.includes('`' + name + '`'), `README ${name}`);
+      for (const block of siteLists) assert.ok(block.includes('>' + name + '<'), `site ${name}`);
+    }
   });
 });
 

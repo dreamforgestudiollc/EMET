@@ -14,13 +14,14 @@ Nothing is waiting above 0.3.5.
 This release brings the public docs current with the code. Stored data shapes are unchanged. The declared version is 0.3.5.
 
 ### Upgrade
-- The bound door's tag is `bound-host`. Consent tokens, approval rows, writer requests, and sub-keys stored under the previous tag are still that door. The alias is a digest, so this package does not spell the old tag.
+- The bound door's tag is `bound-host`. Writes from a stored legacy token or sub-key are stamped `bound-host`. The alias covers stored data only. A new consent under the previous tag does not get the bound door. The alias is a digest, so this package does not spell the old tag.
 
 ### Changed
 - `CHARTER.md` §4 says the extension socket is built. It is `src/socket.js`. Its note is `docs/gem/README.md`. Public text no longer names an install-specific hub or host tag. Writer-approval text says the hub login. The tag that login matches is still `hub-bot`. The bound-door tag the server matches is `bound-host`. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 - The site tool table counts 38 tools with sub-keys off: 15 read-only, 13 additive, and 8 that replace or hand out access, plus `retire_doc` and `emet_status`. The public site says 0.3.2 was published to npm on 2026-10-28. Owner instructions name `/owner/chooser`. `docs/ROADMAP.md` is dated 2026-11-10, marks the site and the npm package live, and names the 0.3.0 topic-page tools `emet_page`, `emet_pages`, and `emet_page_lint`. `.env.example` and `docs/DEPLOY.md` document `EMET_CLAIMED_TAG_KILL_DATE` (unset uses `2026-12-15`, then `EMET-AUTH-040`), `EMET_DEEP_LINK_TTL_MINUTES` (default 15), and `EMET_RESTORE_TAGS`. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 - The README counts 38 tools with sub-keys off, 15 of them read-only, and 42 with `EMET_SUBKEYS=1`. `docs/ROADMAP.md` names the same live count, and GEM socket PR 4 is shipped in 0.2.6. `docs/SETUP.md` and `docs/DEPLOY.md` carry upgrading notes through 0.3.5. The public site has What-changed sections for 0.3.1, 0.3.2, 0.3.3, and 0.3.4. Comments no longer name the private repository or the retired account id. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 - Version 0.3.5. `package.json`, `package-lock.json`, `server.json`, `glama.json`, `.cursor-plugin/plugin.json`, and `src/version.js` agree. The README and the public site name the same version. `mcp.json` has no version. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+- In 0.3.2 the default `EMET_REPORT_EMAIL` became `dreamforgestudio@mail.hubbot.com`. The 0.3.1 line below records the address that release shipped. The 0.3.2, 0.3.3, and 0.3.4 READMEs still named `dreamforgestudio@mail.grokbot.com`. The code default is unchanged in 0.3.5.
 
 ## 0.3.4 - 2026-11-10
 
@@ -73,7 +74,7 @@ Release notes for the access ladder and the work after 0.3.1. npm is not publish
 
 ## 0.3.1 - 2026-10-21
 
-- Changed: `EMET_REPORT_EMAIL` defaults to `dreamforgestudio@mail.hubbot.com`.
+- Changed: `EMET_REPORT_EMAIL` defaults to `dreamforgestudio@mail.grokbot.com`.
 - Added: `scripts/verify-emet.mjs`, also `npm run verify`. Subcommands are `doctor`, `list`, `run`, and `feature`. `--json` prints one object. `--dry-run` skips a call that replaces stored text or hands out access, and says what it would have called. The command uses a temporary directory and the in-memory test database. It does not read `.env`. A tool that needs a service or setting a plain install does not have is reported as a gap. A run whose only problems are gaps exits 3. A failed tool exits 1.
 - Changed: the Official MCP Registry description in `server.json` stays within the registry's 100-character limit and names stable error codes.
 - Added: `docs/features/` is the feature map, one file per feature, including error codes, the error log, and `emet_error_report`. `tests/feature-map.test.js` fails if a registered tool is missing from the map.

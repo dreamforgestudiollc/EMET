@@ -140,9 +140,10 @@ testGroup('npm publish metadata', () => {
     const planted = [
       'EMET_OAUTH_PASSPHRASE=CHANGE_ME',
       'HOST=0.0.0.0',
-      'EMET_SOURCE_TAGS=cli,mobile,desktop-cowork,cowork-cloud,grok-project',
+      'EMET_SOURCE_TAGS=cli,mobile,desktop-cowork,cowork-cloud,grok-project,bound-host',
     ].join('\n');
     assert.deepStrictEqual(envExampleFaults(planted), ['passphrase', 'bind', 'source-tags']);
+    assert.deepStrictEqual(envExampleFaults('EMET_SOURCE_TAGS=bound-host\n'), ['source-tags']);
     assert.deepStrictEqual(envExampleFaults('# EMET_OAUTH_PASSPHRASE=\n# HOST=0.0.0.0\nEMET_SOURCE_TAGS=laptop,phone,cli\n'), []);
     const packed = packedTree();
     try {

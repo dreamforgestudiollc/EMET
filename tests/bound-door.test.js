@@ -3,7 +3,7 @@
  *
  * Client bound-login-client bound to hub-bot must not stamp
  * that tag on a bound-host claim. A bound-host credential stamps bound-host.
- * Episodic ref 697 is corrected by a later note, not by revise_memory.
+ * A later note corrects a misattributed row. It does not revise that row.
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -13,8 +13,8 @@ import { layerHonouringDb, makeStore, withStore, withEnv } from './memstore.js';
 import { actorStore } from '../src/persons.js';
 import { saveMemory, resolvedSourceTag, writeDoc, saveTranscript, transcriptAppend } from '../src/tools.js';
 import {
-  CLAIM_TAG, MB_TAG, SHARED_GROK_CLIENT, EPISODIC_697_ID, CORRECTION_NOTE_DATE,
-  BOUND_LOGIN_MESSAGE, episodic697CorrectionNote, recordBoundHostCredential, boundHostListingAfterWriterIssue,
+  CLAIM_TAG, MB_TAG, SHARED_GROK_CLIENT, CORRECTION_NOTE_DATE,
+  BOUND_LOGIN_MESSAGE, boundHostCorrectionNote, recordBoundHostCredential, boundHostListingAfterWriterIssue,
   isBoundHostCredential, boundHostClaimOnSharedLogin
 } from '../src/bound-door.js';
 
@@ -315,12 +315,12 @@ testGroup('the approvals row is a credential, not a remembered claim on 8xm', ()
   });
 });
 
-testGroup('episodic ref 697 correction note', () => {
-  test('the dated note cites 697 and the same shape marks a parent without superseding it', async () => {
-    const note = episodic697CorrectionNote();
+testGroup('bound-door correction note', () => {
+  test('the dated note marks a parent without superseding it', async () => {
+    const note = boundHostCorrectionNote();
     assert.strictEqual(note.layer, 'episodic');
-    assert.strictEqual(note.metadata.corrects, EPISODIC_697_ID);
-    assert.strictEqual(note.metadata.corrects, 697);
+    assert.strictEqual(note.metadata.corrects, undefined);
+    assert.ok(!note.content.includes('697'));
     assert.match(note.content, new RegExp(CORRECTION_NOTE_DATE));
     assert.match(note.content, /bound-host/);
     assert.match(note.content, /hub-bot/);
@@ -668,7 +668,9 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
     const src = fs.readFileSync(fileURLToPath(new URL('../src/bound-door.js', import.meta.url)), 'utf8');
     assert.strictEqual(boundHostTagDigest(LEGACY_BOUND_TAG), LEGACY_CLAIM_TAG_DIGEST);
     assert.strictEqual(isBoundHostTag(LEGACY_BOUND_TAG), true);
+    assert.strictEqual(isBoundHostTag(LEGACY_BOUND_TAG.toUpperCase()), false);
     assert.strictEqual(isBoundHostTag(CLAIM_TAG), true);
+    assert.strictEqual(isBoundHostTag(CLAIM_TAG.toUpperCase()), false);
     assert.strictEqual(isBoundHostTag(MB_TAG), false);
     assert.ok(!src.includes(LEGACY_BOUND_TAG));
   });
@@ -737,17 +739,13 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
     assert.strictEqual(listed.approved.grant_id, null);
   });
 
-  test('owner consent with the legacy source tag lists the door', async () => {
+  test('owner consent with the legacy source tag does not list the door', async () => {
     const posted = await withEnv({ EMET_SOURCE_TAGS: [MB_TAG, CLAIM_TAG, LEGACY_BOUND_TAG].join(',') }, () => postApprove({
       client_id: 'legacy-owner-login',
       source: LEGACY_BOUND_TAG
     }));
     assert.strictEqual(posted.status, 302, posted.text.slice(0, 400));
-    const listed = await listedTag(posted.db);
-    assert.ok(listed, approvalsOf(posted.db));
-    assert.strictEqual(listed.basis, 'credential');
-    assert.strictEqual(listed.door, 'owner');
-    assert.strictEqual(listed.client_id, 'legacy-owner-login');
+    assert.strictEqual(await listedTag(posted.db), null);
   });
 });
 

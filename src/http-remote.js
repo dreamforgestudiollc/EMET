@@ -292,8 +292,11 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
       source_tag: sourceTag,
     });
     if (sourceTag) {
-      const { recordBoundHostCredential, isBoundHostTag } = await import('./bound-door.js');
-      if (isBoundHostTag(sourceTag)) {
+      const { recordBoundHostCredential, CLAIM_TAG } = await import('./bound-door.js');
+      // A new consent lists the door only for the current tag. The previous
+      // spelling still counts on data already stored, and those writes stamp
+      // bound-host. Typing it at consent does not open the door.
+      if (sourceTag === CLAIM_TAG) {
         try {
           const door = inviteSubject ? (inviteDoor === 'member' ? 'member' : 'guest') : 'owner';
           await recordBoundHostCredential(t.approvalsDeps, { client_id, door, grant_id: null, by: 'consent' });
