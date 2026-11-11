@@ -57,7 +57,7 @@ testGroup('the grant id is the token family', () => {
   test('a legacy token with no issued_via still verifies, with a null door', async () => {
     const db = memDb();
     const provider = new MongoOAuthProvider(() => db, { passphrase: 'p', issuerUrl: 'https://emet.example', fetch: async () => ({ ok: false, status: 404 }) });
-    const issued = await provider._issueTokens('c1', [], null, 'alex', null, 'fam-legacy', 'laptop');
+    const issued = await provider._issueTokens('c1', [], null, 'patron', null, 'fam-legacy', 'laptop');
     const v = await provider.verifyAccessToken(issued.access_token);
     assert.strictEqual(v.extra.grantId, 'fam-legacy');
     assert.strictEqual(v.extra.door, null);
@@ -68,7 +68,7 @@ testGroup('the grant id is the token family', () => {
       passphrase: 'p', issuerUrl: 'https://emet.example', fetch: async () => ({ ok: false, status: 404 }),
       invitesFrozen: () => true, memberAccessFrozen: () => true
     });
-    const issued = await provider._issueTokens('c1', ['emet'], null, 'alex', OWNER_GRANT, 'fam-owner', 'laptop');
+    const issued = await provider._issueTokens('c1', ['emet'], null, 'patron', OWNER_GRANT, 'fam-owner', 'laptop');
     const out = await provider.exchangeRefreshToken({ client_id: 'c1' }, issued.refresh_token, undefined, null);
     const v = await provider.verifyAccessToken(out.access_token);
     assert.strictEqual(v.extra.door, 'owner');
@@ -166,7 +166,7 @@ testGroup('writes and refusals carry the grant, and a caller value does not', ()
     const { callerAttribution } = await import('../src/setup.js');
     const db = memDb();
     const provider = new MongoOAuthProvider(() => db, { passphrase: 'p', issuerUrl: 'https://emet.example', fetch: async () => ({ ok: false, status: 404 }) });
-    const issued = await provider._issueTokens('login-owner', ['emet'], null, 'alex', OWNER_GRANT, null, 'laptop');
+    const issued = await provider._issueTokens('login-owner', ['emet'], null, 'patron', OWNER_GRANT, null, 'laptop');
     const verified = await provider.verifyAccessToken(issued.access_token);
     const remote = read('src/http-remote.js');
     const start = remote.indexOf('setRequestHandler(CallToolRequestSchema');

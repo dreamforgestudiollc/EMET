@@ -25,7 +25,7 @@
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { setting } from './env.js';
-import { toolCallAuditDetails } from './grants.js';
+import { owlRetirementFailureLine, toolCallAuditDetails } from './grants.js';
 import { redactText } from './redact.js';
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -267,7 +267,7 @@ async function main() {
       const { runStartupChecks } = await import('./owl.js');
       await runStartupChecks(dbManager.db, { log: (line) => logger.error(line) });
     } catch {
-      logger.error('[emet] OWL RETIREMENT CHECK FAILED account=user-EMET--owl active=unknown rung=R6 pointer=/owner/chooser');
+      logger.error(owlRetirementFailureLine());
     }
   }
   try {

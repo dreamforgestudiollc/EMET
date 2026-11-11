@@ -236,9 +236,9 @@ testGroup('staged handoff write', () => {
     const db = readyStore();
     await seed(db);
     const begun = parsed(await call(db, 'write_doc_begin', { doc_id: 'HANDOFF.md', supersedes: 1, reason: REASON }));
-    const bob = { ...ada, personId: 'bob', clientId: 'login-8' };
-    const refused = await withEnv({ EMET_SOURCE_TAGS: 'bound-host' }, () => withStore(db, () => actorStore.run(bob, () => dispatchTool('write_doc_append', {
-      stage_id: begun.data.stage_id, part: 1, chunk: 'not bob', session_id: SID, source: 'bound-host'
+    const pal = { ...ada, personId: 'pal', clientId: 'login-8' };
+    const refused = await withEnv({ EMET_SOURCE_TAGS: 'bound-host' }, () => withStore(db, () => actorStore.run(pal, () => dispatchTool('write_doc_append', {
+      stage_id: begun.data.stage_id, part: 1, chunk: 'not pal', session_id: SID, source: 'bound-host'
     }, { dbManager: db, logger: null }))));
     assert.strictEqual(codeOf(refused), 'EMET-DOC-060');
     const appended = parsed(await call(db, 'write_doc_append', { stage_id: begun.data.stage_id, part: 1, chunk: 'ada owns this part' }));

@@ -798,7 +798,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       chain_sha256: chainSha256
     };
 
-    // Option A correction back-pointer (Alex, 2026-10-02, procedural ref 405 item 4): a new entry may name the
+    // Option A correction back-pointer (the owner, 2026-10-02, procedural ref 405 item 4): a new entry may name the
     // entry it partly corrects. The parent must exist in the same layer, and is checked BEFORE the insert so a
     // refused correction writes nothing.
     if (validatedMetadata.corrects !== undefined && validatedMetadata.corrects !== null) {
@@ -1015,7 +1015,7 @@ export async function resolveSupersessionChain(read, entry, maxHops = 50) {
 }
 
 /**
- * Option A correction back-pointer (Alex, 2026-10-02, procedural ref 405 item 4; Reviewer's sketch in his
+ * Option A correction back-pointer (the owner, 2026-10-02, procedural ref 405 item 4; Reviewer's sketch in his
  * second read of episodic ref 604). Episodic entries are immutable events, so a PARTIAL correction cannot
  * supersede its parent: supersession would put an end date on the whole parent and present every item
  * in it as replaced. Instead the new entry carries metadata.corrects = <parent id>, and the parent is MARKED:
@@ -2758,7 +2758,7 @@ export async function readDocHistory(doc_id, version = null, logger = null) {
 }
 
 /**
- * Records are superseded, never amended (2026-09-26, Alex: "enforce
+ * Records are superseded, never amended (2026-09-26, the owner: "enforce
  * supersession ISO practices"). ISO 9001 7.5.3 / ISO 13485 4.2.5 separate
  * DOCUMENTS, which are revised under control, from RECORDS, which are evidence
  * of what happened and are not altered. The handoff is a record: it attests to
@@ -2805,7 +2805,7 @@ function _refuseRecordAmendment(doc_id, tool) {
  * stamps as updated_by: the caller's, else EMET_SOURCE_TAG. A records rule like
  * the record-amendment refusal above, so it applies in every graph mode.
  *
- * Two further guards on the same doors (2026-10-01, Alex's 4:17 PM approval to
+ * Two further guards on the same doors (2026-10-01, the owner's 4:17 PM approval to
  * make the bot tags fully functional; Reviewer's review of PR 3):
  *   - REGISTERED HOSTS ONLY on the main records. With a source registry
  *     configured (EMET_SOURCE_TAGS, parsed as save_to_layer parses it), the
@@ -3005,18 +3005,13 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
 }
 
 /**
- * retire_doc and rename_doc are not bot tools at all (Alex, 2026-10-01 4:27 PM
- * ET, decision 1, as relayed: "retire_doc isn't needed for bots: keep it
- * Alex/hub only and out of every bot profile"; procedural ref 407; stage 1 of the
- * ref 358 startup amendment, admitted by Reviewer 2026-10-02). A profile is not a
- * security boundary, so the door refuses them under ANY bot tag, for every
- * doc_id - not only the main records refuseBotMainRecord covers. ref 407(1)
- * covers retire_doc only; rename_doc stays Alex-only under procedural ref 409
- * (Alex-confirmed 2026-10-02 7:50: every other Alex-only tool is
- * unchanged), and it retires its old id internally, so it is refused too. The tag is the
- * one the door would stamp: the caller's, else EMET_SOURCE_TAG. Hosts and the
- * hub have no bots/<tag>/HANDOFF.md record and are unaffected. Nothing is
- * written when refused.
+ * retire_doc and rename_doc are not bot tools. They stay with the owner and
+ * the hub. A profile is not a security boundary, so the door refuses them
+ * under any bot tag, for every document, not only the main records
+ * refuseBotMainRecord covers. Rename retires its old id, so it is refused
+ * too. The tag is the one the door would stamp: the caller's, else
+ * EMET_SOURCE_TAG. Hosts and the hub have no bots/<tag>/HANDOFF.md record
+ * and are unaffected. Nothing is written when refused.
  */
 export function refuseBotRetireRename(tag, tool) {
   for (const t of rightsTags(tag)) refuseBotRetireRenameOne(t, tool);
@@ -3035,7 +3030,7 @@ function refuseBotRetireRenameOne(tag, tool) {
   throw new ValidationError(
     'source',
     `${tool} is not a bot tool: ${t} is a bot tag, and ` +
-    `renaming documents stays the owner-only (procedural ref 409)` +
+    `renaming documents stays with the owner and the hub` +
     `. Ask the hub. Nothing was changed.`
   , { code: 'EMET-MEM-020' });
 }
@@ -4014,7 +4009,7 @@ export async function memberAccessCreate(dbManager, { display_name, days, source
   const who = currentActor();
   const aiWriter = isOwlIdentity(who) || (who.transport === 'http' && (isMasterBlasterActor(who) || actorIsCos(who) || (who.sourceTag && isBotTag(who.sourceTag))));
   if (aiWriter) {
-    throw new ValidationError('An AI cannot grant a writer. Alex decides on /owner/chooser with an owner session. Nothing was created.', { code: 'EMET-AUTH-043' });
+    throw new ValidationError('An AI cannot grant a writer. The owner decides on /owner/chooser with an owner session. Nothing was created.', { code: 'EMET-AUTH-043' });
   }
   const { registeredSourceTags } = await import('./setup.js');
   const actor = await codeCreator(dbManager);
@@ -4603,7 +4598,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_client_approve",
-    description: "Approve or deny a pending client tag, or prepare a new writer. decision prepare drafts a writer request: client, claimed tag, door (member or guest), reason, and correlation_id. The hub login prepares that draft. The server validates it. Validation is a check and is not approval. Alex decides a new writer on /owner/chooser with the owner session. No AI grants a writer, including the hub login and the retired owl account. The owner login may still approve or deny a pending client tag. Pending client tags are listed in emet_initialize and emet_status as client_approvals.",
+    description: "Approve or deny a pending client tag, or prepare a new writer. decision prepare drafts a writer request: client, claimed tag, door (member or guest), reason, and correlation_id. The hub login prepares that draft. The server validates it. Validation is a check and is not approval. The owner decides a new writer on /owner/chooser with the owner session. No AI grants a writer, including the hub login and the retired owl account. The owner login may still approve or deny a pending client tag. Pending client tags are listed in emet_initialize and emet_status as client_approvals.",
     inputSchema: {
       type: "object",
       properties: {

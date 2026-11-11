@@ -2,7 +2,7 @@
 
 The GEM standard is maintained in the GEM library, not in this file.
 
-The copy under review in this repository is [`gem-library/`](../../gem-library/README.md). Its canonical home is the private repository [EMET-GEMs](https://github.com/dreamforgestudiollc/EMET-GEMs). When that folder is moved, this page should point at that repository and stop pointing at a second copy.
+The copy in this repository is [`gem-library/`](../../gem-library/README.md). It is Draft. A public submission repository for outside GEMs does not exist yet. Its name is not chosen.
 
 The socket takes these rules from the library:
 

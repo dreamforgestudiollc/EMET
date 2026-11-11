@@ -18,7 +18,7 @@ const { ValidationError } = await import('../src/validation.js');
 import { memDb as sharedMemDb } from './memstore.js';
 function memDb() {
   const db = sharedMemDb();
-  db.collection('persons').insertOne({ person_id: 'alex', display_name: 'Alex', role: 'owner' });
+  db.collection('persons').insertOne({ person_id: 'patron', display_name: 'Patron', role: 'owner' });
   return db;
 }
 const dbManagerFor = (db) => ({ db, async getConnection() { return {}; } });
@@ -31,7 +31,7 @@ const oauthCode = async (p) => {
 const providerFor = (db) => new MongoOAuthProvider(() => db, { passphrase: 'p', issuerUrl: 'https://emet.example', fetch: async () => ({ ok: false, status: 404 }) });
 async function plantCode(db, door, scopes) {
   const code = mintInviteCode();
-  await db.collection('invites').insertOne({ digest: inviteDigest(code), display_name: door === 'member' ? 'Alex' : 'Guest', scopes, created_at: new Date(), expires_at: new Date(Date.now() + 86400000), used_at: null, person_id: null, door });
+  await db.collection('invites').insertOne({ digest: inviteDigest(code), display_name: door === 'member' ? 'Patron' : 'Guest', scopes, created_at: new Date(), expires_at: new Date(Date.now() + 86400000), used_at: null, person_id: null, door });
   return code;
 }
 async function tokenFor(provider, db, door, { legacy = false } = {}) {

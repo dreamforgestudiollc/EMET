@@ -17,7 +17,7 @@ const { actorStore } = await import('../src/persons.js');
 import { memDb as sharedMemDb } from './memstore.js';
 function memDb() {
   const db = sharedMemDb();
-  db.collection('persons').insertOne({ person_id: 'alex', display_name: 'Alex', role: 'owner' });
+  db.collection('persons').insertOne({ person_id: 'patron', display_name: 'Patron', role: 'owner' });
   return db;
 }
 const dbManagerFor = (db) => ({ db, async getConnection() { return {}; } });
@@ -30,7 +30,7 @@ const oauthCode = async (p) => {
 const providerFor = (db) => new MongoOAuthProvider(() => db, { passphrase: 'p', issuerUrl: 'https://emet.example', fetch: async () => ({ ok: false, status: 404 }) });
 async function plantCode(db, door, scopes) {
   const code = mintInviteCode();
-  await db.collection('invites').insertOne({ digest: inviteDigest(code), display_name: door === 'member' ? 'Alex' : 'Guest', scopes, created_at: new Date(), expires_at: new Date(Date.now() + 86400000), used_at: null, person_id: null, door });
+  await db.collection('invites').insertOne({ digest: inviteDigest(code), display_name: door === 'member' ? 'Patron' : 'Guest', scopes, created_at: new Date(), expires_at: new Date(Date.now() + 86400000), used_at: null, person_id: null, door });
   return code;
 }
 async function tokenFor(provider, db, door, { legacy = false } = {}) {
@@ -49,15 +49,15 @@ await testGroup('flags', () => {
 await testGroup('EMET Member Access', async () => {
   await test('redeem gives a NEW person_id (never the owner, even named like the owner), role member, door member, exactly [emet.read, emet.write]', async () => {
     const db = memDb();
-    const made = await createMemberAccess(db, { display_name: 'Alex' });
+    const made = await createMemberAccess(db, { display_name: 'Patron' });
     assert.deepStrictEqual(made.scopes, ['emet.read', 'emet.write']);
     const r = await redeemInvite(db, made.code);
     assert.strictEqual(r.ok, true); assert.strictEqual(r.door, 'member');
-    assert.notStrictEqual(r.person_id, 'alex'); assert.notStrictEqual(r.person_id, 'owner'); assert.strictEqual(r.person_id, 'alex-2');
+    assert.notStrictEqual(r.person_id, 'patron'); assert.notStrictEqual(r.person_id, 'owner'); assert.strictEqual(r.person_id, 'patron-2');
     assert.deepStrictEqual(r.scopes, ['emet.read', 'emet.write']);
     const p = await db.collection('persons').findOne({ person_id: r.person_id });
     assert.strictEqual(p.role, 'member'); assert.strictEqual(p.door, 'member');
-    assert.strictEqual((await db.collection('persons').findOne({ person_id: 'alex' })).role, 'owner', 'the owner row is untouched');
+    assert.strictEqual((await db.collection('persons').findOne({ person_id: 'patron' })).role, 'owner', 'the owner row is untouched');
   });
   await test('the member scopes are fixed at redeem: a stored code with empty, wider or narrower scopes still gives exactly [emet.read, emet.write]', async () => {
     for (const stored of [[], ['emet'], ['*'], ['emet.read'], ['emet.read', 'emet.write', 'admin'], undefined]) {
@@ -73,7 +73,7 @@ await testGroup('EMET Member Access', async () => {
     await db.collection('persons').insertOne({ person_id: 'mem-9', role: 'member', door: 'member' });
     await assert.rejects(() => actorStore.run({ personId: 'mem-9', scopes: ['emet.read', 'emet.write'] }, () => memberAccessCreate(dbManagerFor(db), { display_name: 'X' })), /Only the owner can create EMET Member Access/);
     assert.strictEqual(db.collection('invites').rows.length, 0);
-    const ok = await actorStore.run({ personId: 'alex', scopes: [] }, () => memberAccessCreate(dbManagerFor(db), { display_name: 'X' }));
+    const ok = await actorStore.run({ personId: 'patron', scopes: [] }, () => memberAccessCreate(dbManagerFor(db), { display_name: 'X' }));
     assert.strictEqual(ok.door, 'member'); assert.strictEqual(ok.label, 'EMET Member Access');
   });
 });
@@ -116,7 +116,7 @@ await testGroup('refresh: each token against its own flag', async () => {
   });
   await test('a passphrase (owner) token is untouched by either flag', async () => {
     const db = memDb(); const provider = providerFor(db);
-    const t = await provider._issueTokens('c1', [], null, 'alex', null, null, 'laptop');
+    const t = await provider._issueTokens('c1', [], null, 'patron', null, null, 'laptop');
     assert.ok((await provider.exchangeRefreshToken(client, t.refresh_token, undefined, null)).access_token);
   });
 });

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/dreamforgestudiollc/EMET-GEMs/raw/main/gem.schema.json",
+  "$id": "emet:gem-library/gem.schema.json",
   "title": "EMET GEM manifest",
   "description": "gem.json for one Golem Expertise Module. Normative rules are in SPEC.md, revision 2026-10-12.",
   "type": "object",

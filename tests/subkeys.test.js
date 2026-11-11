@@ -62,8 +62,8 @@ function memDeps(initial = null) {
   };
 }
 async function records(deps, sk) { return sk.loadSubkeyRecords(deps); }
-const ownerHost = (extra = {}) => ({ personId: 'alex', ownerId: 'alex', clientId: 'claude-host', transport: 'http', authenticated: true, sourceTag: 'cowork-cloud', sourceBasis: 'login', scopes: [], ...extra });
-const actorFor = (extra = {}) => ({ personId: 'alex', ownerId: 'alex', clientId: CLIENT, transport: 'http', authenticated: true, sourceTag: 'hub-bot', sourceBasis: 'login', scopes: [], ...extra });
+const ownerHost = (extra = {}) => ({ personId: 'patron', ownerId: 'patron', clientId: 'claude-host', transport: 'http', authenticated: true, sourceTag: 'cowork-cloud', sourceBasis: 'login', scopes: [], ...extra });
+const actorFor = (extra = {}) => ({ personId: 'patron', ownerId: 'patron', clientId: CLIENT, transport: 'http', authenticated: true, sourceTag: 'hub-bot', sourceBasis: 'login', scopes: [], ...extra });
 async function fresh() {
   const att = await import('../src/attribution.js');
   const sk = await import('../src/subkeys.js');
@@ -73,13 +73,13 @@ async function fresh() {
 }
 function world(over = {}) {
   const deps = over.deps || memDeps();
-  const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW, ...over, deps };
+  const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW, ...over, deps };
   return { deps, c };
 }
 
 async function issue(deps, sk, { tag = 'intake-bot', bot = actorFor(), owner = ownerHost(), now = NOW } = {}) {
   const req = await sk.requestSubkey(deps, bot, { tag }, REG, now);
-  const decided = await sk.decideSubkeyIfPending(deps, owner, 'alex', { tag, decision: 'approve' }, now);
+  const decided = await sk.decideSubkeyIfPending(deps, owner, 'patron', { tag, decision: 'approve' }, now);
   const claimed = await sk.claimSubkey(deps, bot, { key_id: req.key_id, nonce: req.nonce }, now);
   return { req, decided, claimed, bot, tag };
 }
@@ -164,7 +164,7 @@ testGroup('4. claim needs the nonce, once', () => {
     const { deps } = world();
     const bot = actorFor();
     const req = await sk.requestSubkey(deps, bot, { tag: 'intake-bot' }, REG, NOW);
-    await sk.decideSubkeyIfPending(deps, ownerHost(), 'alex', { tag: 'intake-bot', decision: 'approve' }, NOW);
+    await sk.decideSubkeyIfPending(deps, ownerHost(), 'patron', { tag: 'intake-bot', decision: 'approve' }, NOW);
     await assert.rejects(() => sk.claimSubkey(deps, bot, { key_id: req.key_id }, NOW), /nonce/);
     await assert.rejects(() => sk.claimSubkey(deps, bot, { key_id: req.key_id, nonce: 'emn_' + 'b'.repeat(43) }, NOW), /does not match/);
     const claimed = await sk.claimSubkey(deps, bot, { key_id: req.key_id, nonce: req.nonce }, NOW);
@@ -185,14 +185,14 @@ testGroup('5. approval is another OAuth client', () => {
     const bot = actorFor({ grantId: 'grant-shared' });
     await sk.requestSubkey(deps, bot, { tag: 'intake-bot' }, REG, NOW);
     await assert.rejects(
-      () => att.clientApprove(deps, ownerHost({ clientId: CLIENT }), 'alex', { tag: 'intake-bot', decision: 'approve' }, REG, NOW),
+      () => att.clientApprove(deps, ownerHost({ clientId: CLIENT }), 'patron', { tag: 'intake-bot', decision: 'approve' }, REG, NOW),
       /may not decide it/
     );
     await assert.rejects(
-      () => att.clientApprove(deps, ownerHost({ grantId: 'grant-shared' }), 'alex', { tag: 'intake-bot', decision: 'approve' }, REG, NOW),
+      () => att.clientApprove(deps, ownerHost({ grantId: 'grant-shared' }), 'patron', { tag: 'intake-bot', decision: 'approve' }, REG, NOW),
       /may not decide it/
     );
-    const ok = await att.clientApprove(deps, ownerHost(), 'alex', { tag: 'intake-bot', decision: 'approve' }, REG, NOW);
+    const ok = await att.clientApprove(deps, ownerHost(), 'patron', { tag: 'intake-bot', decision: 'approve' }, REG, NOW);
     assert.equal(ok.kind, 'subkey');
     assert.equal(ok.decision, 'approve');
   }));
@@ -240,7 +240,7 @@ testGroup('7. revoked and expired keys', () => {
       });
       before = await readDoc('notes/subkey-keep.md');
     });
-    await sk.revokeSubkey(deps, ownerHost(), 'alex', { key_id: claimed.key_id, reason: 'test revoke' }, NOW);
+    await sk.revokeSubkey(deps, ownerHost(), 'patron', { key_id: claimed.key_id, reason: 'test revoke' }, NOW);
     await assert.rejects(
       () => att.preflight(c, actorFor(), { session_id: base, session_handle: handle }, 'write_doc'),
       /sub-key revoked; open a new session with a current key/
@@ -281,7 +281,7 @@ testGroup('8. rotation grace', () => {
     const bot = actorFor();
     const req = await sk.requestSubkey(deps, bot, { tag: 'intake-bot' }, REG, NOW);
     assert.equal(req.replaces, first.claimed.key_id);
-    await sk.decideSubkeyIfPending(deps, ownerHost(), 'alex', { tag: 'intake-bot', decision: 'approve' }, NOW);
+    await sk.decideSubkeyIfPending(deps, ownerHost(), 'patron', { tag: 'intake-bot', decision: 'approve' }, NOW);
     await sk.claimSubkey(deps, bot, { key_id: req.key_id, nonce: req.nonce }, NOW);
     const inside = new Date(NOW.getTime() + 60 * 1000);
     await att.preflight({ ...c, now: inside }, actorFor(), { slug: 'grace', subkey: first.claimed.subkey }, 'emet_session_open');
@@ -318,8 +318,8 @@ testGroup('9. lookup and a missing pepper', () => {
     const bot = actorFor();
     await assert.rejects(() => sk.requestSubkey(deps, bot, { tag: 'intake-bot' }, REG, NOW), /EMET_SUBKEY_PEPPER/);
     await assert.rejects(() => sk.claimSubkey(deps, bot, { key_id: 'a'.repeat(32), nonce: 'emn_' + 'd'.repeat(43) }, NOW), /EMET_SUBKEY_PEPPER/);
-    await assert.rejects(() => sk.revokeSubkey(deps, ownerHost(), 'alex', { tag: 'intake-bot' }, NOW), /EMET_SUBKEY_PEPPER/);
-    await assert.rejects(() => sk.endSubkeySession(deps, ownerHost(), 'alex', { tag: 'intake-bot' }, NOW), /EMET_SUBKEY_PEPPER/);
+    await assert.rejects(() => sk.revokeSubkey(deps, ownerHost(), 'patron', { tag: 'intake-bot' }, NOW), /EMET_SUBKEY_PEPPER/);
+    await assert.rejects(() => sk.endSubkeySession(deps, ownerHost(), 'patron', { tag: 'intake-bot' }, NOW), /EMET_SUBKEY_PEPPER/);
   }));
 });
 
@@ -377,13 +377,13 @@ testGroup('11. failed-present throttle', () => {
     const bot = actorFor();
     const other = actorFor({ clientId: 'other-client' });
     const a = await sk.requestSubkey(deps, bot, { tag: 'intake-bot' }, REG, NOW);
-    await sk.decideSubkeyIfPending(deps, ownerHost(), 'alex', { tag: 'intake-bot', decision: 'approve' }, NOW);
+    await sk.decideSubkeyIfPending(deps, ownerHost(), 'patron', { tag: 'intake-bot', decision: 'approve' }, NOW);
     const wrong = 'emn_' + 'e'.repeat(43);
     await assert.rejects(() => sk.claimSubkey(deps, bot, { key_id: a.key_id, nonce: wrong }, NOW), /does not match/);
     const got = await sk.claimSubkey(deps, bot, { key_id: a.key_id, nonce: a.nonce }, NOW);
     assert.match(got.subkey, /^emk_/);
     const b = await sk.requestSubkey(deps, bot, { tag: 'bound-host' }, REG, NOW);
-    await sk.decideSubkeyIfPending(deps, ownerHost(), 'alex', { tag: 'bound-host', decision: 'approve' }, NOW);
+    await sk.decideSubkeyIfPending(deps, ownerHost(), 'patron', { tag: 'bound-host', decision: 'approve' }, NOW);
     await assert.rejects(() => sk.claimSubkey(deps, bot, { key_id: b.key_id, nonce: wrong }, NOW), /does not match/);
     await assert.rejects(() => sk.claimSubkey(deps, bot, { key_id: b.key_id, nonce: wrong }, NOW), /does not match/);
     await assert.rejects(() => sk.claimSubkey(deps, bot, { key_id: b.key_id, nonce: wrong }, NOW), /too many failed/);
@@ -392,7 +392,7 @@ testGroup('11. failed-present throttle', () => {
     await assert.rejects(() => sk.claimSubkey(deps, other, { key_id: b.key_id, nonce: wrong }, NOW), /does not match|too many failed|already used/);
     // The other client has its own bucket, so a fresh key still claims.
     const c = await sk.requestSubkey(deps, other, { tag: 'cowork-cloud' }, REG, NOW);
-    await sk.decideSubkeyIfPending(deps, ownerHost(), 'alex', { tag: 'cowork-cloud', decision: 'approve' }, NOW);
+    await sk.decideSubkeyIfPending(deps, ownerHost(), 'patron', { tag: 'cowork-cloud', decision: 'approve' }, NOW);
     const claimed = await sk.claimSubkey(deps, other, { key_id: c.key_id, nonce: c.nonce }, NOW);
     assert.equal(claimed.tag, 'cowork-cloud');
   }));
@@ -454,7 +454,7 @@ testGroup('13. who may use a sub-key', () => {
   test('invite and member logins cannot request, claim or present', async () => withEnv(ON, async () => {
     const { att, sk } = await fresh();
     const { deps, c } = world();
-    const guest = { personId: 'guest', ownerId: 'alex', clientId: 'guest-1', transport: 'http', authenticated: true, sourceTag: 'cowork-cloud', sourceBasis: 'login' };
+    const guest = { personId: 'guest', ownerId: 'patron', clientId: 'guest-1', transport: 'http', authenticated: true, sourceTag: 'cowork-cloud', sourceBasis: 'login' };
     await assert.rejects(() => sk.requestSubkey(deps, guest, { tag: 'intake-bot' }, REG, NOW), /Invite and Member/);
     await assert.rejects(() => sk.claimSubkey(deps, guest, { key_id: 'a'.repeat(32), nonce: 'emn_' + 'f'.repeat(43) }, NOW), /Invite and Member/);
     const { claimed } = await issue(deps, sk);
@@ -467,7 +467,7 @@ testGroup('13. who may use a sub-key', () => {
     const { att, sk } = await fresh();
     const { deps, c } = world();
     const { claimed } = await issue(deps, sk);
-    const stdio = { transport: 'stdio', personId: 'alex' };
+    const stdio = { transport: 'stdio', personId: 'patron' };
     const out = await att.preflight(c, stdio, { subkey: claimed.subkey, source: 'intake-bot' }, 'write_doc');
     assert.equal(out, stdio);
     assert.equal(stdio.subkeySession, undefined);
@@ -481,10 +481,10 @@ testGroup('14. the key list is owner and COS only', () => {
     const { deps } = world();
     const { claimed } = await issue(deps, sk);
     const data = await records(deps, sk);
-    const owner = sk.subkeysView(data, ownerHost(), 'alex', NOW);
-    const cos = sk.subkeysView(data, { personId: 'alex', ownerId: 'alex', clientId: 'cos-client', transport: 'http', authenticated: true, sourceTag: 'hubbot-cos', sourceBasis: 'login' }, 'alex', NOW);
-    const bot = sk.subkeysView(data, actorFor(), 'alex', NOW);
-    const guest = sk.subkeysView(data, { personId: 'guest', ownerId: 'alex', clientId: 'g', transport: 'http', authenticated: true, sourceTag: 'cowork-cloud', sourceBasis: 'login' }, 'alex', NOW);
+    const owner = sk.subkeysView(data, ownerHost(), 'patron', NOW);
+    const cos = sk.subkeysView(data, { personId: 'patron', ownerId: 'patron', clientId: 'cos-client', transport: 'http', authenticated: true, sourceTag: 'hubbot-cos', sourceBasis: 'login' }, 'patron', NOW);
+    const bot = sk.subkeysView(data, actorFor(), 'patron', NOW);
+    const guest = sk.subkeysView(data, { personId: 'guest', ownerId: 'patron', clientId: 'g', transport: 'http', authenticated: true, sourceTag: 'cowork-cloud', sourceBasis: 'login' }, 'patron', NOW);
     assert.equal(owner.keys.length, 1);
     assert.equal(cos.keys.length, 1);
     assert.equal(owner.keys[0].key_id, claimed.key_id);
@@ -506,8 +506,8 @@ testGroup('extras', () => {
     const { deps, c } = world();
     const { claimed } = await issue(deps, sk);
     const { base, handle } = await openKey(att, sk, c, deps, claimed);
-    await assert.rejects(() => sk.endSubkeySession(deps, actorFor(), 'alex', { key_id: claimed.key_id }, NOW), /only the owner's own login/);
-    const ended = await sk.endSubkeySession(deps, ownerHost(), 'alex', { key_id: claimed.key_id, reason: 'stuck' }, NOW);
+    await assert.rejects(() => sk.endSubkeySession(deps, actorFor(), 'patron', { key_id: claimed.key_id }, NOW), /only the owner's own login/);
+    const ended = await sk.endSubkeySession(deps, ownerHost(), 'patron', { key_id: claimed.key_id, reason: 'stuck' }, NOW);
     assert.equal(ended.ended, true);
     assert.equal(ended.status, 'active');
     await assert.rejects(
@@ -545,7 +545,7 @@ testGroup('extras', () => {
       const bot = actorFor();
       const { claimed } = await issue(approvalsDeps, sk, { bot });
       const opener = actorFor();
-      await att.preflight({ db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps: approvalsDeps, registry: REG, now: NOW }, opener, { slug: 'intake', subkey: claimed.subkey }, 'emet_session_open');
+      await att.preflight({ db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps: approvalsDeps, registry: REG, now: NOW }, opener, { slug: 'intake', subkey: claimed.subkey }, 'emet_session_open');
       const lines = [];
       const orig = console.error;
       console.error = (line) => lines.push(String(line));
@@ -567,7 +567,7 @@ testGroup('extras', () => {
     await att.preflight(world().c, a, { source: 'intake-bot', subkey: 'emk_' + 'ab'.repeat(16) + '_' + 'Z'.repeat(43), session_id: 'flag-off' }, 'save_to_layer');
     assert.equal(a.sourceBasis, 'declared');
     assert.equal(a.subkeySession, undefined);
-    assert.equal(sk.subkeysView({ subkeys: { a: { tag: 't', key_id: 'a', status: 'active' } } }, ownerHost(), 'alex', NOW), null);
+    assert.equal(sk.subkeysView({ subkeys: { a: { tag: 't', key_id: 'a', status: 'active' } } }, ownerHost(), 'patron', NOW), null);
     const initial = att.renderApprovals({
       approved: {}, pending: { 'bound-host': { client_id: 'someone-else', first_seen: NOW.toISOString() } },
       denied: {}, clients: {}
@@ -579,7 +579,7 @@ testGroup('extras', () => {
       data.sessions = [{ open_id: 's1', session_id: 's1', key_id: 'abc', state: 'live' }];
       return true;
     });
-    await att.clientApprove(deps, ownerHost(), 'alex', { tag: 'bound-host', decision: 'approve' }, REG, NOW);
+    await att.clientApprove(deps, ownerHost(), 'patron', { tag: 'bound-host', decision: 'approve' }, REG, NOW);
     const parsed = att.parseApprovals(deps.store.content);
     assert.equal(parsed.subkeys, undefined);
     assert.equal(parsed.approved['bound-host'] != null, true);
@@ -607,7 +607,7 @@ testGroup('extras', () => {
   }));
   test('the accepted proposal records the owner\'s decisions and the strict-off residual', () => {
     const text = fs.readFileSync(new URL('../docs/proposals/EMET-0001-delegated-client-sub-keys.md', import.meta.url), 'utf8');
-    assert.match(text, /Accepted 2026-10-15 by Alex/);
+    assert.match(text, /Accepted 2026-10-15 by the owner/);
     assert.match(text, /still possible, counted in `declared_attribution`/);
     assert.match(text, /kept as a history event/);
     assert.match(text, /status and last_used change in place/);
@@ -701,9 +701,9 @@ testGroup('Tester review regressions', () => {
     assert.ok(deps.subkeys.touches() > beforeTouches);
     const snap = await records(deps, sk);
     assert.equal(JSON.stringify(snap).includes('hmac') , true);
-    const ownerHist = await sk.readSubkeyHistory(deps, ownerHost(), 'alex');
-    const botHist = await sk.readSubkeyHistory(deps, actorFor(), 'alex');
-    const guestHist = await sk.readSubkeyHistory(deps, { personId: 'guest', ownerId: 'alex', clientId: 'g', transport: 'http', authenticated: true, sourceTag: 'cowork-cloud', sourceBasis: 'login' }, 'alex');
+    const ownerHist = await sk.readSubkeyHistory(deps, ownerHost(), 'patron');
+    const botHist = await sk.readSubkeyHistory(deps, actorFor(), 'patron');
+    const guestHist = await sk.readSubkeyHistory(deps, { personId: 'guest', ownerId: 'patron', clientId: 'g', transport: 'http', authenticated: true, sourceTag: 'cowork-cloud', sourceBasis: 'login' }, 'patron');
     assert.ok(ownerHist.length >= 1);
     assert.equal(JSON.stringify(ownerHist).includes('hmac'), false);
     assert.equal(botHist, null);
@@ -714,7 +714,7 @@ testGroup('Tester review regressions', () => {
     const { deps, c } = world();
     const { claimed } = await issue(deps, sk);
     const first = await openKey(att, sk, c, deps, claimed, { slug: 'intake' });
-    await sk.endSubkeySession(deps, ownerHost(), 'alex', { key_id: claimed.key_id }, NOW);
+    await sk.endSubkeySession(deps, ownerHost(), 'patron', { key_id: claimed.key_id }, NOW);
     const second = await openKey(att, sk, c, deps, claimed, { slug: 'intake' });
     const snap = await records(deps, sk);
     const opens = snap.sessions.filter((s) => s.session_id === first.base);
@@ -730,13 +730,13 @@ testGroup('Tester review regressions', () => {
     const first = await issue(deps, sk);
     const bot = actorFor();
     const req = await sk.requestSubkey(deps, bot, { tag: 'intake-bot' }, REG, NOW);
-    const view = sk.subkeysView(await records(deps, sk), ownerHost(), 'alex', NOW);
+    const view = sk.subkeysView(await records(deps, sk), ownerHost(), 'patron', NOW);
     const pending = view.keys.find((k) => k.key_id === req.key_id);
     assert.equal(pending.replaces_existing_key, true);
     assert.equal(pending.replaces, first.claimed.key_id);
     assert.match(pending.approval_note, /Replaces the existing key/);
     assert.equal(view.replacements_pending.length, 1);
-    const botView = sk.subkeysView(await records(deps, sk), actorFor(), 'alex', NOW);
+    const botView = sk.subkeysView(await records(deps, sk), actorFor(), 'patron', NOW);
     assert.equal(botView, null);
   }));
   test('flag off does not open the sub-key store on a write', async () => withEnv(ON, async () => {
@@ -821,7 +821,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const openOne = async (slug) => {
         const bot = actorFor();
@@ -845,13 +845,13 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const bot = actorFor();
       const base = att.sessionOpenBase({ slug: 'intake-race' }, NOW);
       await att.preflight(c, bot, { slug: 'intake-race', subkey: claimed.subkey }, 'emet_session_open');
       await Promise.allSettled([
-        sk.revokeSubkey(deps, ownerHost(), 'alex', { key_id: claimed.key_id, reason: 'race' }, NOW),
+        sk.revokeSubkey(deps, ownerHost(), 'patron', { key_id: claimed.key_id, reason: 'race' }, NOW),
         sk.commitLiveSession(deps, bot, base, NOW)
       ]);
       const snap = await sk.loadSubkeyRecords(deps);
@@ -867,7 +867,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
       const { sk } = await fresh();
       const deps = mongoDeps();
       const req = await sk.requestSubkey(deps, actorFor(), { tag: 'intake-bot' }, REG, NOW);
-      await sk.decideSubkeyIfPending(deps, ownerHost(), 'alex', { tag: 'intake-bot', decision: 'approve' }, NOW);
+      await sk.decideSubkeyIfPending(deps, ownerHost(), 'patron', { tag: 'intake-bot', decision: 'approve' }, NOW);
       const [a, b] = await Promise.allSettled([
         sk.claimSubkey(deps, actorFor(), { key_id: req.key_id, nonce: req.nonce }, NOW),
         sk.claimSubkey(deps, actorFor(), { key_id: req.key_id, nonce: req.nonce }, NOW)
@@ -889,10 +889,10 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const first = await openKey(att, sk, c, deps, claimed, { slug: 'intake' });
-      await sk.endSubkeySession(deps, ownerHost(), 'alex', { key_id: claimed.key_id }, NOW);
+      await sk.endSubkeySession(deps, ownerHost(), 'patron', { key_id: claimed.key_id }, NOW);
       const ended = (await sk.loadSubkeyRecords(deps)).sessions.find((s) => s.session_id === first.base && s.state === 'ended');
       const endedId = `open:${ended.open_id}`;
       const hmac = ended.handle_hmac;
@@ -1017,7 +1017,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const col = store.collection('emet_subkeys');
       const upd = col.updateOne.bind(col);
@@ -1056,7 +1056,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const { base } = await openKey(att, sk, c, deps, claimed);
       const db = new store.Client().db();
@@ -1078,7 +1078,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const { base } = await openKey(att, sk, c, deps, claimed);
       const openId = (await sk.loadSubkeyRecords(deps)).sessions.find((s) => s.session_id === base).open_id;
@@ -1171,7 +1171,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
       const key = store.collection('emet_subkeys').docs.find((d) => d.key_id === claimed.key_id);
       key.live_session_id = 'gone';
       delete key.live_set_at;
-      const result = await sk.revokeSubkey(deps, ownerHost(), 'alex', { key_id: claimed.key_id, reason: 'dangling' }, NOW);
+      const result = await sk.revokeSubkey(deps, ownerHost(), 'patron', { key_id: claimed.key_id, reason: 'dangling' }, NOW);
       assert.equal(result.status, 'revoked');
       const snap = await sk.loadSubkeyRecords(deps);
       assert.equal(snap.keys[claimed.key_id].live_session_id || null, null);
@@ -1185,7 +1185,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const col = store.collection('emet_subkeys');
       const key = col.docs.find((d) => d.key_id === claimed.key_id);
@@ -1214,7 +1214,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const col = store.collection('emet_subkeys');
       const key = col.docs.find((d) => d.key_id === claimed.key_id);
@@ -1268,7 +1268,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const { base } = await openKey(att, sk, c, deps, claimed);
       const col = store.collection('emet_subkeys');
@@ -1306,7 +1306,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const { base } = await openKey(att, sk, c, deps, claimed);
       att.rememberSubkeySession(base);
@@ -1336,7 +1336,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const key = store.collection('emet_subkeys').docs.find((d) => d.key_id === claimed.key_id);
       key.live_session_id = 'gone';
@@ -1362,7 +1362,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const { base, handle } = await openKey(att, sk, c, deps, claimed);
       const openA = (await sk.loadSubkeyRecords(deps)).sessions.find((s) => s.session_id === base);
@@ -1374,7 +1374,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
         expires_at: '2026-10-16T00:00:00.000Z', opened_at: NOW.toISOString(), rev: 1
       });
       key.live_session_id = 'bee';
-      await sk.endSubkeySession(deps, ownerHost(), 'alex', { key_id: claimed.key_id, reason: 'stall' }, NOW);
+      await sk.endSubkeySession(deps, ownerHost(), 'patron', { key_id: claimed.key_id, reason: 'stall' }, NOW);
       const after = await sk.loadSubkeyRecords(deps);
       assert.equal(after.sessions.find((s) => s.open_id === openA.open_id).state, 'live');
       await assert.rejects(
@@ -1389,7 +1389,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const col = store.collection('emet_subkeys');
       const upd = col.updateOne.bind(col);
@@ -1418,7 +1418,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     await withStore(store, async () => {
       const { att, sk } = await fresh();
       const deps = mongoDeps();
-      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'alex', deps, registry: REG, now: NOW };
+      const c = { db: fakeDb(), prefix: 'emet_', ownerId: 'patron', deps, registry: REG, now: NOW };
       const { claimed } = await issue(deps, sk);
       const col = store.collection('emet_subkeys');
       const upd = col.updateOne.bind(col);
@@ -1458,7 +1458,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
       const deps = mongoDeps();
       await issue(deps, sk);
       const req = await sk.requestSubkey(deps, actorFor(), { tag: 'intake-bot' }, REG, NOW);
-      await sk.decideSubkeyIfPending(deps, ownerHost(), 'alex', { tag: 'intake-bot', decision: 'approve' }, NOW);
+      await sk.decideSubkeyIfPending(deps, ownerHost(), 'patron', { tag: 'intake-bot', decision: 'approve' }, NOW);
       const col = store.collection('emet_subkeys');
       let updates = 0;
       const upd = col.updateOne.bind(col);

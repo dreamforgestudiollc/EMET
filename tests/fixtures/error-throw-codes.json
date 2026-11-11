@@ -1061,7 +1061,7 @@
   },
   {
     "file": "tools.js",
-    "message": "throw new ValidationError( 'source', `${tool} is not a bot tool: ${t} is a bot tag, and ` + `renaming documents stays the owner-only (procedural ref 409)` + `. Ask the hub. Nothing was changed.` )",
+    "message": "throw new ValidationError( 'source', `${tool} is not a bot tool: ${t} is a bot tag, and ` + `renaming documents stays with the owner and the hub` + `. Ask the hub. Nothing was changed.` )",
     "code": "EMET-MEM-020"
   },
   {
@@ -1166,7 +1166,7 @@
   },
   {
     "file": "tools.js",
-    "message": "throw new ValidationError('An AI cannot grant a writer. Alex decides on /owner/chooser with an owner session. Nothing was created.')",
+    "message": "throw new ValidationError('An AI cannot grant a writer. The owner decides on /owner/chooser with an owner session. Nothing was created.')",
     "code": "EMET-AUTH-043"
   },
   {

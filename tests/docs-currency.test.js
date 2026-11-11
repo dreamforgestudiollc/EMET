@@ -162,14 +162,14 @@ testGroup('the roadmap names what is already live', () => {
   test('the status date, the site, npm, and the 0.3.0 topic-page tools are current', () => {
     const road = read('docs/ROADMAP.md');
     const site = read('site/index.html');
-    assert.ok(road.startsWith('# EMET — Next Steps and Proposed Features\n\nStatus as of 2026-11-10'));
+    assert.ok(road.startsWith('# EMET — Next Steps and Proposed Features\n\nStatus as of 2026-11-11'));
     assert.ok(!road.includes('Public landing page (parked)'));
     assert.ok(road.includes('**Public landing page and npm package (live).**'));
     assert.ok(road.includes('the public site and the npm package `@dreamforgestudiollc/emet` are published'));
     assert.ok(road.includes('Topic pages shipped in 0.3.0: `emet_page`, `emet_pages`, and `emet_page_lint`.'));
     assert.ok(road.includes('`emet_page_lint` shipped in 0.3.0'));
-    assert.ok(site.includes('Status as of 2026-11-10'));
-    assert.ok(site.includes('Its status date is 2026-11-10.'));
+    assert.ok(site.includes('Status as of 2026-11-11'));
+    assert.ok(site.includes('Its status date is 2026-11-11.'));
     assert.ok(!site.includes('2026-10-11'));
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Owner chooser hero (private #98). The portrait is the page background.
+ * Owner chooser hero. The portrait is the page background.
  * The npm package does not ship site/. A missing file does not stop startup.
  */
 import { test, testGroup, summary } from './harness.js';

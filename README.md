@@ -26,7 +26,8 @@ See also: [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md) · [SECUR
 - **Per-client attribution and approvals.** Every write is attributed to the client that made it. A new client is read-limited until it is approved. The approval is recorded.
 - **Error codes and problem reports.** Every error carries a stable `EMET-<AREA>-<NNN>` code. An operational error log keeps 10,000 entries or 90 days, plus daily summaries. The owner-only `emet_error_report` returns the report and an email draft that you send yourself. See [Reporting a problem](#reporting-a-problem).
 - **verify-emet and the feature map.** `npm run verify` runs `scripts/verify-emet.mjs` from a checkout. It starts EMET in a temporary directory on the in-memory test database, with no `.env`, and drives every registered tool. A tool that needs a service a plain install does not have is reported as a gap. A run whose only problems are gaps exits 3. A failed tool exits 1. The map is [docs/features/README.md](docs/features/README.md).
-- **MIT.** Version 0.3.5. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
+- **MIT.** Version 0.3.6. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
+- **Roadmap.** What is proposed, planned, or a later phase is [docs/ROADMAP.md](docs/ROADMAP.md). An item there is not built unless it says so. Upcoming work is labeled Proposed, Planned, or Later phase. Discussion is in [GitHub issues](https://github.com/dreamforgestudiollc/EMET/issues).
 
 The store has one owner, and other people can join only through the optional Guest
 (read-only) and Member (read and write) access, both off by default.
@@ -43,11 +44,20 @@ EMET is built for document control in environments that work under ISO 9001 and 
 - **Templates are controlled documents.** Base templates ship with the release, and the shipped copy governs. Every templated write is checked against its template, and a write that fails is kept and marked for review, never silently accepted or discarded.
 - **A test holds the line.** `write-path.test.js` fails if anything in `src/` removes from a layer, document or transcript collection, and `atlas-role.test.js` fails if the database role grants remove.
 
-## 30-second start
+## Start here
+
+```
+npm install
+cp .env.example .env
+npm start
+```
+
+Node.js 22 or newer. Fill in `MONGODB_URI` and `MONGODB_DB`. `.env` is gitignored.
 
 - **Guided setup:** [docs/GUIDED-SETUP.md](docs/GUIDED-SETUP.md) — never deployed anything. Your assistant installs, configures, deploys, and verifies. You sign in when asked and paste the connector URL.
 - **Setup:** [docs/SETUP.md](docs/SETUP.md) — the manual walkthrough: MongoDB, both transports, and the first-run interview.
 - **Deploy:** [docs/DEPLOY.md](docs/DEPLOY.md) — remote HTTP with OAuth, so a phone, a browser, or another vendor's agent reaches the same store.
+- **What is next:** [docs/ROADMAP.md](docs/ROADMAP.md) — Upcoming work is labeled Proposed, Planned, or Later phase, and it is not built unless the page says so.
 
 > **Status: 0.x. The stored document shapes are not frozen yet.** Breaking changes to the
 > schema may land before 1.0. Pin a version if you depend on it.
@@ -885,12 +895,11 @@ Honest list, because the point of this project is that it behaves predictably:
 - The monorail (session graph) refuses every skipped step (enforce only since 2026-10-03; there
   is no report mode or off switch). Its turn coverage is only as strong as the exchange numbers hosts report, and it never sees
   the reply text. See [Guardrails & Monorails](docs/GUARDRAILS-AND-MONORAILS.md).
-- The scheduled weekly intake writes without opening a session, so the session-order check
-  refuses those writes (gate `no_session`) until the routine opens a session with its startup's
-  `load_id` and passes the `session_id`. Its old source tag, `cloud-scheduled-intake`, was retired on
-  2026-10-02. A `cloud-scheduled-` prefix is not a registered tag, and those writes are refused.
-  The weekly intake runs under `intake-bot`. `emet_gaps` keeps counting the rows already written
-  under the old tag as ambiguous attribution instead of rewriting history.
+- A scheduled job that writes without opening a session is refused by the session-order check
+  (gate `no_session`) until it opens a session with its startup's `load_id` and passes the
+  `session_id`. A `cloud-scheduled-` prefix is not a registered tag. Only an exact tag in
+  `EMET_SOURCE_TAGS` is accepted. `emet_gaps` keeps counting rows already written under an old
+  tag as ambiguous attribution instead of rewriting history.
 - `save_transcript`'s description does not state that it stores content verbatim; the
   implementation does.
 - No export / import / restore-and-compare yet.

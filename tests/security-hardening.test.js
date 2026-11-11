@@ -334,7 +334,7 @@ testGroup('S4 source tags and stamps', () => {
     const { saveMemory, reviseMemory } = await import('../src/tools.js');
     const { actorStore } = await import('../src/persons.js');
     const db = layerHonouringDb();
-    const http = { transport: 'http', sourceTag: 'laptop', scopes: ['emet.write'], personId: 'alex', authenticated: true };
+    const http = { transport: 'http', sourceTag: 'laptop', scopes: ['emet.write'], personId: 'patron', authenticated: true };
     await actorStore.run(http, () => saveMemory(db, 'a note for the record', 'episodic', { source: 'phone' }));
     assert.strictEqual(db.writes[0].doc.metadata.source, 'laptop');
     const cited = db.writes[0].id;
@@ -419,7 +419,7 @@ testGroup('S5 roles and scopes', () => {
     const stdioGuest = await actorStore.run({ transport: 'stdio' }, () => inviteCreate(dbManager, { display_name: 'Local guest' }));
     const stdioMember = await actorStore.run({ transport: 'stdio' }, () => memberAccessCreate(dbManager, { display_name: 'Local member' }));
     assert.ok(stdioGuest.code && stdioMember.code);
-    db.collection('persons').rows.push({ person_id: 'ada', role: 'member' }, { person_id: 'alex', role: 'owner' });
+    db.collection('persons').rows.push({ person_id: 'ada', role: 'member' }, { person_id: 'patron', role: 'owner' });
     await actorStore.run({ transport: 'http', personId: 'ada', scopes: ['emet.write'], authenticated: true }, async () => {
       await assert.rejects(() => inviteCreate(dbManager, { display_name: 'Nope' }), /Only the owner can create invites/);
       await assert.rejects(() => memberAccessCreate(dbManager, { display_name: 'Nope' }), /Only the owner can create EMET Member Access/);
@@ -427,8 +427,8 @@ testGroup('S5 roles and scopes', () => {
     await actorStore.run({ transport: 'http', scopes: ['emet.write'], authenticated: true }, async () => {
       await assert.rejects(() => inviteCreate(dbManager, { display_name: 'Nope' }), /Only the owner can create invites/);
     });
-    const httpGuest = await actorStore.run({ transport: 'http', personId: 'alex', scopes: ['emet'] }, () => inviteCreate(dbManager, { display_name: 'Owner guest' }));
-    const httpMember = await actorStore.run({ transport: 'http', personId: 'alex', scopes: ['emet'] }, () => memberAccessCreate(dbManager, { display_name: 'Owner member' }));
+    const httpGuest = await actorStore.run({ transport: 'http', personId: 'patron', scopes: ['emet'] }, () => inviteCreate(dbManager, { display_name: 'Owner guest' }));
+    const httpMember = await actorStore.run({ transport: 'http', personId: 'patron', scopes: ['emet'] }, () => memberAccessCreate(dbManager, { display_name: 'Owner member' }));
     assert.strictEqual(httpGuest.door, 'guest');
     assert.strictEqual(httpMember.door, 'member');
   });
@@ -440,8 +440,8 @@ testGroup('S5 roles and scopes', () => {
     await withEnv({ EMET_SOURCE_TAGS: 'laptop,phone' }, async () => {
       const db = memDb();
       const dbManager = { db, async getConnection() { return {}; } };
-      db.collection('persons').rows.push({ person_id: 'alex', role: 'owner' });
-      await actorStore.run({ transport: 'http', personId: 'alex' }, async () => {
+      db.collection('persons').rows.push({ person_id: 'patron', role: 'owner' });
+      await actorStore.run({ transport: 'http', personId: 'patron' }, async () => {
         await assert.rejects(
           () => memberAccessCreate(dbManager, { display_name: 'Ada', source: 'other-host' }),
           /registered tag/

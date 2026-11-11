@@ -355,7 +355,7 @@ export async function corroborateCoverage(db, baseId) {
  * The store check above answers "do the artifacts exist". It could not answer
  * "did the host actually do each step", and a host that skipped a step, or
  * never read the transcript back, could still walk away with `complete`
- * because the store happened to look fine. Alex's requirement (procedural ref 388,
+ * because the store happened to look fine. the owner's requirement (procedural ref 388,
  * 389, 391): the wrap steps HAVE TO BE FOLLOWED, whichever model is hosting,
  * and a skipped step blocks the close the same way a skipped opening is caught
  * at initialize.
@@ -975,7 +975,7 @@ export async function sessionClose(options = {}) {
     }
 
     // Store-level gaps make the session incomplete. Receipt problems, and a
-    // transcript nothing independently corroborates, BLOCK it (Alex 2026-09-26,
+    // transcript nothing independently corroborates, BLOCK it (the owner 2026-09-26,
     // procedural ref 391: receipts required from the first deploy; the former
     // `unconfirmed` state is blocked, not passed).
     const storeMissing = [...missing];

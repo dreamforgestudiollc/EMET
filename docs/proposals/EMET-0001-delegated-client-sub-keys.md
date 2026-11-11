@@ -1,13 +1,13 @@
 # EMET-0001: Delegated client sub-keys (EMET core proposal)
 
-**Status:** Accepted 2026-10-15 by Alex (revision 2, after the second reader's review of PR 48)
+**Status:** Accepted 2026-10-15 by the owner (revision 2, after the second reader's review of PR 48)
 **Date:** 2026-10-15
-**Approver:** Alex
+**Approver:** the owner
 **Sponsor:** the hub bot (a sponsor does not approve)
 **Scope:** EMET core attribution (server), not a GEM. This is the first EMET core proposal. Core proposals live in `docs/proposals/` as `EMET-NNNN`.
 **Related:** board 126 (per-client attribution), NC issue #49, PR 47 (`EMET_STRICT_LOGIN_TAG`)
 
-Accepted 2026-10-15 by Alex. The tests in §10 are the review gate for the implementation.
+Accepted 2026-10-15 by the owner. The tests in §10 are the review gate for the implementation.
 
 ## 1. Problem
 
@@ -105,7 +105,7 @@ The implementation also tests a stalled open that cannot write once the pointer 
 
 ## 11. Records (document control)
 
-A key's status and last_used change in place. Each change is kept as a history event. Those events are retained and are not replaced. A later open of the same session id adds a session record; it does not replace the earlier one. A store that ran the first build of this feature, which kept sub-key rows inside `emet/CLIENT_APPROVALS.md`, still has those rows in that document's history. The current document does not. Production did not run that build. A change is a compare-and-set on the document's revision. A unique index allows only one pending key per tag. Nothing in the sub-key store is deleted. `read_doc` on `emet/CLIENT_APPROVALS.md` does not return these records. Reads and history are limited to the owner and the COS. `read_doc_history` on a written document shows the stamped tag and, for sub-key sessions, the `key_id`. A transcript row written in that session carries `key_id` as well. The key list in `emet_status` is restricted as in test 14. A pending key that replaces an existing key for the same tag says so on that list.
+A key's status and last_used change in place. Each change is kept as a history event. Those events are retained and are not replaced. A later open of the same session id adds a session record; it does not replace the earlier one. A store that ran the first build of this feature, which kept sub-key rows inside `emet/CLIENT_APPROVALS.md`, still has those rows in that document's history. The current document does not. A change is a compare-and-set on the document's revision. A unique index allows only one pending key per tag. Nothing in the sub-key store is deleted. `read_doc` on `emet/CLIENT_APPROVALS.md` does not return these records. Reads and history are limited to the owner and the COS. `read_doc_history` on a written document shows the stamped tag and, for sub-key sessions, the `key_id`. A transcript row written in that session carries `key_id` as well. The key list in `emet_status` is restricted as in test 14. A pending key that replaces an existing key for the same tag says so on that list.
 
 ## 12. Alignment
 
@@ -116,13 +116,15 @@ A key's status and last_used change in place. Each change is kept as a history e
 
 ## 13. Rollout
 
-1. Alex accepts this proposal.
-2. Implementation PR covering the tools, handle binding, pepper, redact rule, throttle, `declared_attribution` gap and the tests in §10. the second reader reviews against §10. A new flag, `EMET_SUBKEYS=1`, keeps sub-keys off by default.
-3. Alex sets `EMET_SUBKEY_PEPPER` in Railway, then deploy with the usual verified backup, health check and sandbox check.
-4. Turn on `EMET_SUBKEYS=1`. Each client requests a key, Alex approves from his own host, and each client claims its key with its nonce. Re-run board 126 and check with `read_doc_history`.
-5. When every client is on a sub-key, turn on `EMET_STRICT_LOGIN_TAG=1`. Close NC #49 only if the residual in §9 is accepted in writing or a host secret store removes it.
+How an operator turns the feature on is [SUBKEYS.md](../SUBKEYS.md) and [DEPLOY.md](../DEPLOY.md).
 
-## 14. Owner decisions (Alex, 2026-10-15)
+1. The owner accepts this proposal.
+2. The implementation covers the tools, handle binding, pepper, redact rule, throttle, `declared_attribution` gap, and the tests in §10. A second reader reviews against §10. `EMET_SUBKEYS=1` keeps sub-keys off until that setting is on.
+3. On a hosted server, the owner sets `EMET_SUBKEYS=1`, an owner-generated `EMET_SUBKEY_PEPPER`, and `EMET_SUBKEY_PEPPER_VERSION=1`, then redeploys. See [DEPLOY.md](../DEPLOY.md).
+4. Each client requests a key. The owner approves from the owner login. Each client claims its key with its nonce. Read the result back with `read_doc_history`.
+5. When every client is on a sub-key, turn on `EMET_STRICT_LOGIN_TAG=1` only if the residual in §9 is accepted in writing or a host secret store removes it.
+
+## 14. Owner decisions (the owner, 2026-10-15)
 
 - Keys expire after 30 days. The owner can reissue.
 - Approve and revoke stay on the owner's own login. No separate OAuth client is added for the chief-of-staff bot. The existing rule stands: the approver must be a different `client_id` and grant from the requester, which on today's shared login is the owner's own host.

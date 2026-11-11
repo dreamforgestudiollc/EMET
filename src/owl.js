@@ -16,7 +16,7 @@
 
 import { COLLECTION_PREFIX } from './database.js';
 import { assignCode, newCorrelationId } from './error-codes.js';
-import { OWL_ACCOUNT, doorFromIssuedVia, grantIdFromFamily, logClientId, logDoor, logGrantId } from './grants.js';
+import { OWL_ACCOUNT_LABEL, doorFromIssuedVia, grantIdFromFamily, isRetiredOwlAccount, logClientId, logDoor, logGrantId, owlRetirementFailureLine, owlRetirementPassLine } from './grants.js';
 import { InvalidGrantError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 
 const POINTER = 'this owl MCP clone account was retired by R6. A new writer is prepared by the hub login, validated on the server, and decided by the owner at /owner/chooser. This account cannot approve. Records are retained.';
@@ -39,7 +39,7 @@ export function _resetOwlForTests() {
 export function owlRetirementMetric() {
   return {
     rung: 'R6',
-    account: OWL_ACCOUNT,
+    account: OWL_ACCOUNT_LABEL,
     status: 'retired',
     retained: true,
     deleted: false,
@@ -56,13 +56,13 @@ export function owlRetirementMetric() {
 /** Exact account identity. A substring is not a match. */
 export function isOwlIdentity(value) {
   if (value == null) return false;
-  if (typeof value === 'string') return value === OWL_ACCOUNT;
+  if (typeof value === 'string') return isRetiredOwlAccount(value);
   if (typeof value !== 'object') return false;
   const fields = [
     value.clientId, value.client_id, value.sourceTag, value.source_tag,
     value.effectiveTag, value.client_name, value.clientName, value.tag
   ];
-  return fields.some((field) => field === OWL_ACCOUNT);
+  return fields.some((field) => isRetiredOwlAccount(field));
 }
 
 function notRetired(doc) {
@@ -91,11 +91,12 @@ async function readAll(db, name) {
 }
 
 /**
- * The account id, plus any registered client whose name or id is that
- * account. A token may carry an opaque registration id.
+ * Client ids of registered OAuth clients that are the retired account.
+ * A token may carry only an opaque registration id. The account string
+ * itself is matched by isOwlIdentity and is not stored in this set.
  */
 export async function owlClientIds(db, prefix = COLLECTION_PREFIX) {
-  const ids = new Set([OWL_ACCOUNT]);
+  const ids = new Set();
   const clients = await readAll(db, `${prefix}oauth_clients`);
   for (const client of clients) {
     if (client && isOwlIdentity(client) && typeof client.client_id === 'string' && client.client_id) {
@@ -140,7 +141,7 @@ export async function ensureOwlRetirementMarker(db, prefix = COLLECTION_PREFIX, 
   if (existing) return existing;
   const row = {
     _id: MARKER_ID,
-    account: OWL_ACCOUNT,
+    account: OWL_ACCOUNT_LABEL,
     status: 'retired',
     superseded_by: 'R6',
     rung: 'R6',
@@ -167,8 +168,8 @@ export async function owlStartupCheck(db, prefix = COLLECTION_PREFIX, now = new 
   }
   const ok = !failed && active.length === 0;
   const line = ok
-    ? `[emet] owl-retirement check=pass account=${OWL_ACCOUNT} active=0 rung=R6`
-    : `[emet] OWL RETIREMENT CHECK FAILED account=${OWL_ACCOUNT} active=${failed ? 'unknown' : active.length} rung=R6 pointer=/owner/chooser`;
+    ? owlRetirementPassLine()
+    : owlRetirementFailureLine(failed ? 'unknown' : active.length);
   metric.ok = ok;
   metric.active = failed ? null : active.length;
   metric.last_line = line;
@@ -194,7 +195,7 @@ export async function runStartupChecks(db, { prefix = COLLECTION_PREFIX, log } =
     const owl = await owlStartupCheck(db, prefix);
     line = owl.line;
   } catch {
-    line = `[emet] OWL RETIREMENT CHECK FAILED account=${OWL_ACCOUNT} active=unknown rung=R6 pointer=/owner/chooser`;
+    line = owlRetirementFailureLine();
   }
   write(line);
   return { line, exited: false };

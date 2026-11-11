@@ -74,7 +74,7 @@ testGroup('Pattern rules', () => {
     assert.strictEqual(out, `mongodb+srv://${MASK}:${MASK}@cluster0.example.mongodb.net/?authSource=admin`);
   });
   test('a URI without credentials is untouched', () => {
-    const u = 'https://emet-remote-production.up.railway.app/mcp';
+    const u = 'https://emet.example.invalid/mcp';
     assert.strictEqual(redactText(u), u);
   });
   test('Bearer tokens are masked', () => {

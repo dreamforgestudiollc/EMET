@@ -29,7 +29,7 @@ console.log('\n=== R4 chooser and break-glass ===');
 
 const SECRET = 'owner-secret-value';
 const PEPPER = 'pepper-pepper-pepper-pepper-pepper-32b';
-const OWNER = 'alex';
+const OWNER = 'patron';
 const REG = ['hub-bot', 'intake-bot', 'cowork-cloud'];
 const ON = {
   EMET_SUBKEYS: '1',
@@ -507,7 +507,7 @@ try {
         const reissued = await fetch(`${base}/owner/break-glass/reissue`, {
           method: 'POST',
           headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams({ csrf, door: 'owner', tag: 'alex' }).toString()
+          body: new URLSearchParams({ csrf, door: 'owner', tag: 'patron' }).toString()
         });
         const reissueHtml = await reissued.text();
         assert.equal(reissued.status, 200, reissueHtml);

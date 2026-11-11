@@ -16,7 +16,7 @@ import { memDb as sharedMemDb } from './memstore.js';
 function memDb() {
   const counter = { lookups: 0 };
   const db = sharedMemDb({ counter });
-  db.collection('persons').insertOne({ person_id: 'alex', display_name: 'Alex', role: 'owner' });
+  db.collection('persons').insertOne({ person_id: 'patron', display_name: 'Patron', role: 'owner' });
   return db;
 }
 const client = { client_id: 'c1' };
@@ -56,7 +56,7 @@ await testGroup('redeem: refused before any lookup', async () => {
 await testGroup('refresh with both doors off', async () => {
   await test('the owner (passphrase) token refreshes', async () => {
     const db = memDb(); const provider = providerFor(db);
-    const t = await provider._issueTokens('c1', [], null, 'alex', null, null, 'laptop');
+    const t = await provider._issueTokens('c1', [], null, 'patron', null, null, 'laptop');
     assert.ok((await provider.exchangeRefreshToken(client, t.refresh_token, undefined, null)).access_token);
   });
   await test('a guest token and a member token are refused at refresh (invalid_grant)', async () => {

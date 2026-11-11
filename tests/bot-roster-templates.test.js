@@ -255,7 +255,7 @@ testGroup('the setup reference is linked where setup is described', () => {
   });
   test('the shipped forms carry no install-specific bot names', () => {
     for (const f of ['templates/ROSTER.md', 'templates/BOTHANDOFF.md']) {
-      assert.ok(!/hubbot-|Master Hub|Reviewer|Studio/i.test(read(f)), f);
+      assert.ok(!new RegExp('hubbot-|Reviewer|Studio|' + 'Master' + ' Hub', 'i').test(read(f)), f);
     }
   });
 });

@@ -1,13 +1,13 @@
 # GEP-0003: Client-side execution of RUNED directives
 
-**Status:** Accepted (Alex, 2026-10-16)
+**Status:** Accepted (the owner, 2026-10-16)
 **Date:** 2026-10-16
-**Approver:** Alex
+**Approver:** the owner
 **Sponsor:** the hub (a sponsor does not approve)
 **Spec revision:** 2026-10-11
 **Supersedes:** [GEP-0002](GEP-0002-runed-sandbox-contract.md)
 
-Accepted means the decisions below are the ones to build. It is not Final. Final waits on the code change that follows this GEP, on GC-19 as restated here, and on the pilot measure below. Alex can revise any row in this file before it is Final.
+Accepted means the decisions below are the ones to build. It is not Final. Final waits on the code change that follows this GEP, on GC-19 as restated here, and on the pilot measure below. the owner can revise any row in this file before it is Final.
 
 ## Summary
 
@@ -19,7 +19,7 @@ This is a carve-out from charter commitment 1, stated on the Extension-socket ro
 
 ## the owner's decision
 
-Alex accepted client-side execution on 2026-10-16, with one change to the r3 design. The tool is one per RUNE, not the single `emet_gem_artifact`.
+the owner accepted client-side execution on 2026-10-16, with one change to the r3 design. The tool is one per RUNE, not the single `emet_gem_artifact`.
 
 Each active RUNE is its own entry in the tool list, named `gem_<gem>__<rune>` (the GEM `id`, then `__`, then the RUNE `name`). The name reuses the existing reservation of core tool names. `readOnlyHint` is true, `openWorldHint` is false, and the scope is `emet.read`. A call checks the RUNE against the active GEMs and the hash pin, then returns `{code, sha256, version, runtime, instructions, inputSchema, outputSchema, description}`. It runs nothing. The tools/list entry carries that RUNE's description, input schema, output schema, runtime, and served sha256, and the description says the call returns the code and does not run it. The served code counts toward the GEM's byte cost. The startup text names each active RUNE's runtime, inputs, outputs, and served sha256 before consent.
 
@@ -48,7 +48,7 @@ Two controls, both in the code change that follows this GEP. An instruction to b
 1. **Failure it fixes, and where it is on record.** Fieldnote cannot load. Production deploy `commit-034c4b7f` (commit `commit-08bd39f`), about the recorded time on 2026-10-16, logged `GEM refused: fieldnote GC-19 fail: sandbox unavailable (user namespaces blocked)`. The earlier `bash missing` failure was fixed before that deploy. This one was observed.
 2. **What it replaces or retires.** GEP-0002, kept as a record and marked superseded. The code change removes the server sandbox rather than leaving it dormant: `src/rune-confine.c`, `src/rune-setup.sh`, `src/rune-sandbox.js`, `src/rune-child.js`, `src/rune-bridge.js`, `src/rune-hooks.js`, `src/rune-loader.js`, `tests/rune-sandbox.test.js`, and `scripts/alpine-sandbox-smoke.sh`. It also removes the GC-19 sandbox probe, the `alpine-sandbox` CI job, the `EMET_REQUIRE_SANDBOX=1` setting, and the sandbox packages in the image. `rune-registry.js` and `rune-scope.js` stay. `rune-dispatch.js` becomes the serve path. Scope tests and the guard test move. They are not deleted.
 3. **How will we know it worked?** In a pilot with fieldnote enabled, the fieldnote tool serves fieldnote, GC-19 (the hash check) passes, and a kept result carries a served sha256 that matches the serve log and an input hash. Enabling fieldnote for that pilot needs the owner's separate OK.
-4. **What holds it once it works?** The guard test and the GC-19 load gate above. Changes to this contract only by a later GEP Alex accepts.
+4. **What holds it once it works?** The guard test and the GC-19 load gate above. Changes to this contract only by a later GEP the owner accepts.
 
 ## Out of scope
 

@@ -243,7 +243,7 @@ railway init                      # from the repo root; name it emet
 railway variables --set MONGODB_URI=<from .env> --set MONGODB_DB=emet \
   --set EMET_OAUTH_PASSPHRASE=<generated passphrase> --set EMET_SOURCE_TAGS=<every host's tag, e.g. laptop,phone>
 railway up --detach
-railway domain                    # prints https://<something>.up.railway.app
+railway domain                    # prints the public https origin
 railway variables --set PUBLIC_URL=https://<that host>
 railway up --detach               # second pass: PUBLIC_URL is the OAuth issuer and must match
 ```

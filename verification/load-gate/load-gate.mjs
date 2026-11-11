@@ -5,7 +5,7 @@
  * Licensed under the MIT License - see LICENSE
  *
  * Load gate for a client RUNE. The server never runs the file. This module
- * is the scanner EMET-GEMs vendors: keep it byte-identical, including the
+ * is the scanner a library checkout vendors: keep it byte-identical, including the
  * corpus under verification/load-gate/. acorn 8.19.0 only. A parse error
  * fails closed. There is no second scan and no child process.
  *

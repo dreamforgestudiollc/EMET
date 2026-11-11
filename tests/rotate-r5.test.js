@@ -32,7 +32,7 @@ const { useMemoryErrorLog } = await import('../src/error-log.js');
 console.log('\n=== R5 rotate-all ===');
 
 const SECRET = 'owner-secret-value';
-const OWNER = 'alex';
+const OWNER = 'patron';
 const CLIENT = { client_id: 'bot-client' };
 const errorLog = useMemoryErrorLog();
 const audits = [];
@@ -105,7 +105,7 @@ function quiet(fn) {
 function futureIso() {
   return new Date(Date.now() + 86400000).toISOString();
 }
-async function issue(tag, { subject = 'alex', via = 'owner', scopes = ['emet.read', 'emet.write'] } = {}) {
+async function issue(tag, { subject = 'patron', via = 'owner', scopes = ['emet.read', 'emet.write'] } = {}) {
   const out = await provider._issueTokens('bot-client', scopes, null, subject, via, null, tag);
   const row = await holder.db.collection('emet_oauth_tokens').findOne({ token: tokenDigest(out.access_token), kind: 'access' });
   return { ...out, family: row.family };
@@ -167,7 +167,7 @@ try {
       const old = await issue('intake-bot');
       const oldCode = await provider.createAuthorizationCode({
         client_id: 'bot-client', redirect_uri: 'https://h/cb', code_challenge: 'x',
-        scopes: ['emet.read', 'emet.write'], subject: 'alex', issued_via: 'owner', source_tag: 'intake-bot'
+        scopes: ['emet.read', 'emet.write'], subject: 'patron', issued_via: 'owner', source_tag: 'intake-bot'
       });
       const oldAccess = await tokens.findOne({ token: tokenDigest(old.access_token), kind: 'access' });
       const oldRefresh = await tokens.findOne({ token: tokenDigest(old.refresh_token), kind: 'refresh' });
@@ -261,7 +261,7 @@ try {
       const store = makeStore();
       holder.db = store;
       const db = store;
-      await db.collection('persons').insertOne({ person_id: 'alex', display_name: 'the owner', role: 'owner' });
+      await db.collection('persons').insertOne({ person_id: 'patron', display_name: 'Patron', role: 'owner' });
       await db.collection('persons').insertOne({ person_id: 'ada', display_name: 'Ada', role: 'member', door: 'member' });
       const moleA = await issue('intake-bot');
       const moleB = await issue('intake-bot');
@@ -276,7 +276,7 @@ try {
       } });
       const pendingCode = await provider.createAuthorizationCode({
         client_id: 'bot-client', redirect_uri: 'https://h/cb', code_challenge: 'x',
-        scopes: ['emet.read', 'emet.write'], subject: 'alex', issued_via: 'owner', source_tag: 'intake-bot'
+        scopes: ['emet.read', 'emet.write'], subject: 'patron', issued_via: 'owner', source_tag: 'intake-bot'
       });
       await db.collection('documents').insertOne({ _id: 'hist-intake', doc_id: 'bots/intake-bot/HANDOFF.md', grant_id: moleA.family });
       const oldInvite = await createMemberAccess(db, { created_by: OWNER, display_name: 'intake-bot', source_tag: 'intake-bot' });
@@ -330,7 +330,7 @@ try {
       const codes = [moleCode[1], blasterCode[1], adaCode[1]];
       assert.equal(new Set(codes).size, 3);
       const joined = lines.join('\n');
-      assert.match(joined, /decider=alex/);
+      assert.match(joined, /decider=patron/);
       assert.match(joined, /scope=household/);
       assert.match(joined, /correlation_id=[0-9a-f]{16}/);
       assert.match(joined, /revoked=11/);
@@ -341,7 +341,7 @@ try {
       assert.ok(audit);
       assert.equal(JSON.stringify(audit.details).includes(moleCode[1]), false);
       assert.equal(audit.details.invites, 3);
-      assert.equal(audit.details.decider, 'alex');
+      assert.equal(audit.details.decider, 'patron');
 
       const event = (await db.collection('emet_rotations').find({ kind: 'rotation_event' }).toArray())[0];
       assert.equal(event.deleted, false);
@@ -441,7 +441,7 @@ try {
       assert.equal(data.rotate_all.grace_window_seconds, null);
       assert.equal(data.rotate_all.last_scope, 'household');
       assert.equal(data.rotate_all.last_invites, 3);
-      assert.equal(data.rotate_all.last_decider, 'alex');
+      assert.equal(data.rotate_all.last_decider, 'patron');
       assert.ok(data.rotate_all.events >= 1);
       assert.equal(rotateMetric().last_revoked, 11);
     });
@@ -453,7 +453,7 @@ try {
       const store = makeStore();
       holder.db = store;
       const db = store;
-      await db.collection('persons').insertOne({ person_id: 'alex', display_name: 'the owner', role: 'owner' });
+      await db.collection('persons').insertOne({ person_id: 'patron', display_name: 'Patron', role: 'owner' });
       const intake = await issue('intake-bot');
       const hub = await issue('hub-bot');
       await db.collection('documents').insertOne({ _id: 'hist-a', doc_id: 'bots/intake-bot/HANDOFF.md', grant_id: intake.family });
@@ -473,7 +473,7 @@ try {
       assert.match(await review.text(), /Nothing was revoked/);
       assert.equal((await provider.verifyAccessToken(intake.access_token)).extra.grantId, intake.family);
 
-      const owner = await post('/owner/break-glass/revoke-member', cookie, { csrf, person_id: 'alex', confirm: 'revoke-member' });
+      const owner = await post('/owner/break-glass/revoke-member', cookie, { csrf, person_id: 'patron', confirm: 'revoke-member' });
       const ownerHtml = await owner.text();
       assert.equal(owner.status, 400, ownerHtml);
       assert.match(ownerHtml, /Nothing was revoked/);

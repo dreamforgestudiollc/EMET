@@ -1,7 +1,7 @@
 /**
  * EMET - close verify that blocks skipped wrap steps (2026-09-26).
  *
- * Alex's requirement (procedural ref 388, 389, 391): the wrap steps HAVE TO BE
+ * the owner's requirement (procedural ref 388, 389, 391): the wrap steps HAVE TO BE
  * FOLLOWED whichever model hosts, and a skipped step blocks the close. The
  * four-item verify is working documents, episodic session record, board and
  * verbatim transcript read back from MongoDB; the handoff is written last.

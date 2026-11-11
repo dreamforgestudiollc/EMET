@@ -1,7 +1,7 @@
 /**
  * R3: the door's grant_id is what a write and a refusal record.
  * A caller field cannot replace it. A claimed source tag, with no grant,
- * warns until Alex's kill date and is refused on that date.
+ * warns until the owner's kill date and is refused on that date.
  * A shared source tag is not a grant. The receipt is where that shows.
  * At thatcommit the row and the error log already stored the token family.
  */
@@ -59,7 +59,7 @@ async function asDoor(fn) {
   return actorStore.run(door, fn);
 }
 
-testGroup('the kill date is Alex\'s setting', () => {
+testGroup('the kill date is the owner\'s setting', () => {
   test('the proposed date is 2026-12-15 UTC, and an unset env uses it', () => {
     assert.strictEqual(PROPOSED_CLAIMED_TAG_KILL_DATE, '2026-12-15');
     withEnv({ EMET_CLAIMED_TAG_KILL_DATE: undefined, CASCADE_CLAIMED_TAG_KILL_DATE: undefined }, () => {
@@ -460,7 +460,7 @@ testGroup('after the kill date every guarded tool refuses, and a credential stil
       authenticated: true, scopes: ['emet']
     };
     const subkey = {
-      transport: 'http', personId: 'alex', clientId: 'subkey-client',
+      transport: 'http', personId: 'patron', clientId: 'subkey-client',
       grantId: null, door: 'member', sourceTag: 'laptop',
       sourceBasis: 'subkey', effectiveTag: 'intake-bot', subkeyId: 'key-intake-1',
       authenticated: true, scopes: ['emet']

@@ -3,8 +3,8 @@
   "maintainers": [
     "dreamforgestudiollc"
   ],
-  "description": "ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control memory for AI agents. Nothing is deleted. EMET 0.3.5 is an MCP memory server: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true. Free and open source under the MIT License; no account, key or payment required to run it.",
-  "version": "0.3.5",
+  "description": "ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control memory for AI agents. Nothing is deleted. EMET 0.3.6 is an MCP memory server: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true. Free and open source under the MIT License; no account, key or payment required to run it.",
+  "version": "0.3.6",
   "tools": [
     "accept_nonconformance",
     "corpus_recall",

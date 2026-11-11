@@ -103,7 +103,7 @@ const SANCTIONED = {
   // session row is updated in place; nothing is deleted. casUpdate and
   // revertUpdate are that store's compare-and-set, same collection.
   'subkey-store.js': new Set(['mongoStore', 'casUpdate', 'revertUpdate']),
-  // ADDED 2026-10-16 with the serve log. This release creates the new collection `<prefix>gem_serves` (`SERVE_COLLECTION`). Alex approved it as an append-only write site on the write-path allow-list. appendServeStore inserts one document per serve and never updates or removes one. The file keeps the latest SERVE_CAP rows per principal. The collection keeps every row. Nothing is deleted. It is the server's own bookkeeping of what it served, read back when a kept result is sealed. It cannot go through saveMemory: that door consults this log, so the write would wait on itself. It cannot go through writeDoc: a read token would then be able to read it.
+  // ADDED 2026-10-16 with the serve log. This release creates the new collection `<prefix>gem_serves` (`SERVE_COLLECTION`). the owner approved it as an append-only write site on the write-path allow-list. appendServeStore inserts one document per serve and never updates or removes one. The file keeps the latest SERVE_CAP rows per principal. The collection keeps every row. Nothing is deleted. It is the server's own bookkeeping of what it served, read back when a kept result is sealed. It cannot go through saveMemory: that door consults this log, so the write would wait on itself. It cannot go through writeDoc: a read token would then be able to read it.
   'rune-dispatch.js': new Set(['appendServeStore']),
   // ADDED 2026-10-20 with the operational error log. insertErrorLog and
   // upsertErrorSummary write error_log and error_log_summary only. Those

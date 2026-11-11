@@ -33,6 +33,7 @@ import { requireBearerAuth } from '@modelcontextprotocol/sdk/server/auth/middlew
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { owlRetirementFailureLine } from './grants.js';
 import { EMET_VERSION } from './version.js';
 
 
@@ -349,7 +350,7 @@ if (process.env.EMET_HTTP_LISTEN !== '0') (async () => {
       await runStartupChecks(dbManager.db, { prefix: provider.prefix, log: (line) => console.error(line) });
     }
   } catch {
-    console.error('[emet] OWL RETIREMENT CHECK FAILED account=user-EMET--owl active=unknown rung=R6 pointer=/owner/chooser');
+    console.error(owlRetirementFailureLine());
   }
   try {
     const { proofStartupLine } = await import('./proof-run.js');

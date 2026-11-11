@@ -96,6 +96,9 @@ const SECRET_PATTERNS = Object.freeze([
   /(api[_-]?key|secret|token|password)\s*[:=]\s*['"][^\s'"]{12,}/i
 ]);
 
+/** In-repo schema id. Not a URL. The bundled schema and this check use the same string. */
+export const GEM_SCHEMA_ID = 'emet:gem-library/gem.schema.json';
+
 const SECTION_KEY = /^[a-z][a-z0-9_]{0,40}$/;
 const FORBIDDEN_SECTIONS = new Set(['voice', 'engagement', 'persistence', 'corpus_discipline', 'operating_discipline']);
 
@@ -114,7 +117,7 @@ function loadSchema(explicit) {
   if (schemaCache) return schemaCache;
   const text = fs.readFileSync(schemaPath(), 'utf8');
   const parsed = JSON.parse(text);
-  if (!parsed || parsed.$id !== 'https://github.com/dreamforgestudiollc/EMET-GEMs/raw/main/gem.schema.json') {
+  if (!parsed || parsed.$id !== GEM_SCHEMA_ID) {
     throw new CodedError('schema id', { code: 'EMET-GEM-013' });
   }
   schemaCache = parsed;
