@@ -193,7 +193,7 @@ export const OWL_KILL = Object.freeze({
 export const WRITER_VALIDATOR = Object.freeze({
   rung: 'R6a',
   implemented: 'server',
-  alex_choice_open: true,
+  owner_choice_open: true,
   options: Object.freeze(['server', 'existing-reviewer-credential']),
   not_an_option: OWL_ACCOUNT_LABEL,
   note: 'The server-side check is what runs. the owner can later name another existing reviewer credential. The owl account is not a choice.'

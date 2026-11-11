@@ -20,7 +20,7 @@ Discussion is in [GitHub issues](https://github.com/dreamforgestudiollc/EMET/iss
 
 ## Public wording
 
-Source comments, log lines, and a test host no longer spell an install-specific retired account or a live private host. The retirement check still matches that account by digest. The GEM standard a reviewer can read is `gem-library/` in this repository. It is Draft. A public submission repository for outside GEMs does not exist yet.
+Source comments, log lines, and a test host no longer spell an install-specific retired account or a live private host. The retirement check still matches that account by digest. The GEM standard a reviewer can read is `gem-library/` in this repository. It is Draft. A public submission repository for outside GEMs does not exist yet. `EMET-AUTH-045` is also refused on a break-glass reissue. The npm package includes these release notes, `SECURITY.md`, and `CONTRIBUTING.md`.
 
 ## Record
 

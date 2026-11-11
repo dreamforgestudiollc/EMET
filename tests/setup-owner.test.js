@@ -220,9 +220,9 @@ testGroup('D1: retire_doc and rename_doc are refused under any bot tag (decision
     assert.doesNotThrow(() => refuseBotRetireRename(BOT, 'retire_doc'));
     withEnv(env, () => assert.throws(() => refuseBotRetireRename(BOT, 'retire_doc'), /retire_doc is not a bot tool/));
     withEnv({ ...env, EMET_SOURCE_TAG: BOT }, () => assert.throws(() => refuseBotRetireRename(null, 'rename_doc'), /rename_doc is not a bot tool/));
-    // Citations: ref 407(1) covers retire only; rename stays the owner-only under ref 409.
+    // Retire and rename are both refused to a bot. Each message stays on its own rule.
     withEnv(env, () => assert.throws(() => refuseBotRetireRename(BOT, 'retire_doc'), (e) => /procedural ref 407 item 1/.test(e.message) && !/ref 409/.test(e.message)));
-    withEnv(env, () => assert.throws(() => refuseBotRetireRename(BOT, 'rename_doc'), (e) => /the owner-only \(procedural ref 409\)/.test(e.message) && !/ref 407/.test(e.message)));
+    withEnv(env, () => assert.throws(() => refuseBotRetireRename(BOT, 'rename_doc'), (e) => /stays with the owner and the hub/.test(e.message) && !/ref 407/.test(e.message)));
   });
 });
 

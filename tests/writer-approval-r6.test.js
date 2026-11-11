@@ -259,7 +259,7 @@ try {
       assert.equal(OWL_KILL.account, OWL_ACCOUNT_LABEL);
       assert.equal(isRetiredOwlAccount(OWL), true);
       assert.equal(WRITER_VALIDATOR.implemented, 'server');
-      assert.equal(WRITER_VALIDATOR.alex_choice_open, true);
+      assert.equal(WRITER_VALIDATOR.owner_choice_open, true);
       assert.equal(WRITER_VALIDATOR.not_an_option, OWL_ACCOUNT_LABEL);
       assert.equal(OWL_ACCOUNT_DIGEST.length, 64);
       assert.equal(CLAUDE_CHATGPT_DOOR.decided, false);

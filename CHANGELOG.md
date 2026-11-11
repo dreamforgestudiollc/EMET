@@ -18,7 +18,7 @@ Docs and a public-wording scrub. Stored data shapes are unchanged. Tool behavior
 - [RELEASE_NOTES-0.3.6.md](RELEASE_NOTES-0.3.6.md).
 
 ### Changed
-- Public wording no longer names an install-specific retired account in source comments, log lines, or the test that carried a live host. The retirement check still matches that account by digest. The GEM schema id is an in-repo identifier, `emet:gem-library/gem.schema.json`, the same string the checker expects. The extension socket is described as built, matching `CHARTER.md` and `src/socket.js`. Historical release notes for 0.2.6 are marked historical. The 0.3.5 sentence that said comments had already dropped the retired account is corrected below. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+- Public wording no longer names an install-specific retired account in source comments, log lines, or the test that carried a live host. The retirement check still matches that account by digest. The GEM schema id is an in-repo identifier, `emet:gem-library/gem.schema.json`, the same string the checker expects. The extension socket is described as built, matching `CHARTER.md` and `src/socket.js`. Historical release notes for 0.2.6 are marked historical. The 0.3.5 sentence that said comments had already dropped the retired account is corrected below. `EMET-AUTH-045` is refused at a new consent, a sub-key request, a writer request, a member or guest code, a setup source, a chooser decision, and a break-glass reissue. The npm package also ships `RELEASE_NOTES*.md`, `SECURITY.md`, and `CONTRIBUTING.md`. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
 ### Upgrade
 - No stored-data migration. No new setting. Deploy over 0.3.5 as is. The retirement marker on a new database stores a public label. An existing marker is left as it was. Matching still uses the digest of the retired account id.
@@ -28,7 +28,7 @@ Docs and a public-wording scrub. Stored data shapes are unchanged. Tool behavior
 This release brings the public docs current with the code. Stored data shapes are unchanged. The declared version is 0.3.5.
 
 ### Upgrade
-- The bound door's tag is `bound-host`. Writes from a stored legacy token or sub-key are stamped `bound-host`. The alias covers stored data only. The previous spelling is refused for a new consent, a new sub-key request, a new writer request, a new member or guest code, a new setup source, and a chooser decision. The alias is a digest, so this package does not spell the old tag.
+- The bound door's tag is `bound-host`. Writes from a stored legacy token or sub-key are stamped `bound-host`. The alias covers stored data only. The previous spelling is refused for a new consent, a new sub-key request, a new writer request, a new member or guest code, a new setup source, a chooser decision, and a break-glass reissue. The alias is a digest, so this package does not spell the old tag.
 
 ### Changed
 - `CHARTER.md` §4 says the extension socket is built. It is `src/socket.js`. Its note is `docs/gem/README.md`. Public text no longer names an install-specific hub or host tag. Writer-approval text says the hub login. The tag that login matches is still `hub-bot`. The bound-door tag the server matches is `bound-host`. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.

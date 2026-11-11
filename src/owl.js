@@ -91,8 +91,9 @@ async function readAll(db, name) {
 }
 
 /**
- * The account id, plus any registered client whose name or id is that
- * account. A token may carry an opaque registration id.
+ * Client ids of registered OAuth clients that are the retired account.
+ * A token may carry only an opaque registration id. The account string
+ * itself is matched by isOwlIdentity and is not stored in this set.
  */
 export async function owlClientIds(db, prefix = COLLECTION_PREFIX) {
   const ids = new Set();

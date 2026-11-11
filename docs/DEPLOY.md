@@ -21,7 +21,7 @@ ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
 ## Upgrading to 0.3.5
 
-0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound door's tag is `bound-host`. Writes from a stored legacy token or sub-key are stamped `bound-host`. The alias covers stored data only. The previous spelling is refused for a new consent, a new sub-key request, a new writer request, a new member or guest code, a new setup source, and a chooser decision.
+0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound door's tag is `bound-host`. Writes from a stored legacy token or sub-key are stamped `bound-host`. The alias covers stored data only. The previous spelling is refused for a new consent, a new sub-key request, a new writer request, a new member or guest code, a new setup source, a chooser decision, and a break-glass reissue.
 
 ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 

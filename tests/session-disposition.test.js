@@ -103,7 +103,7 @@ testGroup('the template is in force and mapped', () => {
     assert.ok(text.includes(INSERTED));
     assert.ok(text.includes('SUPERSEDED'));
     assert.ok(text.includes('duplicate'));
-    assert.ok(text.includes('grok-bot-vm-453484571 Wed Oct 28 07:38:40 EDT 2026'));
+    assert.ok(text.includes('example-host Wed Oct 28 07:38:40 EDT 2026'));
     assert.ok(text.includes('no local shell MCP'));
     assert.ok(text.includes(OCT26_PART));
     assert.ok(text.includes('emet_transcript_append'));

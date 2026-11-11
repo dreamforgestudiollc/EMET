@@ -32,7 +32,7 @@
  *  (transcript parts, documents, layer entries): if those rows carry another
  *  tag, the write is refused.
  *
- *  OWNER (A2). Live owner tokens carry the owner's person id (e.g. "alex");
+ *  OWNER (A2). Live owner tokens carry the owner's person id;
  *  older ones carry "owner" or nothing. All three are the owner.
  */
 

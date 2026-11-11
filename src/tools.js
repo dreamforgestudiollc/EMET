@@ -3005,18 +3005,13 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
 }
 
 /**
- * retire_doc and rename_doc are not bot tools at all (the owner, 2026-10-01 4:27 PM
- * ET, decision 1, as relayed: "retire_doc isn't needed for bots: keep it
- * the owner/hub only and out of every bot profile"; procedural ref 407; stage 1 of the
- * ref 358 startup amendment, admitted by Reviewer 2026-10-02). A profile is not a
- * security boundary, so the door refuses them under ANY bot tag, for every
- * doc_id - not only the main records refuseBotMainRecord covers. ref 407(1)
- * covers retire_doc only; rename_doc stays the owner-only under procedural ref 409
- * (the owner-confirmed 2026-10-02 7:50: every other the owner-only tool is
- * unchanged), and it retires its old id internally, so it is refused too. The tag is the
- * one the door would stamp: the caller's, else EMET_SOURCE_TAG. Hosts and the
- * hub have no bots/<tag>/HANDOFF.md record and are unaffected. Nothing is
- * written when refused.
+ * retire_doc and rename_doc are not bot tools. They stay with the owner and
+ * the hub. A profile is not a security boundary, so the door refuses them
+ * under any bot tag, for every document, not only the main records
+ * refuseBotMainRecord covers. Rename retires its old id, so it is refused
+ * too. The tag is the one the door would stamp: the caller's, else
+ * EMET_SOURCE_TAG. Hosts and the hub have no bots/<tag>/HANDOFF.md record
+ * and are unaffected. Nothing is written when refused.
  */
 export function refuseBotRetireRename(tag, tool) {
   for (const t of rightsTags(tag)) refuseBotRetireRenameOne(t, tool);
@@ -3035,7 +3030,7 @@ function refuseBotRetireRenameOne(tag, tool) {
   throw new ValidationError(
     'source',
     `${tool} is not a bot tool: ${t} is a bot tag, and ` +
-    `renaming documents stays the owner-only (procedural ref 409)` +
+    `renaming documents stays with the owner and the hub` +
     `. Ask the hub. Nothing was changed.`
   , { code: 'EMET-MEM-020' });
 }

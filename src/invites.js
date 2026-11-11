@@ -88,7 +88,7 @@ export async function createMemberAccess(db, { created_by, display_name, days = 
  * 2026-10-01). Until then the guest's id was the slug of the display name the
  * invite carried, and an existing person with that slug was silently reused:
  * an invite named "Member" (or "MEMBER", "Mémber") redeemed as the owner, wrote as
- * the owner and passed the owner-only invite check. A display name is a label,
+ * the owner, and passed checks that only the owner should pass. A display name is a label,
  * not a credential, so it never selects an existing identity:
  *   - the slug is a starting point; if any person already holds it, or it is a
  *     reserved subject ('owner', the legacy owner subject and slugPersonId's

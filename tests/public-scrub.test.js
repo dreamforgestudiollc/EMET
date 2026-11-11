@@ -257,6 +257,15 @@ testGroup('the shipped tree is scrubbed', () => {
     const bad = nameFiles.filter((f) => PRIVATE_TREE_PATHS.some((re) => re.test(scrubText(f))));
     assert.deepStrictEqual(bad, []);
   });
+  test('an internal VM host name is refused, including its prefix', () => {
+    const prefix = 'grok-' + 'bot-vm-';
+    const host = prefix + '453484571';
+    assert.ok(host.startsWith(prefix));
+    assert.ok(('note ' + host).includes(prefix));
+    assert.ok(('note ' + prefix + 'other').includes(prefix));
+    const bad = files.filter((rel) => scrubText(rel).includes(prefix));
+    assert.deepStrictEqual(bad, []);
+  });
   test('a char-code literal does not hide an install name', () => {
     const call = /String\.fromCharCode\(([^)]*)\)/g;
     const literal = /^(?:0x[0-9a-f]+|\d+)$/i;

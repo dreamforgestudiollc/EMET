@@ -25,6 +25,9 @@ const FILES = [
   'docs/*.md',
   'CHARTER.md',
   'CHANGELOG.md',
+  'RELEASE_NOTES*.md',
+  'SECURITY.md',
+  'CONTRIBUTING.md',
   'server.json',
   '.env.example',
   'README.md',
@@ -127,7 +130,7 @@ testGroup('npm publish metadata', () => {
   test('npm pack --dry-run ships runtime files and docs, and leaves private paths out', () => {
     const packed = packDryRun();
     const paths = packed.files.map((f) => f.path);
-    for (const rel of ['package.json', 'src/index.js', 'src/host-reach.js', 'verification/load-gate/load-gate.mjs', 'verification/load-gate/corpus.json', 'src/http-remote.js', 'templates/BOARD.md', 'templates/AREA.md', 'templates/SESSIONDISPOSITION.md', 'areas/emet.md', 'areas/garden.md', 'areas/home.md', 'areas/health.md', 'areas/learning.md', 'areas/state.md', 'gems/neurendipity/gem.json', 'gems/neurendipity/floor.json', 'gems/neurendipity/guides/NEURODIVERGENT_SUPPORT.md', 'gems/lean-six-sigma/gem.json', 'gems/lean-six-sigma/runes/lss_capability.js', 'gems/lean-six-sigma/guides/FORMULAS.md', 'guides/README.md', 'CHARTER.md', 'CHANGELOG.md', 'server.json', 'docs/SETUP.md', 'docs/DEPLOY.md', '.env.example', 'README.md', 'LICENSE']) {
+    for (const rel of ['package.json', 'src/index.js', 'src/host-reach.js', 'verification/load-gate/load-gate.mjs', 'verification/load-gate/corpus.json', 'src/http-remote.js', 'templates/BOARD.md', 'templates/AREA.md', 'templates/SESSIONDISPOSITION.md', 'areas/emet.md', 'areas/garden.md', 'areas/home.md', 'areas/health.md', 'areas/learning.md', 'areas/state.md', 'gems/neurendipity/gem.json', 'gems/neurendipity/floor.json', 'gems/neurendipity/guides/NEURODIVERGENT_SUPPORT.md', 'gems/lean-six-sigma/gem.json', 'gems/lean-six-sigma/runes/lss_capability.js', 'gems/lean-six-sigma/guides/FORMULAS.md', 'guides/README.md', 'CHARTER.md', 'CHANGELOG.md', 'RELEASE_NOTES-0.3.6.md', 'RELEASE_NOTES-0.2.6.md', 'SECURITY.md', 'CONTRIBUTING.md', 'server.json', 'docs/SETUP.md', 'docs/DEPLOY.md', '.env.example', 'README.md', 'LICENSE']) {
       assert.ok(paths.includes(rel), rel);
     }
     assert.ok(!paths.includes('guides/NEURODIVERGENT_SUPPORT.md'), 'the guide text is not packed twice');
