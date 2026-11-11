@@ -1,5 +1,5 @@
 /**
- * Carry-forward close (private #97). A later session can advance HANDOFF and
+ * Carry-forward close. A later session can advance HANDOFF and
  * STATE. The receipt close stays blocked and is not counted. carry_forward
  * cites the current session disposition and those later versions. Transcripts
  * stay. A guest door and a declared source are not authority.

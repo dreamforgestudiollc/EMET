@@ -2,9 +2,9 @@
 
 **Revision:** 2026-10-12
 **Status:** Draft
-**Home:** [EMET-GEMs](https://github.com/dreamforgestudiollc/EMET-GEMs) (private). The copy in an EMET server checkout at `gem-library/` is the text under review until it is moved.
+**Home:** `gem-library/` in this repository. Draft. A public submission repository does not exist yet. Its name is not chosen.
 
-This revision stays Draft until the Neurendipity GEM has passed the conformance checks in an EMET release and the core-floor move in [GEP-0001](proposals/GEP-0001-core-floor-and-neurendipity-gem.md) has shipped. Alex may then mark it Current. A later breaking revision gets a new date. A clarification that does not break a valid manifest does not change the date.
+This revision stays Draft until the Neurendipity GEM has passed the conformance checks in an EMET release and the core-floor move in [GEP-0001](proposals/GEP-0001-core-floor-and-neurendipity-gem.md) has shipped. the owner may then mark it Current. A later breaking revision gets a new date. A clarification that does not break a valid manifest does not change the date.
 
 The key words MUST, MUST NOT, REQUIRED, SHOULD, SHOULD NOT, RECOMMENDED, MAY, and OPTIONAL in this document are to be interpreted as described in BCP 14 [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they appear in all capitals, as shown here.
 
@@ -24,7 +24,7 @@ The JSON Schema [gem.schema.json](gem.schema.json) is normative for the manifest
 
 **RUNED GEM.** A GEM whose manifest contains one or more RUNED directives.
 
-**Library.** The private repository EMET-GEMs, which holds this standard, plus a public submission repository that does not exist yet. Outside authors will submit GEMs to that public repository. They do not change this standard.
+**Library.** This standard, in `gem-library/`, plus a public submission repository that does not exist yet. Outside authors will submit GEMs to that public repository. They do not change this standard.
 
 ## 2. Design principles
 
@@ -33,13 +33,13 @@ The JSON Schema [gem.schema.json](gem.schema.json) is normative for the manifest
 3. A GEM that fails a check is refused. The session still starts.
 4. Context is a budget. Every active GEM costs startup bytes, so caps are part of the standard.
 5. Security requirements are in force in this revision. Bundled prompt GEMs are the only GEMs a release may load before the matching checks ship. The requirements for every other GEM are already written, and a missing checker is not permission to load one.
-6. Alex is the sole approver of this standard, the schema, and the socket rules. His bots may sponsor a change. Other people may author GEMs that follow the standard. They MUST NOT alter it.
+6. The owner is the sole approver of this standard, the schema, and the socket rules. The owner's bots may sponsor a change. Other people may author GEMs that follow the standard. They MUST NOT alter it.
 
 ## 3. Where this standard lives
 
-This directory is self-contained. Its canonical home is `https://github.com/dreamforgestudiollc/EMET-GEMs`, private for now.
+This directory is self-contained. Its home in this repository is `gem-library/`.
 
-A public submission repository will take pull requests that add GEMs. Its name is not chosen. A pull request there MUST NOT modify `SPEC.md`, `gem.schema.json`, `CONFORMANCE.md`, or the socket rules. Those files change only in EMET-GEMs, by a GEP Alex accepts.
+A public submission repository will take pull requests that add GEMs. Its name is not chosen. A pull request there MUST NOT modify `SPEC.md`, `gem.schema.json`, `CONFORMANCE.md`, or the socket rules. Those files change only in this standard, by a GEP the owner accepts.
 
 The EMET server repository keeps a pointer for the socket. It does not carry a second editable copy of this standard after the move.
 
@@ -53,7 +53,7 @@ Aligned:
 - Manifest digests use the Skills form: `sha256:` plus 64 lowercase hex digits, and `size` is the byte length of the same raw bytes. A length mismatch fails the same way a digest mismatch fails. Activation and consent bind to that file list. A changed digest is a new revision and needs fresh consent where consent applies.
 - `name` is a label. Identity is separate. For a GEM the identity is `id` inside one EMET server.
 - A RUNED directive uses the MCP tool fields from that base revision: `name`, `title`, `description`, `inputSchema`, `outputSchema`, and annotations `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`.
-- Deprecation of a field or a check waits at least 12 months, or 90 days when Alex records an active security risk. See section 14.
+- Deprecation of a field or a check waits at least 12 months, or 90 days when the owner records an active security risk. See section 14.
 
 Different on purpose:
 
@@ -246,7 +246,7 @@ The served code is treated as a controlled document. A kept result is a record o
 
 Six controls cover a kept result:
 
-1. **Serve log.** At serve time the server records the principal, `session_id`, `gem`, `rune`, `version`, the served `sha256`, and the time. The audit line is one copy. The serve log is the other. `logs/gem-serves.json` keeps the latest `SERVE_CAP` rows for each principal (200), so one caller cannot evict another's serves. This release creates the new collection `<prefix>gem_serves` (`SERVE_COLLECTION`, the install's `EMET_COLLECTION_PREFIX`, default `emet_`). Alex approved it as an append-only write site on the write-path allow-list. The collection keeps every row. Nothing is deleted. Each serve appends a row, so the collection grows with every serve. That is the storage cost of keeping the record. There is no rate limiter. A kept result matches a row for that principal, session, gem, rune, and served hash. A redeploy that drops the file still matches against those Mongo rows. When the store is not connected, the file is the only copy and a redeploy drops it. Fieldnote is off by default. The file cap is in place before fieldnote is turned on.
+1. **Serve log.** At serve time the server records the principal, `session_id`, `gem`, `rune`, `version`, the served `sha256`, and the time. The audit line is one copy. The serve log is the other. `logs/gem-serves.json` keeps the latest `SERVE_CAP` rows for each principal (200), so one caller cannot evict another's serves. This release creates the new collection `<prefix>gem_serves` (`SERVE_COLLECTION`, the install's `EMET_COLLECTION_PREFIX`, default `emet_`). the owner approved it as an append-only write site on the write-path allow-list. The collection keeps every row. Nothing is deleted. Each serve appends a row, so the collection grows with every serve. That is the storage cost of keeping the record. There is no rate limiter. A kept result matches a row for that principal, session, gem, rune, and served hash. A redeploy that drops the file still matches against those Mongo rows. When the store is not connected, the file is the only copy and a redeploy drops it. Fieldnote is off by default. The file cap is in place before fieldnote is turned on.
 2. **Principal binding.** Attribution is set by the server from authentication. It is never taken from client metadata. This is EMET's existing attribution rule.
 3. **Input hashes.** Each result records a sha256 of its inputs, or a reference to them. The input hash is reported by the client, so it does not make a result replayable on its own. A replayable result also needs its inputs kept or refetchable.
 4. **Retention.** Superseded artifacts stay retrievable by sha256, through kept release tags plus an artifact index keyed by sha256. The query that finds results tied to a superseded hash is part of the implementation that follows this text.
@@ -284,7 +284,7 @@ Library GEMs MUST be signed. The signature covers the manifest so the file list 
 3. Sign those UTF-8 bytes with Ed25519.
 4. `signature.alg` is `Ed25519`. `signature.keyid` names a key in the checker's trust store. `signature.value` is standard base64 of the 64-byte signature.
 
-The trust store is `keys.json` shipped with `gem-check` and with the EMET release. Shape: `{ "keys": [ { "keyid": "...", "alg": "Ed25519", "publicKey": "<base64 of 32 bytes>" } ] }`. Alex changes that file. A GEM that contains `keys.json` fails validation. A submission pull request MUST NOT be the source of a new key.
+The trust store is `keys.json` shipped with `gem-check` and with the EMET release. Shape: `{ "keys": [ { "keyid": "...", "alg": "Ed25519", "publicKey": "<base64 of 32 bytes>" } ] }`. the owner changes that file. A GEM that contains `keys.json` fails validation. A submission pull request MUST NOT be the source of a new key.
 
 No creator key is published in this Draft. `gem-check` MUST fail a library GEM with `no trust store` until `keys.json` exists. Bundled GEMs may omit `signature` until then, and they remain pinned by digest plus the release tree.
 
@@ -306,7 +306,7 @@ A guard test MUST fail if `src/` or `gems/` contains `child_process`, `spawn`, `
 
 ### What the checker is, and is not
 
-`gem-check` is specified in [CONFORMANCE.md](CONFORMANCE.md) down to check ids, patterns, limits, and exit codes, so a later change can implement it without inventing the rules. Exit 0 is necessary for a library GEM and for a bundled GEM that a release will ship. Exit 0 is not sufficient for a library GEM. Alex accepts it, or it does not enter the list the socket trusts.
+`gem-check` is specified in [CONFORMANCE.md](CONFORMANCE.md) down to check ids, patterns, limits, and exit codes, so a later change can implement it without inventing the rules. Exit 0 is necessary for a library GEM and for a bundled GEM that a release will ship. Exit 0 is not sufficient for a library GEM. the owner accepts it, or it does not enter the list the socket trusts.
 
 GC-19 checks that the artifact exists, that its digest matches the manifest, and that the static load-gate scan in [CONFORMANCE.md](CONFORMANCE.md) GC-16 finds none of the reaches listed there. That list is the whole list. `Math.round` and `Math.sqrt` inside a function are not reaches. A computed key that is a literal, or a `const` bound directly to a primitive literal, is not a reach. A top-level frozen null-prototype table read inside a recognized `Object.hasOwn` guard is not a reach when the key is one `const` primitive (`const n = String(input.n)` or `Number(...)`, or a `typeof` check for `'string'` or `'number'` the gate recognizes, including the binding of `for (const k of …)`). The guard's non-own-key safety rests on that table being frozen with a null prototype: a key that is not own reads `undefined`. A member, a `let`, or a const object used as the key is a reach. A loop label is not a reach. A loop index used as a computed key is a reach. A computed key in a destructuring or assignment pattern is a reach unless it is a string or number literal. The scan parses with acorn 8.19.0 and fails closed. It does not run the code. This standard does not claim the client's sandbox as EMET's isolation.
 
@@ -327,11 +327,11 @@ The checker MUST reject GEM text that matches the patterns in [CONFORMANCE.md](C
 
 ## 13. Submission
 
-Outside GEMs enter through a pull request to the public submission repository, once that repository exists. Until it exists, no outside GEM can be submitted, and EMET loads only bundled GEMs that ship in a release Alex has accepted.
+Outside GEMs enter through a pull request to the public submission repository, once that repository exists. Until it exists, no outside GEM can be submitted, and EMET loads only bundled GEMs that ship in a release the owner has accepted.
 
 The pull request contains the GEM directory and nothing from this standard. Continuous integration runs `gem-check` on that directory. A non-zero exit rejects the automated gate. Reviewers MUST NOT merge past a failing check.
 
-After exit 0, Alex reviews. A bot he designates MAY sponsor: prepare notes, re-run the checker, comment on the pull request. The bot MUST NOT be the acceptance. the owner's acceptance records the `id`, `version`, file digests, `keyid`, date, and spec revision on the list the next EMET release ships. The socket loads a library GEM only when the bytes match that list (server refusal SR-01).
+After exit 0, the owner reviews. A bot the owner designates MAY sponsor: prepare notes, re-run the checker, comment on the pull request. The bot MUST NOT be the acceptance. The owner's acceptance records the `id`, `version`, file digests, `keyid`, date, and spec revision on the list the next EMET release ships. The socket loads a library GEM only when the bytes match that list (server refusal SR-01).
 
 A GEM that fails any check in [CONFORMANCE.md](CONFORMANCE.md) is not on that list. Passing the script and then being edited in place without a new check is not acceptance. The digests are the acceptance.
 
@@ -340,12 +340,12 @@ A GEM that fails any check in [CONFORMANCE.md](CONFORMANCE.md) is not on that li
 - This document's revision date changes only for a breaking change. States: Draft, Current, Final. Final will not change.
 - A GEM's `version` is semver. A breaking change to lines an install may have relied on MUST bump the major version. This revision accepts `MAJOR.MINOR.PATCH`. A suffix is refused. A leading zero is refused.
 - The socket MUST refuse a GEM whose `spec` it does not implement, and whose `requires.emet` excludes the running server.
-- A deprecated manifest field or check stays available for at least 12 months after the Current revision that marks it deprecated, or 90 days when Alex records an active security risk in the deprecation GEP. Removal is a new spec date. The deprecation GEP names what replaces it, or states that nothing does.
+- A deprecated manifest field or check stays available for at least 12 months after the Current revision that marks it deprecated, or 90 days when the owner records an active security risk in the deprecation GEP. Removal is a new spec date. The deprecation GEP names what replaces it, or states that nothing does.
 - One old doc id is special. When the Neurendipity guide moves, `guides/NEURODIVERGENT_SUPPORT.md` on the server MUST keep resolving to the GEM's guide for one release, then that alias MAY be removed. That alias is server behavior from GEP-0001, not a second copy of the text.
 
 ## 15. Conformance
 
-A GEM conforms to this revision when `gem-check` exits 0 against it and, for a library GEM, Alex has accepted that digest set. The EMET server conforms when its socket implements sections 7 through 13 and the server refusals in [CONFORMANCE.md](CONFORMANCE.md), and when a refused GEM still leaves `emet_initialize` successful.
+A GEM conforms to this revision when `gem-check` exits 0 against it and, for a library GEM, the owner has accepted that digest set. The EMET server conforms when its socket implements sections 7 through 13 and the server refusals in [CONFORMANCE.md](CONFORMANCE.md), and when a refused GEM still leaves `emet_initialize` successful.
 
 The reference GEM is Neurendipity, `id` `neurendipity`. It is bundled. `defaultOn` is false. It carries reading people, the neurodivergent engagement lines, the wellbeing corpus lines, and the neurodivergent guide. It does not carry RUNED directives. The move itself is [GEP-0001](proposals/GEP-0001-core-floor-and-neurendipity-gem.md).
 
@@ -353,9 +353,9 @@ The reference GEM is Neurendipity, `id` `neurendipity`. It is bundled. `defaultO
 
 A GEM Enhancement Proposal (GEP) is a markdown file in `proposals/`, named `GEP-NNNN-short-title.md`. Status is one of Draft, Accepted, Final, Rejected, Superseded.
 
-Alex is the sole approver. He sets Accepted, Rejected, or Superseded. Final requires the conformance checks for the proposal's observable behavior to exist and to pass. A bot he designates MAY sponsor a GEP. A sponsor does not approve.
+The owner is the sole approver. The owner sets Accepted, Rejected, or Superseded. Final requires the conformance checks for the proposal's observable behavior to exist and to pass. A bot the owner designates MAY sponsor a GEP. A sponsor does not approve.
 
-Only Alex and his bots change this specification, `gem.schema.json`, `CONFORMANCE.md`, and the socket rules. Other people author GEMs.
+Only the owner, and bots the owner designates, change this specification, `gem.schema.json`, `CONFORMANCE.md`, and the socket rules. Other people author GEMs.
 
 A GEP that asks EMET to build something MUST answer the four questions in charter commitment 6:
 

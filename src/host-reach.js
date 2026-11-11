@@ -5,7 +5,7 @@
  * Licensed under the MIT License - see LICENSE
  *
  * The RUNE load gate lives in verification/load-gate/load-gate.mjs so
- * EMET-GEMs can vendor that file and its corpus byte-for-byte. This module
+ * A library checkout can vendor that file and its corpus byte-for-byte. This module
  * is the import path gem-check already uses. There is no second scan.
  */
 

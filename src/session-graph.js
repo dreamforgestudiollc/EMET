@@ -3,7 +3,7 @@
  * board board 120, design the staging note; the practice is
  * docs/GUARDRAILS-AND-MONORAILS.md).
  *
- * Alex: "guardrails give a field of movement and execution to allow an AI to do
+ * the owner: "guardrails give a field of movement and execution to allow an AI to do
  * processes where rails guide the AI through a process flow without it
  * processing" (semantic ref 297). The floor, the character and the served
  * instructions are the guardrails. This file is the monorail - the car cannot
@@ -72,14 +72,14 @@ export const BOARD_DOC = 'STATE.md';
 
 /**
  * Per-bot close records (C1, 2026-10-01; review note "C1: per-bot close
- * records", Alex's decisions 1-7). The rule, stated once: a session written
+ * records", the owner's decisions 1-7). The rule, stated once: a session written
  * under a bot's source tag closes against that bot's own records
  * (bots/<tag>/HANDOFF.md); only that tag's own revisions in the session window
  * count; a bot tag never writes or cites the main HANDOFF.md or STATE.md.
  *
  * A tag T is a BOT TAG when bots/T/HANDOFF.md is listed in EMET_RECORD_DOCS,
  * the list that already marks ids as supersede-only records (tools.js
- * recordDocIds). No new setting: Alex adds one id per bot, and removing it
+ * recordDocIds). No new setting: the owner adds one id per bot, and removing it
  * puts that tag back on the host rules. Bot records are named by the source
  * tag itself (decision 1), so no tag-to-name mapping exists. These are pure
  * reads of settings - no database - so the graph can key its bot-handoff gate
@@ -361,7 +361,7 @@ export async function isSessionClosed(base, dbManager) {
 }
 
 /**
- * The closing exchange (2026-10-01, Alex's decision). In the closing turn the
+ * The closing exchange (2026-10-01, the owner's decision). In the closing turn the
  * assistant writes the handoff, gets `complete` from emet_session_close, and
  * only then replies - so the append of that last exchange always arrives
  * after the close. A closed session therefore takes exactly ONE more append:
@@ -786,7 +786,7 @@ export async function graphBefore(tool, args, dbManager, now = new Date()) {
 }
 
 // ---------------------------------------------------------------------------
-// Lab results (2026-09-29, Alex: "a 'lab results' location for storing the
+// Lab results (2026-09-29, the owner: "a 'lab results' location for storing the
 // results in real time with time stamps so we can have a resource to look at
 // after the probationary period"). Every check the monorail makes - ok,
 // refuse, unknown (would_refuse in rows from before enforce-only) - is one timestamped row in

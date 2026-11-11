@@ -300,7 +300,7 @@ testGroup('session ids: a suffix never collides with a real slug ending in -N (r
   });
 });
 
-testGroup('transcript writes into a closed session (review fix 1; Alex 2026-10-01: one closing exchange, corrections allowed)', () => {
+testGroup('transcript writes into a closed session (review fix 1; the owner 2026-10-01: one closing exchange, corrections allowed)', () => {
   const CLOSED = '2026-09-30_bound-host-init';
   const P1 = `${CLOSED}_verbatim_part1`;
   const CLOSED_AT = EVENING;

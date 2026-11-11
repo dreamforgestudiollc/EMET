@@ -13,6 +13,12 @@ scoped user, and Atlas Network Access set to `0.0.0.0/0` — a hosted platform's
 dynamic, so it cannot be allowlisted. Security rests on the scoped user plus the OAuth
 passphrase; both are required.
 
+## Upgrading to 0.3.6
+
+0.3.6 is a docs and wording release. Stored data shapes are unchanged. No new setting. Deploy over 0.3.5 as is. The public roadmap's Upcoming work section is not built unless it says so.
+
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
 ## Upgrading to 0.3.5
 
 0.3.5 brings the public docs current. Stored data shapes are unchanged. The bound door's tag is `bound-host`. Writes from a stored legacy token or sub-key are stamped `bound-host`. The alias covers stored data only. The previous spelling is refused for a new consent, a new sub-key request, a new writer request, a new member or guest code, a new setup source, and a chooser decision.
@@ -113,7 +119,7 @@ Read this before you deploy the release that follows 0.2.2. It does not change a
 - **`EMET_SOURCE_TAGS` must list every real host tag**, as an exact member. Tags named in this repository's example env, docs, and live-tag checks are: `cli`, `mobile`, `desktop-cowork`, `cowork-cloud`, `hub-bot` (the hub; do not also list it in `EMET_RECORD_DOCS`), `reviewer-bot`, `tester-bot`, `memory-bot`, `intake-bot`, and `research-bot`. Your install may use a shorter list. A tag that is not an exact member is refused, and the refusal does not print the list.
 - When a new bot joins the roster, append its tag to the end of `EMET_SOURCE_TAGS` and keep every existing tag in order, before its first write. The standing rule, including `EMET_RECORD_DOCS` and the `/health` and `emet_status` check after the redeploy, is [BOTS.md](BOTS.md) §4.
 - **`EMET_STRICT_LOGIN_TAG=1`** (off by default) makes a login's bound tag final: a write that declares a different `source` is refused, and so are `emet_setup_complete` and `emet_initialize` with a mismatched tag. Leave it off while bots share one login, because with it on every bot except the login's own would be refused. Turn it on only once each bot has its own login, for example a Member Access code bound to its tag.
-- **A scheduled job that still sends a `cloud-scheduled-` prefix must switch to an exact registered tag.** `cloud-scheduled-intake` was retired on 2026-10-02. A prefix is not a tag. The weekly intake runs under `intake-bot`.
+- **A scheduled job that still sends a `cloud-scheduled-` prefix must switch to an exact registered tag.** A prefix is not a tag. Only an exact tag in `EMET_SOURCE_TAGS` is accepted.
 - **An HTTP client whose stored token has no source tag must sign in again.** Refresh of that token is refused. The new consent binds a registered tag. An empty registry has no members.
 - **Caps already in force.** A client that used to send more is refused, and nothing is written:
   - 20 new drops per New York day, in one bucket: the whole local process on stdio, one shared visitor bucket for HTTP with no signed-in client, the source tag bound at approval when there is one, or that OAuth client otherwise. A source the caller types does not move the bucket.
@@ -150,7 +156,7 @@ railway up
 railway variables --set MONGODB_URI=... --set MONGODB_DB=emet \
   --set EMET_OAUTH_PASSPHRASE=... --set EMET_SOURCE_TAGS=mobile,desktop,cli
 railway domain                   # get the public URL
-railway variables --set PUBLIC_URL=https://<app>.up.railway.app
+railway variables --set PUBLIC_URL=https://<public-host>
 railway up                       # redeploy so PUBLIC_URL matches the live URL
 ```
 

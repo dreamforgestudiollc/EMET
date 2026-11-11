@@ -132,6 +132,7 @@ const ANNOTATION_TABLE = {
 };
 
 function subkeyAnnotationsHidden() {
+  // CASCADE_SUBKEYS is a legacy environment name. EMET_SUBKEYS is the name to set.
   return process.env.EMET_SUBKEYS !== '1' && process.env.CASCADE_SUBKEYS !== '1';
 }
 

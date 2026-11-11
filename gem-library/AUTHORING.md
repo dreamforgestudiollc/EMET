@@ -2,7 +2,7 @@
 
 Read [SPEC.md](SPEC.md) and [CONFORMANCE.md](CONFORMANCE.md) first. This page is the short path. The specification wins if they disagree.
 
-A GEM is a folder. The folder name is the `id`. You may write one. You may not change the standard, the schema, or the socket rules. Those change only by a GEP that Alex accepts.
+A GEM is a folder. The folder name is the `id`. You may write one. You may not change the standard, the schema, or the socket rules. Those change only by a GEP that the owner accepts.
 
 ## 1. Choose the id and the kind
 
@@ -60,7 +60,7 @@ The socket does not execute RUNED code. A client RUNE is a pure function of the 
 
 Match [gem.schema.json](gem.schema.json). Set `spec` to `2026-10-12`. Set `distribution` to `bundled` only if the GEM will ship inside an EMET release. A GEM you submit for other people to use is `library`, and it needs a signature (below). `changelog` is optional. `update` is optional: an object describing how this version relates to the previous one. `class` `initial` means the first release. The socket does not read either field.
 
-`defaultOn` for Neurendipity is `false`. Follow that unless Alex has accepted a GEP that says otherwise for your GEM. `priority` is an integer from 0 to 100.
+`defaultOn` for Neurendipity is `false`. Follow that unless the owner has accepted a GEP that says otherwise for your GEM. `priority` is an integer from 0 to 100.
 
 `files` lists every content file except `gem.json`, each with `digest` and `size`.
 
@@ -81,7 +81,7 @@ Bundled GEMs in an EMET release are pinned by the hashes and by living in that r
 3. Sign those UTF-8 bytes with Ed25519.
 4. Set `alg` to `Ed25519`, `keyid` to a key in the checker's trust store, and `value` to the standard base64 of the 64-byte signature.
 
-Do not put `keys.json` in the GEM. The trust store ships with `gem-check`. Alex holds the keys. A signature you make with a key you invented will not verify.
+Do not put `keys.json` in the GEM. The trust store ships with `gem-check`. the owner holds the keys. A signature you make with a key you invented will not verify.
 
 ## 7. Check it
 
@@ -95,7 +95,7 @@ Exit 0 is required and is not acceptance.
 
 ## 8. How it reaches a running EMET
 
-- **Bundled, including Neurendipity.** It ships in an EMET release under `gems/<id>/`, after Alex accepts the change. The example in `examples/neurendipity/` is a shape to copy, not the folder the server loads.
-- **Anyone else's GEM.** When the public submission repository exists, open a pull request there with the GEM folder. `gem-check` runs on the pull request. Alex reviews after it passes. EMET loads it only once that acceptance is on the library list the release trusts.
+- **Bundled, including Neurendipity.** It ships in an EMET release under `gems/<id>/`, after the owner accepts the change. The example in `examples/neurendipity/` is a shape to copy, not the folder the server loads.
+- **Anyone else's GEM.** When the public submission repository exists, open a pull request there with the GEM folder. `gem-check` runs on the pull request. the owner reviews after it passes. EMET loads it only once that acceptance is on the library list the release trusts.
 
 There is no way to point a running server at a folder on disk, a document in the store, or a URL.

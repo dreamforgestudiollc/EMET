@@ -250,7 +250,7 @@ export function registeredSourceTags() {
   return env.length ? [...new Set([...env, ...approvedTags()])] : env;
 }
 
-/** Attribution v2: the caller's real tag, not the server-wide default (Alex 2026-10-12 (c)).
+/** Attribution v2: the caller's real tag, not the server-wide default (the owner 2026-10-12 (c)).
  *  R2 adds the credential: grant_id (the token family) and door. Stdio has no grant. */
 export function callerAttribution() {
   const d = declaredAttribution();
@@ -335,7 +335,7 @@ export function summarizeSeed(doc_id, text, today = new Date().toISOString().sli
 }
 
 /**
- * One line per seed for the initialize payload (Alex, 2026-09-27, code audit
+ * One line per seed for the initialize payload (the owner, 2026-09-27, code audit
  * 2.3: "seeds can be one line since follow-up inquiry by the user will expand
  * it"). Before this every trigger's full test text was served - 13K characters
  * for 21 seeds with none due. The line keeps what a startup scan needs: the
@@ -876,7 +876,7 @@ export async function initialize(options = {}, hooks = {}) {
     if (late && late.length && typeof hooks.onLate === 'function') { try { hooks.onLate(late); } catch { /* recording never fails a page */ } }
     return late;
   };
-  // Paged startup (2026-10-03, Alex approved paging; src/startup-pages.js).
+  // Paged startup (2026-10-03, the owner approved paging; src/startup-pages.js).
   // The full payload is built exactly as before; only its delivery changes.
   const raw = options.page;
   const wantAll = typeof raw === 'string' && raw.trim().toLowerCase() === 'all';
@@ -1130,9 +1130,9 @@ async function buildStartup(options = {}) {
       lessonsPending = { assessed: false, error: e && e.message ? e.message : String(e), pending: [] };
     }
 
-    // Stage 1 of the ref 358 startup amendment (2026-10-02; Alex's decision 2,
+    // Stage 1 of the ref 358 startup amendment (2026-10-02; the owner's decision 2,
     // procedural ref 407: "emet_initialize is the startup doorway every bot
-    // calls; only first-time setup stays Alex's"). Initialize no longer creates
+    // calls; only first-time setup stays the owner's"). Initialize no longer creates
     // the owner person: that write moved to setupComplete, the owner's
     // first-time setup, so initialize is read-only in every branch and matches
     // its annotation (annotations.js, READ) for every caller. A store with no
@@ -1168,7 +1168,7 @@ async function buildStartup(options = {}) {
       // and connection; the user's name does the animating.
       emet_line: EMET_LINE,
       emet_line_if_unanswered: EMET_LINE_UNANSWERED,
-      // 2026-09-26 Alex: prune may not drop the close-order tool. These two
+      // 2026-09-26 the owner: prune may not drop the close-order tool. These two
       // fields MUST precede identity/character/user so a 20k host truncate
       // still receives them. The charter text may stay pointed; the steps may not.
       tools_in_force: {
@@ -1181,7 +1181,7 @@ async function buildStartup(options = {}) {
           'source tag on every write'
         ],
         on_wrap: ['working documents', 'episodic session record', 'board', 'verbatim transcript', 'HANDOFF last one write'],
-        // 2026-09-26 Alex (procedural ref 391): close is blocked without receipts.
+        // 2026-09-26 the owner (procedural ref 391): close is blocked without receipts.
         confirm: 'emet_session_close with receipts for all four items and the handoff; say its speak lines in order; saved only when state is complete'
       },
       // Code audit 2026-09-27 (2.1): the short instructions ride up front with
@@ -1208,7 +1208,7 @@ async function buildStartup(options = {}) {
         ...retirementFields(installNotes)
       } : null,
       install_notes_doc_id: installDoc(),
-      // One line each since 2026-09-27 (Alex); the full seed is one read_doc away.
+      // One line each since 2026-09-27 (the owner); the full seed is one read_doc away.
       seeds: seeds.map((s) => seedLine(s)),
       seeds_due: seeds.filter((s) => s.due && s.retired !== true).map((s) => s.doc_id),
       seeds_evaluated_on: today,
@@ -1354,8 +1354,8 @@ export async function setupComplete(answers = {}, logger = null, options = {}) {
   // guards (2026-10-02, Reviewer's stage 1 admission, conditions S1-S2):
   //  - refused under a configured bot tag. The tag is self-declared and
   //    emet_initialize takes no source until stage 2, so this is inert until a
-  //    caller declares a bot tag that Alex has configured (stage 3);
-  //  - refused on a store that is already set up unless `reissue: true` (Alex's
+  //    caller declares a bot tag that the owner has configured (stage 3);
+  //  - refused on a store that is already set up unless `reissue: true` (the owner's
   //    answer 5): a re-run replaces the user's identity documents with new
   //    versions, so it needs the owner's explicit word. Nothing is written
   //    when either refusal fires.

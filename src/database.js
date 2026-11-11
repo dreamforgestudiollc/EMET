@@ -454,7 +454,7 @@ export class EmetDatabase {
   }
 
   /**
-   * THE layer insert, native (2026-09-27, code audit 1.7 stage 1 - Alex: "if SQL
+   * THE layer insert, native (2026-09-27, code audit 1.7 stage 1 - the owner: "if SQL
    * is the old and needs to be updated then update it"). Takes the document as
    * a document. Every key must be a known layer field; the id is allocated
    * here. The INSERT-string shim it replaced went with the SQL translator in

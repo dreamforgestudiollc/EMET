@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 /**
  * Door grants (R2 design scaffolding, 2026-10-26).
  *
@@ -140,8 +142,29 @@ export const MEMBER_REVOKE = Object.freeze({
   path: '/owner/break-glass/revoke-member'
 });
 
-/** The owl MCP clone account. Exact string. A substring is not this account. */
-export const OWL_ACCOUNT = 'user-EMET--owl';
+/**
+ * Public label for logs and the retirement marker. Not compared to stored
+ * client ids. The retired account id is matched by digest so this package
+ * does not spell it. A substring is not that account.
+ */
+export const OWL_ACCOUNT_LABEL = 'retired-owl-account';
+/** sha256 of the retired account id, utf8. Exact match only. */
+export const OWL_ACCOUNT_DIGEST = 'd2f8d11e0e331afd1315642e613b3f2d4c864904767c0a420761a40f81e01b0f';
+
+export function isRetiredOwlAccount(value) {
+  if (typeof value !== 'string' || value.length === 0) return false;
+  const digest = crypto.createHash('sha256').update(value, 'utf8').digest('hex');
+  if (digest.length !== OWL_ACCOUNT_DIGEST.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(digest), Buffer.from(OWL_ACCOUNT_DIGEST));
+}
+
+export function owlRetirementFailureLine(active = 'unknown') {
+  return `[emet] OWL RETIREMENT CHECK FAILED account=${OWL_ACCOUNT_LABEL} active=${active} rung=R6 pointer=/owner/chooser`;
+}
+
+export function owlRetirementPassLine() {
+  return `[emet] owl-retirement check=pass account=${OWL_ACCOUNT_LABEL} active=0 rung=R6`;
+}
 
 /**
  * R6. The owl MCP clone account was a second OAuth client used only to get a
@@ -153,7 +176,7 @@ export const OWL_KILL = Object.freeze({
   rung: 'R6',
   implemented: true,
   delete_wiring: false,
-  account: OWL_ACCOUNT,
+  account: OWL_ACCOUNT_LABEL,
   status: 'retired',
   superseded_by: 'R6',
   retained: true,
@@ -172,7 +195,7 @@ export const WRITER_VALIDATOR = Object.freeze({
   implemented: 'server',
   alex_choice_open: true,
   options: Object.freeze(['server', 'existing-reviewer-credential']),
-  not_an_option: OWL_ACCOUNT,
+  not_an_option: OWL_ACCOUNT_LABEL,
   note: 'The server-side check is what runs. the owner can later name another existing reviewer credential. The owl account is not a choice.'
 });
 

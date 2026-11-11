@@ -519,7 +519,7 @@ testGroup('a kept result is sealed', () => {
     for (const text of [section, fixed, note]) {
       assert.match(text, /creates the new collection `<prefix>gem_serves`/);
       assert.match(text, /SERVE_COLLECTION/);
-      assert.match(text, /Alex approved it as an append-only write site on the write-path allow-list/);
+      assert.match(text, /the owner approved it as an append-only write site on the write-path allow-list/);
       assert.match(text, /The collection keeps every row\. Nothing is deleted\./);
       assert.doesNotMatch(text, /existing Mongo/);
     }

@@ -30,17 +30,17 @@ const {
 const {
   isOwlIdentity, owlStartupCheck, owlRetirementMetric, runStartupChecks, _resetOwlForTests
 } = await import('../src/owl.js');
-const { OWL_KILL, CLAUDE_CHATGPT_DOOR, WRITER_VALIDATOR } = await import('../src/grants.js');
+const { OWL_KILL, CLAUDE_CHATGPT_DOOR, WRITER_VALIDATOR, OWL_ACCOUNT_LABEL, OWL_ACCOUNT_DIGEST, isRetiredOwlAccount } = await import('../src/grants.js');
 const { commitRotation } = await import('../src/rotate.js');
 const { hostTools, memberAccessCreate } = await import('../src/tools.js');
 
 console.log('\n=== R6 writer approval ===');
 
 const SECRET = 'owner-secret-value';
-const OWNER = 'alex';
+const OWNER = 'patron';
 const MB_GRANT = 'mbgrant00000000000001';
 const CORR = 'abcdefabcdefabcd';
-const OWL = 'user-EMET--owl';
+const OWL = 'user-' + 'EMET--' + 'owl';
 const AI_CANNOT_GRANT = 'emet_client_approve: an AI cannot grant a writer. The hub login prepares a request. the owner decides it on /owner/chooser. Nothing was changed.';
 const holder = { db: null };
 const provider = new MongoOAuthProvider(() => holder.db, { passphrase: SECRET, cimd: false });
@@ -256,14 +256,16 @@ try {
       assert.equal(OWL_KILL.status, 'retired');
       assert.equal(OWL_KILL.deleted, false);
       assert.equal(OWL_KILL.retained, true);
-      assert.equal(OWL_KILL.account, OWL);
+      assert.equal(OWL_KILL.account, OWL_ACCOUNT_LABEL);
+      assert.equal(isRetiredOwlAccount(OWL), true);
       assert.equal(WRITER_VALIDATOR.implemented, 'server');
       assert.equal(WRITER_VALIDATOR.alex_choice_open, true);
-      assert.equal(WRITER_VALIDATOR.not_an_option, OWL);
+      assert.equal(WRITER_VALIDATOR.not_an_option, OWL_ACCOUNT_LABEL);
+      assert.equal(OWL_ACCOUNT_DIGEST.length, 64);
       assert.equal(CLAUDE_CHATGPT_DOOR.decided, false);
       assert.equal(CLAUDE_CHATGPT_DOOR.door, null);
       assert.equal(isOwlIdentity('knowledge'), false);
-      assert.equal(isOwlIdentity({ client_name: 'user-EMET--owl-extra' }), false);
+      assert.equal(isOwlIdentity({ client_name: OWL + '-extra' }), false);
       assert.equal(isOwlIdentity({ client_id: OWL }), true);
       assert.equal(hostTools().some((tool) => tool.name === 'emet_writer_prepare'), false);
       assert.equal(hostTools().some((tool) => tool.name === 'emet_client_approve'), true);
@@ -396,10 +398,10 @@ try {
       assert.match(decideLine, /correlation_id=eeeeeeeeeeeeeeee/);
       assert.match(decideLine, /preparer=hub-bot/);
       assert.match(decideLine, /validator=server/);
-      assert.match(decideLine, /decider=alex/);
+      assert.match(decideLine, /decider=patron/);
       const row = getWriterRequest(prepared.value.request_id);
       assert.equal(row.status, 'approved');
-      assert.equal(row.decider, 'alex');
+      assert.equal(row.decider, 'patron');
       assert.equal(row.validator, 'server');
       assert.equal(row.preparer, 'hub-bot');
       assert.equal(row.issued, true);
@@ -416,7 +418,7 @@ try {
 
     await test('an AI cannot mint EMET Member Access, and the owner without an AI tag still can', async () => {
       holder.db = makeStore();
-      await holder.db.collection('persons').insertOne({ person_id: OWNER, role: 'owner', display_name: 'the owner' });
+      await holder.db.collection('persons').insertOne({ person_id: OWNER, role: 'owner', display_name: 'Patron' });
       const dbManager = { db: holder.db, async getConnection() { return {}; } };
       await assert.rejects(
         () => actorStore.run(mbActor(), () => memberAccessCreate(dbManager, { display_name: 'Nope' })),
@@ -556,7 +558,7 @@ try {
       const allowed = await provider.verifyAccessToken(benign.access);
       assert.equal(allowed.clientId, 'knowledge-client');
       await assert.rejects(
-        () => provider._issueTokens(OWL, ['emet.read'], null, 'alex', 'member', null, OWL),
+        () => provider._issueTokens(OWL, ['emet.read'], null, 'patron', 'member', null, OWL),
         (error) => error.emetCode === 'EMET-AUTH-042'
       );
       const minted = await holder.db.collection('emet_oauth_tokens').findOne({ client_id: OWL, retired: { $exists: false } });

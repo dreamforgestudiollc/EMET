@@ -6,7 +6,7 @@
  * match, the close stays blocked, and retries used to count toward the
  * three-close cap.
  *
- * A records/ session disposition (templates/SESSIONDISPOSITION.md, #95)
+ * A records/ session disposition (templates/SESSIONDISPOSITION.md)
  * documents that fact. The row does not close the graph and it is not a
  * receipt. This path closes the graph only when the owner door, or the
  * credential that wrote the session, cites that current row and the later

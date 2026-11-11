@@ -5,7 +5,7 @@
  *   Defect 1: a refresh grant replaced the stored scopes with whatever was
  *             requested, so any read-only token could refresh to `emet` / `*`.
  *   Defect 2: an invite's person id was the slug of its display name, and an
- *             existing person with that slug was reused - "the owner" became alex.
+ *             existing person with that slug was reused - "Patron" became patron.
  *   R6:       the refresh path had no invite-freeze check, so an invite token
  *             outlived a re-freeze by rotating for ever.
  *
@@ -33,7 +33,7 @@ function setup({ frozen } = {}) {
   const opts = { passphrase: 'p', issuerUrl: 'https://emet.example', fetch: async () => ({ ok: false, status: 404 }) };
   if (frozen !== undefined) opts.invitesFrozen = () => frozen;
   const provider = new MongoOAuthProvider(() => db, opts);
-  db.collection('persons').insertOne({ person_id: 'alex', display_name: 'Alex', role: 'owner' });
+  db.collection('persons').insertOne({ person_id: 'patron', display_name: 'Patron', role: 'owner' });
   const tokens = () => db.collection(`${provider.prefix}oauth_tokens`);
   return { db, provider, tokens };
 }
@@ -85,7 +85,7 @@ await testGroup('REGRESSION: a passphrase token refreshes exactly as before', as
   await test('the passphrase code mints a full token for the owner, with no invite marker', async () => {
     const row = await tokens().findOne({ token: tokenDigest(first.refresh_token), kind: 'refresh' });
     assert.deepStrictEqual(row.scopes, []);
-    assert.strictEqual(row.subject, 'alex');
+    assert.strictEqual(row.subject, 'patron');
     assert.ok(!('issued_via' in row), 'passphrase rows keep their shape');
   });
   await test('refresh with no scope keeps the full grant, rotates, and works with invites frozen', async () => {
@@ -93,7 +93,7 @@ await testGroup('REGRESSION: a passphrase token refreshes exactly as before', as
     assert.ok(second.access_token && second.refresh_token !== first.refresh_token);
     const v = await provider.verifyAccessToken(second.access_token);
     assert.deepStrictEqual(v.scopes, []);
-    assert.strictEqual(v.extra.subject, 'alex');
+    assert.strictEqual(v.extra.subject, 'patron');
     const old = await tokens().findOne({ token: tokenDigest(first.refresh_token), kind: 'refresh' });
     assert.strictEqual(typeof old.rotated_at, 'number');
   });
@@ -122,7 +122,7 @@ await testGroup('REGRESSION: a passphrase token refreshes exactly as before', as
   await test('with the real invite gate (frozen in this process), a passphrase refresh still works', async () => {
     assert.strictEqual(INVITES_FROZEN, true);
     const db = memDb();
-    db.collection('persons').insertOne({ person_id: 'alex', role: 'owner' });
+    db.collection('persons').insertOne({ person_id: 'patron', role: 'owner' });
     const real = new MongoOAuthProvider(() => db, { passphrase: 'p', issuerUrl: 'https://emet.example', fetch: async () => ({}) });
     const t = await real._issueTokens('c1', [], null, null, null, null, 'laptop');
     assert.ok((await real.exchangeRefreshToken(client, t.refresh_token, undefined, null)).access_token);
@@ -131,8 +131,8 @@ await testGroup('REGRESSION: a passphrase token refreshes exactly as before', as
 
 await testGroup('Defect 1: a read-only invite (no name collision) cannot refresh wider', async () => {
   const { db, provider, tokens } = setup({ frozen: false });
-  db.collection('persons').insertOne({ person_id: 'alice', display_name: 'Alice', role: 'member' });
-  const code = await provider.createAuthorizationCode({ client_id: 'c1', redirect_uri: 'https://h/cb', code_challenge: 'x', scopes: ['emet.read'], subject: 'alice', issued_via: INVITE_GRANT, source_tag: 'laptop' });
+  db.collection('persons').insertOne({ person_id: 'helper', display_name: 'Helper', role: 'member' });
+  const code = await provider.createAuthorizationCode({ client_id: 'c1', redirect_uri: 'https://h/cb', code_challenge: 'x', scopes: ['emet.read'], subject: 'helper', issued_via: INVITE_GRANT, source_tag: 'laptop' });
   const first = await provider.exchangeAuthorizationCode(client, code, undefined, 'https://h/cb');
   for (const ask of [['emet'], ['*'], ['emet.write'], ['emet.read', 'emet.write'], ['emet.read', '*']]) {
     await test(`refresh to ${ask.join(' ')} is refused with invalid_scope`, async () => {
@@ -149,7 +149,7 @@ await testGroup('Defect 1: a read-only invite (no name collision) cannot refresh
     kept = await provider.exchangeRefreshToken(client, first.refresh_token, undefined, null);
     const v = await provider.verifyAccessToken(kept.access_token);
     assert.deepStrictEqual(v.scopes, ['emet.read']);
-    assert.strictEqual(v.extra.subject, 'alice');
+    assert.strictEqual(v.extra.subject, 'helper');
     const row = await tokens().findOne({ token: tokenDigest(kept.refresh_token), kind: 'refresh' });
     assert.strictEqual(row.issued_via, INVITE_GRANT);
   });
@@ -166,19 +166,19 @@ await testGroup('Defect 1: a read-only invite (no name collision) cannot refresh
 
 await testGroup('Defect 2: an invite name never selects an existing person', async () => {
   const persons = memDb().collection('persons');
-  await persons.insertOne({ person_id: 'alex', display_name: 'Alex', role: 'owner' });
-  await test('"Alex", "ALEX", "Aléx", " alex! " do not resolve to the owner', async () => {
-    for (const n of ['Alex', 'ALEX', 'Aléx', ' alex! ']) assert.strictEqual(await allocateGuestPersonId(persons, n), 'alex-2', n);
+  await persons.insertOne({ person_id: 'patron', display_name: 'Patron', role: 'owner' });
+  await test('"Patron", "PATRON", "Pátron", " patron! " do not resolve to the owner', async () => {
+    for (const n of ['Patron', 'PATRON', 'Pátron', ' patron! ']) assert.strictEqual(await allocateGuestPersonId(persons, n), 'patron-2', n);
   });
   await test('the next free suffix is used', async () => {
-    await persons.insertOne({ person_id: 'alex-2', role: 'member' });
-    assert.strictEqual(await allocateGuestPersonId(persons, 'Alex'), 'alex-3');
+    await persons.insertOne({ person_id: 'patron-2', role: 'member' });
+    assert.strictEqual(await allocateGuestPersonId(persons, 'Patron'), 'patron-3');
   });
   await test('an existing member is not reused either', async () => {
-    await persons.insertOne({ person_id: 'alice', role: 'member' });
-    assert.strictEqual(await allocateGuestPersonId(persons, 'Alice'), 'alice-2');
+    await persons.insertOne({ person_id: 'helper', role: 'member' });
+    assert.strictEqual(await allocateGuestPersonId(persons, 'Helper'), 'helper-2');
   });
-  await test('a fresh name keeps its plain slug', async () => assert.strictEqual(await allocateGuestPersonId(persons, 'Bob'), 'bob'));
+  await test('a fresh name keeps its plain slug', async () => assert.strictEqual(await allocateGuestPersonId(persons, 'Pal'), 'pal'));
   await test('a name that slugs to nothing is "guest", never the legacy owner subject', async () => {
     assert.strictEqual(await allocateGuestPersonId(persons, '!!!'), 'guest');
     assert.strictEqual(await allocateGuestPersonId(persons, ''), 'guest');
@@ -190,7 +190,7 @@ await testGroup('Defect 2: an invite name never selects an existing person', asy
     const id = await allocateGuestPersonId(persons, long);
     assert.ok(id.length <= 40 && id.endsWith('-2'), id);
   });
-  await test('end to end (child process, EMET_INVITES=1 there only): an invite named "the owner" redeems as a new member', () => {
+  await test('end to end (child process, EMET_INVITES=1 there only): an invite named "Patron" redeems as a new member', () => {
     const script = `
       import { createInvite, redeemInvite } from './src/invites.js';
       const bags = {};
@@ -205,18 +205,18 @@ await testGroup('Defect 2: an invite name never selects an existing person', asy
           return { ...r };
         },
         async createIndex() { return 'ok'; } }; } };
-      await db.collection('persons').insertOne({ person_id: 'alex', display_name: 'Alex', role: 'owner' });
-      const inv = await createInvite(db, { display_name: 'Alex', created_by: 'alex' });
+      await db.collection('persons').insertOne({ person_id: 'patron', display_name: 'Patron', role: 'owner' });
+      const inv = await createInvite(db, { display_name: 'Patron', created_by: 'patron' });
       const r = await redeemInvite(db, inv.code);
       console.log(JSON.stringify({ r, persons: bags.persons }));`;
     const out = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: ROOT, env: { ...process.env, EMET_INVITES: '1' }, encoding: 'utf8' });
     assert.strictEqual(out.status, 0, out.stderr);
     const { r, persons: ps } = JSON.parse(out.stdout.trim().split('\n').pop());
     assert.strictEqual(r.ok, true);
-    assert.strictEqual(r.person_id, 'alex-2');
+    assert.strictEqual(r.person_id, 'patron-2');
     assert.deepStrictEqual(r.scopes, ['emet.read']);
     assert.strictEqual(ps.length, 2);
-    assert.deepStrictEqual(ps[0], { person_id: 'alex', display_name: 'Alex', role: 'owner' });
+    assert.deepStrictEqual(ps[0], { person_id: 'patron', display_name: 'Patron', role: 'owner' });
     assert.strictEqual(ps[1].role, 'member');
   });
 });
@@ -224,8 +224,8 @@ await testGroup('Defect 2: an invite name never selects an existing person', asy
 await testGroup('R6: an invite token stops refreshing while invites are frozen', async () => {
   await test('marked invite token, frozen: refused with invalid_grant, and not rotated', async () => {
     const { db, provider, tokens } = setup({ frozen: true });
-    db.collection('persons').insertOne({ person_id: 'alice', role: 'member' });
-    const t = await provider._issueTokens('c1', ['emet.read'], null, 'alice', INVITE_GRANT, null, 'laptop');
+    db.collection('persons').insertOne({ person_id: 'helper', role: 'member' });
+    const t = await provider._issueTokens('c1', ['emet.read'], null, 'helper', INVITE_GRANT, null, 'laptop');
     const r = await oauthCode(provider.exchangeRefreshToken(client, t.refresh_token, undefined, null));
     assert.strictEqual(r.code, 'invalid_grant', JSON.stringify(r));
     const row = await tokens().findOne({ token: tokenDigest(t.refresh_token), kind: 'refresh' });
@@ -233,26 +233,26 @@ await testGroup('R6: an invite token stops refreshing while invites are frozen',
   });
   await test('marked invite token, unfrozen: refreshes', async () => {
     const { provider } = setup({ frozen: false });
-    const t = await provider._issueTokens('c1', ['emet.read'], null, 'alice', INVITE_GRANT, null, 'laptop');
+    const t = await provider._issueTokens('c1', ['emet.read'], null, 'helper', INVITE_GRANT, null, 'laptop');
     assert.ok((await provider.exchangeRefreshToken(client, t.refresh_token, undefined, null)).access_token);
   });
   await test('a token issued before the marker existed, whose subject is an invited member: refused while frozen', async () => {
     const { db, provider } = setup({ frozen: true });
-    db.collection('persons').insertOne({ person_id: 'alice', role: 'member' });
-    const t = await provider._issueTokens('c1', ['emet.read'], null, 'alice', null, null, 'laptop');
+    db.collection('persons').insertOne({ person_id: 'helper', role: 'member' });
+    const t = await provider._issueTokens('c1', ['emet.read'], null, 'helper', null, null, 'laptop');
     const r = await oauthCode(provider.exchangeRefreshToken(client, t.refresh_token, undefined, null));
     assert.strictEqual(r.code, 'invalid_grant');
   });
   await test('the owner subject is never treated as an invite (passphrase hosts and bots keep refreshing)', async () => {
     const { provider } = setup({ frozen: true });
-    const t = await provider._issueTokens('c1', ['emet.read', 'emet.write'], null, 'alex', null, null, 'laptop');
+    const t = await provider._issueTokens('c1', ['emet.read', 'emet.write'], null, 'patron', null, null, 'laptop');
     assert.ok((await provider.exchangeRefreshToken(client, t.refresh_token, undefined, null)).access_token);
   });
-  await test('the full chain is closed: invite "the owner" → alex-2, read-only, cannot refresh to emet', async () => {
+  await test('the full chain is closed: invite "Patron" → patron-2, read-only, cannot refresh to emet', async () => {
     const { db, provider } = setup({ frozen: false });
     const persons = db.collection('persons');
-    const id = await allocateGuestPersonId(persons, 'Alex');
-    assert.strictEqual(id, 'alex-2');
+    const id = await allocateGuestPersonId(persons, 'Patron');
+    assert.strictEqual(id, 'patron-2');
     await persons.insertOne({ person_id: id, role: 'member' });
     const t = await provider._issueTokens('c1', ['emet.read'], null, id, INVITE_GRANT, null, 'laptop');
     assert.strictEqual((await oauthCode(provider.exchangeRefreshToken(client, t.refresh_token, ['emet'], null))).code, 'invalid_scope');

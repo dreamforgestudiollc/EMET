@@ -142,12 +142,12 @@ function plant(store) {
     retired: true,
     retired_at: new Date('2024-06-01T00:00:00Z')
   });
-  store.collection('persons').docs.push({ person_id: 'alex', role: 'owner' });
+  store.collection('persons').docs.push({ person_id: 'patron', role: 'owner' });
   store.collection('persons').docs.push({ person_id: 'ada', role: 'member' });
   return store;
 }
 
-const ownerHttp = { personId: 'alex', transport: 'http', authenticated: true, scopes: ['emet.read', 'emet.write'] };
+const ownerHttp = { personId: 'patron', transport: 'http', authenticated: true, scopes: ['emet.read', 'emet.write'] };
 const memberHttp = { personId: 'ada', transport: 'http', authenticated: true, scopes: ['emet.read', 'emet.write'] };
 const guestHttp = { personId: 'ada', transport: 'http', authenticated: true, scopes: ['emet.read'] };
 const httpNoPerson = { personId: null, transport: 'http', authenticated: true, scopes: ['emet.read', 'emet.write'] };
@@ -439,7 +439,7 @@ testGroup('seeded lint, no record changes, owner only', () => {
     const db = new store.Client().db();
     const tag = 'cowork-cloud';
     const local = { transport: 'stdio', sourceTag: tag };
-    const owner = { personId: 'alex', transport: 'http', authenticated: true, sourceTag: tag, scopes: ['emet.read', 'emet.write'] };
+    const owner = { personId: 'patron', transport: 'http', authenticated: true, sourceTag: tag, scopes: ['emet.read', 'emet.write'] };
     const member = { personId: 'ada', transport: 'http', authenticated: true, sourceTag: tag, scopes: ['emet.read', 'emet.write'] };
     const guest = { personId: 'pat', transport: 'http', authenticated: true, sourceTag: tag, scopes: ['emet.read'] };
     const noPerson = { personId: null, transport: 'http', authenticated: true, sourceTag: tag, scopes: ['emet.read', 'emet.write'] };

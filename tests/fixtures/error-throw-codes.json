@@ -1166,7 +1166,7 @@
   },
   {
     "file": "tools.js",
-    "message": "throw new ValidationError('An AI cannot grant a writer. Alex decides on /owner/chooser with an owner session. Nothing was created.')",
+    "message": "throw new ValidationError('An AI cannot grant a writer. The owner decides on /owner/chooser with an owner session. Nothing was created.')",
     "code": "EMET-AUTH-043"
   },
   {

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>EMET — MCP memory server</title>
-  <meta name="description" content="EMET 0.3.5 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
+  <meta name="description" content="EMET 0.3.6 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
   <link rel="canonical" href="https://dreamforgestudiollc.github.io/EMET/">
   <meta name="robots" content="index, follow">
   <meta name="color-scheme" content="light dark">
@@ -14,7 +14,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="EMET">
   <meta property="og:title" content="EMET — MCP memory server">
-  <meta property="og:description" content="EMET 0.3.5 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
+  <meta property="og:description" content="EMET 0.3.6 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
   <meta property="og:url" content="https://dreamforgestudiollc.github.io/EMET/">
   <meta property="og:image" content="https://dreamforgestudiollc.github.io/EMET/assets/og.jpg">
   <meta property="og:image:width" content="1200">
@@ -25,7 +25,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:url" content="https://dreamforgestudiollc.github.io/EMET/">
   <meta name="twitter:title" content="EMET — MCP memory server">
-  <meta name="twitter:description" content="EMET 0.3.5 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
+  <meta name="twitter:description" content="EMET 0.3.6 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
   <meta name="twitter:image" content="https://dreamforgestudiollc.github.io/EMET/assets/og.jpg">
   <meta name="twitter:image:alt" content="Close view of the EMET sculpture’s face and shoulders, with the Hebrew word אמת on her headband, beside the words EMET, MCP memory server.">
 
@@ -56,11 +56,11 @@
     "@type": "SoftwareSourceCode",
     "name": "EMET",
     "alternateName": "Enduring Memory & Epistemic Tiers",
-    "description": "EMET 0.3.5 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.",
+    "description": "EMET 0.3.6 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.",
     "url": "https://dreamforgestudiollc.github.io/EMET/",
     "codeRepository": "https://github.com/dreamforgestudiollc/EMET",
     "license": "https://github.com/dreamforgestudiollc/EMET/blob/main/LICENSE",
-    "version": "0.3.5",
+    "version": "0.3.6",
     "programmingLanguage": "JavaScript",
     "runtimePlatform": "Node.js",
     "image": "https://dreamforgestudiollc.github.io/EMET/assets/og.jpg",
@@ -200,7 +200,7 @@
           </div>
           <div>
             <dt>MIT license</dt>
-            <dd>Version 0.3.5. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them. <a href="#project">The project</a>.</dd>
+            <dd>Version 0.3.6. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them. <a href="#project">The project</a>.</dd>
           </div>
         </dl>
 
@@ -660,7 +660,7 @@ save_to_layer</code></pre>
         <p class="prose">The GEM specification describes EMET as a memory server. Its function is the record: what was written, what was decided, and what still stands. It is not a behavior framework. Behavioral guidance lives in GEMs. The core floor is the lines every install serves and nobody can switch off. The spec names integrity, honesty, no sycophancy, truth over speculation, fact-checking, and persistence. They ship in server code. Setup cannot write them. A GEM ranks below that floor and below the user’s current word, and it cannot remove a protected floor line.</p>
         <p class="prose">Version 0.2.5 added two core floor lines. <code>goal_check</code>: before multi-step work, on an ambiguous request, or when the conversation turns, state the person’s goal and underlying problem in one sentence in your own words, marked as your read, and confirm. <code>no_rapport_mirroring</code>: no echoing, flattery, or agreement to build rapport or seem attuned. Agreement is earned by substance. The 0.2.6 changelog records that the floor is unchanged.</p>
         <p class="prose">Neurendipity is the bundled GEM for neurodivergent engagement and autistic burnout support. It is support only, not counseling or treatment. It ships installed and stays off unless <code>EMET_ACTIVE_GEMS=neurendipity</code>. <code>emet_floor</code> takes a <code>gem</code> argument to read an installed GEM’s floor without turning it on. The guide id <code>guides/NEURODIVERGENT_SUPPORT.md</code> still resolves, for one release, to that GEM’s copy. The example at <code>gem-library/examples/neurendipity/</code> is a shape, not the installed GEM.</p>
-        <p class="prose">A GEM may declare a tool. EMET does not run that computation. The client runs the tool, and what is written back is checked the same way as any other write. A GEM is seated only when its <code>released</code> flag is the boolean <code>true</code>. A missing flag is refused except for a legacy manifest pinned by id, version, and file digests. The GEM specification in this repo is Draft, revision 2026-10-12. Its canonical home is the private repository EMET-GEMs. The copy under review is <code>gem-library/</code>.</p>
+        <p class="prose">A GEM may declare a tool. EMET does not run that computation. The client runs the tool, and what is written back is checked the same way as any other write. A GEM is seated only when its <code>released</code> flag is the boolean <code>true</code>. A missing flag is refused except for a legacy manifest pinned by id, version, and file digests. The GEM specification in this repo is Draft, revision 2026-10-12. The copy a reviewer can read is <code>gem-library/</code>. A public submission repository for outside GEMs does not exist yet.</p>
 
         <h3>Where the code came from</h3>
         <p class="prose">EMET is a derivative of CASCADE Enterprise RAM by Jason Glass / C.I.P.S. LLC, published at <code>github.com/For-Sunny/cascade-memory-enterprise</code>, used and redistributed under the MIT license that project adopted at commit <code>acdb5c8c99cdfc29fb44db2cd828d7752be744db</code> (v2.2.2, 2026-02-19). Both copyright lines are retained in <code>LICENSE</code>: C.I.P.S. LLC and Dreamforge Studio LLC. Both notices must travel with any copy.</p>
@@ -824,13 +824,22 @@ EMET_ACTIVE_GEMS=neurendipity,lean-six-sigma</code></pre>
     <section class="block" id="project" aria-labelledby="project-title">
       <div class="wrap">
         <h2 id="project-title">The project</h2>
-        <p class="prose">EMET 0.3.5 is free and open source under the MIT License. No account, key, or payment is required to run it. You run it on infrastructure you control: your host, your MongoDB, your passphrase. The npm package is <code>@dreamforgestudiollc/emet</code>. The command it installs is <code>emet</code>, and <code>bin</code> and <code>main</code> are <code>src/index.js</code>. Node.js 22 or newer.</p>
+        <p class="prose">EMET 0.3.6 is free and open source under the MIT License. No account, key, or payment is required to run it. You run it on infrastructure you control: your host, your MongoDB, your passphrase. The npm package is <code>@dreamforgestudiollc/emet</code>. The command it installs is <code>emet</code>, and <code>bin</code> and <code>main</code> are <code>src/index.js</code>. Node.js 22 or newer.</p>
         <p class="prose">The Official MCP Registry manifest is <code>server.json</code>. Its name is <code>io.github.dreamforgestudiollc/emet</code>, the same value as <code>mcpName</code> in <code>package.json</code>. The package it names is the stdio server. <code>MONGODB_URI</code> is the required secret. This site is the homepage.</p>
         <ul class="project-links">
           <li><a href="https://github.com/dreamforgestudiollc/EMET">Repository</a></li>
           <li><a href="https://github.com/dreamforgestudiollc/EMET/releases">Releases</a></li>
           <li><a href="https://github.com/dreamforgestudiollc/EMET/issues">Issues</a></li>
           <li><a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CHANGELOG.md">Changelog</a></li>
+        </ul>
+
+        <h3>What 0.3.6 changed</h3>
+        <p class="prose">Docs and public wording. Stored data shapes are unchanged. The roadmap's Upcoming work section labels Workshop Village, drawers, per-source-tag handoffs, multi-person support, and the other later items as Proposed, Planned, or Later phase. None of that section is built unless it says so. The extension socket is built. The 0.3.5 package on npm was published before this cleanup. Talk about what should come next in <a href="https://github.com/dreamforgestudiollc/EMET/issues">GitHub issues</a>.</p>
+        <ul class="guides">
+          <li>
+            <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/ROADMAP.md">Roadmap</a>
+            <span>Upcoming work, with status labels. Not a commitment. Status as of 2026-11-11.</span>
+          </li>
         </ul>
 
         <h3>What 0.3.5 changed</h3>
@@ -883,7 +892,7 @@ EMET_ACTIVE_GEMS=neurendipity,lean-six-sigma</code></pre>
           </div>
           <div>
             <dt><code>docs/</code></dt>
-            <dd>Setup, deploy, permissions, bots, sub-keys, and the instruction block. The working roadmap is <code>docs/ROADMAP.md</code>. It is not a commitment. Its status date is 2026-11-10.</dd>
+            <dd>Setup, deploy, permissions, bots, sub-keys, and the instruction block. The working roadmap is <code>docs/ROADMAP.md</code>. It is not a commitment. Its status date is 2026-11-11.</dd>
           </div>
           <div>
             <dt><code>gem-library/</code></dt>
@@ -928,7 +937,7 @@ npm run start:http</code></pre>
         <ul class="guides">
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CHANGELOG.md">Changelog</a>
-            <span>0.3.5, then the earlier releases. The format is Keep a Changelog.</span>
+            <span>0.3.6, then the earlier releases. The format is Keep a Changelog.</span>
           </li>
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CONTRIBUTING.md">Contributing</a>
@@ -944,11 +953,11 @@ npm run start:http</code></pre>
           </li>
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/docs/ROADMAP.md">Roadmap</a>
-            <span>A working list, not a commitment. Status as of 2026-11-10.</span>
+            <span>A working list, not a commitment. Status as of 2026-11-11.</span>
           </li>
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/server.json">server.json</a>
-            <span>The registry manifest for 0.3.5.</span>
+            <span>The registry manifest for 0.3.6.</span>
           </li>
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/README.md#known-gaps">Known gaps</a>
@@ -963,7 +972,7 @@ npm run start:http</code></pre>
 
   <footer class="site-footer">
     <div class="wrap">
-      <p>EMET 0.3.5 · <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/LICENSE">MIT License</a></p>
+      <p>EMET 0.3.6 · <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/LICENSE">MIT License</a></p>
       <p>Copyright Dreamforge Studio LLC and C.I.P.S. LLC.</p>
       <ul class="project-links">
         <li><a href="https://github.com/dreamforgestudiollc/EMET">Repository</a></li>

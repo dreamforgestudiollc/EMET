@@ -1,12 +1,12 @@
 # GEP-0002: RUNED sandbox contract (review gate for socket PR 5)
 
-**Status:** Superseded by [GEP-0003](GEP-0003-client-side-execution.md) (Alex, 2026-10-16)
+**Status:** Superseded by [GEP-0003](GEP-0003-client-side-execution.md) (the owner, 2026-10-16)
 **Date:** 2026-10-14
-**Approver:** Alex
+**Approver:** the owner
 **Sponsor:** the hub (a sponsor does not approve)
 **Spec revision:** 2026-10-11
 
-Superseded means this file is the record of the sandbox contract. It is not the contract in force. It was Accepted on 2026-10-14. Alex set Superseded on 2026-10-16 when he accepted GEP-0003. The text below is kept. It is not deleted.
+Superseded means this file is the record of the sandbox contract. It is not the contract in force. It was Accepted on 2026-10-14. The owner set Superseded on 2026-10-16 when accepting GEP-0003. The text below is kept. It is not deleted.
 
 ## Summary
 
@@ -66,14 +66,14 @@ How long a call takes and how much memory it uses can show how much store data a
 
 ## Review gate
 
-the reviewer reviews PR 5 against items 1 to 12 and checks each one off by test name or code location in the review. PR 5 does not merge while any item is unmet, waived, behind a flag, or deferred to a later PR. A change to any item needs a later GEP that Alex accepts. A code comment, config default, or test skip is not that GEP. GC-19 has no skip for a `runed-gem`.
+the reviewer reviews PR 5 against items 1 to 12 and checks each one off by test name or code location in the review. PR 5 does not merge while any item is unmet, waived, behind a flag, or deferred to a later PR. A change to any item needs a later GEP that the owner accepts. A code comment, config default, or test skip is not that GEP. GC-19 has no skip for a `runed-gem`.
 
 ## Charter commitment 6
 
 1. **Failure it fixes.** Without a frozen contract, PR 5 could ship a weaker sandbox (in-process, network allowed, a DB handle "for speed") and the spec text would trail the code. On record: SPEC 11 states Node has no in-process sandbox this standard accepts; ROADMAP PR 5 names the sandbox and network canary as scope.
 2. **What it replaces.** The GC-19 network canary at `127.0.0.1:9`, which passes on an open network, is replaced by item 3's probes. Everything else gathers or tightens the existing SPEC and GC-19 rules.
 3. **Measure.** The PR 5 review shows all 12 items checked with evidence, and GC-19 passes in CI with every item 3 probe failing to connect. Checked in the PR 5 pilot.
-4. **What holds it.** GC-19 in CI, the dispatch wrapper at runtime, and this GEP as the review gate. Changes only by a GEP Alex accepts.
+4. **What holds it.** GC-19 in CI, the dispatch wrapper at runtime, and this GEP as the review gate. Changes only by a GEP the owner accepts.
 
 ## Out of scope
 

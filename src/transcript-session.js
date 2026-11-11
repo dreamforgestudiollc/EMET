@@ -5,7 +5,7 @@ import { setting } from './env.js';
 export const EXCHANGES_PER_PART = 8;
 
 /**
- * The zone a session id is dated in (2026-10-01, Alex's approval; dev team plan
+ * The zone a session id is dated in (2026-10-01, the owner's approval; dev team plan
  * Part B, fix 1). Ids were dated from UTC, so an evening session in New York
  * carried the next day's date (episodic ref 600: `2026-10-01_grok-init` minted on
  * the night of 9/30). The day is now the user's local day: EMET_TIMEZONE, an
@@ -86,7 +86,7 @@ export function shouldStartNewPart(exchangeCount) {
 }
 
 /**
- * A closed session is never reopened (2026-10-01, Alex's approval; episodic
+ * A closed session is never reopened (2026-10-01, the owner's approval; episodic
  * 598: a session_open returned the previous night's CLOSED id and the next
  * append landed in it as exchange 9). Returns the first of base, base-2,
  * base-3, ... that is free, and the ids it passed over with the reason.

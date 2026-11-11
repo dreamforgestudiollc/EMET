@@ -15,7 +15,7 @@ import { OWNER_APPROVALS_RETIRED } from '../src/grants.js';
 console.log('\n=== owner approvals retired ===');
 
 const PEPPER = 'pepper-pepper-pepper-pepper-pepper-32b';
-const OWNER = 'alex';
+const OWNER = 'patron';
 const REG = ['hub-bot', 'intake-bot', 'cowork-cloud'];
 const ON = {
   EMET_SUBKEYS: '1',

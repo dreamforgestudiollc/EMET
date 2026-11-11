@@ -32,11 +32,11 @@ const httpHold = { server: null, base: '', remote: null };
 const chooserHold = { server: null };
 
 const mb = () => ({
-  personId: 'alex', ownerId: 'alex', clientId: SHARED_GROK_CLIENT, transport: 'http',
+  personId: 'patron', ownerId: 'patron', clientId: SHARED_GROK_CLIENT, transport: 'http',
   authenticated: true, sourceTag: MB_TAG, scopes: []
 });
 const bound = (extra = {}) => ({
-  personId: 'alex', ownerId: 'alex', clientId: 'bound-login', transport: 'http',
+  personId: 'patron', ownerId: 'patron', clientId: 'bound-login', transport: 'http',
   authenticated: true, sourceTag: CLAIM_TAG, door: 'member', grantId: 'bound-grant-1', scopes: [],
   ...extra
 });
@@ -129,7 +129,7 @@ async function plantAccessToken(db, fields) {
     family: fields.family,
     scopes: fields.scopes || ['emet.read', 'emet.write'],
     issued_via: fields.issued_via || 'member',
-    subject: fields.subject || 'alex',
+    subject: fields.subject || 'patron',
     expiresAt: Math.floor(Date.now() / 1000) + 3600,
     createdAt: new Date()
   });
@@ -206,16 +206,16 @@ testGroup('a bound-host claim on the hub login is not stamped the hub login', ()
     const deps = memDeps();
     const actor = mb();
     await assert.rejects(
-      () => att.preflight({ db: { collection() { return { find() { return { limit() { return { toArray: async () => [] }; } }; } }; } }, prefix: 'emet_', ownerId: 'alex', deps, registry: [MB_TAG, CLAIM_TAG, 'intake-bot', 'cowork-cloud'] }, actor, { source: CLAIM_TAG, content: 'x' }, 'save_to_layer'),
+      () => att.preflight({ db: { collection() { return { find() { return { limit() { return { toArray: async () => [] }; } }; } }; } }, prefix: 'emet_', ownerId: 'patron', deps, registry: [MB_TAG, CLAIM_TAG, 'intake-bot', 'cowork-cloud'] }, actor, { source: CLAIM_TAG, content: 'x' }, 'save_to_layer'),
       (error) => error.attributionRefusal === true && error.message.includes('A bound login cannot stamp another tag') && error.emetCode === 'EMET-AUTH-044' && error.chooser.tag === CLAIM_TAG
     );
     assert.notStrictEqual(actor.effectiveTag, CLAIM_TAG);
     assert.strictEqual(deps.store.writes, 0);
     await assert.rejects(
-      () => att.preflight({ db: { collection() { return { find() { return { limit() { return { toArray: async () => [] }; } }; } }; } }, prefix: 'emet_', ownerId: 'alex', deps, registry: [MB_TAG, CLAIM_TAG] }, mb(), { source: CLAIM_TAG }, 'emet_initialize'),
+      () => att.preflight({ db: { collection() { return { find() { return { limit() { return { toArray: async () => [] }; } }; } }; } }, prefix: 'emet_', ownerId: 'patron', deps, registry: [MB_TAG, CLAIM_TAG] }, mb(), { source: CLAIM_TAG }, 'emet_initialize'),
       (error) => error.emetCode === 'EMET-AUTH-044'
     );
-    await att.preflight({ db: { collection() { return { find() { return { limit() { return { toArray: async () => [] }; } }; } }; } }, prefix: 'emet_', ownerId: 'alex', deps, registry: [MB_TAG, CLAIM_TAG] }, mb(), { source: CLAIM_TAG }, 'query_layer');
+    await att.preflight({ db: { collection() { return { find() { return { limit() { return { toArray: async () => [] }; } }; } }; } }, prefix: 'emet_', ownerId: 'patron', deps, registry: [MB_TAG, CLAIM_TAG] }, mb(), { source: CLAIM_TAG }, 'query_layer');
   });
 });
 
@@ -275,7 +275,7 @@ testGroup('the approvals row is a credential, not a remembered claim on 8xm', ()
       clients: { [SHARED_GROK_CLIENT]: { tags: { [MB_TAG]: { basis: 'login' } } } }
     }));
     const listed = await recordBoundHostCredential(deps, {
-      client_id: SHARED_GROK_CLIENT, door: 'member', grant_id: null, by: 'alex'
+      client_id: SHARED_GROK_CLIENT, door: 'member', grant_id: null, by: 'patron'
     });
     assert.strictEqual(listed.written, true);
     assert.strictEqual(listed.approved.basis, 'credential');
@@ -287,7 +287,7 @@ testGroup('the approvals row is a credential, not a remembered claim on 8xm', ()
     assert.strictEqual(data.pending[CLAIM_TAG], undefined);
     assert.deepStrictEqual(att.rememberedFor(data, SHARED_GROK_CLIENT), [MB_TAG]);
     const again = await recordBoundHostCredential(deps, {
-      client_id: SHARED_GROK_CLIENT, door: 'member', grant_id: null, by: 'alex'
+      client_id: SHARED_GROK_CLIENT, door: 'member', grant_id: null, by: 'patron'
     });
     assert.strictEqual(again.written, false);
   });
@@ -299,14 +299,14 @@ testGroup('the approvals row is a credential, not a remembered claim on 8xm', ()
     const skipped = await boundHostListingAfterWriterIssue({
       recorded: { claimed_tag: CLAIM_TAG, door: 'guest', client_id: 'bound-login', grant_id: 'mb-grant' },
       issued: { issued: true },
-      deps, by: 'alex'
+      deps, by: 'patron'
     });
     assert.strictEqual(skipped.reason, 'guest');
     assert.strictEqual(deps.store.writes, 0);
     const listed = await boundHostListingAfterWriterIssue({
       recorded: { claimed_tag: CLAIM_TAG, door: 'member', client_id: 'bound-login', grant_id: 'mb-grant' },
       issued: { issued: true },
-      deps, by: 'alex'
+      deps, by: 'patron'
     });
     assert.strictEqual(listed.written, true);
     assert.strictEqual(listed.approved.grant_id, null);
@@ -497,7 +497,7 @@ testGroup('oauth consent lists the door it actually granted', () => {
   test('member consent lists bound-host with door member', async () => {
     const db = makeStore();
     const { createMemberAccess } = await import('../src/invites.js');
-    const invite = await createMemberAccess(db, { created_by: 'alex', display_name: CLAIM_TAG, source_tag: CLAIM_TAG });
+    const invite = await createMemberAccess(db, { created_by: 'patron', display_name: CLAIM_TAG, source_tag: CLAIM_TAG });
     const http = await httpApp();
     http.remote.dbManager.db = db;
     await db.collection('emet_oauth_clients').insertOne(oauthClient('bound-member-login'));
@@ -529,7 +529,7 @@ testGroup('oauth consent lists the door it actually granted', () => {
   test('guest consent writes no bound-host credential', async () => {
     const db = makeStore();
     const { createInvite } = await import('../src/invites.js');
-    const invite = await createInvite(db, { created_by: 'alex', display_name: CLAIM_TAG, source_tag: CLAIM_TAG });
+    const invite = await createInvite(db, { created_by: 'patron', display_name: CLAIM_TAG, source_tag: CLAIM_TAG });
     const http = await httpApp();
     http.remote.dbManager.db = db;
     await db.collection('emet_oauth_clients').insertOne(oauthClient('bound-guest-login'));
@@ -555,8 +555,8 @@ testGroup('oauth consent lists the door it actually granted', () => {
   });
 });
 
-testGroup('Alex issuing a writer lists bound-host on the chooser', () => {
-  test('after Alex issues, /owner/chooser lists bound-host as its own door', async () => {
+testGroup('the owner issuing a writer lists bound-host on the chooser', () => {
+  test('after the owner issues, /owner/chooser lists bound-host as its own door', async () => {
     const express = (await import('express')).default;
     const { ApproveThrottle } = await import('../src/approve-throttle.js');
     const { MongoOAuthProvider } = await import('../src/oauth-provider.js');
@@ -593,7 +593,7 @@ testGroup('Alex issuing a writer lists bound-host on the chooser', () => {
           return { version: approvals.version };
         }
       }),
-      ownerId: 'alex',
+      ownerId: 'patron',
       db: () => db,
       prefix: 'emet_',
       provider
@@ -606,8 +606,8 @@ testGroup('Alex issuing a writer lists bound-host on the chooser', () => {
         authenticated: true,
         sourceBasis: 'login',
         sourceTag: MB_TAG,
-        personId: 'alex',
-        ownerId: 'alex',
+        personId: 'patron',
+        ownerId: 'patron',
         clientId: SHARED_GROK_CLIENT,
         grantId: 'mbgrant00000000000001'
       }, {
@@ -660,7 +660,7 @@ testGroup('Alex issuing a writer lists bound-host on the chooser', () => {
   });
 });
 
-const LEGACY_BOUND_TAG = 'grok-project';
+const LEGACY_BOUND_TAG = 'grok' + '-project';
 
 testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => {
   test('the shipped source matches the old tag by digest and does not spell it', async () => {
@@ -716,7 +716,7 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
       clients: {}
     }));
     const listed = await recordBoundHostCredential(deps, {
-      client_id: SHARED_GROK_CLIENT, door: 'member', grant_id: null, by: 'alex'
+      client_id: SHARED_GROK_CLIENT, door: 'member', grant_id: null, by: 'patron'
     });
     assert.strictEqual(listed.written, false);
     assert.strictEqual(listed.approved.client_id, SHARED_GROK_CLIENT);
@@ -732,7 +732,7 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
     const listed = await boundHostListingAfterWriterIssue({
       recorded: { claimed_tag: LEGACY_BOUND_TAG, door: 'member', client_id: 'bound-login', grant_id: 'mb-grant' },
       issued: { issued: true },
-      deps, by: 'alex'
+      deps, by: 'patron'
     });
     assert.strictEqual(listed.written, true);
     assert.strictEqual(listed.approved.source_tag, CLAIM_TAG);
@@ -759,7 +759,7 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
     }, async () => {
       await assert.rejects(
         () => requestSubkey({ read() { throw new Error('store'); } }, {
-          transport: 'http', authenticated: true, personId: 'alex', ownerId: 'alex', sourceTag: MB_TAG
+          transport: 'http', authenticated: true, personId: 'patron', ownerId: 'patron', sourceTag: MB_TAG
         }, { tag: LEGACY_BOUND_TAG }, [LEGACY_BOUND_TAG]),
         /use bound-host/
       );
@@ -774,8 +774,8 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
       authenticated: true,
       sourceBasis: 'login',
       sourceTag: MB_TAG,
-      personId: 'alex',
-      ownerId: 'alex',
+      personId: 'patron',
+      ownerId: 'patron',
       clientId: SHARED_GROK_CLIENT,
       grantId: 'mbgrant00000000000001'
     }, {
@@ -829,7 +829,7 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
     });
     const app = express();
     app.set('trust proxy', 1);
-    mountBreakGlass(app, { gate, ownerId: 'alex', db: () => db, prefix: 'emet_', provider });
+    mountBreakGlass(app, { gate, ownerId: 'patron', db: () => db, prefix: 'emet_', provider });
     const server = await new Promise((resolve) => { const listening = app.listen(0, '127.0.0.1', () => resolve(listening)); });
     try {
       const base = `http://127.0.0.1:${server.address().port}`;
@@ -863,7 +863,7 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
   test('a stored member code under the legacy tag still redeems', async () => {
     const db = makeStore();
     const { createMemberAccess } = await import('../src/invites.js');
-    const invite = await createMemberAccess(db, { created_by: 'alex', display_name: 'stored', source_tag: LEGACY_BOUND_TAG });
+    const invite = await createMemberAccess(db, { created_by: 'patron', display_name: 'stored', source_tag: LEGACY_BOUND_TAG });
     const http = await httpApp();
     http.remote.dbManager.db = db;
     await db.collection('emet_oauth_clients').insertOne(oauthClient('legacy-member-login'));
@@ -915,7 +915,7 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
     });
     const app = express();
     app.set('trust proxy', 1);
-    mountChooser(app, { gate, ownerId: 'alex', db: () => db, prefix: 'emet_', provider, deps: () => ({}) });
+    mountChooser(app, { gate, ownerId: 'patron', db: () => db, prefix: 'emet_', provider, deps: () => ({}) });
     const server = await new Promise((resolve) => { const listening = app.listen(0, '127.0.0.1', () => resolve(listening)); });
     try {
       const base = `http://127.0.0.1:${server.address().port}`;
@@ -971,14 +971,14 @@ testGroup('a 0.3.4 bound-door tag gets the same treatment as bound-host', () => 
       );
       await assert.rejects(
         () => requestSubkey({ read() { throw new Error('store'); } }, {
-          transport: 'http', authenticated: true, personId: 'alex', ownerId: 'alex', sourceTag: MB_TAG
+          transport: 'http', authenticated: true, personId: 'patron', ownerId: 'patron', sourceTag: MB_TAG
         }, { tag: LEGACY_BOUND_TAG }, [LEGACY_BOUND_TAG]),
         code
       );
       _resetWriterApprovalsForTests();
       await assert.rejects(() => prepareWriterRequest(db, 'emet_', {
         transport: 'http', authenticated: true, sourceBasis: 'login', sourceTag: MB_TAG,
-        personId: 'alex', ownerId: 'alex', clientId: SHARED_GROK_CLIENT, grantId: 'mbgrant00000000000001'
+        personId: 'patron', ownerId: 'patron', clientId: SHARED_GROK_CLIENT, grantId: 'mbgrant00000000000001'
       }, {
         decision: 'prepare', client: 'bound-login', claimed_tag: LEGACY_BOUND_TAG, door: 'member',
         reason: 'BOUND needs her own door', correlation_id: 'c1b2c3d4e5f60719'

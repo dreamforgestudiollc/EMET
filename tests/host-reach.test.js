@@ -1,6 +1,6 @@
 /**
  * Load-gate allowlist. The scanner and the corpus live in
- * verification/load-gate/ so EMET-GEMs can vendor those two files
+ * verification/load-gate/ so a library checkout can vendor those two files
  * byte-for-byte. Each rule has one corpus witness that passes when that
  * rule is turned off. Each walker branch has one witness that passes when
  * that line is removed. Each logic mutant (guard identity, freeze, null
