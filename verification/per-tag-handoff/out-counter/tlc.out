@@ -1,7 +1,7 @@
 TLC2 Version 2.19 of 08 August 2024 
 Running breadth-first search Model-Checking with fp 48 and seed 8161273907364944113 with 1 worker on 4 cores with 3330MB heap and 64MB offheap memory [pid: 11329] (Linux 6.12.113+ amd64, Ubuntu 21.0.12.1 x86_64, MSBDiskFPSet, DiskStateQueue).
-Parsing file /tmp/tlc-counter/PerTagHandoff.tla
-Parsing file /tmp/Naturals.tla
+Parsing file PerTagHandoff.tla
+Parsing file Naturals.tla
 Semantic processing of module Naturals
 Semantic processing of module PerTagHandoff
 Starting... (2026-11-10 15:55:20)

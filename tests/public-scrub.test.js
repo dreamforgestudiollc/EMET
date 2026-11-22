@@ -247,6 +247,30 @@ testGroup('the shipped tree is scrubbed', () => {
     assert.ok(!NAMED_SERVICE.test('railway run --service <service> node x'));
     assert.deepStrictEqual('fixed in 1a2b3c4.'.match(SHORT_HEX), ['1a2b3c4']);
   });
+  test('an internal workspace path is refused in shipped text and tlc output', () => {
+    const token = '/' + 'workspace' + '/';
+    const planted = 'Parsing file ' + token + 'emet-designs/PerTagHandoff.tla';
+    assert.ok(planted.includes(token));
+    assert.ok(!'Parsing file verification/per-tag-handoff/v1-draft/PerTagHandoff.tla'.includes(token));
+    const skip = new Set(['node_modules', '.git', 'coverage', '.nyc_output']);
+    const hits = [];
+    const walk = (dir) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (skip.has(entry.name)) continue;
+        const abs = path.join(dir, entry.name);
+        if (entry.isDirectory()) { walk(abs); continue; }
+        const rel = path.relative(ROOT, abs).split(path.sep).join('/');
+        if (rel === SELF) continue;
+        const shipped = files.includes(rel) || entry.name === 'tlc.out' || rel.startsWith('verification/');
+        if (!shipped) continue;
+        let text;
+        try { text = fs.readFileSync(abs, 'utf8'); } catch { continue; }
+        if (text.includes(token)) hits.push(rel);
+      }
+    };
+    walk(ROOT);
+    assert.deepStrictEqual(hits, []);
+  });
   test('private paths are caught when planted, and the tree has none', () => {
     const workspace = '/' + 'workspace' + '/emet';
     const stores = '/' + 'cursor' + '/' + 'stores' + '/bot';
