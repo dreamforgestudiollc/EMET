@@ -512,7 +512,7 @@ testGroup('extras', () => {
     assert.equal(ended.status, 'active');
     await assert.rejects(
       () => att.preflight(c, actorFor(), { session_id: base, session_handle: handle }, 'write_doc'),
-      /ended/
+      (err) => err.subkeyHold && !err.attributionRefusal && /closed/.test(err.message)
     );
     const again = await openKey(att, sk, c, deps, claimed, { slug: 'intake-again' });
     assert.match(again.handle, /^emh_[A-Za-z0-9_-]{43}$/);
@@ -719,7 +719,7 @@ testGroup('Tester review regressions', () => {
     const snap = await records(deps, sk);
     const opens = snap.sessions.filter((s) => s.session_id === first.base);
     assert.equal(opens.length, 2);
-    assert.equal(opens.filter((s) => s.state === 'ended').length, 1);
+    assert.equal(opens.filter((s) => s.state === 'closed').length, 1);
     assert.equal(opens.filter((s) => s.state === 'live').length, 1);
     assert.notEqual(opens[0].open_id, opens[1].open_id);
     assert.notEqual(second.handle, first.handle);
@@ -893,7 +893,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
       const { claimed } = await issue(deps, sk);
       const first = await openKey(att, sk, c, deps, claimed, { slug: 'intake' });
       await sk.endSubkeySession(deps, ownerHost(), 'patron', { key_id: claimed.key_id }, NOW);
-      const ended = (await sk.loadSubkeyRecords(deps)).sessions.find((s) => s.session_id === first.base && s.state === 'ended');
+      const ended = (await sk.loadSubkeyRecords(deps)).sessions.find((s) => s.session_id === first.base && s.state === 'closed');
       const endedId = `open:${ended.open_id}`;
       const hmac = ended.handle_hmac;
       const col = store.collection('emet_subkeys');
@@ -907,7 +907,7 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
       const second = await openKey(att, sk, c, deps, claimed, { slug: 'intake' });
       assert.equal(written.includes(endedId), false);
       const still = col.docs.find((d) => d._id === endedId);
-      assert.equal(still.state, 'ended');
+      assert.equal(still.state, 'closed');
       assert.equal(JSON.stringify(still.handle_hmac), JSON.stringify(hmac));
       const snap = await sk.loadSubkeyRecords(deps);
       const opens = snap.sessions.filter((s) => s.session_id === first.base);
@@ -1245,11 +1245,15 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
     });
     await assert.rejects(
       () => att.preflight(c, actorFor(), { session_id: base, session_handle: `emh_${'a'.repeat(43)}` }, 'write_doc'),
-      /was ended/
+      (err) => err.subkeyHold && !err.attributionRefusal && err.emetCode === 'EMET-SESS-014'
     );
+    const snap = await records(deps, sk);
+    assert.equal(snap.sessions.find((s) => s.open_id === 'e2').state, 'ended');
+    assert.equal(snap.sessions.find((s) => s.open_id === 'e1').state, 'live');
+    assert.equal(snap.history.some((ev) => ev.event === 'handle_expired'), false);
   }));
 
-  test('close does not release an expired handle', async () => withEnv(ON, async () => {
+  test('close releases an expired handle when the key matches, and keeps the row', async () => withEnv(ON, async () => {
     const { att, sk } = await fresh();
     const { deps, c } = world();
     const { claimed } = await issue(deps, sk);
@@ -1259,8 +1263,13 @@ testGroup('sub-key store races (in-memory Mongo client)', () => {
       s.expires_at = '2020-01-01T00:00:00.000Z';
       return true;
     });
-    assert.equal(await sk.releaseClosedSession(deps, base, NOW, { handle, subkey: claimed.subkey }), null);
-    assert.equal((await records(deps, sk)).sessions.find((s) => s.session_id === base).state, 'live');
+    assert.equal(await sk.releaseClosedSession(deps, base, NOW, { handle }), null);
+    const released = await sk.releaseClosedSession(deps, base, NOW, { handle, subkey: claimed.subkey });
+    assert.equal(released.state, 'closed');
+    const row = (await records(deps, sk)).sessions.find((s) => s.session_id === base);
+    assert.equal(row.state, 'closed');
+    assert.equal(row.retained, true);
+    assert.equal(row.deleted, false);
   }));
 
   test('the flag-off sweep writes the history event before the status change', async () => withEnv(ON, async () => {

@@ -83,6 +83,22 @@ export function rawActor() {
   return s && typeof s === 'object' ? s : null;
 }
 
+/**
+ * The HTTP credential's tag. Stdio returns null: the caller’s declared tag
+ * stands there. A claimed basis is not a credential.
+ */
+export function httpCredentialTag() {
+  const actor = currentActor();
+  if (!actor || actor.transport !== 'http') return null;
+  const attr = declaredAttribution();
+  const basis = attr && attr.basis;
+  if (basis === 'subkey' && attr.effective) return { tag: String(attr.effective).trim(), claimedOnly: false };
+  if (basis === 'declared' || basis === 'auto' || basis === 'legacy') return { tag: null, claimedOnly: true };
+  if (attr && attr.login) return { tag: attr.login, claimedOnly: false };
+  if (typeof actor.sourceTag === 'string' && actor.sourceTag.trim()) return { tag: actor.sourceTag.trim(), claimedOnly: false };
+  return { tag: null, claimedOnly: false };
+}
+
 /** Per-request attribution set by attribution.preflight (HTTP only). */
 export function declaredAttribution() {
   const s = actorStore.getStore();

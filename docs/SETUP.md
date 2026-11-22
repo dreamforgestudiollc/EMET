@@ -251,6 +251,10 @@ it should come back `ready` with your existing identity, not `setup_required`. I
 `setup_required`, one of the four variables above is wrong; **do not run the setup interview,
 which would write a new identity over your existing one.**
 
+## Upgrading to 0.3.7
+
+0.3.7 adds per-tag handoffs, off unless the owner sets `EMET_TAG_HANDOFFS` to `warn` or `enforce`, and sub-key session renewal. Stored rows are not rewritten. No new setting is required. The handle length stays 12 hours. A stranded session is marked `auto_closed` by the sweep. The row and the transcript stay. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
 ## Upgrading to 0.3.6
 
 0.3.6 is a docs and wording release. Stored data shapes are unchanged. No new setting. Deploy over 0.3.5 as is. The public roadmap's Upcoming work section is not built unless it says so.

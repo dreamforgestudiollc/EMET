@@ -191,7 +191,7 @@ testGroup('throw sites', () => {
   test('the throw-site snapshot hash is pinned', () => {
     const bytes = fs.readFileSync(path.join(ROOT, 'tests/fixtures/error-throw-codes.json'));
     const hash = crypto.createHash('sha256').update(bytes).digest('hex');
-    assert.strictEqual(hash, '80370f62412abbf01bf424f38b0207ffe1c8e368502c645e1ed33d549d3c1e99');
+    assert.strictEqual(hash, '6e5532a8a5cdd979289d0bfcb69dcfd80cd23920b7e4cfa65a43e3cacfc03dfe');
   });
 
   test('today\'s message texts are still present', () => {

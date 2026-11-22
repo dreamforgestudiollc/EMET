@@ -32,7 +32,9 @@ List each bot's tag in `EMET_SOURCE_TAGS` before it asks for a key. An empty lis
 3. On the chooser, approve that request. Deny applies only to a pending request.
 4. The bot claims the key within 24 hours. It keeps the key where the other bots cannot read it. The key is never written into EMET.
 
-A bot opens a session with that key. `emet_session_open` returns `session_handle` once. Every later write in that session passes `session_handle`. A write that names the session and omits the handle, or sends a different one, is refused, and nothing is written. The handle is not a receipt and is not written into a document.
+A bot opens a session with that key. `emet_session_open` returns `session_handle` once. Every later write in that session passes `session_handle`. A write that names the session and omits the handle, or sends a different one, is refused, and nothing is written. The handle lasts 12 hours. In the last hour, and for one hour after it expires, an open that presents the sub-key and the handle closes the old session into the new one. The server closes a session that is past that grace on its own and marks it `auto_closed`. The row and the transcript stay. A status read of a stranded session is not refused and does not write. The handle is not a receipt and is not written into a document.
+
+The owner can set the key's kind with `emet_subkey_set_kind`: `bot` or `chat`. A key with no kind stored is a bot. A chat key whose previous turn left no wrap-up is reported unwrapped on the next open. The owner approves the kind on `/owner/chooser` as well.
 
 ## A key lasts 30 days
 

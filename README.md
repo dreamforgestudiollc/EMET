@@ -26,7 +26,7 @@ See also: [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md) · [SECUR
 - **Per-client attribution and approvals.** Every write is attributed to the client that made it. A new client is read-limited until it is approved. The approval is recorded.
 - **Error codes and problem reports.** Every error carries a stable `EMET-<AREA>-<NNN>` code. An operational error log keeps 10,000 entries or 90 days, plus daily summaries. The owner-only `emet_error_report` returns the report and an email draft that you send yourself. See [Reporting a problem](#reporting-a-problem).
 - **verify-emet and the feature map.** `npm run verify` runs `scripts/verify-emet.mjs` from a checkout. It starts EMET in a temporary directory on the in-memory test database, with no `.env`, and drives every registered tool. A tool that needs a service a plain install does not have is reported as a gap. A run whose only problems are gaps exits 3. A failed tool exits 1. The map is [docs/features/README.md](docs/features/README.md).
-- **MIT.** Version 0.3.6. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
+- **MIT.** Version 0.3.7. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
 - **Roadmap.** What is proposed, planned, or a later phase is [docs/ROADMAP.md](docs/ROADMAP.md). An item there is not built unless it says so. Upcoming work is labeled Proposed, Planned, or Later phase. Discussion is in [GitHub issues](https://github.com/dreamforgestudiollc/EMET/issues).
 
 The store has one owner, and other people can join only through the optional Guest
@@ -108,7 +108,7 @@ Member (read and write) access, both off by default.
 
 ## Two ways in
 
-A session that has not initialized can read everything and can write only a new drop (`drops/<date>-<slug>.md`): its items, wrap-up and handoff. A session with a registered source and the full startup has full access. Every initialized session sees unhandled drops first. A board edit is refused only for a drop that was listed at that session's boot. New drops are capped at 20 per New York day, in one bucket: the whole local process on stdio, one shared visitor bucket for HTTP with no signed-in client, the source tag bound at approval when there is one, or that OAuth client otherwise. A source the caller types does not move the bucket. Drops are never deleted.
+A session that has not initialized can read everything and can write only a new drop (`drops/<date>-<slug>.md`): its items, wrap-up and handoff. A session with a registered source and the full startup has full access. With `EMET_TAG_HANDOFFS` off, the default, one hub handoff is what initialize serves. With it `warn` or `enforce`, initialize serves `handoff_view` for every tag. A write tag also receives its own handoff. A read-only tag receives the view only. The write is checked against the credential, not a declared tag. With `EMET_TAG_HANDOFFS` off, an HTTP save may still name `metadata.source`. With the flag at `warn` or `enforce`, the session tag on HTTP is the credential. A declared tag that differs, and a claimed tag naming a session, are refused (`EMET-DOC-088`). A call that declares no tag is kept. A bot on the shared owner login needs its own sub-key before that flag leaves off. On stdio the declared tag stands. Every initialized session sees unhandled drops first. A board edit is refused only for a drop that was listed at that session's boot. New drops are capped at 20 per New York day, in one bucket: the whole local process on stdio, one shared visitor bucket for HTTP with no signed-in client, the source tag bound at approval when there is one, or that OAuth client otherwise. A source the caller types does not move the bucket. Drops are never deleted.
 
 ## Editing working state
 
@@ -267,6 +267,9 @@ same page. The bot presents the key once at `emet_session_open`. See
 **Pass `session_handle` on every write in a sub-key session.** `emet_session_open` returns
 `session_handle` once. Later writes in that session pass `session_handle`. A write that names
 the session and omits the handle, or sends a different one, is refused, and nothing is written.
+The handle lasts 12 hours. In the last hour, and for one hour after it expires, an open that
+presents the sub-key and the handle closes the old session into the new one. The server closes
+a session that is past that grace on its own. A status read of a stranded session is not refused.
 The handle is not a receipt and is not written into a document. With sub-keys off, the field is
 absent. See [docs/SUBKEYS.md](docs/SUBKEYS.md) and [docs/PERMISSIONS.md](docs/PERMISSIONS.md).
 
@@ -703,7 +706,7 @@ are in [`docs/GUARDRAILS-AND-MONORAILS.md`](docs/GUARDRAILS-AND-MONORAILS.md).
 
 ## Tools
 
-Thirty-eight tools are registered with sub-keys off. With `EMET_SUBKEYS=1`, four more (`emet_subkey_request`, `emet_subkey_claim`, `emet_subkey_revoke`, `emet_subkey_end_session`) and the `subkey` and `session_handle` arguments. The names below are every tool the registry registers, both sets together.
+Thirty-eight tools are registered with sub-keys off. With `EMET_SUBKEYS=1`, five more (`emet_subkey_request`, `emet_subkey_claim`, `emet_subkey_revoke`, `emet_subkey_end_session`, `emet_subkey_set_kind`) and the `subkey` and `session_handle` arguments. The names below are every tool the registry registers, both sets together.
 
 <!-- emet-tools -->
 ```
@@ -727,6 +730,7 @@ emet_subkey_claim
 emet_subkey_end_session
 emet_subkey_request
 emet_subkey_revoke
+emet_subkey_set_kind
 emet_transcript_append
 list_docs
 patch_doc
@@ -778,6 +782,8 @@ After a complete close a session takes exactly one more append, its closing exch
 `EMET_CLOSE_GRACE_MINUTES` (default 5, at most 60) of the close, written into the session's last
 part, and is then locked; a retry of it writes nothing. Corrections with `revise_transcript` stay
 allowed but must keep exactly the same exchange numbers.
+
+**Continuity currency** — `EMET_CONTINUITY_CURRENCY` is off unless it is `1`. With it on, initialize and session open add `continuity_currency`. A lag warns and does not block. The server does not rewrite HANDOFF or STATE. When `EMET_TAG_HANDOFFS` is `warn` or `enforce`, that reading also carries `handoff_view`, `own_handoff`, and `stale_open`. An open session with material work is an in-progress line. It is not a lag. `EMET_HANDOFF_AGING_DAYS` defaults to 7. `EMET_STALE_OPEN_HOURS` defaults to 24. Material episodic rows written before `2026-09-27T00:00:00.000Z` with no registered source are `legacy_pre_attribution` and do not make the overall check warn. A newer untagged row still warns. A stamp that is not the view in force says to re-read the handoff view. `EMET-CFG-015` is the per-tag flag on with `EMET_HUB_TAG` unset. Nothing is refused because a handoff is stale.
 
 **During the session** — `emet_transcript_append` after every reply, one exchange at a time.
 Every write tool also takes `session_id` and `exchange`, and returns `session_graph.next`, the

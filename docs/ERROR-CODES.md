@@ -64,6 +64,7 @@ Internal codes are raised inside a check that catches them before a caller sees 
 | EMET-CFG-012 | Backup answer must be yes or no | active |
 | EMET-CFG-013 | Setup requires the owner | active |
 | EMET-CFG-014 | Store is already set up | active |
+| EMET-CFG-015 | Per-tag handoffs are on and the hub tag is unset | active |
 | EMET-DB-001 | MONGODB_URI is not set | active |
 | EMET-DB-002 | Failed to connect to MongoDB | active |
 | EMET-DB-003 | Query failed on a memory layer | active |
@@ -178,6 +179,11 @@ Internal codes are raised inside a check that catches them before a caller sees 
 | EMET-DOC-078 | Commit reason does not match the stage | active |
 | EMET-DOC-079 | This call's source does not match the stage | active |
 | EMET-DOC-080 | This call's session does not match the stage | active |
+| EMET-DOC-084 | Another tag's handoff, folder, or an unregistered credential | active |
+| EMET-DOC-085 | A credential changed a board row it did not open | active |
+| EMET-DOC-086 | A reserved, malformed, or person-equal handoff id | active |
+| EMET-DOC-087 | A claimed tag cannot write a handoff | active |
+| EMET-DOC-088 | A declared session tag is not the credential | active |
 | EMET-GEM-001 | Read-back found no document | active |
 | EMET-GEM-002 | Read-back content digest differs | active |
 | EMET-GEM-003 | Read-back version differs | active |
@@ -278,6 +284,7 @@ Internal codes are raised inside a check that catches them before a caller sees 
 | EMET-SESS-005 | Session graph is unavailable | active |
 | EMET-SESS-006 | Session close was blocked | active |
 | EMET-SESS-007 | Session close escalated | active |
+| EMET-SESS-014 | A stranded sub-key session needs a new open | active |
 | EMET-TOOL-001 | A tool has no annotation entry | active, internal |
 | EMET-TOOL-002 | A source tag is required | active |
 | EMET-TOOL-003 | A source tag is required and none are registered | active |

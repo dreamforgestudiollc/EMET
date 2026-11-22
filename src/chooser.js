@@ -59,6 +59,20 @@ function retainedSubkeys(data) {
     .sort((a, b) => String(a.tag).localeCompare(String(b.tag)) || String(a.key_id).localeCompare(String(b.key_id)));
 }
 
+function kindForm(session, row) {
+  if (!session || !row || (row.status !== 'active' && row.status !== 'grace' && row.status !== 'approved')) return '';
+  const current = row.client_kind === 'chat' ? 'chat' : 'bot';
+  return `<form method="post" action="/owner/chooser/subkey-kind">
+<input type="hidden" name="csrf" value="${esc(session.csrf)}">
+<input type="hidden" name="key_id" value="${esc(row.key_id)}">
+<label>Client <select name="client_kind">
+<option value="bot"${current === 'bot' ? ' selected' : ''}>Bot</option>
+<option value="chat"${current === 'chat' ? ' selected' : ''}>Chat</option>
+</select></label>
+<button type="submit">Save client</button>
+</form>`;
+}
+
 function historyLine(row) {
   const events = Array.isArray(row.history) ? row.history : [];
   if (!events.length) return esc(row.status);
@@ -147,6 +161,10 @@ ${doorRadios()}
 <input type="hidden" name="csrf" value="${esc(session.csrf)}">
 <input type="hidden" name="key_id" value="${esc(row.key_id)}">
 <input type="text" name="reason" maxlength="${REASON_MAX}" placeholder="Reason (optional)">
+<label>Client <select name="client_kind">
+<option value="bot" selected>Bot</option>
+<option value="chat">Chat</option>
+</select></label>
 <button type="submit" name="decision" value="approve">Approve</button>
 <button type="submit" name="decision" value="deny">Deny</button>
 </form>
@@ -160,8 +178,8 @@ ${doorRadios()}
     parts.push('<h2>Retained records</h2>');
     if (!keys.retained.length) parts.push('<p>No earlier sub-key decisions are in this store.</p>');
     else {
-      const body = keys.retained.map((row) => `<tr><td>${esc(row.tag)}</td><td>${esc(row.status)}</td><td>${historyLine(row)}</td></tr>`).join('\n');
-      parts.push(`<table><thead><tr><th>Tag</th><th>Status</th><th>History</th></tr></thead><tbody>${body}</tbody></table>`);
+      const body = keys.retained.map((row) => `<tr><td>${esc(row.tag)}</td><td>${esc(row.status)}</td><td>${esc(row.client_kind === 'chat' ? 'chat' : 'bot')}</td><td>${historyLine(row)}</td><td>${kindForm(session, row)}</td></tr>`).join('\n');
+      parts.push(`<table><thead><tr><th>Tag</th><th>Status</th><th>Client</th><th>History</th><th></th></tr></thead><tbody>${body}</tbody></table>`);
     }
   }
   parts.push(writerSection(session, writers));
@@ -301,6 +319,16 @@ export function mountChooser(app, options = {}) {
     });
   });
 
+  app.post('/owner/chooser/subkey-kind', parseBody, (req, res) => {
+    finishSubkeyKind(req, res).catch((e) => {
+      console.error('[emet] chooser subkey kind', e && e.message ? e.message : e);
+      if (!res.headersSent) {
+        res.locals.reason = 'chooser_subkey_kind_error';
+        sendHtml(res, 500, '<p>Something went wrong. Nothing was changed.</p>', 'EMET chooser');
+      }
+    });
+  });
+
   app.post('/owner/chooser/subkey', parseBody, (req, res) => {
     finishSubkey(req, res).catch((e) => {
       console.error('[emet] chooser subkey', e && e.message ? e.message : e);
@@ -406,6 +434,7 @@ export function mountChooser(app, options = {}) {
     const decision = req.body && req.body.decision;
     const keyId = typeof (req.body && req.body.key_id) === 'string' ? req.body.key_id.trim() : '';
     const reason = typeof (req.body && req.body.reason) === 'string' ? req.body.reason.trim() : '';
+    const clientKind = typeof (req.body && req.body.client_kind) === 'string' ? req.body.client_kind.trim() : '';
     if (decision !== 'approve' && decision !== 'deny') {
       res.locals.reason = 'bad_decision';
       sendHtml(res, 400, '<p>Decision must be approve or deny. Nothing was changed.</p>', 'EMET chooser');
@@ -426,7 +455,8 @@ export function mountChooser(app, options = {}) {
     let result = null;
     try {
       result = await decideSubkeyIfPending(depsOf(), ownerPageActor(personId), personId, {
-        key_id: keyId, decision, reason, via: 'owner_chooser'
+        key_id: keyId, decision, reason, via: 'owner_chooser',
+        ...(clientKind ? { client_kind: clientKind } : {})
       }, new Date(now()));
     } catch (e) {
       if (e && e.attributionRefusal && !/sub-key store/.test(String(e.message))) {
@@ -456,6 +486,47 @@ export function mountChooser(app, options = {}) {
     res.locals.reason = decision === 'approve' ? 'subkey_approved' : 'subkey_denied';
     const verb = decision === 'approve' ? 'Approved' : 'Denied';
     await render(req, res, `${verb} ${result.tag}.`);
+  }
+
+  async function finishSubkeyKind(req, res) {
+    const session = gate.sessionOf(req);
+    if (!session) {
+      res.locals.reason = 'no_owner_session';
+      sendHtml(res, 401, '<p>Only the owner session can set a sub-key client.</p>', 'EMET chooser');
+      return;
+    }
+    const posted = (req.body && req.body.csrf) || '';
+    if (!timingSafeEqualStr(posted, session.csrf)) {
+      res.locals.reason = 'bad_csrf';
+      sendHtml(res, 403, '<p>The form expired. Reload the page and try again.</p>', 'EMET chooser');
+      return;
+    }
+    const keyId = typeof (req.body && req.body.key_id) === 'string' ? req.body.key_id.trim() : '';
+    const clientKind = typeof (req.body && req.body.client_kind) === 'string' ? req.body.client_kind.trim() : '';
+    const personId = await resolveOwner();
+    if (!personId) {
+      res.locals.reason = 'owner_unavailable';
+      sendHtml(res, 400, '<p>The owner id is unavailable. Nothing was changed.</p>', 'EMET chooser');
+      return;
+    }
+    const { setSubkeyClientKind } = await import('./subkeys.js');
+    let result = null;
+    try {
+      result = await setSubkeyClientKind(depsOf(), ownerPageActor(personId), personId, {
+        key_id: keyId, client_kind: clientKind
+      }, new Date(now()));
+    } catch (e) {
+      if (e && e.attributionRefusal && !/sub-key store/.test(String(e.message))) {
+        res.locals.reason = 'kind_refused';
+        sendHtml(res, 400, `<p>${esc(e.message)}</p>`, 'EMET chooser');
+        return;
+      }
+      res.locals.reason = 'subkey_store';
+      sendHtml(res, 503, `<p>${STORE_MESSAGE}</p>`, 'EMET chooser');
+      return;
+    }
+    res.locals.reason = 'subkey_kind';
+    await render(req, res, `${result.tag} is ${result.client_kind}.`);
   }
 
   async function finishWriter(req, res) {

@@ -3,7 +3,7 @@
   "name": "io.github.dreamforgestudiollc/emet",
   "title": "EMET",
   "description": "ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control memory for AI agents. Nothing is deleted.",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "websiteUrl": "https://dreamforgestudiollc.github.io/EMET/",
   "repository": {
     "url": "https://github.com/dreamforgestudiollc/EMET",
@@ -22,7 +22,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@dreamforgestudiollc/emet",
-      "version": "0.3.6",
+      "version": "0.3.7",
       "transport": {
         "type": "stdio"
       },
@@ -32,6 +32,30 @@
           "description": "MongoDB connection string for the memory store.",
           "isRequired": true,
           "isSecret": true
+        },
+        {
+          "name": "EMET_TAG_HANDOFFS",
+          "description": "Per-tag handoffs. Off unless set to warn or enforce.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "EMET_HUB_TAG",
+          "description": "Hub tag that writes HANDOFF.md when per-tag handoffs are on.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "EMET_HANDOFF_AGING_DAYS",
+          "description": "Days before a handoff line in the computed view is aging. Default 7.",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "EMET_STALE_OPEN_HOURS",
+          "description": "Hours before an open session with material work is marked stale-open. Default 24.",
+          "isRequired": false,
+          "isSecret": false
         }
       ]
     }
@@ -59,6 +83,7 @@
         "emet_subkey_end_session",
         "emet_subkey_request",
         "emet_subkey_revoke",
+        "emet_subkey_set_kind",
         "emet_transcript_append",
         "list_docs",
         "patch_doc",

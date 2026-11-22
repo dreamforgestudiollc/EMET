@@ -48,7 +48,7 @@ export const WRITE_TOOLS = new Set([
   'patch_doc', 'retire_doc', 'rename_doc', 'restore_doc',
   'accept_nonconformance', 'emet_transcript_append', 'save_transcript', 'revise_transcript', 'emet_session_close',
   // Tester's re-review (2026-10-12): opening a session claims it; deciding a client is a write.
-  'emet_session_open', 'emet_client_approve',
+  'emet_session_open', 'emet_client_approve', 'emet_subkey_set_kind',
   // Tester's PR 47 review: setup writes durable identity and board docs.
   'emet_setup_complete'
 ]);

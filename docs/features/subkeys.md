@@ -1,6 +1,6 @@
 # Client sub-keys
 
-Delegated keys for more than one client. Off unless `EMET_SUBKEYS=1`. With the flag off, the host's tool list does not include `emet_subkey_request`, `emet_subkey_claim`, `emet_subkey_revoke`, or `emet_subkey_end_session`.
+Delegated keys for more than one client. Off unless `EMET_SUBKEYS=1`. With the flag off, the host's tool list does not include `emet_subkey_request`, `emet_subkey_claim`, `emet_subkey_revoke`, `emet_subkey_end_session`, or `emet_subkey_set_kind`.
 
 ## Sub-features
 
@@ -8,6 +8,7 @@ Delegated keys for more than one client. Off unless `EMET_SUBKEYS=1`. With the f
 - subkey-claim: `emet_subkey_claim` turns an approved nonce into a key shown once.
 - subkey-revoke: `emet_subkey_revoke` retires a key's authority. The record stays. Later writes with that session handle are refused.
 - subkey-end: `emet_subkey_end_session` ends a stuck live session and leaves the key usable.
+- subkey-kind: `emet_subkey_set_kind` stores `bot` or `chat` on an approved key. A key with no kind stored is a bot.
 
 ## How to get to it (user POV)
 
@@ -17,7 +18,7 @@ Leave this off for a single client. When you want it, say yes in the interview o
 
 ```
 npm run verify -- feature subkeys
-npm run verify -- run emet_subkey_request emet_subkey_claim emet_subkey_revoke emet_subkey_end_session
+npm run verify -- run emet_subkey_request emet_subkey_claim emet_subkey_revoke emet_subkey_end_session emet_subkey_set_kind
 ```
 
 All four are standalone gaps, so this run exits 3. A temp directory has no flag, no pepper, and no authenticated owner login, so the tools are not registered. The command reports that. It does not turn the flag on to hide the gap. A failed tool still exits 1.

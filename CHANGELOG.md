@@ -7,7 +7,30 @@ change before 1.0.
 
 ## Unreleased
 
-Nothing is waiting above 0.3.6.
+Nothing is waiting above 0.3.7.
+
+## 0.3.7 - 2026-11-21
+
+Per-tag handoffs and sub-key session renewal. Stored data shapes are unchanged. Stored rows are not rewritten. The declared version is 0.3.7. This revision is not published from this change. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
+### Added
+- Per-tag handoffs ship off by default. `EMET_TAG_HANDOFFS` stays off unless the owner sets `warn` or `enforce`. Each write tag's handoff is `HANDOFF/<tag>.md`. The hub tag keeps `HANDOFF.md`. The shared view is computed on read and is not a record. `EMET-DOC-088` runs only while `EMET_TAG_HANDOFFS` is `warn` or `enforce`. A call that declares no tag is kept. A bot on the shared owner login needs its own sub-key before the flag leaves off.
+- When per-tag handoffs are on, material episodic rows written before `2026-09-27T00:00:00.000Z` with no registered source are listed as legacy (`legacy_pre_attribution`, cutoff basis `after_last_unsourced_episodic`). Those rows do not make the overall check warn. A row at or after the cutoff with no registered source still warns.
+- Sub-key sessions renew in the handle's last hour (`EMET_SUBKEY_RENEWAL_MINUTES`, default 60) and for up to one hour after expiry (`EMET_SUBKEY_HANDLE_GRACE_MINUTES`, default 60). An open that presents the key and the current handle closes the old session into the new one. The old row stays. The default handle length stays 12 hours.
+- A server sweep (`EMET_SUBKEY_SWEEP_MINUTES`, default 15) marks a stranded session `auto_closed` after the grace window. Nothing is deleted. The row and the transcript stay.
+- `emet_subkey_set_kind` sets `client_kind` to `bot` or `chat` on an approved key. A key with no kind stored is a bot. A chat key whose previous turn left no wrap-up is reported unwrapped on the next open.
+- The npm package includes `docs/features/`.
+- [RELEASE_NOTES-0.3.7.md](RELEASE_NOTES-0.3.7.md).
+
+### Changed
+- `emet_status` does not write. A status read of a stranded session is not refused and does not record `handle_expired`.
+- Listings gain `emet_subkey_set_kind`. With `EMET_SUBKEYS=1` the server registers 43 tools. With sub-keys off the list stays 38.
+
+### Fixed
+- `docs/features/` is part of the published package. A relative link from the README to that directory is in the tarball.
+
+### Upgrade
+- No stored-data migration. No new required setting. Deploy over 0.3.6 as is. Optional settings keep their defaults. Listings gain `emet_subkey_set_kind`. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
 ## 0.3.6 - 2026-11-11
 

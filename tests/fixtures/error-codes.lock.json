@@ -289,6 +289,11 @@
     "status": "active",
     "internal": false
   },
+  "EMET-CFG-015": {
+    "summary": "Per-tag handoffs are on and the hub tag is unset",
+    "status": "active",
+    "internal": false
+  },
   "EMET-DB-001": {
     "summary": "MONGODB_URI is not set",
     "status": "active",
@@ -859,6 +864,31 @@
     "status": "active",
     "internal": false
   },
+  "EMET-DOC-084": {
+    "summary": "Another tag's handoff, folder, or an unregistered credential",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-085": {
+    "summary": "A credential changed a board row it did not open",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-086": {
+    "summary": "A reserved, malformed, or person-equal handoff id",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-087": {
+    "summary": "A claimed tag cannot write a handoff",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-088": {
+    "summary": "A declared session tag is not the credential",
+    "status": "active",
+    "internal": false
+  },
   "EMET-GEM-001": {
     "summary": "Read-back found no document",
     "status": "active",
@@ -1356,6 +1386,11 @@
   },
   "EMET-SESS-007": {
     "summary": "Session close escalated",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-SESS-014": {
+    "summary": "A stranded sub-key session needs a new open",
     "status": "active",
     "internal": false
   },
