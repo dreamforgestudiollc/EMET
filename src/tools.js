@@ -3861,7 +3861,7 @@ export async function patchDoc(doc_id, old_str, new_str, updated_by = null, expe
       const added = [...ids(next)].filter((id) => !ids(cur.content).has(id));
       if (added.length && !(options && options.origin)) throw new ValidationError('patch_doc: an added board row needs origin. Nothing was written.', { code: 'EMET-MEM-028' });
       const checked = validateDocument(doc_id, next, cur.content);
-      if (checked && checked.verdict === 'nonconforming' && tagHandoffMode() === 'off') {
+      if (checked && checked.verdict === 'nonconforming') {
         throw new ValidationError(`patch_doc: the board edit is nonconforming. ${(checked.failures || []).join('; ')} Nothing was written.`, { code: 'EMET-MEM-029' });
       }
     }

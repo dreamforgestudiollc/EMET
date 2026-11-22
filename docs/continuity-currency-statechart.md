@@ -1,5 +1,30 @@
 # Continuity currency
 
+```mermaid
+stateDiagram-v2
+  [*] --> GateOff
+  GateOff --> GateOff: warn flag stays off
+  GateOff --> Comparing: warn flag on
+  Comparing --> Current: handoff cites the live material tip
+  Comparing --> DocumentedNoOp: documented no-op, no newer material tip
+  Comparing --> Current: newer episodic is scratch or diagnosis only
+  Comparing --> Current: version number alone
+  Comparing --> Warning: material tip is newer
+  Comparing --> FallbackOnly: only a fallback tip is newer
+  Comparing --> NoHandoff: no handoff to compare
+  Comparing --> Unreadable: the comparison could not be read
+  Warning --> BlockHeld: block asked, still does not block
+  FallbackOnly --> FallbackHeld: block asked, still does not block
+  Warning --> Comparing: the next initialize compares again
+  Current --> Comparing: the next initialize compares again
+  DocumentedNoOp --> Comparing: the next initialize compares again
+  BlockHeld --> Comparing: the next initialize compares again
+  FallbackOnly --> Comparing: the next initialize compares again
+  FallbackHeld --> Comparing: the next initialize compares again
+  NoHandoff --> Comparing: the next initialize compares again
+  Unreadable --> Comparing: the next initialize compares again
+```
+
 The warn-only comparison of the served handoff with the material episodic tip. `EMET_CONTINUITY_CURRENCY` is off unless it is `1`. A lag warns. The server does not rewrite HANDOFF or STATE, and it does not block the call. `EMET_CONTINUITY_CURRENCY_BLOCK` is reserved and is not applied.
 
 The generated chart draws 10 states and 17 arrows. It joins the three Comparing to Current reasons onto one arrow, and it omits the step that stays in Gate off, the warn flag staying off. This diagram draws that step and keeps the three reasons separate. No handoff, unreadable, and fallback-only are on both.

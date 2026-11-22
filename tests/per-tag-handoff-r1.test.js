@@ -351,9 +351,10 @@ testGroup('MF-6: delete, restore, and an unmapped row stay with the opener', () 
             { old_str: row, new_str: 'None \u2014 checked against: none yet.' }
           ]
         }),
-        (err) => err.emetCode === 'EMET-DOC-085'
+        (err) => err.emetCode === 'EMET-MEM-029'
       );
       assert.strictEqual(db.doc('STATE.md').version, 1);
+      assert.ok(db.doc('STATE.md').content.includes(row));
       db.doc('STATE.md').row_openers = {
         'B-999': { opener_tag: WRITER, opened_at: '2026-11-01T00:00:00.000Z', opened_in_version: 1 }
       };
@@ -372,6 +373,34 @@ testGroup('MF-6: delete, restore, and an unmapped row stay with the opener', () 
       );
       assert.ok(db.doc('STATE.md').content.includes('do b'));
     }));
+  });
+});
+
+testGroup('a nonconforming board patch is refused with the flag on', () => {
+  test('warn and enforce refuse a nonconforming patch_doc with EMET-MEM-029 and write nothing', async () => {
+    for (const flag of ['warn', 'enforce']) {
+      const db = makeStore();
+      await withEnv(env({ EMET_TAG_HANDOFFS: flag }), () => withStore(db, async () => {
+        const { writeDoc, patchDoc } = await tools();
+        const sid = allowBoard(db);
+        const board = await boardWith('do a');
+        await writeDoc('STATE.md', board, HUB, null, null, { provision: true, reason: REASON });
+        const before = db.doc('STATE.md').content;
+        const row = '| shared row | left open | do a | if blocked, stop | revert the line | B-010 |';
+        await assert.rejects(
+          () => patchDoc('STATE.md', null, null, 'notebook', null, null, {
+            reason: REASON, session_id: sid,
+            edits: [
+              { old_str: '| 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |', new_str: '| 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |' },
+              { old_str: row, new_str: 'None \u2014 checked against: none yet.' }
+            ]
+          }),
+          (err) => err.emetCode === 'EMET-MEM-029' && /Nothing was written/.test(err.message)
+        );
+        assert.strictEqual(db.doc('STATE.md').content, before);
+        assert.strictEqual(db.doc('STATE.md').version, 1);
+      }));
+    }
   });
 });
 

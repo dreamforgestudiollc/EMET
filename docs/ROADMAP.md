@@ -40,7 +40,7 @@ Nothing in this section is a commitment to a date or a design freeze. A status l
 
 ### Document control
 
-- **Continuity-currency enforcement (Planned, not built).** `emet_initialize` does not yet refuse to run when `HANDOFF.md` or `STATE.md` is stale because a newer record exists. That gate is Planned. Session close can already cite a later continuity record through `carry_forward` (shipped in 0.3.3). That close path is not this initialize gate.
+- **Continuity currency (ships in 0.3.7, off unless the owner sets `EMET_CONTINUITY_CURRENCY=1`).** `emet_initialize` and `emet_session_open` compare the served handoff with the live material episodic tip and return `continuity_currency`. A lag warns. The call is not refused. The server does not rewrite HANDOFF or STATE. `EMET_CONTINUITY_CURRENCY_BLOCK` is reserved and is not applied. Session close can already cite a later continuity record through `carry_forward` (shipped in 0.3.3). That close path is not this reading.
 - **Topic pages with currency and lock levels (Planned).** Topic pages shipped in 0.3.0 as views computed on each request: `emet_page`, `emet_pages`, and `emet_page_lint`. A page is not a stored record. Area selectors can name a staleness window, and lint can flag a stale line. Wiki-style currency and lock levels for controlled documents are not built. Stored compiled pages are not built. If a compiled-page pilot is ever written, it needs its own page subject. It does not revive the closed hive-memory item.
 - **Lint sweep of the semantic layer (Proposed).** The scheduled sweep for contradictions, outdated claims, missing links, and subjects with no page is still proposed. Findings would be reported, never applied automatically. Nothing in EMET fades.
 

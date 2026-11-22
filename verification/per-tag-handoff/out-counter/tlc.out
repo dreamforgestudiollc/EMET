@@ -1,0 +1,130 @@
+TLC2 Version 2.19 of 08 August 2024 
+Running breadth-first search Model-Checking with fp 48 and seed 8161273907364944113 with 1 worker on 4 cores with 3330MB heap and 64MB offheap memory [pid: 11329] (Linux 6.12.113+ amd64, Ubuntu 21.0.12.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /tmp/tlc-counter/PerTagHandoff.tla
+Parsing file /tmp/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module PerTagHandoff
+Starting... (2026-11-10 15:55:20)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-10 15:55:20.
+Error: Invariant StampVersionsOnly is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ seen = [hub |-> 0, writer |-> 0, guest |-> 0]
+/\ refused = FALSE
+/\ viewSeen = [ hub |-> [hub |-> <<0, "none">>, writer |-> <<0, "none">>],
+  writer |-> [hub |-> <<0, "none">>, writer |-> <<0, "none">>],
+  guest |-> [hub |-> <<0, "none">>, writer |-> <<0, "none">>] ]
+/\ patches = 0
+/\ hv = [hub |-> 0, writer |-> 0]
+/\ hage = [hub |-> 0, writer |-> 0]
+/\ opener = "none"
+/\ phase = [hub |-> "out", writer |-> "out", guest |-> "out"]
+/\ board = 0
+/\ author = [hub |-> "none", writer |-> "none"]
+/\ resolvedBy = {}
+/\ conflict = FALSE
+/\ epiOpen = [hub |-> FALSE, writer |-> FALSE, guest |-> FALSE]
+/\ openAge = [hub |-> 0, writer |-> 0, guest |-> 0]
+/\ patchedBy = {}
+/\ ptr = [hub |-> 0, writer |-> 0]
+/\ stamp = [ hub |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 0, writer |-> 0]],
+  writer |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 0, writer |-> 0]],
+  guest |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 0, writer |-> 0]] ]
+
+State 2: <Start line 48, col 3 to line 55, col 106 of module PerTagHandoff>
+/\ seen = [hub |-> 0, writer |-> 0, guest |-> 0]
+/\ refused = FALSE
+/\ viewSeen = [ hub |-> [hub |-> <<0, "none">>, writer |-> <<0, "none">>],
+  writer |-> [hub |-> <<0, "none">>, writer |-> <<0, "none">>],
+  guest |-> [hub |-> <<0, "none">>, writer |-> <<0, "none">>] ]
+/\ patches = 0
+/\ hv = [hub |-> 0, writer |-> 0]
+/\ hage = [hub |-> 0, writer |-> 0]
+/\ opener = "none"
+/\ phase = [hub |-> "in", writer |-> "out", guest |-> "out"]
+/\ board = 0
+/\ author = [hub |-> "none", writer |-> "none"]
+/\ resolvedBy = {}
+/\ conflict = FALSE
+/\ epiOpen = [hub |-> FALSE, writer |-> FALSE, guest |-> FALSE]
+/\ openAge = [hub |-> 0, writer |-> 0, guest |-> 0]
+/\ patchedBy = {}
+/\ ptr = [hub |-> 0, writer |-> 0]
+/\ stamp = [ hub |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 0, writer |-> 0]],
+  writer |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 0, writer |-> 0]],
+  guest |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 0, writer |-> 0]] ]
+
+State 3: <WrapOwn line 119, col 3 to line 130, col 87 of module PerTagHandoff>
+/\ seen = [hub |-> 0, writer |-> 0, guest |-> 0]
+/\ refused = FALSE
+/\ viewSeen = [ hub |-> [hub |-> <<0, "none">>, writer |-> <<0, "none">>],
+  writer |-> [hub |-> <<0, "none">>, writer |-> <<0, "none">>],
+  guest |-> [hub |-> <<0, "none">>, writer |-> <<0, "none">>] ]
+/\ patches = 0
+/\ hv = [hub |-> 1, writer |-> 0]
+/\ hage = [hub |-> 0, writer |-> 0]
+/\ opener = "none"
+/\ phase = [hub |-> "out", writer |-> "out", guest |-> "out"]
+/\ board = 0
+/\ author = [hub |-> "hub", writer |-> "none"]
+/\ resolvedBy = {}
+/\ conflict = FALSE
+/\ epiOpen = [hub |-> FALSE, writer |-> FALSE, guest |-> FALSE]
+/\ openAge = [hub |-> 0, writer |-> 0, guest |-> 0]
+/\ patchedBy = {}
+/\ ptr = [hub |-> 0, writer |-> 0]
+/\ stamp = [ hub |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 0, writer |-> 0]],
+  writer |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 0, writer |-> 0]],
+  guest |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 0, writer |-> 0]] ]
+
+State 4: <Start line 48, col 3 to line 55, col 106 of module PerTagHandoff>
+/\ seen = [hub |-> 0, writer |-> 0, guest |-> 0]
+/\ refused = FALSE
+/\ viewSeen = [ hub |-> [hub |-> <<1, "current">>, writer |-> <<0, "none">>],
+  writer |-> [hub |-> <<0, "none">>, writer |-> <<0, "none">>],
+  guest |-> [hub |-> <<0, "none">>, writer |-> <<0, "none">>] ]
+/\ patches = 0
+/\ hv = [hub |-> 1, writer |-> 0]
+/\ hage = [hub |-> 0, writer |-> 0]
+/\ opener = "none"
+/\ phase = [hub |-> "in", writer |-> "out", guest |-> "out"]
+/\ board = 0
+/\ author = [hub |-> "hub", writer |-> "none"]
+/\ resolvedBy = {}
+/\ conflict = FALSE
+/\ epiOpen = [hub |-> FALSE, writer |-> FALSE, guest |-> FALSE]
+/\ openAge = [hub |-> 0, writer |-> 0, guest |-> 0]
+/\ patchedBy = {}
+/\ ptr = [hub |-> 0, writer |-> 0]
+/\ stamp = [ hub |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 1, writer |-> 0]],
+  writer |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 0, writer |-> 0]],
+  guest |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 0, writer |-> 0]] ]
+
+State 5: <Tick line 108, col 3 to line 113, col 130 of module PerTagHandoff>
+/\ seen = [hub |-> 0, writer |-> 0, guest |-> 0]
+/\ refused = FALSE
+/\ viewSeen = [ hub |-> [hub |-> <<1, "current">>, writer |-> <<0, "none">>],
+  writer |-> [hub |-> <<0, "none">>, writer |-> <<0, "none">>],
+  guest |-> [hub |-> <<0, "none">>, writer |-> <<0, "none">>] ]
+/\ patches = 0
+/\ hv = [hub |-> 1, writer |-> 0]
+/\ hage = [hub |-> 1, writer |-> 0]
+/\ opener = "none"
+/\ phase = [hub |-> "in", writer |-> "out", guest |-> "out"]
+/\ board = 0
+/\ author = [hub |-> "hub", writer |-> "none"]
+/\ resolvedBy = {}
+/\ conflict = FALSE
+/\ epiOpen = [hub |-> FALSE, writer |-> FALSE, guest |-> FALSE]
+/\ openAge = [hub |-> 1, writer |-> 0, guest |-> 0]
+/\ patchedBy = {}
+/\ ptr = [hub |-> 0, writer |-> 0]
+/\ stamp = [ hub |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 1, writer |-> 0]],
+  writer |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 0, writer |-> 0]],
+  guest |-> [a |-> [hub |-> 0, writer |-> 0], v |-> [hub |-> 0, writer |-> 0]] ]
+
+408 states generated, 189 distinct states found, 141 states left on queue.
+The depth of the complete state graph search is 5.
+The average outdegree of the complete state graph is 4 (minimum is 0, the maximum 10 and the 95th percentile is 9).
+Finished in 00s at (2026-11-10 15:55:20)
