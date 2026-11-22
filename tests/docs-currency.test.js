@@ -9,6 +9,7 @@ import { test, testGroup, summary } from './harness.js';
 import assert from 'assert';
 import fs from 'fs';
 import path from 'path';
+import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { DEFAULT_REPORT_EMAIL } from '../src/error-report.js';
 
@@ -316,7 +317,7 @@ testGroup('the charter names the built socket, and install names stay out of pub
     const stamp = 'stamped `bound-host`';
     const flat = (text) => text.replace(/<code>/g, '`').replace(/<\/code>/g, '`');
     const notes = [
-      between(read('CHANGELOG.md'), '### Upgrade', '### Changed'),
+      between(read('CHANGELOG.md'), '## 0.3.5 - ', '## 0.3.4 - '),
       between(read('docs/DEPLOY.md'), '## Upgrading to 0.3.5', '## Upgrading to 0.3.4'),
       between(read('docs/SETUP.md'), '## Upgrading to 0.3.5', '## Upgrading to 0.3.4'),
       between(read('site/index.html'), 'What 0.3.5 changed', 'What 0.3.4 changed'),
@@ -381,6 +382,40 @@ testGroup('hosted-deployment comments do not name the old host', () => {
       if (fs.readFileSync(file, 'utf8').includes('Railway EMET')) hits.push(path.relative(ROOT, file));
     }
     assert.deepStrictEqual(hits, []);
+  });
+});
+
+testGroup('README relative markdown links are in the npm package', () => {
+  function readmeLinks() {
+    const text = read('README.md');
+    return [...text.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)]
+      .map((match) => match[1].split('#')[0])
+      .filter((href) => href.endsWith('.md') && !href.startsWith('http'));
+  }
+  function covered(href, files) {
+    return files.some((pattern) => {
+      if (pattern.endsWith('/**')) return href.startsWith(pattern.slice(0, -3));
+      if (pattern.endsWith('/*.md')) {
+        const dir = pattern.slice(0, -4);
+        return href.startsWith(dir) && !href.slice(dir.length).includes('/');
+      }
+      return href === pattern;
+    });
+  }
+  test('every relative markdown link is covered by package.json files and the dry-run pack', () => {
+    const links = readmeLinks();
+    assert.ok(links.includes('docs/features/README.md'), 'the features link is still in the README');
+    const files = JSON.parse(read('package.json')).files;
+    const missing = links.filter((href) => !covered(href, files));
+    assert.deepStrictEqual(missing, []);
+    const dropped = files.filter((pattern) => pattern !== 'docs/features/**');
+    assert.ok(!covered('docs/features/README.md', dropped), 'dropping docs/features/** must fail the features link');
+    const packed = spawnSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(packed.status, 0, packed.stderr || packed.stdout);
+    const start = packed.stdout.indexOf('[');
+    const paths = JSON.parse(packed.stdout.slice(start))[0].files.map((file) => file.path);
+    const unpacked = links.filter((href) => !paths.includes(href));
+    assert.deepStrictEqual(unpacked, []);
   });
 });
 

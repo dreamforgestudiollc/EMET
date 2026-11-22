@@ -555,6 +555,31 @@
     "code": "EMET-PAGE-003"
   },
   {
+    "file": "per-tag-handoff.js",
+    "message": "throw new ValidationError( 'EMET_TAG_HANDOFFS is on and EMET_HUB_TAG is not set. Nothing was written.' )",
+    "code": "EMET-CFG-015"
+  },
+  {
+    "file": "per-tag-handoff.js",
+    "message": "throw new ValidationError(text)",
+    "code": "EMET-DOC-084"
+  },
+  {
+    "file": "per-tag-handoff.js",
+    "message": "throw new ValidationError(text)",
+    "code": "EMET-DOC-085"
+  },
+  {
+    "file": "per-tag-handoff.js",
+    "message": "throw new ValidationError(text)",
+    "code": "EMET-DOC-086"
+  },
+  {
+    "file": "per-tag-handoff.js",
+    "message": "throw new ValidationError(text)",
+    "code": "EMET-DOC-087"
+  },
+  {
     "file": "provenance.js",
     "message": "throw new ValidationError( 'derived_from', 'give a transcript span or a list of source entries, not both - an entry has one origin' )",
     "code": "EMET-PROV-002"
@@ -648,6 +673,16 @@
     "file": "session-graph.js",
     "message": "throw new Error('the transcript position is not available')",
     "code": "EMET-SESS-001"
+  },
+  {
+    "file": "session-graph.js",
+    "message": "throw new ValidationError( 'This HTTP call is a claimed tag, not a credential, so it cannot name a session tag. Nothing was written.' )",
+    "code": "EMET-DOC-088"
+  },
+  {
+    "file": "session-graph.js",
+    "message": "throw new ValidationError( `The declared tag ${declared} is not this credential's tag ${cred.tag}. The session tag comes from the credential. Nothing was written.` )",
+    "code": "EMET-DOC-088"
   },
   {
     "file": "session.js",

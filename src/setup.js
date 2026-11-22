@@ -47,6 +47,8 @@ import { registerSecretsFromEnv } from './redact.js';
 import { payloadForLayerCharter } from './startup-payload.js';
 import { namedItemsFrom } from './named-items.js';
 import { paginate, cacheLoad, cachedLoad, loadIdOf, restartPage, notePageServed, wholeStartup } from './startup-pages.js';
+import { continuityCurrencyEnabled, loadContinuityCurrency, continuityCurrencyUnreadable } from './continuity-currency.js';
+import { tagHandoffMode, attachHandoffView, credentialForWrite } from './per-tag-handoff.js';
 
 const DOCS_COLLECTION = 'documents';
 const CHARTER_DOC = 'CHARTER.md';
@@ -417,7 +419,10 @@ export function shortInstructions(available) {
     '`install_notes`; mint a session id from the user\'s local date; tag every write with this ' +
     'host\'s source tag. (4) After every startup page, call emet_session_open with its load_id, then say every name in ' +
     '`named_items` (half-state, dated within seven days, open, undecided, then parked under its own heading, never pressed). ' +
-    'Read HANDOFF.md and STATE.md when a section is marked unread. Then `lessons_pending`. A count is the check, never the list. ' +
+    (tagHandoffMode() === 'off'
+      ? 'Read HANDOFF.md and STATE.md when a section is marked unread. '
+      : 'Read the handoff view, your own handoff and STATE.md when a section is marked unread. The hub handoff stays HANDOFF.md. ') +
+    'Then `lessons_pending`. A count is the check, never the list. ' +
     gemStartupLine(available) + ' Never open with a question alone. (5) Append every exchange with ' +
     'emet_transcript_append; pass session_id and exchange on every write; follow ' +
     '`session_graph.next`. (6) Close per ' +
@@ -1152,6 +1157,20 @@ async function buildStartup(options = {}) {
       const { approvalsDeps } = await import('./tools.js');
       subkeys = subkeysView(await loadSubkeyRecords(approvalsDeps), rawActor() || { transport: 'stdio' }, personId, new Date());
     }
+    let continuity_currency = null;
+    if (continuityCurrencyEnabled()) {
+      try {
+        continuity_currency = await loadContinuityCurrency(conn.db);
+      } catch {
+        continuity_currency = continuityCurrencyUnreadable();
+      }
+    }
+    const handoffExtra = {};
+    if (tagHandoffMode() !== 'off') {
+      try {
+        await attachHandoffView(conn.db, handoffExtra, credentialForWrite(null).tag);
+      } catch { /* a failed view read does not block startup */ }
+    }
 
     return {
       state: 'ready',
@@ -1160,6 +1179,8 @@ async function buildStartup(options = {}) {
       person_id: personId,
       ...((() => { const v = approvalsView(cachedApprovals(), rawActor() || { transport: 'stdio' }, null); return v ? { client_approvals: v } : {}; })()),
       ...(subkeys ? { subkeys } : {}),
+      ...(continuity_currency ? { continuity_currency } : {}),
+      ...handoffExtra,
       unhandled_drops: shown.map((d) => d.doc_id),
       unhandled_drops_more: Math.max(0, openDrops.length - shown.length),
       retired_drops: retiredDrops.map((d) => ({ doc_id: d.doc_id, ...retirementFields(d) })),

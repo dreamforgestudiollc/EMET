@@ -51,6 +51,7 @@
 
 import { setting } from './env.js';
 import { CodedError } from './error-codes.js';
+import { httpCredentialTag } from './persons.js';
 
 export const GRAPH_MODES = Object.freeze(['enforce']);
 
@@ -112,6 +113,72 @@ export function writeSourceOf(args = {}) {
   return typeof v === 'string' && v.trim() ? v.trim() : null;
 }
 
+function declaredSessionTag(tool, args = {}) {
+  if (tool === 'emet_session_open') {
+    const v = typeof args.source === 'string' ? args.source.trim() : '';
+    return v || null;
+  }
+  if (tool === 'save_to_layer') {
+    const md = args.metadata;
+    const v = md && typeof md === 'object' && !Array.isArray(md) && typeof md.source === 'string' ? md.source.trim() : '';
+    return v || null;
+  }
+  return writeSourceOf(args);
+}
+
+const SESSION_TAG_TOOLS = new Set(['emet_session_open', 'save_to_layer', 'write_doc', 'patch_doc', 'write_doc_commit']);
+
+/**
+ * The tag a session row may store. The row stores a tag only while the
+ * per-tag flag is warn or enforce. With the flag on, HTTP uses the
+ * credential. A claimed HTTP caller stores no tag. Stdio uses the declared
+ * tag. A top-level source on save_to_layer is not a field of that tool.
+ */
+export function sessionTagFrom(tool, args = {}) {
+  if (!tagHandoffsOn()) return null;
+  const declared = declaredSessionTag(tool, args);
+  const cred = httpCredentialTag();
+  if (!cred) return declared;
+  if (cred.claimedOnly) return null;
+  if (cred.tag) return cred.tag;
+  return declared;
+}
+
+/**
+ * With the per-tag flag on, an HTTP session tag comes from the credential.
+ * A declared tag that differs, and a claimed tag on a session, are refused.
+ * A call that declares no tag is kept. The flag off skips this check. Stdio
+ * is unchanged. write_doc, patch_doc and write_doc_commit are checked when
+ * they name a session.
+ */
+export async function refuseForeignSessionTag(tool, args = {}) {
+  if (!tagHandoffsOn() || !SESSION_TAG_TOOLS.has(tool)) return;
+  if (tool !== 'emet_session_open' && tool !== 'save_to_layer') {
+    const sid = args && args.session_id;
+    if (typeof sid !== 'string' || !sid.trim()) return;
+  }
+  const cred = httpCredentialTag();
+  if (!cred) return;
+  const declared = declaredSessionTag(tool, args);
+  if (!declared) return;
+  const { ValidationError } = await import('./validation.js');
+  if (cred.claimedOnly) {
+    throw new ValidationError(
+      'This HTTP call is a claimed tag, not a credential, so it cannot name a session tag. Nothing was written.',
+      { code: 'EMET-DOC-088' }
+    );
+  }
+  // This branch is now reachable only by sub-key callers. A bound login
+  // declaring a different tag is classified claimed and refused by the
+  // cred.claimedOnly branch above.
+  if (cred.tag && declared !== cred.tag) {
+    throw new ValidationError(
+      `The declared tag ${declared} is not this credential's tag ${cred.tag}. The session tag comes from the credential. Nothing was written.`,
+      { code: 'EMET-DOC-088' }
+    );
+  }
+}
+
 /** write_doc, and the staged begin/commit that land a handoff through that door. Append and abort do not. */
 const HANDOFF_STAGE_TOOLS = new Set(['write_doc', 'write_doc_begin', 'write_doc_commit']);
 
@@ -122,8 +189,20 @@ export function isBotHandoffWrite(tool, args = {}) {
   return !!tag && isBotTag(tag) && args.doc_id === botHandoffDoc(tag);
 }
 
+function tagHandoffsOn() {
+  const value = String(setting('TAG_HANDOFFS', 'off') ?? 'off').trim().toLowerCase();
+  return value === 'warn' || value === 'enforce';
+}
+
+/** write_doc (or staged begin/commit) of HANDOFF/<source>.md while per-tag handoffs are on. */
+export function isTagHandoffWrite(tool, args = {}) {
+  if (!tagHandoffsOn() || !HANDOFF_STAGE_TOOLS.has(tool)) return false;
+  const tag = writeSourceOf(args);
+  return !!tag && args.doc_id === `HANDOFF/${tag}.md`;
+}
+
 function handoffRecordWrite(tool, args = {}) {
-  return HANDOFF_STAGE_TOOLS.has(tool) && (args.doc_id === HANDOFF_DOC || isBotHandoffWrite(tool, args));
+  return HANDOFF_STAGE_TOOLS.has(tool) && (args.doc_id === HANDOFF_DOC || isBotHandoffWrite(tool, args) || isTagHandoffWrite(tool, args));
 }
 
 /** The base session id of a part id (2026-09-30_x_verbatim_part2 -> 2026-09-30_x). */
@@ -284,9 +363,10 @@ export function evaluate(tool, args = {}, state = {}, highest = 0, now = new Dat
   // Begin and commit of a handoff take the gate. Append and abort do not, and
   // begin does not count as the handoff being written.
   const botHandoff = isBotHandoffWrite(tool, args);
+  const tagHandoff = isTagHandoffWrite(tool, args);
   if (handoffRecordWrite(tool, args)) {
     const missing = [];
-    if (!botHandoff && !state.board) missing.push(`the board (${BOARD_DOC}) with patch_doc`);
+    if (!botHandoff && !tagHandoff && !state.board) missing.push(`the board (${BOARD_DOC}) with patch_doc`);
     if (!state.episodic) missing.push('the episodic session record with save_to_layer (layer "episodic")');
     if (!(highest > 0)) missing.push('the transcript with emet_transcript_append');
     if (missing.length) {
@@ -300,8 +380,8 @@ export function evaluate(tool, args = {}, state = {}, highest = 0, now = new Dat
   // pre-call step, because that step is still the one owed.
   let after = { state, highest };
   if (tool === 'emet_transcript_append' && n !== null && n === highest + 1) after = { state: { ...state, opened: true }, highest: n };
-  if ((tool === 'write_doc' || tool === 'write_doc_commit') && (args.doc_id === HANDOFF_DOC || botHandoff)) after = { state: { ...state, handoff: true }, highest };
-  if (tool === 'write_doc_begin' && (args.doc_id === HANDOFF_DOC || botHandoff)) {
+  if ((tool === 'write_doc' || tool === 'write_doc_commit') && (args.doc_id === HANDOFF_DOC || botHandoff || tagHandoff)) after = { state: { ...state, handoff: true }, highest };
+  if (tool === 'write_doc_begin' && (args.doc_id === HANDOFF_DOC || botHandoff || tagHandoff)) {
     return {
       verdict: 'ok', gate: null, reason: null,
       next: 'write_doc_append each part in order, then write_doc_commit with the sha256 of the whole document'
@@ -327,7 +407,7 @@ export function recordStep(tool, args = {}, data = {}, now = new Date()) {
   if (tool === 'emet_transcript_append' || tool === 'save_transcript') return null;
   if (tool === 'save_to_layer' && args.layer === 'episodic') return { episodic: true, episodic_id: data && data.id };
   if ((tool === 'write_doc' || tool === 'patch_doc' || tool === 'restore_doc') && args.doc_id === BOARD_DOC) return { board: true, board_version: data && data.version };
-  if ((tool === 'write_doc' || tool === 'write_doc_commit') && (args.doc_id === HANDOFF_DOC || isBotHandoffWrite(tool, args))) return { handoff: true, handoff_version: data && data.version };
+  if ((tool === 'write_doc' || tool === 'write_doc_commit') && (args.doc_id === HANDOFF_DOC || isBotHandoffWrite(tool, args) || isTagHandoffWrite(tool, args))) return { handoff: true, handoff_version: data && data.version };
   if (tool === 'emet_session_close' && data && data.state === 'complete') return { closed: true, closed_at: now };
   return null;
 }
@@ -385,6 +465,34 @@ export async function isSessionClosed(base, dbManager) {
  */
 export const DEFAULT_CLOSE_GRACE_MINUTES = 5;
 export const MAX_CLOSE_GRACE_MINUTES = 60;
+
+/**
+ * Close one transcript session and keep the row. Nothing is deleted.
+ * An already-closed row is left as it is. A missing row is not created.
+ * `closed_by` is `server-sweep` or `reclaim by key <key_id>`.
+ */
+export async function retainSessionClose(dbManager, base, { at = new Date(), closed_by, note } = {}) {
+  if (!base || !dbManager || typeof dbManager.ensureClient !== 'function') return { recorded: false, base: base || null };
+  const when = at instanceof Date && !Number.isNaN(at.getTime()) ? at : new Date();
+  const who = typeof closed_by === 'string' && closed_by.trim() ? closed_by.trim() : 'server-sweep';
+  const col = await sessionsCollection(dbManager);
+  const row = await col.findOne({ _id: base });
+  if (!row) return { recorded: false, missing: true, base };
+  if (row.closed === true) return { recorded: false, already: true, base };
+  const entry = {
+    at: when.toISOString(),
+    closed_by: who,
+    note: typeof note === 'string' && note.trim() ? note.trim() : `Closed ${when.toISOString()} by ${who}. The transcript stays.`
+  };
+  const res = await col.updateOne(
+    { _id: base, closed: { $ne: true } },
+    {
+      $set: { closed: true, closed_at: when, closed_by: who, retained: true, deleted: false, updated_at: when },
+      $push: { close_history: entry }
+    }
+  );
+  return { recorded: !!(res && res.matchedCount === 1), base };
+}
 
 /**
  * The window setting, checked (2026-10-01, Tester's nit 4). Unset or blank: the
@@ -741,6 +849,7 @@ export async function startupPagesGate(args = {}, now = new Date()) {
  * Throws a ValidationError when the decision is a refusal.
  */
 export async function graphBefore(tool, args, dbManager, now = new Date()) {
+  await refuseForeignSessionTag(tool, args);
   const mode = graphMode();
   if (tool === STARTUP_PAGES_TOOL) return startupPagesGate(args, now);
   if (!GRAPH_WRITE_TOOLS.has(tool)) return null;
@@ -953,7 +1062,9 @@ export async function graphAfter(tool, args, data, dbManager, logger = null, now
     const unverified = tool === 'emet_session_open' && data && data.drops_unverified === true ? { drops_unverified: true } : {};
     const verifiedOpen = tool === 'emet_session_open' && data && data.drops_unverified !== true && Array.isArray(data.drops_seen);
     const clearUnverified = verifiedOpen ? { $unset: { drops_unverified: '' } } : {};
-    await col.updateOne({ _id: base }, { $set: { ...set, ...unverified, updated_at: now }, $setOnInsert: { created_at: now, ...opened }, ...addDrops, ...clearUnverified }, { upsert: true });
+    const tag = sessionTagFrom(tool, args);
+    const tagged = tag ? { tag } : {};
+    await col.updateOne({ _id: base }, { $set: { ...set, ...tagged, ...unverified, updated_at: now }, $setOnInsert: { created_at: now, ...opened }, ...addDrops, ...clearUnverified }, { upsert: true });
     if (verifiedOpen && listed.length === 0) {
       await col.updateOne({ _id: base, drops_seen: { $exists: false } }, { $set: { drops_seen: [] } });
     }
@@ -964,4 +1075,4 @@ export async function graphAfter(tool, args, data, dbManager, logger = null, now
   }
 }
 
-export default { GRAPH_MODES, graphMode, ID_ECHO_MAX, echoId, pageRanges, PAGE_LIST_MAX, unknownLoadIdDecision, GRAPH_WRITE_TOOLS, STARTUP_PAGES_TOOL, noLoadIdDecision, startupPagesDecision, startupPagesGate, recordLatePages, botRecordDir, botHandoffDoc, isBotTag, mainRecordIds, writeSourceOf, isBotHandoffWrite, baseOf, candidateBases, groupedUnder, isMintedPartOf, sessionOf, normalizeExchangeNumber, declaredExchange, CLOSED_NEXT, nextStep, evaluate, recordStep, graphBefore, graphBlock, graphAfter, sessionStatus, isSessionClosed, DEFAULT_CLOSE_GRACE_MINUTES, MAX_CLOSE_GRACE_MINUTES, closeGraceSetting, closeGraceMinutes, graceDecision, markCloseGrace, TRANSCRIPT_WRITE_TOOLS, closedSessionGuard, LAB_SUFFIX, labRow, labRecord, labSummary };
+export default { GRAPH_MODES, graphMode, ID_ECHO_MAX, echoId, pageRanges, PAGE_LIST_MAX, unknownLoadIdDecision, GRAPH_WRITE_TOOLS, STARTUP_PAGES_TOOL, noLoadIdDecision, startupPagesDecision, startupPagesGate, recordLatePages, botRecordDir, botHandoffDoc, isBotTag, mainRecordIds, writeSourceOf, isBotHandoffWrite, isTagHandoffWrite, sessionTagFrom, refuseForeignSessionTag, baseOf, candidateBases, groupedUnder, isMintedPartOf, sessionOf, normalizeExchangeNumber, declaredExchange, CLOSED_NEXT, nextStep, evaluate, recordStep, graphBefore, graphBlock, graphAfter, sessionStatus, isSessionClosed, retainSessionClose, DEFAULT_CLOSE_GRACE_MINUTES, MAX_CLOSE_GRACE_MINUTES, closeGraceSetting, closeGraceMinutes, graceDecision, markCloseGrace, TRANSCRIPT_WRITE_TOOLS, closedSessionGuard, LAB_SUFFIX, labRow, labRecord, labSummary };

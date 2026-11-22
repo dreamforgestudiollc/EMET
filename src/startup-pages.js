@@ -42,7 +42,8 @@ export function pageBudget(raw = process.env.EMET_INIT_PAGE_BYTES) {
 
 /** Binding first: the order keys are paged in. Keys not listed follow, in payload order. */
 export const PAGE_ORDER = Object.freeze([
-  'state', 'database', 'source_tag', 'grant_id', 'door', 'source_basis', 'source_login', 'source_remembered', 'approval_state', 'person_id', 'client_approvals', 'unhandled_drops', 'unhandled_drops_more', 'retired_drops', 'emet_line', 'emet_line_if_unanswered',
+  'state', 'database', 'source_tag', 'grant_id', 'door', 'source_basis', 'source_login', 'source_remembered', 'approval_state', 'person_id', 'client_approvals', 'unhandled_drops', 'unhandled_drops_more', 'retired_drops', 'emet_line', 'emet_line_if_unanswered', 'continuity_currency',
+  'handoff_view', 'handoff_view_text', 'handoff_view_conflicts', 'own_handoff', 'stale_open',
   'tools_in_force', 'instructions_short', 'session_close_protocol', 'operating_discipline', 'charter',
   'floor', 'floor_precedence', 'floor_reassertion', 'gems_available', 'gems_active',
   'seeds_due', 'seeds_evaluated_on', 'install_notes_doc_id',
@@ -62,7 +63,17 @@ export const BINDING_KEYS = Object.freeze([
 /** Page fields that are never payload keys. */
 export const PAGE_FIELDS = Object.freeze(['startup_page', 'page_notice', 'page_plan']);
 
-export const loadIdOf = (full) => crypto.createHash('sha256').update(JSON.stringify(full), 'utf8').digest('hex').slice(0, 16);
+/** Recomputed on every read. They ride on the payload and stay out of load_id. */
+const LOAD_ID_SKIP = new Set(['handoff_view', 'handoff_view_text', 'handoff_view_conflicts', 'own_handoff', 'stale_open']);
+
+export const loadIdOf = (full) => {
+  const stable = {};
+  for (const key of Object.keys(full || {})) {
+    if (LOAD_ID_SKIP.has(key)) continue;
+    stable[key] = full[key];
+  }
+  return crypto.createHash('sha256').update(JSON.stringify(stable), 'utf8').digest('hex').slice(0, 16);
+};
 
 function orderedKeys(full) {
   const keys = PAGE_ORDER.filter((k) => k in full);

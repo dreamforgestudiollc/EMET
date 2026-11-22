@@ -1,0 +1,30 @@
+---
+title: "Per-tag handoffs: own handoff, opener-only rows, merged view on read"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: session
+    lg1: rest
+    lg2: Breaks StampVersionsOnly in some cases
+    lg3: Path to the StampVersionsOnly bug
+  }
+  class lg0 blue
+  class lg1 teal
+  class lg2 mayBreak
+  class lg3 bugPath
+  s0: No handoffs yet
+  s1: In session, merged view read
+  s2: Handoffs at rest
+  [*] --> s0
+  s0 --> s1: an AI starts, reads the merged view, and stamps it
+  s1 --> s2: a write AI writes its own handoff last
+  s2 --> s1: an AI starts, reads the merged view, and stamps it
+  s1 --> s1: time passes (24 hours open, 7 days aging)
+  classDef mayBreak fill:#fff3e6,stroke:#e8730c,stroke-width:2.5px,color:#b85a06
+  class s0 teal
+  class s0 bugPath
+  class s1 blue
+  class s1 mayBreak
+  class s1 bugPath
+  class s2 teal
+  class s2 bugPath

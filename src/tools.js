@@ -19,6 +19,10 @@ import { resolveModulePath } from './module-path.js';
 import { replacedByOf } from './setup.js';
 import { currentActor, rawActor, writerStamp, boundSourceTag, declaredAttribution, LOCAL_SUBJECT } from './persons.js';
 import { guardClaimedTag } from './claimed-tag.js';
+import {
+  tagHandoffMode, guardTagHandoff, isTagHandoffDoc, boardWritePlan, hubTag, credentialForWrite, authorizeHandoffWrite, attachHandoffView, requireHubTag
+} from './per-tag-handoff.js';
+import { continuityCurrencyEnabled, loadContinuityCurrency, continuityCurrencyUnreadable } from './continuity-currency.js';
 import { approvedTags, APPROVALS_DOC } from './attribution.js';
 import { refuseBoundHostDoor, boundHostActor, boundHostCredentialOverrides, boundHostClaimOnSharedLogin, isBoundHostTag, isLegacyBoundHostSpelling, CLAIM_TAG } from './bound-door.js';
 import { sealAttestation, frozenAttestation } from './rune-dispatch.js';
@@ -2151,7 +2155,13 @@ export async function sessionOpen({ slug, load_id } = {}, logger = null, dbManag
         : 'Nothing was merged into another session.')
     : null;
   logger?.info?.('transcript session open', { session_id, ...(suffixed ? { requested } : {}) });
-  const session_handle = await subkeyHandleForOpen(rawActor(), base, now);
+  const opener = rawActor();
+  const session_handle = await subkeyHandleForOpen(opener, base, now);
+  let subkeyNotice = null;
+  if (session_handle && setting('SUBKEYS') === '1') {
+    const { takeOpenNotice } = await import('./subkeys.js');
+    subkeyNotice = takeOpenNotice(opener);
+  }
   // Startup page completion (2026-10-03). Through dispatch, an open with no
   // load_id or with pages missing is refused before this runs (the
   // startup_pages gate); a direct call is told what was checked.
@@ -2173,10 +2183,12 @@ export async function sessionOpen({ slug, load_id } = {}, logger = null, dbManag
     drops_seen = null;
     drops_unverified = true;
   }
-  return {
+  const opened = {
     session_id,
     base,
     ...(session_handle ? { session_handle } : {}),
+    ...(subkeyNotice ? { session_renewal: subkeyNotice } : {}),
+    ...(subkeyNotice && subkeyNotice.wrap_up_notice ? { wrap_up_notice: subkeyNotice.wrap_up_notice } : {}),
     drops_seen,
     ...(drops_unverified ? { drops_unverified: true } : {}),
     next_exchange_index: 1,
@@ -2188,10 +2200,25 @@ export async function sessionOpen({ slug, load_id } = {}, logger = null, dbManag
     } : {}),
     ...(pages ? { startup_pages: pages } : {}),
     instructions:
+      (subkeyNotice && subkeyNotice.wrap_up_notice ? `Tell the user: ${subkeyNotice.wrap_up_notice} ` : '') +
       (suffixed ? `Tell the user, in one line: ${notice} ` : '') +
       (pages && pages.notice ? `${pages.notice} ` : '') +
       'After EVERY reply, call emet_transcript_append with this session_id, the user message, and your reply. One exchange per call. Do not wait until the session ends. Do not reconstruct earlier turns.'
   };
+  if (continuityCurrencyEnabled() || tagHandoffMode() !== 'off') {
+    let client;
+    try {
+      client = await connectMongo(MONGODB_URI, { serverSelectionTimeoutMS: 8000, maxPoolSize: 5 });
+      const db = client.db(MONGODB_DB);
+      if (continuityCurrencyEnabled()) opened.continuity_currency = await loadContinuityCurrency(db);
+      if (tagHandoffMode() !== 'off') await attachHandoffView(db, opened, credentialForWrite(null).tag);
+    } catch {
+      if (continuityCurrencyEnabled()) opened.continuity_currency = continuityCurrencyUnreadable();
+    } finally {
+      if (client) await client.close();
+    }
+  }
+  return opened;
 }
 
 /** Which pages of a startup load were never served (the session graph's startup_pages gate reads it here). */
@@ -2785,7 +2812,7 @@ function stateDoc() {
   return setting('STATE_DOC', 'STATE.md');
 }
 function _refuseRecordAmendment(doc_id, tool) {
-  if (isRecordDoc(doc_id)) {
+  if (isRecordDoc(doc_id) || (tagHandoffMode() !== 'off' && isTagHandoffDoc(doc_id))) {
     throw new ValidationError(
       `${tool}: ${doc_id} is a record. Records are superseded, not amended (ISO 9001 7.5.3 / 13485 4.2.5). ` +
       `Issue a new revision with write_doc - the whole record, with \`supersedes\` set to the version now in force. ` +
@@ -2944,7 +2971,12 @@ function mayCleanUpLookalike(tag) {
 }
 
 export function refuseBotMainRecord(doc_id, updated_by, tool, options = {}) {
-  for (const t of rightsTags(updated_by)) refuseBotMainRecordOne(doc_id, t, tool, options);
+  let warning = null;
+  for (const t of rightsTags(updated_by)) {
+    const result = refuseBotMainRecordOne(doc_id, t, tool, options);
+    if (result && result.warning) warning = result.warning;
+  }
+  return warning ? { warning } : undefined;
 }
 function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
   const tag = updated_by || setting('SOURCE_TAG') || null;
@@ -2978,7 +3010,9 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
   // set, a non-bot write under bots/ is refused unless its tag is registered; a missing source counts as
   // unregistered. Without this, a misspelled or unregistered tag is not a bot tag, so the cross-bot guard
   // above never fires and it can write any bot's records or the roster. A listed bot is already fenced to
-  // its own bots/<tag>/ above; registered hosts (the hub) still write anywhere under bots/.
+  // its own bots/<tag>/ above. With EMET_TAG_HANDOFFS off, a registered host may still write under bots/.
+  // With the flag at warn, a write inside another tag's folder is kept and the warning is on the receipt.
+  // With the flag at enforce, that write is refused (EMET-DOC-084), and the hub is refused too.
   const registry = sourceRegistry();
   if (!bot && registry.length && typeof doc_id === 'string' && doc_id.startsWith('bots/') && !(tag && registry.includes(tag))) {
     throw new ValidationError(
@@ -2986,8 +3020,17 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
       `only a registered host or the bot itself writes under bots/. Nothing was written.`
     , { code: 'EMET-DOC-012' });
   }
-  if (!mainRecordIds().includes(doc_id)) return;
-  if (bot) {
+  let handoffWarning = null;
+  const noteHandoff = (result) => {
+    if (result && result.warning) handoffWarning = result.warning;
+  };
+  if (!mainRecordIds().includes(doc_id)) {
+    if (tagHandoffMode() !== 'off') noteHandoff(guardTagHandoff(doc_id, updated_by, tool));
+    return handoffWarning ? { warning: handoffWarning } : undefined;
+  }
+  if (bot && doc_id === stateDoc() && tagHandoffMode() !== 'off') {
+    // A write tag patches the board rows it opened. The hub handoff stays refused below.
+  } else if (bot) {
     throw new ValidationError(
       `${tool}: ${doc_id} is a main record and ${tag} is a bot tag - a bot session closes against ` +
       `${botRecordDir(tag)} records; the main handoff and board are the hub's. Write the bot's own ` +
@@ -2995,13 +3038,16 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
     , { code: 'EMET-DOC-013' });
   }
   if (options && options.serverProvision === true) return;
-  if (registry.length && !(tag && registry.includes(tag))) {
+  const botOwnRows = bot && doc_id === stateDoc() && tagHandoffMode() !== 'off';
+  if (registry.length && !(tag && registry.includes(tag)) && !botOwnRows) {
     throw new ValidationError(
       `${tool}: ${doc_id} is a main record and ` +
       `${tag ? `"${tag}" is not a registered source tag` : 'this write names no source tag'} - only a registered ` +
       `host writes the main handoff and board. Pass the host's registered \`source\` (EMET_SOURCE_TAGS). Nothing was written.`
     , { code: 'EMET-DOC-014' });
   }
+  if (tagHandoffMode() !== 'off') noteHandoff(guardTagHandoff(doc_id, updated_by, tool));
+  return handoffWarning ? { warning: handoffWarning } : undefined;
 }
 
 /**
@@ -3064,10 +3110,12 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       if (casOn && ((prev ? prev.version : null) ?? null) !== (options.expectedVersion ?? null)) throw casConflict();
       // A record in force is superseded only by a revision that names it.
       // Checked before anything is archived, so a refused write leaves no trace.
-      if (prev && isRecordDoc(doc_id) && options && options.restore_of && (options.supersedes === undefined || options.supersedes === null)) {
+      const tagHandoffRecord = tagHandoffMode() !== 'off' && isTagHandoffDoc(doc_id);
+      const recordLike = isRecordDoc(doc_id) || tagHandoffRecord;
+      if (prev && recordLike && options && options.restore_of && (options.supersedes === undefined || options.supersedes === null)) {
         options = { ...options, supersedes: prev.version };
       }
-      if (prev && isRecordDoc(doc_id)) {
+      if (prev && recordLike) {
         const named = options && options.supersedes;
         if (named === undefined || named === null) {
           throw new ValidationError(
@@ -3114,7 +3162,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         }
         throw new ValidationError('The board is provisioned by the server at setup (emet_setup_complete). Nothing was written.', { code: 'EMET-MEM-023' });
       }
-      if (prev && isWorkingDoc(doc_id) && !internal) {
+      if (prev && isWorkingDoc(doc_id) && !tagHandoffRecord && !internal) {
         throw new ValidationError(
           `write_doc: ${doc_id} exists, so it is edited, not rewritten. Use patch_doc with \`reason\`. Nothing was written.`
         , { code: 'EMET-DOC-022' });
@@ -3169,6 +3217,52 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       }
       const sizeSamples = recentSamples.slice();
       if (prev) sizeSamples.push({ size: String(prev.content || '').length, at: prev.updated_at || new Date() });
+      let tagHandoffWarnings = [];
+      let rowOpeners = null;
+      let conflictSettled = null;
+      if (tagHandoffMode() !== 'off') {
+        requireHubTag();
+        let personIds = [];
+        let ownerPerson = (currentActor() && currentActor().personId) || 'owner';
+        try {
+          const people = await client.db(MONGODB_DB).collection('persons').find({}, { projection: { person_id: 1, role: 1 } }).toArray();
+          personIds = (people || []).map((row) => row && row.person_id).filter(Boolean);
+          const owner = (people || []).find((row) => row && row.role === 'owner');
+          if (owner && owner.person_id) ownerPerson = owner.person_id;
+        } catch { /* a store without the persons collection keeps the actor's person */ }
+        const credential = credentialForWrite(updated_by);
+        const registry = sourceRegistry();
+        const auth = authorizeHandoffWrite({
+          docId: doc_id,
+          tool: options && options.restore_of ? 'restore_doc' : (options && options.edited ? 'patch_doc' : 'write_doc'),
+          mode: tagHandoffMode(),
+          credentialTag: credential.tag,
+          claimedOnly: credential.claimedOnly,
+          isBot: !!(credential.tag && isBotTag(credential.tag)),
+          isHub: !!(hubTag() && credential.tag === hubTag()),
+          registered: registry.length === 0 || (!!credential.tag && registry.includes(credential.tag)),
+          ownerPerson,
+          personIds
+        });
+        if (auth && auth.warning) tagHandoffWarnings.push(auth.warning);
+        if (doc_id === stateDoc() && (options && (options.edited || options.provision || options.restore_of))) {
+          const plan = await boardWritePlan(col, {
+            previous: prev,
+            next: content,
+            writer: credential.tag,
+            hub: hubTag(),
+            mode: tagHandoffMode(),
+            resolve: options && options.resolve_conflict,
+            at: new Date().toISOString(),
+            person: ownerPerson,
+            docId: doc_id,
+            db: client.db(MONGODB_DB)
+          });
+          rowOpeners = plan.openers;
+          conflictSettled = plan.conflict_settled;
+          tagHandoffWarnings = [...tagHandoffWarnings, ...(plan.warnings || [])];
+        }
+      }
       const docDecision = resolvedSourceTag(updated_by);
       const stampedUpdatedBy = stampedSource(docDecision, updated_by || (isDropDoc(doc_id) ? 'visitor' : (setting('SOURCE_TAG') || null)));
       const docClaim = guardClaimedTag({
@@ -3222,6 +3316,8 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         size_session_id: base,
         size_baselines: baselines,
         size_samples: typeof sizeSamples !== 'undefined' ? sizeSamples : (prev && prev.size_samples) || [],
+        ...(rowOpeners ? { row_openers: rowOpeners } : {}),
+        ...(conflictSettled ? { conflict_settled: conflictSettled } : {}),
         drop_bucket: (options && options.drop_bucket) || (prev && prev.drop_bucket) || null,
         path_hint: path_hint || (prev && prev.path_hint) || null,
         // Writing a retired document brings it back into the working view.
@@ -3263,12 +3359,16 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       // aleph: the write is not done because the call returned.
       const check = await col.findOne({ doc_id });
       verifyDocument(check, { doc_id, sha256, version });
+      if (tagHandoffWarnings.length) {
+        try { logger?.warn?.(tagHandoffWarnings.join(' ')); } catch { /* a failing logger never fails the write */ }
+      }
       return { doc_id, sha256, version, size: content.length, updated_at: now, verified: true,
                signed: signatureIntegrityOf(check, signingKey),
                signature_stored: typeof check?.signature === 'string' && check.signature.length > 0,
                redacted: redaction.hits, conformance,
                grant_id: docStamp.grant_id,
-               ...(docClaim.warning ? { claimed_tag_warning: docClaim.warning } : {}) };
+               ...(docClaim.warning ? { claimed_tag_warning: docClaim.warning } : {}),
+               ...(tagHandoffWarnings.length ? { warnings: tagHandoffWarnings } : {}) };
     } finally { await client.close(); }
   } catch (error) {
     if (error && error.versionConflict) throw error;
@@ -3357,10 +3457,13 @@ export async function retireDoc(doc_id, reason = null, retired_by = null, logger
       try { await assertAreaOwner(opened.client.db(MONGODB_DB), 'retire_doc'); }
       finally { await opened.client.close(); }
     }
-    refuseBotMainRecord(doc_id, retired_by, 'retire_doc', { cleanup: true });
+    const gap = refuseBotMainRecord(doc_id, retired_by, 'retire_doc', { cleanup: true });
+    const gapWarnings = gap && gap.warning ? [gap.warning] : [];
+    if (gapWarnings.length) logger?.warn?.(gapWarnings.join(' '));
     refuseBotRetireRename(retired_by, 'retire_doc');
     if (doc_id === stateDoc()) throw new ValidationError('retire_doc: the board is never retired. Edit it with patch_doc and a reason. Nothing was changed.', { code: 'EMET-DOC-027' });
-    if (!isDropDoc(doc_id) && !(options && options.fromRename)) throw new ValidationError(`retire_doc: ${doc_id} is not a drop. Working documents are edited, not retired. Nothing was changed.`, { code: 'EMET-DOC-028' });
+    const hubCleanup = tagHandoffMode() !== 'off' && !!hubTag() && retired_by === hubTag() && doc_id === `HANDOFF/${hubTag()}.md`;
+    if (!isDropDoc(doc_id) && !(options && options.fromRename) && !hubCleanup) throw new ValidationError(`retire_doc: ${doc_id} is not a drop. Working documents are edited, not retired. Nothing was changed.`, { code: 'EMET-DOC-028' });
     if (typeof reason !== 'string' || reason.trim().length < 10) throw new ValidationError('retire_doc needs reason (at least 10 characters), naming where the drop went. Nothing was changed.', { code: 'EMET-DOC-029' });
 
     const { client, col } = await _docsClient();
@@ -3370,7 +3473,8 @@ export async function retireDoc(doc_id, reason = null, retired_by = null, logger
       if (doc.retired) {
         return { doc_id, retired: true, already_retired: true, verified: true,
                  retired_at: doc.retired_at, retired_reason: doc.retired_reason || null,
-                 version: doc.version, sha256: doc.sha256 };
+                 version: doc.version, sha256: doc.sha256,
+                 ...(gapWarnings.length ? { warnings: gapWarnings } : {}) };
       }
 
       const now = new Date();
@@ -3426,6 +3530,7 @@ export async function retireDoc(doc_id, reason = null, retired_by = null, logger
       return { doc_id, retired: true, verified: true, retired_at: now, conformance,
                retired_reason: reason || null, version: check.version,
                sha256: check.sha256, content_unchanged: true,
+               ...(gapWarnings.length ? { warnings: gapWarnings } : {}),
                grant_id: retireStamp.grant_id,
                ...(retireClaim.warning ? { claimed_tag_warning: retireClaim.warning } : {}),
                note: 'Content retained at this id. list_docs keeps it after the current documents, marked with retired_at and, when a rename replaced it, what replaced it. read_doc still returns it. Nothing was deleted.' };
@@ -3447,8 +3552,8 @@ export async function renameDoc(old_id, new_id, updated_by = null, logger = null
       try { await assertAreaOwner(opened.client.db(MONGODB_DB), 'rename_doc'); }
       finally { await opened.client.close(); }
     }
-    refuseBotMainRecord(old_id, updated_by, 'rename_doc', { cleanup: true });
-    refuseBotMainRecord(new_id, updated_by, 'rename_doc');
+    const sourceGap = refuseBotMainRecord(old_id, updated_by, 'rename_doc', { cleanup: true });
+    const destGap = refuseBotMainRecord(new_id, updated_by, 'rename_doc');
     refuseBotRetireRename(updated_by, 'rename_doc');
     if (typeof reason !== 'string' || reason.trim().length < 10) throw new ValidationError('rename_doc needs reason (at least 10 characters). Nothing was changed.', { code: 'EMET-DOC-033' });
     if (old_id === stateDoc() || new_id === stateDoc()) throw new ValidationError('rename_doc: the board is never renamed. Nothing was changed.', { code: 'EMET-DOC-034' });
@@ -3482,10 +3587,13 @@ export async function renameDoc(old_id, new_id, updated_by = null, logger = null
     // asks for. The old id keeps its content and stays readable at its own id.
     const retired = await retireDoc(old_id, `Reissued as ${new_id}`, updated_by, logger, { fromRename: true });
 
+    const warnings = [sourceGap && sourceGap.warning, destGap && destGap.warning, ...(written.warnings || []), ...(retired.warnings || [])].filter(Boolean);
+    if (warnings.length) logger?.warn?.(warnings.join(' '));
     return {
       from: old_id, to: new_id, verified: written.verified === true && retired.verified === true,
       conformance: written.conformance || null,
       sha256: written.sha256, version: written.version, size: written.size,
+      ...(warnings.length ? { warnings } : {}),
       redacted: written.redacted,
       old_id_retired: true, old_id_retired_at: retired.retired_at,
       old_content_retained: true,
@@ -3526,7 +3634,7 @@ export async function restoreDoc(doc_id, version, updated_by = null, logger = nu
   if (typeof reason !== 'string' || reason.trim().length < 10) throw new ValidationError('restore_doc needs reason (at least 10 characters). Nothing was written.', { code: 'EMET-DOC-037' });
   if (!updated_by) throw new ValidationError('restore_doc needs a source. Nothing was written.', { code: 'EMET-DOC-038' });
   if (isDropDoc(doc_id)) throw new ValidationError('restore_doc: a drop is never restored. Nothing was written.', { code: 'EMET-DOC-039' });
-  if (isRecordDoc(doc_id)) throw new ValidationError('restore_doc: a record is not restored. Records are superseded via revise_memory, not restored. Nothing was written.', { code: 'EMET-DOC-040' });
+  if (isRecordDoc(doc_id) || (tagHandoffMode() !== 'off' && isTagHandoffDoc(doc_id))) throw new ValidationError('restore_doc: a record is not restored. Records are superseded via revise_memory, not restored. Nothing was written.', { code: 'EMET-DOC-040' });
   if (isGovernedByShippedCopy(doc_id)) throw new ValidationError('restore_doc: a shipped copy is not restored. Nothing was written.', { code: 'EMET-DOC-041' });
   const allowed = (setting('RESTORE_TAGS') || setting('SOURCE_TAG') || '').split(',').map((s) => s.trim()).filter(Boolean);
   if (!allowed.includes(updated_by)) throw new ValidationError(`restore_doc: ${updated_by} is not in EMET_RESTORE_TAGS. Nothing was written.`, { code: 'EMET-DOC-042' });
@@ -3619,7 +3727,9 @@ export async function acceptNonconformance(doc_id, reason, accepted_by = null, l
       try { await assertAreaOwner(opened.client.db(MONGODB_DB), 'accept_nonconformance'); }
       finally { await opened.client.close(); }
     }
-    refuseBotMainRecord(doc_id, accepted_by, 'accept_nonconformance');
+    const gap = refuseBotMainRecord(doc_id, accepted_by, 'accept_nonconformance');
+    const gapWarnings = gap && gap.warning ? [gap.warning] : [];
+    if (gapWarnings.length) logger?.warn?.(gapWarnings.join(' '));
     if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string', { code: 'EMET-DOC-001' });
     if (typeof reason !== 'string' || reason.trim().length < 10) {
       throw new ValidationError(
@@ -3665,6 +3775,7 @@ export async function acceptNonconformance(doc_id, reason, accepted_by = null, l
       return {
         doc_id, verified: true, version: doc.version, covers_version: doc.version,
         accepted, failures_accepted: current.failures || [],
+        ...(gapWarnings.length ? { warnings: gapWarnings } : {}),
         grant_id: stamp.grant_id,
         ...(acceptClaim.warning ? { claimed_tag_warning: acceptClaim.warning } : {}),
         note: 'The marker is retained with this acceptance beside it. It covers this revision only - the next write is validated fresh, and accepted markers stay counted at session start, separately from open ones.'
@@ -3754,7 +3865,10 @@ export async function patchDoc(doc_id, old_str, new_str, updated_by = null, expe
         throw new ValidationError(`patch_doc: the board edit is nonconforming. ${(checked.failures || []).join('; ')} Nothing was written.`, { code: 'EMET-MEM-029' });
       }
     }
-    const res = await writeDoc(doc_id, next, updated_by, null, logger, { edited: true, reason, origin: options.origin || null, session_id: options.session_id || null });
+    const res = await writeDoc(doc_id, next, updated_by, null, logger, {
+      edited: true, reason, origin: options.origin || null, session_id: options.session_id || null,
+      resolve_conflict: options && options.resolve_conflict
+    });
     return { ...res, previous_version: cur.version, replaced: edits.length,
              size_delta: next.length - cur.content.length };
   } catch (error) {
@@ -4035,7 +4149,7 @@ export async function memberAccessCreate(dbManager, { display_name, days, source
 const TOOL_DEFINITIONS = [
   {
     name: "emet_initialize",
-    description: "START HERE. Call this FIRST in every session, before answering anything that might have prior context, and always when the user opens with 'initialize', 'start', 'begin', 'hello' or similar. It is the only setup step a user should ever have to know about. A large startup comes in pages: read `page_notice` first and call again with the page it names until the last page, before replying. If this memory store is new it returns a short interview to run conversationally; if it is established it returns who you are, how you speak (`character`, when the store keeps one - authoritative on voice for the whole session), who you are serving, and where things were left. The user never needs to know which case applied.",
+    description: "START HERE. Call this FIRST in every session, before answering anything that might have prior context, and always when the user opens with 'initialize', 'start', 'begin', 'hello' or similar. It is the only setup step a user should ever have to know about. A large startup comes in pages: read `page_notice` first and call again with the page it names until the last page, before replying. If this memory store is new it returns a short interview to run conversationally; if it is established it returns who you are, how you speak (`character`, when the store keeps one - authoritative on voice for the whole session), who you are serving, and where things were left. The user never needs to know which case applied. When EMET_TAG_HANDOFFS is warn or enforce, the startup also carries handoff_view, a stamp computed on read and not stored. A write tag also receives its own handoff section and any stale-open mark. A read-only tag receives the view only. Off, the default, adds none of that.",
     inputSchema: {
       type: "object",
       properties: {
@@ -4209,7 +4323,7 @@ const TOOL_DEFINITIONS = [
             importance_degree: { type: "string", description: "low|mid|high — only when degree inside the bucket matters" },
             emotional_intensity: { type: "number" },
             context: { type: "string" },
-            source: { type: "string", description: "Which host produced this write. A shared default tag is ambiguity, not attribution." },
+            source: { type: "string", description: "Which host produced this write. A shared default tag is ambiguity, not attribution. With EMET_TAG_HANDOFFS off, an HTTP caller may still name a tag here. With the flag at warn or enforce, HTTP uses the credential's tag, and a declared tag that differs is refused (EMET-DOC-088). Stdio keeps the declared tag." },
             tags: { type: "array", items: { type: "string" } },
             valid_until: { type: "number", description: "Unix seconds. After this the entry is marked ended and stays in recall and queries, with this date as its end date. It is not hidden and it is not deleted." },
             derived_from: {
@@ -4350,11 +4464,12 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_session_open",
-    description: "Open a transcript session. Returns session_id, dated in the configured local time zone (EMET_TIMEZONE, default America/New_York). A slug that already begins with YYYY-MM-DD_ (month 01-12, day 01-31) is not dated again, even when that date is not the local day. A slug whose id is already CLOSED is never reopened: the session opens as <id>-2, -3, ... and the result's `notice` says so. Pass load_id from your startup pages (startup_page.load_id on every emet_initialize page) so the startup page check runs on your own startup; an open without load_id, or with a page of that startup never fetched, is refused (the refusal says how to pass). After every reply, call emet_transcript_append with that id and the one exchange that just happened. Do not dump the whole chat at close.",
+    description: "Open a transcript session. Returns session_id, dated in the configured local time zone (EMET_TIMEZONE, default America/New_York). A slug that already begins with YYYY-MM-DD_ (month 01-12, day 01-31) is not dated again, even when that date is not the local day. A slug whose id is already CLOSED is never reopened: the session opens as <id>-2, -3, ... and the result's `notice` says so. Pass load_id from your startup pages (startup_page.load_id on every emet_initialize page) so the startup page check runs on your own startup; an open without load_id, or with a page of that startup never fetched, is refused (the refusal says how to pass). After every reply, call emet_transcript_append with that id and the one exchange that just happened. Do not dump the whole chat at close. When EMET_TAG_HANDOFFS is warn or enforce, the result also carries handoff_view (the stamp, including as_of), own_handoff, and stale_open. An open session with material work is an in-progress line. After EMET_STALE_OPEN_HOURS it is stale-open. Those fields are not part of load_id. With EMET_TAG_HANDOFFS at warn or enforce, HTTP uses the credential's tag, and a declared tag that differs is refused (EMET-DOC-088). With the flag off that check does not run.",
     inputSchema: {
       type: "object",
       properties: {
         slug: { type: "string", description: "Short name for the session, e.g. grok-init. A slug that already begins with YYYY-MM-DD_ (month 01-12, day 01-31) is the base and is not dated again, even when that date is not the local day. Any other slug receives the local day. A closed id still opens as -2, -3, .... Parts are still _verbatim_partN." },
+        source: { type: "string", description: "The write tag opening this session. On stdio this declared tag is the session tag. With EMET_TAG_HANDOFFS at warn or enforce, HTTP uses the credential's tag, and a declared tag that differs is refused (EMET-DOC-088). With the flag off that check does not run. save_to_layer puts the same tag in metadata.source." },
         load_id: { type: "string", description: "Required for the startup page check (by policy; the schema leaves it optional so older hosts can still open): the load_id from `startup_page` on your emet_initialize pages - page 1 returns it, every page carries it, and the last page names it. An open without load_id, or with a page of that load known not fetched, is refused before anything is written (gate startup_pages); the refusal names the exact calls that pass." }
       }
     }
@@ -4397,20 +4512,20 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "write_doc",
-    description: "Write or update a continuity document in the document store (versioned, prior copy archived to documents_history and marked obsolete, sha256 read-back verified). RECORDS - the handoff (HANDOFF.md) and any id in EMET_RECORD_DOCS - are superseded, never amended: patch_doc is refused on them, and a new revision is written here WHOLE with `supersedes` set to the version currently in force (ISO 9001 7.5.3 / 13485 4.2.5).",
+    description: "Write or update a continuity document in the document store (versioned, prior copy archived to documents_history and marked obsolete, sha256 read-back verified). RECORDS - the handoff (HANDOFF.md) and any id in EMET_RECORD_DOCS - are superseded, never amended: patch_doc is refused on them, and a new revision is written here WHOLE with `supersedes` set to the version currently in force (ISO 9001 7.5.3 / 13485 4.2.5). When EMET_TAG_HANDOFFS is warn or enforce, a write tag's handoff is HANDOFF/<tag>.md and only that credential writes it. Only the hub tag writes HANDOFF.md. A claimed tag is refused on HANDOFF/ (EMET-DOC-087). A two-segment id and a tag equal to a person id are refused (EMET-DOC-086). Another tag's handoff is refused (EMET-DOC-084). In warn, those new-prefix refusals apply at once. A registered non-hub write of HANDOFF.md or another tag's bots/ folder warns and is kept; enforce refuses it.",
     inputSchema: { type: "object", properties: {
       doc_id: { type: "string" },
       content: { type: "string" },
       supersedes: { type: "number", description: "Required when writing a new revision of a RECORD (the handoff): the version currently in force, which this revision supersedes. Ignored for ordinary documents." },
       reason: { type: "string", description: "Required on a record revision (at least 10 characters). Stored as edit_reason." },
       session_id: { type: "string", description: "Transcript session id. The floor is measured from the size when this session first touched the document." },
-      source: { type: "string", description: "Source tag - which host produced this write. One name on every write since 2026-09-27." },
+      source: { type: "string", description: "Source tag - which host produced this write. One name on every write since 2026-09-27. With EMET_TAG_HANDOFFS at warn or enforce, HTTP refuses a declared tag that is not the credential when session_id is set (EMET-DOC-088). A call that declares no tag is kept. With the flag off that check does not run." },
       updated_by: { type: "string", description: "Alias of `source` (the older name, kept one release). Prefer `source`." }
     }, required: ["doc_id", "content"] }
   },
   {
     name: "write_doc_begin",
-    description: "Open a staged write when a document will not fit in one write_doc argument. The stage is not a document and does not change the current revision. Send each part with write_doc_append, then write_doc_commit. A record (HANDOFF.md and any id in EMET_RECORD_DOCS) still needs supersedes and reason; commit writes one whole revision through write_doc. Limits: 16000 characters per part, 128 parts, 2000000 characters total, 30 minutes from begin, 4 open stages per writer. Same source, session, and writer stamp as write_doc.",
+    description: "Open a staged write when a document will not fit in one write_doc argument. The stage is not a document and does not change the current revision. Send each part with write_doc_append, then write_doc_commit. A record (HANDOFF.md and any id in EMET_RECORD_DOCS) still needs supersedes and reason; commit writes one whole revision through write_doc. Limits: 16000 characters per part, 128 parts, 2000000 characters total, 30 minutes from begin, 4 open stages per writer. When EMET_TAG_HANDOFFS is warn or enforce, HANDOFF/<tag>.md is that kind of record too, and the same credential check as write_doc runs at commit (EMET-DOC-088). Same source, session, and writer stamp as write_doc.",
     inputSchema: { type: "object", properties: {
       doc_id: { type: "string" },
       supersedes: { type: "number", description: "Required when staging a new revision of a RECORD: the version currently in force. Stored on the stage and passed to write_doc at commit." },
@@ -4432,7 +4547,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "write_doc_commit",
-    description: "Assemble an open stage, check part_count and the sha256 of the exact assembled text (the concatenation of the parts in order, before this server redacts it), then write one revision through write_doc. A mismatch or a write_doc refusal leaves the current document unchanged and the stage open. A second commit of the same sha256 returns the first receipt and does not write another revision. A record is still one whole revision: it is superseded, never patched or appended.",
+    description: "Assemble an open stage, check part_count and the sha256 of the exact assembled text (the concatenation of the parts in order, before this server redacts it), then write one revision through write_doc. A mismatch or a write_doc refusal leaves the current document unchanged and the stage open. A second commit of the same sha256 returns the first receipt and does not write another revision. A record is still one whole revision: it is superseded, never patched or appended. Commit uses the same handoff credential check as write_doc when EMET_TAG_HANDOFFS is warn or enforce (EMET-DOC-088). A call that declares no tag is kept.",
     inputSchema: { type: "object", properties: {
       stage_id: { type: "string" },
       doc_id: { type: "string", description: "The same document id the stage was begun for." },
@@ -4517,7 +4632,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "patch_doc",
-    description: "Replace one exact substring in a document (str_replace semantics) without resending the whole file. THE PREFERRED WAY TO MAKE SMALL EDITS to large docs like STATE.md. old_str must match EXACTLY ONCE - zero or multiple matches are rejected rather than guessed. Pass new_str as an empty string to delete. Same versioning, archiving, and sha256 read-back as write_doc.",
+    description: "Replace one exact substring in a document (str_replace semantics) without resending the whole file. THE PREFERRED WAY TO MAKE SMALL EDITS to large docs like STATE.md. old_str must match EXACTLY ONCE - zero or multiple matches are rejected rather than guessed. Pass new_str as an empty string to delete. Same versioning, archiving, and sha256 read-back as write_doc. When EMET_TAG_HANDOFFS is warn or enforce, a tag patches only the STATE.md rows it opened. Rows already on the board when the flag turns on belong to the hub tag. The hub changes another tag's row only to resolve a marked conflict, and resolve_conflict names that row and the handoff_view stamp, including as_of. A foreign row is warned and kept in warn, and refused in enforce (EMET-DOC-085). A bot tag may patch its own rows and still cannot write HANDOFF.md. patch_doc stays refused on a handoff record. HTTP refuses a declared tag that is not the credential when session_id is set (EMET-DOC-088). A call that declares no tag is kept.",
     inputSchema: { type: "object", properties: {
       doc_id: { type: "string" },
       old_str: { type: "string", description: "Exact text to replace. Must occur exactly once in the current text. Omit when `edits` is set." },
@@ -4567,7 +4682,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_page_lint",
-    description: "Flag problems in topic pages and the records they read. Read-only: it never edits a record. Findings cover contradictions (two current records that share a subject and disagree), superseded or retired records still claimed as current, lines with no source, duplicates, broken links, and statuses unconfirmed longer than the area's staleness window. It builds on the emet_gaps classifiers. A fix is a person's revise_memory, retire_doc, or accept_nonconformance. Owner only. Omit area to lint every area.",
+    description: "Flag problems in topic pages and the records they read. Read-only: it never edits a record. Findings cover contradictions (two current records that share a subject and disagree), superseded or retired records still claimed as current, lines with no source, duplicates, broken links, and statuses unconfirmed longer than the area's staleness window. When EMET_TAG_HANDOFFS is warn or enforce, a handoff_conflict finding names a board row whose current handoff lines disagree. The view does not pick a winner. It builds on the emet_gaps classifiers. A fix is a person's revise_memory, retire_doc, or accept_nonconformance. Owner only. Omit area to lint every area.",
     inputSchema: { type: "object", properties: {
       area: { type: "string", description: "Optional area slug. Omit to lint every current area." }
     } }
@@ -4644,7 +4759,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "emet_session_close",
-    description: "Call this when the session is ending - the user says goodbye, asks you to wrap up, mentions restarting or opening a new session, or you are about to run out of room. An acknowledgement of the turn just completed - thanks, great, perfect - is not a session end; if it is ambiguous, ask rather than close. Checks whether this session's work has actually been written to the store and reports exactly what is missing. It does not write anything itself. RECEIPTS ARE REQUIRED: pass `receipts` naming what you wrote and read back for each close step - working documents, the episodic session record id, the board and its version, the transcript part ids and highest exchange index as query_transcripts returned them, and the handoff version (written last). Each receipt is compared with the store; omitted or mismatched receipts, a handoff that was not the last write, or a transcript no layer entry cites (derived_from) return state 'blocked'. Each missing line carries a `scope`: touch only what it names. THREE blocked closes on one session return state 'escalate': stop retrying, say the `speak` lines, and hand the user the list - the counter does not reset on a changed receipt, only with a new session. Say every line of the returned `speak` to the user, in order - a wrap that leaves it out is a failed close. A records/ session disposition is not a receipt and does not make this call complete. Pass carry_forward only for an old open session whose HANDOFF and STATE a later session already advanced. The owner door, or the credential that wrote the session, cites the current conforming records/ disposition (CARRIED_FORWARD, SUPERSEDED_BY_LATER_SESSION, or ABANDONED_NO_TRANSCRIPT) and those later versions. RETAINED_OPEN_CRITICAL stays open. A declared source is not authority. Transcripts are not deleted. A refused carry_forward is not counted. A receipt close blocked only because a later session holds HANDOFF or STATE stays blocked and is not counted. A same-session close is unchanged. Never tell the user their session is saved unless this returns state 'complete'.",
+    description: "Call this when the session is ending - the user says goodbye, asks you to wrap up, mentions restarting or opening a new session, or you are about to run out of room. An acknowledgement of the turn just completed - thanks, great, perfect - is not a session end; if it is ambiguous, ask rather than close. Checks whether this session's work has actually been written to the store and reports exactly what is missing. It does not write anything itself. RECEIPTS ARE REQUIRED: pass `receipts` naming what you wrote and read back for each close step - working documents, the episodic session record id, the board and its version, the transcript part ids and highest exchange index as query_transcripts returned them, and the handoff version (written last). Each receipt is compared with the store; omitted or mismatched receipts, a handoff that was not the last write, or a transcript no layer entry cites (derived_from) return state 'blocked'. Each missing line carries a `scope`: touch only what it names. THREE blocked closes on one session return state 'escalate': stop retrying, say the `speak` lines, and hand the user the list - the counter does not reset on a changed receipt, only with a new session. Say every line of the returned `speak` to the user, in order - a wrap that leaves it out is a failed close. A records/ session disposition is not a receipt and does not make this call complete. Pass carry_forward only for an old open session whose HANDOFF and STATE a later session already advanced. The owner door, or the credential that wrote the session, cites the current conforming records/ disposition (CARRIED_FORWARD, SUPERSEDED_BY_LATER_SESSION, or ABANDONED_NO_TRANSCRIPT) and those later versions. RETAINED_OPEN_CRITICAL stays open. A declared source is not authority. Transcripts are not deleted. A refused carry_forward is not counted. A receipt close blocked only because a later session holds HANDOFF or STATE stays blocked and is not counted. A same-session close is unchanged. When EMET_TAG_HANDOFFS is warn or enforce, every tag uses one receipt set: handoff_doc, handoff_version, and handoff_view (the stamp from initialize, including as_of). A stamp without as_of blocks the close. A board receipt is required only when this credential patched the board. The result echoes handoff_view. The continuity-currency gate stays warn-only and does not refuse the close. Never tell the user their session is saved unless this returns state 'complete'.",
     inputSchema: {
       type: "object",
       properties: {
@@ -4660,7 +4775,8 @@ const TOOL_DEFINITIONS = [
             transcript_parts: { type: "array", items: { type: "string" }, description: "Part ids query_transcripts returned for this session." },
             transcript_exchanges: { type: "number", description: "Highest exchange index query_transcripts returned." },
             handoff_version: { type: "number", description: "Version of the handoff, written last." },
-            handoff_doc: { type: "string", description: "Bot sessions only: the bot's own handoff record, bots/<source tag>/HANDOFF.md. A bot session needs no board receipt and never names the main HANDOFF.md or STATE.md." }
+            handoff_doc: { type: "string", description: "The handoff this credential wrote last. The hub names HANDOFF.md. Another write tag names HANDOFF/<tag>.md. A bot may still name bots/<tag>/HANDOFF.md until that id is renamed." },
+            handoff_view: { type: "object", description: "When EMET_TAG_HANDOFFS is warn or enforce: the stamp from initialize, with as_of, person, inputs, board, and view_sha256. A stamp without as_of is refused." }
           }
         },
         session_id: { type: "string", description: "The session_id used (or to be used) for this session's transcript, e.g. '2026-09-03_short-description'. Without it the transcript cannot be checked; receipts.transcript_session_id is used when this is omitted." },
@@ -4725,6 +4841,15 @@ const SUBKEY_TOOL_DEFINITIONS = [
       key_id: { type: "string", description: "The key whose live session to end. Pass tag or key_id." },
       reason: { type: "string", description: "Why the session was ended. Kept on the record." }
     } }
+  },
+  {
+    name: "emet_subkey_set_kind",
+    description: "Set the client kind stored on an approved sub-key. Owner only. bot keeps the one-live-session collision. chat is a client that wakes on a message. A key with no kind stored is a bot. The change is a history event. The key is not revoked.",
+    inputSchema: { type: "object", properties: {
+      tag: { type: "string", description: "The tag whose approved key to update. Pass tag or key_id." },
+      key_id: { type: "string", description: "The key to update. Pass tag or key_id." },
+      client_kind: { type: "string", description: "bot or chat. This is the kind the owner stores. A later call cannot set it." }
+    }, required: ["client_kind"] }
   }
 ];
 
@@ -4776,7 +4901,7 @@ function cloneTool(t) {
 
 let toolCache = { flag: null, tools: null };
 
-/** The tool list a host receives. The four sub-key tools and their schema fields exist only when EMET_SUBKEYS=1. */
+/** The tool list a host receives. The sub-key tools and their schema fields exist only when EMET_SUBKEYS=1. */
 export function hostTools() {
   const on = setting('SUBKEYS') === '1';
   if (toolCache.tools && toolCache.flag === on) return toolCache.tools;

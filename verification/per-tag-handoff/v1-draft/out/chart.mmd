@@ -1,0 +1,37 @@
+---
+title: "Per-tag handoffs: write, merge on read, init"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: refused
+    lg1: session
+    lg2: rest
+  }
+  class lg0 pink
+  class lg1 blue
+  class lg2 teal
+  s0: No handoffs yet
+  s1: In session, merged view read
+  s2: Handoffs at rest
+  s3: Write refused, nothing written
+  s4: In session, board moved since read
+  [*] --> s0
+  s0 --> s1: an AI starts and reads the merged view and the board
+  s1 --> s2: a write AI writes its own handoff last or a read-only AI leaves, writing nothing
+  s1 --> s3: an AI tries to write another AI's handoff
+  s1 --> s0: a read-only AI leaves, writing nothing
+  s1 --> s4: a write AI patches the board it read or an AI starts and reads the merged view and the board
+  s2 --> s1: an AI starts and reads the merged view and the board
+  s3 --> s1: an AI starts and reads the merged view and the board or a write AI patches the board it read or a write AI writes its own handoff last or a read-only AI leaves, writing nothing
+  s3 --> s2: a write AI writes its own handoff last or a read-only AI leaves, writing nothing
+  s3 --> s0: a read-only AI leaves, writing nothing
+  s3 --> s4: a write AI patches the board it read or an AI starts and reads the merged view and the board or a write AI writes its own handoff last or a read-only AI leaves, writing nothing
+  s4 --> s1: a write AI writes its own handoff last or a read-only AI leaves, writing nothing
+  s4 --> s3: an AI tries to write another AI's handoff or a patch on a moved board is refused
+  s2 --> s4: an AI starts and reads the merged view and the board
+  s4 --> s2: a write AI writes its own handoff last or a read-only AI leaves, writing nothing
+  class s0 teal
+  class s1 blue
+  class s2 teal
+  class s3 pink
+  class s4 blue

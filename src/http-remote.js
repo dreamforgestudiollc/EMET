@@ -110,21 +110,43 @@ function buildServer() {
         registry: t.sourceRegistry()
       }, actor, args, name));
     } catch (e) {
+      const { preflightHttpCode } = await import('./subkey-lifecycle.js');
+      const code = preflightHttpCode(e);
+      if (code === 'EMET-SESS-014') {
+        const { ValidationError } = await import('./validation.js');
+        const err = new ValidationError('session_handle', e.message, { code: 'EMET-SESS-014' });
+        const response = await actorStore.run(actor, () => t.handleError(err, name, logger));
+        return attachSubkeyNotice(response, e.subkeyHold);
+      }
       if (e && e.attributionRefusal) {
         const { ValidationError } = await import('./validation.js');
-        const code = e.emetCode === 'EMET-AUTH-044' ? 'EMET-AUTH-044' : 'EMET-AUTH-039';
-        const err = new ValidationError('source', e.message, { code });
+        const mapped = code === 'EMET-AUTH-044' ? 'EMET-AUTH-044' : 'EMET-AUTH-039';
+        const err = new ValidationError('source', e.message, { code: mapped });
         if (e.chooser) err.chooser = e.chooser;
         return actorStore.run(actor, () => t.handleError(err, name, logger));
       }
       throw e;
     }
     const result = await actorStore.run(actor, () => callTool(name, args));
+    const noted = actor && actor.subkeyRenewal ? attachSubkeyNotice(result, actor.subkeyRenewal) : result;
     const { toolCallAuditDetails } = await import('./grants.js');
-    logger.audit(AuditOperation.TOOL_CALL, toolCallAuditDetails(actor, { tool: name, success: result.isError !== true, durationMs: Date.now() - t0, params: paramNames }));
-    return result;
+    logger.audit(AuditOperation.TOOL_CALL, toolCallAuditDetails(actor, { tool: name, success: noted.isError !== true, durationMs: Date.now() - t0, params: paramNames }));
+    return noted;
   });
   return server;
+}
+
+/** Put a renewal or wrap-up notice on a tool result. The tool body is unchanged when it is not JSON. */
+function attachSubkeyNotice(result, notice) {
+  if (!notice || !result || !Array.isArray(result.content) || !result.content[0] || typeof result.content[0].text !== 'string') return result;
+  try {
+    const data = JSON.parse(result.content[0].text);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return result;
+    data.session_renewal = notice;
+    if (notice.wrap_up_notice && !data.wrap_up_notice) data.wrap_up_notice = notice.wrap_up_notice;
+    result.content[0].text = JSON.stringify(data);
+  } catch { /* a non-JSON tool body stays as the tool wrote it */ }
+  return result;
 }
 
 async function callTool(name, args) {
@@ -374,5 +396,6 @@ if (process.env.EMET_HTTP_LISTEN !== '0') (async () => {
     console.error(app.locals.rotateStartupLine());
   });
   import('./subkeys.js').then((m) => m.startFlagOffSweep((msg) => console.error(`[emet] ${msg}`))).catch(() => console.error('[emet] sub-key flag-off sweep failed'));
+  import('./subkeys.js').then((m) => m.startStrandedSweep((msg) => console.error(`[emet] ${msg}`), dbManager)).catch(() => console.error('[emet] sub-key sweep failed'));
   import('./error-log.js').then((m) => m.startErrorLogRotation()).catch(() => {});
 })();

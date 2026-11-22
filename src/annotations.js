@@ -55,7 +55,7 @@ const ADD = { readOnlyHint: false, destructiveHint: false, idempotentHint: false
 const REPLACE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false };
 
 const SUBKEY_ANNOTATION_NAMES = new Set([
-  'emet_subkey_request', 'emet_subkey_claim', 'emet_subkey_revoke', 'emet_subkey_end_session'
+  'emet_subkey_request', 'emet_subkey_claim', 'emet_subkey_revoke', 'emet_subkey_end_session', 'emet_subkey_set_kind'
 ]);
 
 const ANNOTATION_TABLE = {
@@ -128,7 +128,8 @@ const ANNOTATION_TABLE = {
   //     a health check that only reads cannot detect a broken write path.
   //     Replaced emet_setup_status, get_status and emet_verify_connection on
   //     2026-09-27 (the owner: consolidate overlapping tools). -----------------------
-  emet_status:            { title: 'Store status and write-path probe', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+  emet_status:            { title: 'Store status and write-path probe', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  emet_subkey_set_kind:   { title: 'Set a sub-key client kind', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false }
 };
 
 function subkeyAnnotationsHidden() {
@@ -137,7 +138,7 @@ function subkeyAnnotationsHidden() {
 }
 
 /**
- * The four sub-key annotations are visible only when EMET_SUBKEYS=1, so a
+ * The sub-key annotations are visible only when EMET_SUBKEYS=1, so a
  * flag-off process has the same annotation set as before those tools existed.
  */
 export const TOOL_ANNOTATIONS = new Proxy(ANNOTATION_TABLE, {

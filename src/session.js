@@ -33,6 +33,7 @@
 
 import { connectMongo } from './mongo-connect.js';
 import { setting } from './env.js';
+import { tagHandoffMode, stampWithoutAsOf, attachHandoffView, handoffIdsFor } from './per-tag-handoff.js';
 import { MONGODB_URI, MONGODB_DB, COLLECTION_PREFIX, DatabaseError } from './database.js';
 import { LAYERS } from './layers.js';
 import { parseMetadata } from './metadata.js';
@@ -467,7 +468,16 @@ export function checkReceipts(receipts, observed) {
   const problems = [];
   // A bot session (C1): observed.bot = {tag, handoff_doc, dir, main_records}.
   const bot = observed && observed.bot ? observed.bot : null;
-  const FIELDS = bot ? BOT_RECEIPT_FIELDS : RECEIPT_FIELDS;
+  const tagOn = observed && observed.tag_handoffs === true;
+  const FIELDS = { ...(bot ? BOT_RECEIPT_FIELDS : RECEIPT_FIELDS) };
+  if (tagOn) {
+    FIELDS.handoff_doc = 'the handoff this credential wrote last';
+    FIELDS.handoff_view = 'the handoff_view stamp from initialize, including as_of';
+    if (!observed.board_updated) {
+      delete FIELDS.board_doc;
+      delete FIELDS.board_version;
+    }
+  }
   if (!receipts || typeof receipts !== 'object' || Array.isArray(receipts)) {
     return {
       supplied: false,
@@ -490,18 +500,22 @@ export function checkReceipts(receipts, observed) {
   // receipt that does is refused here, and those ids get no other check.
   const mainIds = bot ? (bot.main_records || []) : [];
   const isMain = (id) => mainIds.includes(id);
+  const ownBoardOk = tagOn && bot ? stateDoc() : null;
+  const forbiddenMain = (id) => isMain(id) && id !== ownBoardOk;
   if (bot) {
     const named = [
       ...(Array.isArray(receipts.working_docs) ? receipts.working_docs.map(receiptDocId) : []),
       typeof receipts.board_doc === 'string' ? receipts.board_doc : null,
       typeof receipts.handoff_doc === 'string' ? receipts.handoff_doc : null
-    ].filter((id) => id && isMain(id));
+    ].filter((id) => id && forbiddenMain(id));
     if (named.length) {
       problems.push(`receipts name ${[...new Set(named)].join(', ')} - ${hubRecordsMessage(bot.tag)}`);
     }
-    if (typeof receipts.handoff_doc === 'string' && receipts.handoff_doc && !isMain(receipts.handoff_doc) &&
-        receipts.handoff_doc !== bot.handoff_doc) {
-      problems.push(`handoff_doc names ${receipts.handoff_doc}; this session's handoff is ${bot.handoff_doc}`);
+    if (typeof receipts.handoff_doc === 'string' && receipts.handoff_doc && !isMain(receipts.handoff_doc)) {
+      const allowed = new Set([bot.handoff_doc, ...(handoffIdsFor(bot.tag) || [])]);
+      if (!allowed.has(receipts.handoff_doc)) {
+        problems.push(`handoff_doc names ${receipts.handoff_doc}; this session's handoff is ${[...allowed].join(' or ')}`);
+      }
     }
   }
 
@@ -566,6 +580,11 @@ export function checkReceipts(receipts, observed) {
     if (typeof receipts.transcript_exchanges === 'number' && receipts.transcript_exchanges !== highest) {
       problems.push(`transcript exchanges: receipt says ${receipts.transcript_exchanges}, store holds ${highest}`);
     }
+  }
+
+  if (tagOn && receipts && typeof receipts === 'object') {
+    const stamp = stampWithoutAsOf(receipts.handoff_view);
+    if (!stamp.ok) problems.push(`handoff_view ${stamp.reason}`);
   }
 
   // 5. handoff, written last
@@ -770,7 +789,11 @@ export async function sessionClose(options = {}) {
     const bot = sessionTag && isBotTag(sessionTag)
       ? { tag: sessionTag, handoff_doc: botHandoffDoc(sessionTag), dir: botRecordDir(sessionTag), main_records: mainRecordIds() }
       : null;
-    const sessionHandoff = bot ? bot.handoff_doc : handoffDoc();
+    const choices = handoffIdsFor(sessionTag);
+    const namedHandoff = receipts && typeof receipts.handoff_doc === 'string' ? receipts.handoff_doc : null;
+    const sessionHandoff = choices
+      ? ((namedHandoff && choices.includes(namedHandoff)) ? namedHandoff : choices[0])
+      : (bot ? bot.handoff_doc : handoffDoc());
 
     // --- continuity documents --------------------------------------------
     const receiptDocs = receipts
@@ -779,9 +802,10 @@ export async function sessionClose(options = {}) {
       : [];
     // A bot session checks its own handoff and no board; the main records are
     // read separately below, only to see whether the bot revised them.
+    const tagOn = tagHandoffMode() !== 'off';
     const wanted = bot
-      ? [...new Set([bot.handoff_doc, ...(options.thread_docs || []), ...receiptDocs])].filter((id) => !bot.main_records.includes(id))
-      : [...new Set([handoffDoc(), stateDoc(), ...(options.thread_docs || []), ...receiptDocs])];
+      ? [...new Set([sessionHandoff, ...(options.thread_docs || []), ...receiptDocs])].filter((id) => !bot.main_records.includes(id))
+      : [...new Set([sessionHandoff, stateDoc(), ...(options.thread_docs || []), ...receiptDocs])];
     const readDoc = async (docId) => {
       const found = await docs.findOne(
         { doc_id: docId },
@@ -943,10 +967,17 @@ export async function sessionClose(options = {}) {
       if (!d.exists) missing.push(`${d.doc_id} does not exist`);
       else if (bot && !d.updated_this_session && d.updated_in_window) {
         missing.push(`${d.doc_id} was not updated this session by ${bot.tag} - its revision in the window is by ${d.updated_by || '(no tag)'}`);
-      } else if (!d.updated_this_session) missing.push(`${d.doc_id} was not updated this session`);
+      } else if (!d.updated_this_session) {
+        if (tagOn && !bot && d.doc_id === stateDoc()) continue;
+        missing.push(`${d.doc_id} was not updated this session`);
+      }
+    }
+    if (choices && namedHandoff && !choices.includes(namedHandoff)) {
+      missing.push(`handoff_doc names ${namedHandoff}; this session's handoff is ${choices.join(' or ')}`);
     }
     if (bot) {
       for (const m of mainRecords) {
+        if (tagOn && m.doc_id === stateDoc()) continue;
         if (m.revised_by_session_tag) missing.push(`${m.doc_id} was revised by ${bot.tag} this session - ${hubRecordsMessage(bot.tag)}`);
       }
       if (ownEpisodicCount === 0) missing.push(`no episodic entry was written this session under ${bot.tag}`);
@@ -979,13 +1010,16 @@ export async function sessionClose(options = {}) {
     // procedural ref 391: receipts required from the first deploy; the former
     // `unconfirmed` state is blocked, not passed).
     const storeMissing = [...missing];
+    const boardId = setting('STATE_DOC', 'STATE.md');
+    const boardUpdated = documents.some((d) => d && d.doc_id === boardId && d.updated_this_session);
     const receiptCheck = checkReceipts(receipts, {
       documents,
       episodic: receiptEpisodic,
       episodic_rejected: episodicRejected,
       transcript,
       handoff_doc: sessionHandoff,
-      ...(bot ? { bot } : {})
+      ...(bot ? { bot } : {}),
+      ...(tagHandoffMode() !== 'off' ? { tag_handoffs: true, board_updated: boardUpdated } : {})
     });
     for (const p of receiptCheck.problems) missing.push(p);
     const foreign = foreignContinuityProblems({
@@ -1061,9 +1095,19 @@ export async function sessionClose(options = {}) {
       speak.push(note);
     }
 
+    let handoffView = null;
+    if (tagHandoffMode() !== 'off') {
+      try {
+        const echo = {};
+        await attachHandoffView(conn.db, echo, null);
+        handoffView = echo.handoff_view || null;
+      } catch { handoffView = null; }
+    }
+
     return {
       state,
       speak,
+      ...(handoffView ? { handoff_view: handoffView } : {}),
       close_attempts: {
         blocked_count: capped.blocked_count,
         cap: CLOSE_CAP,

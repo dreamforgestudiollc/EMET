@@ -14,6 +14,7 @@
  */
 
 import { connectMongo } from './mongo-connect.js';
+import { tagHandoffMode, loadHandoffView } from './per-tag-handoff.js';
 import { MONGODB_URI, MONGODB_DB, COLLECTION_PREFIX, DatabaseError } from './database.js';
 import { LAYERS } from './layers.js';
 import { classifyRow } from './gaps.js';
@@ -757,6 +758,20 @@ export async function lintPages({ area = null } = {}, now = new Date()) {
           detail: `A status has not been confirmed or revised within ${selector.staleness_days} days.`
         });
       }
+    }
+
+    if (tagHandoffMode() !== 'off') {
+      try {
+        const view = await loadHandoffView(db, { asOf: now.toISOString(), readOnly: true });
+        if (view.handoff_view_conflicts && view.handoff_view_conflicts.length) {
+          pushFinding(findings, seen, {
+            class: 'handoff_conflict',
+            ids: view.handoff_view_conflicts.map((id) => `row:${id}`),
+            area: area || 'board',
+            detail: 'Two handoffs disagree on a board row. The view does not pick a winner.'
+          });
+        }
+      } catch { /* a view that cannot be read does not hide the other findings */ }
     }
 
     return { findings, areas: slugs, read_only: true };

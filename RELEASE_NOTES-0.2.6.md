@@ -1,6 +1,6 @@
 # EMET 0.2.6
 
-Historical notes for 0.2.6. The current release in this repository is 0.3.6. See [CHANGELOG.md](CHANGELOG.md). The sentence that used to say the npm package was still 0.2.4 is withdrawn. 0.2.6, and later versions through 0.3.5, were published. 0.3.6 is not published from this revision.
+Historical notes for 0.2.6. The current release in this repository is 0.3.7. See [CHANGELOG.md](CHANGELOG.md). The sentence that used to say the npm package was still 0.2.4 is withdrawn. 0.2.6, and later versions through 0.3.5, were published. 0.3.6 is not published from this revision.
 
 EMET is an MCP memory server: persistent shared memory for AI agents, bot teams, and chats. Version 0.2.6. The stored document shapes are not frozen. Pin a version if you depend on them.
 

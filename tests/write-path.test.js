@@ -94,7 +94,8 @@ const SANCTIONED = {
   // when the claimed append failed, unsets) the grace marker on the session's
   // own row in `<prefix>sessions` - an atomic claim so two racing appends
   // cannot both be the closing exchange. Same collection, same grounds.
-  'session-graph.js': new Set(['graphAfter', 'labRecord', 'markCloseGrace']),
+  // retainSessionClose updates one session row and keeps it. Nothing is deleted.
+  'session-graph.js': new Set(['graphAfter', 'labRecord', 'markCloseGrace', 'retainSessionClose']),
   // ADDED 2026-10-15 with delegated client sub-keys (EMET-0001). mongoStore
   // writes `<prefix>subkeys` and `<prefix>subkeys_history` only: the server's
   // own bookkeeping of keys and session opens, not a layer, a document, or a

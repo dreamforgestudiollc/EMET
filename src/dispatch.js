@@ -38,7 +38,7 @@ import { beginStagedDoc, appendStagedChunk, commitStagedDoc, abortStagedDoc } fr
 import { reserveToolNames } from './rune-registry.js';
 import { applyCheckpoint, checkpointOnError, checkpointStatus } from './checkpoint.js';
 
-reserveToolNames([...TOOLS.map((tool) => tool.name), 'emet_subkey_request', 'emet_subkey_claim', 'emet_subkey_revoke', 'emet_subkey_end_session']);
+reserveToolNames([...TOOLS.map((tool) => tool.name), 'emet_subkey_request', 'emet_subkey_claim', 'emet_subkey_revoke', 'emet_subkey_end_session', 'emet_subkey_set_kind']);
 
 /**
  * Route one tool call. `ctx` carries what the transport owns: dbManager, logger,

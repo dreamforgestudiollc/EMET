@@ -33,6 +33,7 @@ import fs from 'fs';
 import path from 'path';
 import { resolveModulePath } from './module-path.js';
 import { setting } from './env.js';
+import { tagHandoffMode, isTagHandoffDoc } from './per-tag-handoff.js';
 import { CodedError } from './error-codes.js';
 
 const HERE = resolveModulePath(import.meta.url);
@@ -287,6 +288,7 @@ export function extraMappings(raw = setting('TEMPLATE_MAP')) {
 /** Which template governs this doc_id, or null. */
 export function templateFor(doc_id) {
   if (!doc_id) return null;
+  if (tagHandoffMode() !== 'off' && isTagHandoffDoc(doc_id)) return 'templates/TAGHANDOFF.md';
   const base = baseMap();
   if (base.exact[doc_id]) return base.exact[doc_id];
   const { added } = extraMappings();

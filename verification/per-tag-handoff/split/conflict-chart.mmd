@@ -1,0 +1,47 @@
+---
+title: "Who may patch a board row"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: refused
+    lg1: session
+    lg2: rest
+  }
+  class lg0 pink
+  class lg1 blue
+  class lg2 teal
+  s0: No handoffs yet
+  s1: In session, merged view read
+  s2: Write refused, nothing written
+  s3: Handoffs at rest
+  s4: In session, board moved since read
+  s5: In session, row conflict waiting for the hub
+  s6: At rest, row conflict waiting for the hub
+  [*] --> s0
+  s0 --> s1: an AI starts and reads the view
+  s1 --> s2: an AI tries to write another AI's handoff or an AI tries to patch a row it did not open
+  s1 --> s3: a write AI writes its own handoff last
+  s1 --> s4: a write AI opens a board row
+  s2 --> s1: an AI starts and reads the view or a write AI opens a board row or a write AI writes its own handoff last
+  s2 --> s3: a write AI writes its own handoff last
+  s3 --> s1: an AI starts and reads the view
+  s2 --> s4: a write AI opens a board row or a write AI writes its own handoff last or an AI starts and reads the view
+  s4 --> s2: an AI tries to patch a row it did not open or an AI tries to write another AI's handoff or a write on a moved board is refused
+  s4 --> s1: a write AI writes its own handoff last
+  s4 --> s5: a write AI writes its own handoff last
+  s1 --> s5: a write AI writes its own handoff last
+  s2 --> s5: a write AI writes its own handoff last or an AI starts and reads the view
+  s4 --> s3: a write AI writes its own handoff last
+  s4 --> s6: a write AI writes its own handoff last
+  s1 --> s6: a write AI writes its own handoff last
+  s5 --> s2: an AI tries to write another AI's handoff or an AI tries to patch a row it did not open
+  s5 --> s6: a write AI writes its own handoff last
+  s2 --> s6: a write AI writes its own handoff last
+  s6 --> s5: an AI starts and reads the view
+  class s0 teal
+  class s1 blue
+  class s2 pink
+  class s3 teal
+  class s4 blue
+  class s5 blue
+  class s6 teal

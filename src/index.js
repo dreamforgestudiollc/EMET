@@ -278,6 +278,7 @@ async function main() {
   }
 
   import('./subkeys.js').then((m) => m.startFlagOffSweep((msg) => logger.error(msg))).catch((e) => logger.error('sub-key flag-off sweep failed', { error: e && e.message }));
+  import('./subkeys.js').then((m) => m.startStrandedSweep((msg) => logger.error(msg), dbManager)).catch((e) => logger.error('sub-key sweep failed', { error: e && e.message }));
   import('./error-log.js').then((m) => m.startErrorLogRotation()).catch(() => {});
 
   const startupDurationMs = Date.now() - startTime;

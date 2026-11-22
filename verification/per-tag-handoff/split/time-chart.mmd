@@ -1,0 +1,44 @@
+---
+title: "Open work, stale-open, and aging"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: session
+    lg1: rest
+  }
+  class lg0 blue
+  class lg1 teal
+  s0: No handoff yet
+  s1: In session, merged view read
+  s2: In session, work shown in progress
+  s3: Handoff at rest
+  s4: In session, open work marked stale
+  s5: Handoff at rest, line aging
+  s6: In session, reading an aging line
+  [*] --> s0
+  s0 --> s1: an AI starts, reads the view, and stamps it
+  s1 --> s2: a write AI saves work in an open session
+  s1 --> s3: a write AI writes its own handoff last or a read-only AI leaves, writing nothing
+  s1 --> s0: a read-only AI leaves, writing nothing
+  s1 --> s4: a write AI saves work in an open session
+  s2 --> s4: time passes (24 hours open, 7 days aging)
+  s2 --> s3: a write AI writes its own handoff last
+  s3 --> s1: an AI starts, reads the view, and stamps it
+  s3 --> s5: time passes (24 hours open, 7 days aging)
+  s2 --> s1: a write AI writes its own handoff last
+  s4 --> s3: a write AI writes its own handoff last
+  s5 --> s6: an AI starts, reads the view, and stamps it
+  s4 --> s1: a write AI writes its own handoff last
+  s6 --> s2: a write AI saves work in an open session
+  s1 --> s6: an AI starts, reads the view, and stamps it
+  s6 --> s5: a read-only AI leaves, writing nothing
+  s1 --> s5: a read-only AI leaves, writing nothing
+  s6 --> s4: a write AI saves work in an open session
+  s6 --> s1: a read-only AI leaves, writing nothing
+  class s0 teal
+  class s1 blue
+  class s2 blue
+  class s3 teal
+  class s4 blue
+  class s5 teal
+  class s6 blue
