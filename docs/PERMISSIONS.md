@@ -40,7 +40,7 @@ Every tool carries MCP annotations, declared in one table in `src/annotations.js
 | `idempotentHint` | Calling it again with the same arguments changes nothing further. |
 | `openWorldHint` | It reaches systems outside this server's own store. |
 
-Of the 38 tools (`EMET_SUBKEYS=1` adds the four sub-key tools below; with the flag off they are not registered):
+Of the 38 tools (`EMET_SUBKEYS=1` adds the five sub-key tools below, for 43; with the flag off they are not registered):
 
 - **15 are read-only.** `emet_gaps`, `emet_page`, `emet_pages`, `emet_page_lint`, `emet_error_report`, `emet_floor`, `recall`, `semantic_recall`,
   `corpus_recall`, `query_layer`, `query_transcripts`, `read_doc`, `read_doc_history`, `list_docs`,
@@ -65,7 +65,7 @@ Of the 38 tools (`EMET_SUBKEYS=1` adds the four sub-key tools below; with the fl
   detect a broken write path. A read-scoped token may call it without `probe`. With `probe: true` it needs
   `emet.write`. The probe deletes only that document. It does not drop the collection.
 
-With `EMET_SUBKEYS=1` the host also receives four tools: `emet_subkey_request`, `emet_subkey_claim`, and `emet_subkey_end_session` (additive), and `emet_subkey_revoke` (it retires a key's authority; the record stays). Write tools gain `session_handle`. `emet_session_open` and `emet_session_close` gain `subkey`. With the flag off those names and fields are absent. First-use setup turns the flag on only when the owner says yes and the server reads `.env`. A hosted server refuses that yes. A single client stays on the flag-off list. The owner approves a new writer, and a bot's own key, on `/owner/chooser`. An AI does not grant a writer. In a session opened with a sub-key, every later write passes the `session_handle` that `emet_session_open` returned once. A missing or different handle is refused, and nothing is written. The handle is not a receipt. See [SUBKEYS.md](SUBKEYS.md).
+With `EMET_SUBKEYS=1` the host also receives five tools: `emet_subkey_request`, `emet_subkey_claim`, and `emet_subkey_end_session` (additive), `emet_subkey_set_kind` (it sets an approved key's `client_kind` to `bot` or `chat`; idempotent), and `emet_subkey_revoke` (it retires a key's authority; the record stays). Write tools gain `session_handle`. `emet_session_open` and `emet_session_close` gain `subkey`. With the flag off those names and fields are absent. First-use setup turns the flag on only when the owner says yes and the server reads `.env`. A hosted server refuses that yes. A single client stays on the flag-off list. The owner approves a new writer, and a bot's own key, on `/owner/chooser`. An AI does not grant a writer. In a session opened with a sub-key, every later write passes the `session_handle` that `emet_session_open` returned once. A missing or different handle is refused, and nothing is written. The handle is not a receipt. See [SUBKEYS.md](SUBKEYS.md).
 
 **`openWorldHint` is false on every tool.** The tools talk to this server's configured database
 and nothing else: no filesystem and no shell. The sign-in server fetches a client's metadata
