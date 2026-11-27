@@ -52,7 +52,7 @@ A host that cannot store a key file does not take a sub-key. A phone, or a web p
 
 The pepper is a server secret. When this server reads `.env`, setup writes that file and does not put the pepper in the database, in a document, or in the answer it gives your assistant. An MCP call is what writes the file, and only on that kind of server. A hosted server does not get a pepper written into its container.
 
-The approvals page uses the same passphrase as connecting a device, and a wrong passphrase counts toward the same lockout.
+The chooser asks for the admin password, not the connect passphrase. A wrong admin password is refused. A correct admin password opens a session of 15 minutes. A bot signs in with an issued key and the source tag on that key, never the owner password or the admin password. A refused key sign-in is `EMET-AUTH-046`.
 
 What a sub-key shows is that a write was made with a key you approved. If several bots can read each other's files, EMET cannot prove which program was holding the key. If you think an active key has leaked, revoke it from your own login (`emet_subkey_revoke`), then the bot requests a new key and you approve it on the page. Deny only applies to a pending request.
 

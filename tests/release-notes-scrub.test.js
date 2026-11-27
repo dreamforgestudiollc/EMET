@@ -71,7 +71,7 @@ testGroup('0.3.2 release notes reject private leaks', () => {
     assert.ok(change.includes('## Unreleased'));
     assert.ok(change.includes('## 0.3.6'), '## 0.3.6 is missing');
     assert.ok(headingSlice(change, '## 0.3.6').includes('Upcoming work'));
-    assert.ok(headingSlice(change, '## Unreleased').includes('Nothing is waiting above 0.3.8.'));
+    assert.ok(headingSlice(change, '## Unreleased').includes('docs/RELEASING.md'));
     assert.ok(change.includes('## 0.3.7'), '## 0.3.7 is missing');
   });
 

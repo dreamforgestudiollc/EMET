@@ -15,7 +15,7 @@ passphrase; both are required.
 
 ## Upgrading to 0.3.8
 
-0.3.8 adds an admin password for the chooser, grants, and break-glass. The connect passphrase stays on the connect page. Set the admin password at `/owner/admin-password` with an owner session, the connect passphrase, or an owner Authorize token. An unset `EMET_OAUTH_PASSPHRASE` does not create the password and does not mint recovery codes. `EMET_ADMIN_PEPPER` is mixed into the hash when it is set and it is not the connect passphrase. `EMET_ADMIN_RECOVERY` is a one-time host token for `/owner/admin-password/recover`. `EMET_CONSOLE_ORIGINS` lists the browser origins allowed to call the console. Stored memory rows are not rewritten.
+0.3.8 adds an admin password for the chooser, grants, break-glass, and settings. The connect passphrase stays on the connect page. Set the admin password at `/owner/admin-password` with an owner session, the connect passphrase, or an owner Authorize token. Without one of those, create returns 401 and writes nothing. If the password is already set, the server returns 409 and writes nothing. An unset `EMET_OAUTH_PASSPHRASE` does not create the password and does not mint recovery codes. `EMET_ADMIN_PEPPER` is mixed into the hash when it is set and it is not the connect passphrase. `EMET_ADMIN_RECOVERY` is a one-time host token for `/owner/admin-password/recover`. `EMET_CONSOLE_ORIGINS` lists the browser origins allowed to call the console. A bot, a member, or a guest signs in with an issued key and source tag; a refused key sign-in is `EMET-AUTH-046`. `EMET-AUTH-045` stays the refusal for the previous bound-door spelling. `read_doc` reports body integrity. `restore_doc` refuses the revision already in force (`EMET-DOC-089`). An owner-approved shorter revision needs `condense_approved` and a reason, or a writer approval that names that document (`EMET-DOC-025`, `EMET-DOC-090`). Stored memory rows are not rewritten.
 
 ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
@@ -317,8 +317,10 @@ The first should report ok and a tool count. The second should return OAuth meta
 
 ## Connecting clients
 
+Before you add a connector, set the admin password at `/owner/admin-password`. Creating it requires the connect passphrase, an owner Authorize token, or an owner session. Without one of those, the server returns 401 and writes nothing. If the password is already set, the server returns 409 and writes nothing. The chooser, grants, break-glass, and settings then ask for that admin password.
+
 **Claude (all interfaces, including phone):** Settings → Connectors → Add custom connector →
-URL `https://<host>/mcp` → connect → you are sent to a passphrase page → enter
+URL `https://<host>/mcp` → connect → you are sent to the connect page → enter
 `EMET_OAUTH_PASSPHRASE`. Enable it per conversation from the "+" menu.
 
 **Any other MCP client:** point it at `https://<host>/mcp` and complete the OAuth flow.
@@ -359,8 +361,10 @@ One project is one instance. A second project is a new database, a new deploy, a
   host: phone, desktop, CLI, anything else. This is the last-mile step people forget.
 - **Costs.** A small Atlas cluster plus a hobby-tier host runs in the low tens of dollars a
   month. Both have free tiers adequate for a single user.
-- **The passphrase is the whole perimeter.** There is no second factor. Set a new
+- **The connect passphrase is only for the connect page.** It is not the whole perimeter.
+  The admin password opens `/owner/chooser`, grants, break-glass, and settings. Set a new
   `EMET_OAUTH_PASSPHRASE` and redeploy to stop new owner sign-ins that use the old one.
   Tokens already issued keep working until you revoke them. End every grant and every
-  sub-key from `/owner/break-glass` with the exact confirm `rotate-all`. Rows are
-  superseded, retired, and retained. See [SECURITY-AT-SCALE.md](SECURITY-AT-SCALE.md).
+  sub-key from `/owner/break-glass` with the exact confirm `rotate-all`, after signing
+  in with the admin password. Rows are superseded, retired, and retained. See
+  [SECURITY-AT-SCALE.md](SECURITY-AT-SCALE.md).

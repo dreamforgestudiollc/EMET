@@ -11,7 +11,7 @@ The first thing a session does. `emet_initialize` is the only setup step a perso
 
 ## How to get to it (user POV)
 
-Open a session and call `emet_initialize` with no arguments before you answer from memory. If the result says setup is required, ask the interview questions and pass the answers to `emet_setup_complete`. Call `emet_initialize` again and follow `page_notice` until the last page. Keep `startup_page.load_id`. Later, `emet_status` is the check that the store is up. Use the probe after a configuration change, not on every turn.
+On HTTP, set the admin password at `/owner/admin-password` and connect a client on the connect page before the first interview. Then open a session and call `emet_initialize` with no arguments before you answer from memory. If the result says setup is required, ask the interview questions and pass the answers to `emet_setup_complete`. Call `emet_initialize` again and follow `page_notice` until the last page. Keep `startup_page.load_id`. Later, `emet_status` is the check that the store is up. Use the probe after a configuration change, not on every turn. The first successful transcript append carries the measured machine line, or the words `no local shell MCP` (`EMET-MEM-018`). `emet_session_close` takes `carry_forward` when a later session already advanced HANDOFF or STATE.
 
 ## Driving it with verify-emet
 

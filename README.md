@@ -54,7 +54,11 @@ npm start
 
 Node.js 22 or newer. Fill in `MONGODB_URI` and `MONGODB_DB`. `.env` is gitignored.
 
-- **Guided setup:** [docs/GUIDED-SETUP.md](docs/GUIDED-SETUP.md) — never deployed anything. Your assistant installs, configures, deploys, and verifies. You sign in when asked and paste the connector URL.
+On HTTP, also set `PUBLIC_URL` and a connect passphrase (`EMET_OAUTH_PASSPHRASE`). Connect a client on the connect page with that passphrase only. The connect page is the only place that passphrase is used.
+
+After the server is up, set the admin password at `/owner/admin-password` (this needs the connect passphrase, an owner Authorize token, or an owner session; without one of those the server returns 401 and writes nothing). The chooser, grants, break-glass, and settings ask for the admin password, not the connect passphrase. A bot signs in with an issued key and source tag, never the owner or admin password (`EMET-AUTH-046`). Then say "initialize."
+
+- **Guided setup:** [docs/GUIDED-SETUP.md](docs/GUIDED-SETUP.md) — never deployed anything. Your assistant installs, configures, deploys, and verifies. You sign in when asked, set the admin password, and paste the connector URL.
 - **Setup:** [docs/SETUP.md](docs/SETUP.md) — the manual walkthrough: MongoDB, both transports, and the first-run interview.
 - **Deploy:** [docs/DEPLOY.md](docs/DEPLOY.md) — remote HTTP with OAuth, so a phone, a browser, or another vendor's agent reaches the same store.
 - **What is next:** [docs/ROADMAP.md](docs/ROADMAP.md) — Upcoming work is labeled Proposed, Planned, or Later phase, and it is not built unless the page says so.
@@ -75,9 +79,17 @@ server, so your records stay in your MongoDB.
 
 1. Deploy EMET remotely: [docs/DEPLOY.md](docs/DEPLOY.md). Set `PUBLIC_URL` and a strong
    `EMET_OAUTH_PASSPHRASE`. Check `https://<your-host>/health` returns `{"ok":true,...}`.
-2. Install the **EMET** plugin and set the variable `EMET_URL` to `https://<host>/mcp`.
-3. Connect. The OAuth sign-in opens EMET's passphrase page; enter your passphrase once per device.
-4. Verify: call `emet_status` with `{"probe": true}` (it writes, reads back and removes a row
+   Open the connect page once and confirm it loads. That page is the only place the
+   connect passphrase is entered.
+2. Set the admin password at `/owner/admin-password`. Creating it requires the connect
+   passphrase, an owner Authorize token, or an owner session. Without one of those, the
+   server returns 401 and writes nothing. If it is already set, the server returns 409
+   and writes nothing.
+3. Install the **EMET** plugin and set the variable `EMET_URL` to `https://<host>/mcp`.
+4. Connect. The OAuth sign-in opens EMET's connect page; enter the connect passphrase once
+   per device. The chooser, grants, break-glass, and settings ask for the admin password,
+   not that passphrase.
+5. Verify: call `emet_status` with `{"probe": true}` (it writes, reads back and removes a row
    from `_emet_verify` only), then save with `save_to_layer` and `recall` it from another client.
 
 The plugin also ships an `emet-memory` skill that tells the agent when to recall, save and close
@@ -269,7 +281,7 @@ same page. The bot signs in with that key and its source tag (`door=key` on Auth
 not use the connect passphrase. See
 [docs/SUBKEYS.md](docs/SUBKEYS.md) and [docs/BOTS.md](docs/BOTS.md) §4.
 
-**The admin password opens settings.** Set it at `/owner/admin-password`. The chooser, grants, and break-glass ask for that admin password. The connect passphrase stays on the connect page. An unset connect passphrase does not mint recovery codes.
+**The admin password opens settings.** Set it at `/owner/admin-password`. Creating it requires the connect passphrase, an owner Authorize token, or an owner session. Without one of those, the server returns 401 and writes nothing. If the password is already set, the server returns 409 and writes nothing. The chooser, grants, and break-glass ask for that admin password. The connect passphrase stays on the connect page. An unset connect passphrase does not mint recovery codes. `read_doc` reports whether the stored body matches its digest. `restore_doc` refuses the revision already in force (`EMET-DOC-089`). A shorter revision under half size needs `condense_approved` and a reason, or a writer approval that names that document (`EMET-DOC-025`, `EMET-DOC-090`). Long revisions use `write_doc_begin`, `write_doc_append`, `write_doc_commit`, and `write_doc_abort`. The first successful transcript append carries the measured machine line, or the words `no local shell MCP` (`EMET-MEM-018`). `emet_session_close` takes `carry_forward` when a later session already advanced HANDOFF or STATE.
 
 **Pass `session_handle` on every write in a sub-key session.** `emet_session_open` returns
 `session_handle` once. Later writes in that session pass `session_handle`. A write that names
@@ -428,7 +440,18 @@ EMET Console is a separate app in this repo (`console/`). It is off on the serve
 
 ### First run
 
-Say **"initialize"**. That is the whole interface.
+On HTTP, set the admin password at `/owner/admin-password` and connect a client on the
+connect page before this interview. Creating the admin password requires the connect
+passphrase, an owner Authorize token, or an owner session. Without one of those, the
+server returns 401 and writes nothing. If the password is already set, the server returns
+409 and writes nothing. The connect passphrase stays on the connect page. The chooser,
+grants, break-glass, and settings ask for the admin password. A bot, a member, or a guest
+signs in with an issued key and the source tag on that key, never the owner password or
+the admin password. A refused key sign-in is `EMET-AUTH-046`. `EMET-AUTH-045` stays the
+refusal for the previous bound-door spelling. On local stdio, the process is the owner
+and you can start with the interview.
+
+Say **"initialize"**. That is the interview and, later, the start of every session.
 
 `emet_initialize` is the front door and the only thing anyone needs to know about. On a new
 store it returns a short interview — what the assistant should be called, how it should carry
