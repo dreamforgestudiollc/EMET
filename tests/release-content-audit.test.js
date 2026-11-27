@@ -7,6 +7,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { test, testGroup, summary } from './harness.js';
 
@@ -69,6 +70,83 @@ const STALE = [
 
 const DASH = /[\u2013\u2014]/;
 
+/**
+ * Historical strings this follow-up did not rewrite. They keep their
+ * dashes. Everything else this PR adds or edits must not use one.
+ */
+const DASH_ALLOWLIST = [
+  'EMET — MCP memory server',
+  '# EMET — Next Steps and Proposed Features',
+  'EMET 0.3.8 — Enduring Memory & Epistemic Tiers.',
+];
+
+const STRICT_DASH_FILES = ['docs/RELEASING.md', 'RELEASE_NOTES-0.3.8.md'];
+
+const SETUP_TOKEN = 'EMET_ADMIN_SETUP_TOKEN';
+
+const SURFACE_EXTS = new Set(['.md', '.html', '.xml', '.css', '.js', '.txt', '.example', '.json']);
+
+function stripAllowed(text) {
+  let rest = text;
+  for (const allowed of DASH_ALLOWLIST) rest = rest.split(allowed).join('');
+  return rest;
+}
+
+function textAtCurrentTag(rel) {
+  const version = JSON.parse(read('package.json')).version;
+  const result = spawnSync('git', ['show', `v${version}:${rel}`], { cwd: ROOT, encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  return result.stdout;
+}
+
+function newOrEditedLines(rel, current) {
+  const prev = textAtCurrentTag(rel);
+  if (prev === null) return current.split('\n');
+  const prevSet = new Set(prev.split('\n'));
+  return current.split('\n').filter((line) => !prevSet.has(line));
+}
+
+function dashHitsIn(rel, current) {
+  const lines = STRICT_DASH_FILES.includes(rel) ? current.split('\n') : newOrEditedLines(rel, current);
+  const hits = [];
+  lines.forEach((line, index) => {
+    if (DASH.test(stripAllowed(line))) hits.push(`${rel}:${index + 1}: ${line.trim()}`);
+  });
+  return hits;
+}
+
+function walkDir(dir, out, prefix) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'node_modules' || entry.name === '.git') continue;
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    const abs = path.join(dir, entry.name);
+    if (entry.isDirectory()) walkDir(abs, out, rel);
+    else if (SURFACE_EXTS.has(path.extname(entry.name)) || entry.name === '.env.example') out.push(rel);
+  }
+  return out;
+}
+
+function publicSurfaceRels() {
+  const rels = [];
+  for (const name of fs.readdirSync(ROOT)) {
+    const abs = path.join(ROOT, name);
+    if (!fs.statSync(abs).isFile()) continue;
+    const isNotes = name.startsWith('RELEASE_NOTES') && name.endsWith('.md');
+    if (name === 'README.md' || name === 'CHANGELOG.md' || name === '.env.example' || isNotes) rels.push(name);
+  }
+  walkDir(path.join(ROOT, 'docs'), rels, 'docs');
+  walkDir(path.join(ROOT, 'site'), rels, 'site');
+  return rels;
+}
+
+function setupTokenHitsFrom(fileMap) {
+  return Object.entries(fileMap)
+    .filter(([, text]) => text.includes(SETUP_TOKEN))
+    .map(([rel]) => rel)
+    .sort();
+}
+
+
 console.log('\n=== Release content audit ===');
 
 testGroup('the release checklist names every surface', () => {
@@ -106,7 +184,6 @@ testGroup('the release checklist names every surface', () => {
     ]) {
       assert.ok(text.includes(name), `RELEASING.md missing ${name}`);
     }
-    assert.ok(!text.includes('EMET_ADMIN_SETUP_TOKEN'), 'do not document a token this tree does not have');
   });
 
   test('every listed surface file is present', () => {
@@ -233,6 +310,44 @@ testGroup('published descriptions keep the ISO lead and stay dash-clean where re
     const match = text.match(/<lastmod>(\d{4}-\d{2}-\d{2})<\/lastmod>/);
     assert.ok(match, 'site/sitemap.xml has no lastmod');
     assert.ok(match[1] >= '2026-11-27', `sitemap lastmod ${match[1]} is older than 2026-11-27`);
+  });
+});
+
+testGroup('new or edited audit prose has no em or en dash', () => {
+  test('RELEASING.md, 0.3.8 release notes, and new or edited first-timer lines are dash-free', () => {
+    const hits = [];
+    for (const rel of STRICT_DASH_FILES.concat(SURFACES)) {
+      hits.push(...dashHitsIn(rel, read(rel)));
+    }
+    assert.deepEqual([...new Set(hits)], []);
+  });
+
+  test('a planted em dash in the 0.3.8 release notes fails the check', () => {
+    const clean = read('RELEASE_NOTES-0.3.8.md');
+    assert.equal(dashHitsIn('RELEASE_NOTES-0.3.8.md', clean).length, 0);
+    const planted = `${clean}\nThe admin password — set it here.\n`;
+    const hits = dashHitsIn('RELEASE_NOTES-0.3.8.md', planted);
+    assert.ok(hits.length > 0, 'a planted em dash must fail');
+    assert.ok(hits.some((hit) => hit.includes('admin password')), hits.join('\n'));
+  });
+});
+
+testGroup('a later private setup token is not documented on public surfaces', () => {
+  test('EMET_ADMIN_SETUP_TOKEN is absent from README, docs, the site, changelog, release notes, and .env.example', () => {
+    const files = {};
+    for (const rel of publicSurfaceRels()) files[rel] = read(rel);
+    assert.deepEqual(setupTokenHitsFrom(files), []);
+  });
+
+  test('a plant in README or GUIDED-SETUP fails the setup-token check', () => {
+    const files = {};
+    for (const rel of publicSurfaceRels()) files[rel] = read(rel);
+    assert.deepEqual(setupTokenHitsFrom(files), []);
+    const plant = 'Set EMET_ADMIN_SETUP_TOKEN before first run.\n';
+    const inReadme = setupTokenHitsFrom({ ...files, 'README.md': `${files['README.md']}\n${plant}` });
+    const inGuided = setupTokenHitsFrom({ ...files, 'docs/GUIDED-SETUP.md': `${files['docs/GUIDED-SETUP.md']}\n${plant}` });
+    assert.deepEqual(inReadme, ['README.md']);
+    assert.deepEqual(inGuided, ['docs/GUIDED-SETUP.md']);
   });
 });
 

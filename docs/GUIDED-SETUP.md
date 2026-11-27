@@ -56,8 +56,8 @@ conversation instead.)
 
 1. **Sign in to MongoDB Atlas** — a browser window opens; create an account or sign in. Your AI waits.
 2. **Sign in to Railway** — same shape. If Railway asks for a card or a plan, that is between you and Railway; your AI will pause until you are through.
-3. **Set the admin password** — open the `/owner/admin-password` page your AI gives you. Creating that password requires the connect passphrase, an owner Authorize token, or an owner session. Without one of those, the server returns 401 and writes nothing.
-4. **Add the connector in Claude** — Settings → Connectors → *Add custom connector* → paste the URL your AI gives you → enter the connect passphrase it gives you. Enable it in your conversation from the **+** menu. The chooser, grants, break-glass, and settings later ask for the admin password, not that passphrase.
+3. **Set the admin password.** Open the `/owner/admin-password` page your AI gives you. Creating that password requires the connect passphrase, an owner Authorize token, or an owner session. Without one of those, the server returns 401 and writes nothing.
+4. **Add the connector in Claude.** Settings → Connectors → *Add custom connector* → paste the URL your AI gives you → enter the connect passphrase it gives you. Enable it in your conversation from the **+** menu. The chooser, grants, break-glass, and settings later ask for the admin password, not that passphrase.
 
 Then say **"initialize"**. Your AI will ask you a few questions about who it should be and who you are. That is the setup interview, and it is the part that turns a database into a memory.
 

@@ -58,7 +58,7 @@ On HTTP, also set `PUBLIC_URL` and a connect passphrase (`EMET_OAUTH_PASSPHRASE`
 
 After the server is up, set the admin password at `/owner/admin-password` (this needs the connect passphrase, an owner Authorize token, or an owner session; without one of those the server returns 401 and writes nothing). The chooser, grants, break-glass, and settings ask for the admin password, not the connect passphrase. A bot signs in with an issued key and source tag, never the owner or admin password (`EMET-AUTH-046`). Then say "initialize."
 
-- **Guided setup:** [docs/GUIDED-SETUP.md](docs/GUIDED-SETUP.md) — never deployed anything. Your assistant installs, configures, deploys, and verifies. You sign in when asked, set the admin password, and paste the connector URL.
+- **Guided setup:** [docs/GUIDED-SETUP.md](docs/GUIDED-SETUP.md): never deployed anything. Your assistant installs, configures, deploys, and verifies. You sign in when asked, set the admin password, and paste the connector URL.
 - **Setup:** [docs/SETUP.md](docs/SETUP.md) — the manual walkthrough: MongoDB, both transports, and the first-run interview.
 - **Deploy:** [docs/DEPLOY.md](docs/DEPLOY.md) — remote HTTP with OAuth, so a phone, a browser, or another vendor's agent reaches the same store.
 - **What is next:** [docs/ROADMAP.md](docs/ROADMAP.md) — Upcoming work is labeled Proposed, Planned, or Later phase, and it is not built unless the page says so.
