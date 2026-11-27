@@ -6,10 +6,18 @@
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { test, testGroup, summary } from './harness.js';
+import {
+  BASELINE_REL,
+  loadBaseline,
+  loadSurfaceFiles,
+  reportDashes,
+  setupTokenHitsFrom,
+} from './release-dash-audit.js';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -68,84 +76,57 @@ const STALE = [
   'the same check as the OAuth consent page',
 ];
 
-const DASH = /[\u2013\u2014]/;
+const PLANT = 'A planted follow-up line — must be caught.';
 
-/**
- * Historical strings this follow-up did not rewrite. They keep their
- * dashes. Everything else this PR adds or edits must not use one.
- */
-const DASH_ALLOWLIST = [
-  'EMET — MCP memory server',
-  '# EMET — Next Steps and Proposed Features',
-  'EMET 0.3.8 — Enduring Memory & Epistemic Tiers.',
-];
-
-const STRICT_DASH_FILES = ['docs/RELEASING.md', 'RELEASE_NOTES-0.3.8.md'];
-
-const SETUP_TOKEN = 'EMET_ADMIN_SETUP_TOKEN';
-
-const SURFACE_EXTS = new Set(['.md', '.html', '.xml', '.css', '.js', '.txt', '.example', '.json']);
-
-function stripAllowed(text) {
-  let rest = text;
-  for (const allowed of DASH_ALLOWLIST) rest = rest.split(allowed).join('');
-  return rest;
+function currentReport() {
+  return reportDashes(loadSurfaceFiles(ROOT), loadBaseline(ROOT));
 }
 
-function textAtCurrentTag(rel) {
-  const version = JSON.parse(read('package.json')).version;
-  const result = spawnSync('git', ['show', `v${version}:${rel}`], { cwd: ROOT, encoding: 'utf8' });
-  if (result.status !== 0) return null;
-  return result.stdout;
-}
-
-function newOrEditedLines(rel, current) {
-  const prev = textAtCurrentTag(rel);
-  if (prev === null) return current.split('\n');
-  const prevSet = new Set(prev.split('\n'));
-  return current.split('\n').filter((line) => !prevSet.has(line));
-}
-
-function dashHitsIn(rel, current) {
-  const lines = STRICT_DASH_FILES.includes(rel) ? current.split('\n') : newOrEditedLines(rel, current);
-  const hits = [];
-  lines.forEach((line, index) => {
-    if (DASH.test(stripAllowed(line))) hits.push(`${rel}:${index + 1}: ${line.trim()}`);
-  });
-  return hits;
-}
-
-function walkDir(dir, out, prefix) {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === 'node_modules' || entry.name === '.git') continue;
-    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
-    const abs = path.join(dir, entry.name);
-    if (entry.isDirectory()) walkDir(abs, out, rel);
-    else if (SURFACE_EXTS.has(path.extname(entry.name)) || entry.name === '.env.example') out.push(rel);
+function makeTree() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'emet-dash-'));
+  const files = loadSurfaceFiles(ROOT);
+  for (const [rel, text] of Object.entries(files)) {
+    const dest = path.join(tmp, rel);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.writeFileSync(dest, text);
   }
-  return out;
+  const fixture = path.join(tmp, BASELINE_REL);
+  fs.mkdirSync(path.dirname(fixture), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, BASELINE_REL), fixture);
+  fs.mkdirSync(path.join(tmp, 'tests'), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, 'tests/release-dash-audit.js'), path.join(tmp, 'tests/release-dash-audit.js'));
+  fs.copyFileSync(path.join(ROOT, 'package.json'), path.join(tmp, 'package.json'));
+  return tmp;
 }
 
-function publicSurfaceRels() {
-  const rels = [];
-  for (const name of fs.readdirSync(ROOT)) {
-    const abs = path.join(ROOT, name);
-    if (!fs.statSync(abs).isFile()) continue;
-    const isNotes = name.startsWith('RELEASE_NOTES') && name.endsWith('.md');
-    if (name === 'README.md' || name === 'CHANGELOG.md' || name === '.env.example' || isNotes) rels.push(name);
+function checkTree(tmp, { plant = false, version } = {}) {
+  if (version) {
+    const pkgPath = path.join(tmp, 'package.json');
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+    pkg.version = version;
+    fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
   }
-  walkDir(path.join(ROOT, 'docs'), rels, 'docs');
-  walkDir(path.join(ROOT, 'site'), rels, 'site');
-  return rels;
+  if (plant) fs.appendFileSync(path.join(tmp, 'README.md'), `\n${PLANT}\n`);
+  return reportDashes(loadSurfaceFiles(tmp), loadBaseline(tmp));
 }
 
-function setupTokenHitsFrom(fileMap) {
-  return Object.entries(fileMap)
-    .filter(([, text]) => text.includes(SETUP_TOKEN))
-    .map(([rel]) => rel)
-    .sort();
+function initGitTagged(tmp, tag) {
+  const opts = { cwd: tmp, encoding: 'utf8' };
+  const run = (args) => {
+    const result = spawnSync('git', args, opts);
+    if (result.status !== 0) {
+      throw new Error(`git ${args.join(' ')} failed: ${result.stderr || result.stdout}`);
+    }
+  };
+  run(['-c', 'commit.gpgsign=false', 'init']);
+  run(['add', '-A']);
+  run(['-c', 'user.email=dev@example.com', '-c', 'user.name=dev', '-c', 'commit.gpgsign=false', 'commit', '-m', 'tree']);
+  run(['tag', tag]);
 }
 
+function planted(report) {
+  return report.newDashes.some((hit) => hit.text.includes(PLANT));
+}
 
 console.log('\n=== Release content audit ===');
 
@@ -314,34 +295,103 @@ testGroup('published descriptions keep the ISO lead and stay dash-clean where re
 });
 
 testGroup('new or edited audit prose has no em or en dash', () => {
-  test('RELEASING.md, 0.3.8 release notes, and new or edited first-timer lines are dash-free', () => {
-    const hits = [];
-    for (const rel of STRICT_DASH_FILES.concat(SURFACES)) {
-      hits.push(...dashHitsIn(rel, read(rel)));
-    }
-    assert.deepEqual([...new Set(hits)], []);
+  test('the tree matches the checked-in dash baseline', () => {
+    const report = currentReport();
+    assert.deepEqual(report.newDashes, []);
+    assert.deepEqual(report.staleBaseline, []);
   });
 
   test('a planted em dash in the 0.3.8 release notes fails the check', () => {
-    const clean = read('RELEASE_NOTES-0.3.8.md');
-    assert.equal(dashHitsIn('RELEASE_NOTES-0.3.8.md', clean).length, 0);
-    const planted = `${clean}\nThe admin password — set it here.\n`;
-    const hits = dashHitsIn('RELEASE_NOTES-0.3.8.md', planted);
-    assert.ok(hits.length > 0, 'a planted em dash must fail');
-    assert.ok(hits.some((hit) => hit.includes('admin password')), hits.join('\n'));
+    const files = loadSurfaceFiles(ROOT);
+    const baseline = loadBaseline(ROOT);
+    assert.deepEqual(reportDashes(files, baseline).newDashes, []);
+    files['RELEASE_NOTES-0.3.8.md'] += '\nThe admin password — set it here.\n';
+    const hits = reportDashes(files, baseline).newDashes;
+    assert.ok(hits.some((hit) => hit.file === 'RELEASE_NOTES-0.3.8.md' && hit.text.includes('admin password')), JSON.stringify(hits));
+  });
+
+  test('a second copy of an existing dashed line is a new dash, and a missing baseline line is stale', () => {
+    const files = loadSurfaceFiles(ROOT);
+    const baseline = loadBaseline(ROOT);
+    const existing = baseline.lines['README.md'][0];
+    files['README.md'] += `\n${existing}\n`;
+    const extra = reportDashes(files, baseline);
+    assert.ok(extra.newDashes.some((hit) => hit.file === 'README.md' && hit.text === existing), JSON.stringify(extra.newDashes));
+    const reduced = loadSurfaceFiles(ROOT);
+    reduced['README.md'] = reduced['README.md'].split('\n').filter((line) => line !== existing).join('\n');
+    const stale = reportDashes(reduced, baseline);
+    assert.ok(stale.staleBaseline.some((hit) => hit.file === 'README.md' && hit.text === existing), JSON.stringify(stale.staleBaseline));
+  });
+
+  test('a plant in a docs file outside the short SURFACES list is caught', () => {
+    const files = loadSurfaceFiles(ROOT);
+    const baseline = loadBaseline(ROOT);
+    assert.ok(Object.prototype.hasOwnProperty.call(files, 'docs/SECURITY-AT-SCALE.md'));
+    files['docs/SECURITY-AT-SCALE.md'] += `\n${PLANT}\n`;
+    const hits = reportDashes(files, baseline).newDashes;
+    assert.ok(hits.some((hit) => hit.file === 'docs/SECURITY-AT-SCALE.md' && hit.text.includes(PLANT)), JSON.stringify(hits));
+  });
+
+  test('a missing baseline fails with a clear message and does not use git', () => {
+    assert.throws(() => loadBaseline(os.tmpdir()), /legacy dash baseline is missing/);
+    assert.throws(() => reportDashes({}, null), /legacy dash baseline is missing/);
+  });
+
+  test('a new dash is caught when the version is 0.3.9 and that tag does not exist, and a clean tree passes', () => {
+    const tmp = makeTree();
+    try {
+      const clean = checkTree(tmp, { version: '0.3.9' });
+      assert.deepEqual(clean.newDashes, []);
+      assert.deepEqual(clean.staleBaseline, []);
+      const dirty = checkTree(tmp, { version: '0.3.9', plant: true });
+      assert.ok(planted(dirty), JSON.stringify(dirty.newDashes));
+      assert.equal(dirty.staleBaseline.length, 0);
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  test('a new dash is caught when HEAD is tagged with the current version, and a clean tree passes', () => {
+    const cleanTree = makeTree();
+    const dirtyTree = makeTree();
+    try {
+      const version = JSON.parse(read('package.json')).version;
+      initGitTagged(cleanTree, `v${version}`);
+      const clean = checkTree(cleanTree);
+      assert.deepEqual(clean.newDashes, []);
+      assert.deepEqual(clean.staleBaseline, []);
+      fs.appendFileSync(path.join(dirtyTree, 'README.md'), `\n${PLANT}\n`);
+      initGitTagged(dirtyTree, `v${version}`);
+      const dirty = checkTree(dirtyTree);
+      assert.ok(planted(dirty), JSON.stringify(dirty.newDashes));
+    } finally {
+      fs.rmSync(cleanTree, { recursive: true, force: true });
+      fs.rmSync(dirtyTree, { recursive: true, force: true });
+    }
+  });
+
+  test('a new dash is caught with no .git directory, and a clean tree passes', () => {
+    const tmp = makeTree();
+    try {
+      assert.equal(fs.existsSync(path.join(tmp, '.git')), false);
+      const clean = checkTree(tmp);
+      assert.deepEqual(clean.newDashes, []);
+      assert.deepEqual(clean.staleBaseline, []);
+      const dirty = checkTree(tmp, { plant: true });
+      assert.ok(planted(dirty), JSON.stringify(dirty.newDashes));
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
   });
 });
 
 testGroup('a later private setup token is not documented on public surfaces', () => {
   test('EMET_ADMIN_SETUP_TOKEN is absent from README, docs, the site, changelog, release notes, and .env.example', () => {
-    const files = {};
-    for (const rel of publicSurfaceRels()) files[rel] = read(rel);
-    assert.deepEqual(setupTokenHitsFrom(files), []);
+    assert.deepEqual(setupTokenHitsFrom(loadSurfaceFiles(ROOT)), []);
   });
 
   test('a plant in README or GUIDED-SETUP fails the setup-token check', () => {
-    const files = {};
-    for (const rel of publicSurfaceRels()) files[rel] = read(rel);
+    const files = loadSurfaceFiles(ROOT);
     assert.deepEqual(setupTokenHitsFrom(files), []);
     const plant = 'Set EMET_ADMIN_SETUP_TOKEN before first run.\n';
     const inReadme = setupTokenHitsFrom({ ...files, 'README.md': `${files['README.md']}\n${plant}` });

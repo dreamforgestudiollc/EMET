@@ -62,7 +62,7 @@ Historical "What 0.3.x changed" sections may name an older release. They must no
 1. Confirm the code in the tag actually does what the notes will say.
 2. Walk the GitHub Pages site and the README as a person who has never heard of EMET: what it is, who it is for, install, first-run setup, first session, first bot. Every step must match this tree.
 3. Audit every surface in the table above against the current feature set, including behavior that shipped in earlier 0.3.x releases and may have been missed then.
-4. Fix every gap in one docs-only pull request. Use the technical-writing standard in this repository. Do not use em dashes or en dashes in new or edited sentences.
+4. Fix every gap in one docs-only pull request. Use the technical-writing standard in this repository. Do not use em dashes or en dashes in new or edited sentences. Historical dashed lines still in the tree are listed exactly in `tests/fixtures/legacy-dash-lines.json`. That list only shrinks. The content-audit test uses that file, not git.
 5. Keep owner identifiers out of the public tree.
 6. Add or update `RELEASE_NOTES-<version>.md` so it matches the GitHub release notes and the behavior you just audited.
 7. Point `site/sitemap.xml` `lastmod` at the release date.
