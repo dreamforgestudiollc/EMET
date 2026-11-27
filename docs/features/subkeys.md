@@ -12,7 +12,7 @@ Delegated keys for more than one client. Off unless `EMET_SUBKEYS=1`. With the f
 
 ## How to get to it (user POV)
 
-Leave this off for a single client. When you want it, say yes in the interview only if this server reads `.env`. Otherwise set `EMET_SUBKEYS=1`, a pepper you generate, and `EMET_SUBKEY_PEPPER_VERSION=1`, then start the server again. From the owner login, request a key, approve it, and let the client claim it once. The client keeps the key as a local secret. It is never written into EMET content.
+Leave this off for a single client. When you want it, say yes in the interview only if this server reads `.env`. Otherwise set `EMET_SUBKEYS=1`, a pepper you generate, and `EMET_SUBKEY_PEPPER_VERSION=1`, then start the server again. From the owner login, request a key, approve it on `/owner/chooser` with the admin password (not the connect passphrase), and let the client claim it once. The client keeps the key as a local secret. It is never written into EMET content. The client then signs in with that key and the source tag on the key, never the owner password or the admin password. A refused key sign-in is `EMET-AUTH-046`.
 
 ## Driving it with verify-emet
 

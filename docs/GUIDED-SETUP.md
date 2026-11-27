@@ -1,6 +1,6 @@
 # Guided setup — let your AI set EMET up for you
 
-This is the path for someone who has never deployed anything. You do three things in a
+This is the path for someone who has never deployed anything. You do four things in a
 browser when asked. Your AI does everything else — installs, configures, deploys, verifies —
 and tells you what it did at each stage.
 
@@ -52,17 +52,18 @@ Paste this into a new conversation:
 for your AI — the repository may be private — download this file and paste Part B into the
 conversation instead.)
 
-### The three moments you will be asked to act
+### The four moments you will be asked to act
 
 1. **Sign in to MongoDB Atlas** — a browser window opens; create an account or sign in. Your AI waits.
 2. **Sign in to Railway** — same shape. If Railway asks for a card or a plan, that is between you and Railway; your AI will pause until you are through.
-3. **Add the connector in Claude** — Settings → Connectors → *Add custom connector* → paste the URL your AI gives you → enter the passphrase it gives you. Enable it in your conversation from the **+** menu.
+3. **Set the admin password.** Open the `/owner/admin-password` page your AI gives you. Creating that password requires the connect passphrase, an owner Authorize token, or an owner session. Without one of those, the server returns 401 and writes nothing.
+4. **Add the connector in Claude.** Settings → Connectors → *Add custom connector* → paste the URL your AI gives you → enter the connect passphrase it gives you. Enable it in your conversation from the **+** menu. The chooser, grants, break-glass, and settings later ask for the admin password, not that passphrase.
 
 Then say **"initialize"**. Your AI will ask you a few questions about who it should be and who you are. That is the setup interview, and it is the part that turns a database into a memory.
 
-### Keep two things
+### Keep three things
 
-Your AI will hand you a **passphrase** and a **URL** at the end. Keep both somewhere safe. The passphrase is the whole perimeter of your memory — there is no second factor.
+Your AI will hand you a **connect passphrase**, an **admin password** you set, and a **URL**. Keep all three somewhere safe. They are different secrets. The connect passphrase is only for the connect page. The admin password opens the chooser, grants, break-glass, and settings.
 
 ### Every conversation from now on: two words
 
@@ -90,7 +91,7 @@ and report plainly. Read all of Part B before running anything.
 3. **Verify before proceeding.** Every stage ends with a check. If the check fails, stop, show
    the person the actual output, and say what you think it means — marked as your reading, not
    as fact. Do not retry blindly and do not invent a cause.
-4. **Ask only at the three human moments** (Atlas sign-in, Railway sign-in, connector add) and
+4. **Ask only at the four human moments** (Atlas sign-in, Railway sign-in, admin password, connector add) and
    when a command genuinely needs something only they have. Everything else is yours.
 5. **One machine at a time.** If you are running in a cloud sandbox rather than on the person's
    computer, say so, and know that local-server config (stage 2) must be written on *their*
@@ -266,10 +267,16 @@ curl https://<host>/.well-known/oauth-authorization-server  → OAuth metadata, 
 A 404 on the second means `PUBLIC_URL` is wrong. The connector URL is `https://<host>/mcp` —
 **the `/mcp` suffix is required**; the root path is 404 by design.
 
-**Human moment 3.** Tell the person, exactly: *"Open Claude → Settings → Connectors → Add custom
-connector. Name: EMET. URL: `https://<host>/mcp`. Click connect — you will be sent to a
-passphrase page. The passphrase is: `<passphrase>` — keep it; it is the only key to your memory.
-Then enable EMET in this conversation from the + menu and tell me."*
+**Human moment 3.** After the remote server is up, tell the person to open
+`https://<host>/owner/admin-password` and set the admin password. Creating it requires
+the connect passphrase, an owner Authorize token, or an owner session. Without one of
+those, the server returns 401 and writes nothing. Do not type the admin password into
+the chat. Keep it out of EMET documents.
+
+**Human moment 4.** Tell the person, exactly: *"Open Claude → Settings → Connectors → Add custom
+connector. Name: EMET. URL: `https://<host>/mcp`. Click connect. You will be sent to the
+connect page. Enter the connect passphrase I gave you; that passphrase is only for this
+page, not for the chooser. Then enable EMET in this conversation from the + menu and tell me."*
 
 **Verify from the remote route:** `emet_status` with `probe: true` through the connector. Then the real
 test — `remember` something on one route and `recall` it on the other. If both see it, the
@@ -297,7 +304,7 @@ into their project instructions, so future sessions consult the memory without b
 Tell the person, in plain words:
 
 - what was set up (local server, remote server, or both) and where the code lives on disk;
-- the connector URL and that the passphrase is the whole perimeter. A new `EMET_OAUTH_PASSPHRASE`, then a redeploy, stops new owner sign-ins that use the old one. Tokens already issued keep working until the owner confirms `rotate-all` at `/owner/break-glass`. See [SECURITY-AT-SCALE.md](SECURITY-AT-SCALE.md);
+- the connector URL, the connect passphrase, and that the person must also set the admin password at `/owner/admin-password`. The connect passphrase is only for the connect page. The admin password opens the chooser, grants, break-glass, and settings. A new `EMET_OAUTH_PASSPHRASE`, then a redeploy, stops new owner sign-ins that use the old one. Tokens already issued keep working until the owner confirms `rotate-all` at `/owner/break-glass`, after signing in with the admin password. See [SECURITY-AT-SCALE.md](SECURITY-AT-SCALE.md);
 - that every host has its own source tag (a local entry's `EMET_SOURCE_TAG`; on the shared
   remote server, the `source` each host passes, registered in `EMET_SOURCE_TAGS`), and what
   this one's is;

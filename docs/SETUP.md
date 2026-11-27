@@ -154,8 +154,16 @@ Then point your MCP client at it:
 ### Remote (HTTP + OAuth) — phone, tablet, anything else
 
 See **[DEPLOY.md](DEPLOY.md)** for the Railway walkthrough. Short version: deploy
-`src/http-remote.js`, set the environment variables, and add the resulting
-`https://<host>/mcp` URL as a custom connector in your client.
+`src/http-remote.js`, set `PORT`, `PUBLIC_URL`, and `EMET_OAUTH_PASSPHRASE`, then
+set the admin password at `/owner/admin-password`. Creating it requires the connect
+passphrase, an owner Authorize token, or an owner session. Without one of those, the
+server returns 401 and writes nothing. If the password is already set, the server
+returns 409 and writes nothing. An unset `EMET_OAUTH_PASSPHRASE` is not proof and
+does not mint recovery codes. Add the resulting `https://<host>/mcp` URL as a custom
+connector and enter the connect passphrase on the connect page. The chooser, grants,
+break-glass, and settings ask for the admin password, not that passphrase. A bot, a
+member, or a guest signs in with an issued key and the source tag on that key, never
+the owner password or the admin password (`EMET-AUTH-046`).
 
 ### Set a distinct source tag on every host
 
@@ -171,7 +179,8 @@ attribute. `laptop`, `phone`, `cli`, `work-desktop`. One each.
 
 This is the part that turns a database into a memory.
 
-**Say "initialize".** There is no setup command to memorize.
+On HTTP, the admin password and the connector (see Stage 2) come first. Then
+**say "initialize".** There is no setup command to memorize.
 
 Your assistant calls `emet_initialize`, which branches on the state of the store so you do not
 have to. A new store returns a short interview; an established one returns the assistant's
@@ -254,7 +263,7 @@ which would write a new identity over your existing one.**
 
 ## Upgrading to 0.3.8
 
-0.3.8 adds an admin password for the chooser, grants, and break-glass. The connect passphrase stays on the connect page. Set the admin password at `/owner/admin-password` with an owner session, the connect passphrase, or an owner Authorize token. An unset `EMET_OAUTH_PASSPHRASE` does not create the password and does not mint recovery codes. `EMET_ADMIN_PEPPER` is mixed into the hash when it is set and it is not the connect passphrase. `EMET_ADMIN_RECOVERY` is a one-time host token for `/owner/admin-password/recover`. `EMET_CONSOLE_ORIGINS` lists the browser origins allowed to call the console. Stored memory rows are not rewritten.
+0.3.8 adds an admin password for the chooser, grants, break-glass, and settings. The connect passphrase stays on the connect page. Set the admin password at `/owner/admin-password` with an owner session, the connect passphrase, or an owner Authorize token. Without one of those, create returns 401 and writes nothing. If the password is already set, the server returns 409 and writes nothing. An unset `EMET_OAUTH_PASSPHRASE` does not create the password and does not mint recovery codes. `EMET_ADMIN_PEPPER` is mixed into the hash when it is set and it is not the connect passphrase. `EMET_ADMIN_RECOVERY` is a one-time host token for `/owner/admin-password/recover`. `EMET_CONSOLE_ORIGINS` lists the browser origins allowed to call the console. A bot, a member, or a guest signs in with an issued key and source tag; a refused key sign-in is `EMET-AUTH-046`. `EMET-AUTH-045` stays the refusal for the previous bound-door spelling. `read_doc` reports body integrity. `restore_doc` refuses the revision already in force (`EMET-DOC-089`). An owner-approved shorter revision needs `condense_approved` and a reason, or a writer approval that names that document (`EMET-DOC-025`, `EMET-DOC-090`). Stored memory rows are not rewritten.
 
 ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 

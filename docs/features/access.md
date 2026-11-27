@@ -1,6 +1,6 @@
 # Access
 
-The store has one owner. `emet_client_approve` approves or denies a client that was flagged on a first write. `emet_invite_create` mints a one-time guest code. `emet_member_access_create` mints a one-time member code. Both doors are off unless you turn them on. A code is shown once and is not stored in the clear.
+The store has one owner. `emet_client_approve` approves or denies a client that was flagged on a first write. `emet_invite_create` mints a one-time guest code. `emet_member_access_create` mints a one-time member code. Both doors are off unless you turn them on. A code is shown once and is not stored in the clear. The owner door is `/owner/chooser`. On HTTP, the connect passphrase stays on the connect page. The admin password, set at `/owner/admin-password`, opens the chooser, grants, break-glass, and settings. A bot, a member, or a guest signs in with an issued key and source tag, never the owner or admin password (`EMET-AUTH-046`).
 
 ## Sub-features
 
@@ -26,3 +26,4 @@ On a plain install the two doors are off. The drive expects those two calls to r
 - Do not invent a guest or member answer during setup. The doors stay off until the matching variable is `1`.
 - A client does not approve itself.
 - The code is not in the result a second time. Show it when it is created.
+- Approvals on `/owner/chooser` use the admin password, not the connect passphrase.

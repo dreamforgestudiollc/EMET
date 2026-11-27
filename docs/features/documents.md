@@ -1,6 +1,6 @@
 # Documents
 
-Continuity documents are versioned. `write_doc` stores a new revision and archives the previous one. When a host truncates one argument, `write_doc_begin`, `write_doc_append`, and `write_doc_commit` send the same revision in parts. `write_doc_abort` drops an open stage and leaves the current document unchanged. `read_doc` reads the current text, in pages when it is long. `read_doc_history` reads a retained revision. `list_docs` lists metadata. `patch_doc` replaces one exact substring. `rename_doc` reissues a document under a new id and marks the old id obsolete. `restore_doc` writes a retained revision back. `validate_doc` checks form and continuity and writes nothing. `accept_nonconformance` records a written disposition for a marker that will not be corrected. `retire_doc` marks a drop obsolete. The document stays.
+Continuity documents are versioned. `write_doc` stores a new revision and archives the previous one. When a host truncates one argument, `write_doc_begin`, `write_doc_append`, and `write_doc_commit` send the same revision in parts. `write_doc_abort` drops an open stage and leaves the current document unchanged. `read_doc` reads the current text, in pages when it is long, and reports whether the stored body matches its digest (`integrity`: true, false, or `unattested`). `read_doc_history` reads a retained revision. `list_docs` lists metadata. `patch_doc` replaces one exact substring. `rename_doc` reissues a document under a new id and marks the old id obsolete. `restore_doc` writes a retained revision back, and refuses the revision already in force (`EMET-DOC-089`). A shorter revision under half size needs `condense_approved` and a reason, or a writer approval that names that document (`EMET-DOC-025`, `EMET-DOC-090`). The prior revision stays. `validate_doc` checks form and continuity and writes nothing. `accept_nonconformance` records a written disposition for a marker that will not be corrected. `retire_doc` marks a drop obsolete. The document stays.
 
 ## Sub-features
 
@@ -33,3 +33,5 @@ The drive writes a note, patches it, restores the retained revision, renames it,
 - `restore_doc` refuses a tag that is not in `EMET_RESTORE_TAGS`. The standalone drive sets that list to its own source tag inside the temp process. It does not read your environment.
 - `accept_nonconformance` refuses a document that has no nonconformance marker.
 - Prior versions are retained. A correction adds a revision. It does not remove the old one.
+- `restore_doc` of the version already in force is `EMET-DOC-089` and writes nothing.
+- A condense without `condense_approved` and a reason, or without a writer approval that names this document, is `EMET-DOC-025` or `EMET-DOC-090` and writes nothing.
