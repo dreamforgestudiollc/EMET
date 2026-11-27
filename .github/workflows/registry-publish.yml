@@ -1,0 +1,54 @@
+# One-shot republish of server.json for the v0.3.8 tag.
+# Auth is GitHub Actions OIDC. An installation token cannot prove the org namespace.
+# This workflow is not part of the release. It checks out the tag and does not publish npm.
+name: Publish MCP Registry listing
+
+on:
+  push:
+    branches:
+      - cursor/registry-publish-038
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout v0.3.8
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: v0.3.8
+
+      - name: Confirm the tagged listing is 0.3.8
+        run: |
+          node --input-type=module -e '
+            import fs from "fs";
+            const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+            const server = JSON.parse(fs.readFileSync("server.json", "utf8"));
+            const lead = "ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control memory for AI agents. Nothing is deleted.";
+            if (pkg.version !== "0.3.8" || server.version !== "0.3.8" || server.packages[0].version !== "0.3.8") {
+              console.error("version mismatch", pkg.version, server.version, server.packages[0].version);
+              process.exit(1);
+            }
+            if (server.description !== lead) {
+              console.error("description mismatch", server.description);
+              process.exit(1);
+            }
+            console.log(server.name, server.version);
+            console.log(server.description);
+          '
+
+      - name: Install mcp-publisher
+        run: |
+          curl -fsSL -o mcp-publisher.tar.gz "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.7/mcp-publisher_linux_amd64.tar.gz"
+          tar -xzf mcp-publisher.tar.gz mcp-publisher
+          chmod +x mcp-publisher
+          ./mcp-publisher --help
+
+      - name: Authenticate to the MCP Registry
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish server.json
+        run: ./mcp-publisher publish server.json
