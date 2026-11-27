@@ -7,9 +7,19 @@ change before 1.0.
 
 ## Unreleased
 
+Nothing is waiting above 0.3.9.
+
+## 0.3.9 - 2026-11-27
+
+Docs and the release content-audit checklist. Stored memory rows are not rewritten. The declared version is 0.3.9. This revision is not published from this change. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
 ### Fixed
 
-- Public first-timer docs, the GitHub Pages site, and the release checklist now describe the current 0.3.8 behavior: the admin password versus the connect passphrase, key sign-in (`EMET-AUTH-046`), read integrity (`EMET-DOC-089`), owner-approved condense (`EMET-DOC-025`, `EMET-DOC-090`), staged writes, the machine-line gate (`EMET-MEM-018`), `carry_forward`, and continuity. See [docs/RELEASING.md](docs/RELEASING.md).
+- Public first-timer docs, the GitHub Pages site, and the release checklist now describe the current behavior: the admin password versus the connect passphrase, key sign-in (`EMET-AUTH-046`), read integrity (`EMET-DOC-089`), owner-approved condense (`EMET-DOC-025`, `EMET-DOC-090`), staged writes, the machine-line gate (`EMET-MEM-018`), `carry_forward`, and continuity. See [docs/RELEASING.md](docs/RELEASING.md).
+
+### Upgrade
+
+- No stored-data migration. No new required setting. Deploy over 0.3.8 as is. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
 ## 0.3.8 - 2026-11-27
 

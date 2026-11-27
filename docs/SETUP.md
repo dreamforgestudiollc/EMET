@@ -261,6 +261,12 @@ it should come back `ready` with your existing identity, not `setup_required`. I
 `setup_required`, one of the four variables above is wrong; **do not run the setup interview,
 which would write a new identity over your existing one.**
 
+## Upgrading to 0.3.9
+
+0.3.9 is a docs and release-checklist revision. First-timer pages and the public site now describe the current 0.3.8 behavior. `docs/RELEASING.md` and `tests/release-content-audit.test.js` are the content-audit checklist and its automated check. Stored memory rows are not rewritten. No new setting is required.
+
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
 ## Upgrading to 0.3.8
 
 0.3.8 adds an admin password for the chooser, grants, break-glass, and settings. The connect passphrase stays on the connect page. Set the admin password at `/owner/admin-password` with an owner session, the connect passphrase, or an owner Authorize token. Without one of those, create returns 401 and writes nothing. If the password is already set, the server returns 409 and writes nothing. An unset `EMET_OAUTH_PASSPHRASE` does not create the password and does not mint recovery codes. `EMET_ADMIN_PEPPER` is mixed into the hash when it is set and it is not the connect passphrase. `EMET_ADMIN_RECOVERY` is a one-time host token for `/owner/admin-password/recover`. `EMET_CONSOLE_ORIGINS` lists the browser origins allowed to call the console. A bot, a member, or a guest signs in with an issued key and source tag; a refused key sign-in is `EMET-AUTH-046`. `EMET-AUTH-045` stays the refusal for the previous bound-door spelling. `read_doc` reports body integrity. `restore_doc` refuses the revision already in force (`EMET-DOC-089`). An owner-approved shorter revision needs `condense_approved` and a reason, or a writer approval that names that document (`EMET-DOC-025`, `EMET-DOC-090`). Stored memory rows are not rewritten.

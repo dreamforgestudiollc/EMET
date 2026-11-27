@@ -85,7 +85,7 @@ function packedTree() {
   const parsed = JSON.parse(r.stdout.slice(start));
   assert.ok(Array.isArray(parsed) && parsed[0], 'npm pack --json did not return a pack result');
   const entry = parsed[0];
-  assert.strictEqual(entry.filename, 'dreamforgestudiollc-emet-0.3.8.tgz');
+  assert.strictEqual(entry.filename, 'dreamforgestudiollc-emet-0.3.9.tgz');
   const tgz = path.join(dir, entry.filename);
   const read = (rel) => {
     const ex = spawnSync('tar', ['-xOf', tgz, `package/${rel}`], { encoding: 'utf8' });
@@ -98,7 +98,7 @@ function packedTree() {
 testGroup('npm publish metadata', () => {
   test('the package name, version, and registry manifest agree', () => {
     assert.strictEqual(pkg.name, '@dreamforgestudiollc/emet');
-    assert.strictEqual(pkg.version, '0.3.8');
+    assert.strictEqual(pkg.version, '0.3.9');
     assert.strictEqual(pkg.mcpName, 'io.github.dreamforgestudiollc/emet');
     assert.strictEqual(server.name, pkg.mcpName);
     assert.strictEqual(server.version, pkg.version);
@@ -108,7 +108,7 @@ testGroup('npm publish metadata', () => {
     assert.strictEqual(server.packages[0].transport.type, 'stdio');
     const listingLead = 'ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control memory for AI agents. Nothing is deleted.';
     assert.strictEqual(server.description, listingLead);
-    assert.strictEqual(pkg.description, `${listingLead} EMET 0.3.8 — Enduring Memory & Epistemic Tiers. An MCP memory server with persistent shared memory for AI agents, bot teams and chats: layered memory, verified writes, a verbatim transcript tier, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true. Every error carries a stable code; the owner-only emet_error_report returns a report and an email draft the user sends. npm run verify drives the registered tools from a checkout, and docs/features is the map of every feature.`);
+    assert.strictEqual(pkg.description, `${listingLead} EMET 0.3.9: Enduring Memory & Epistemic Tiers. An MCP memory server with persistent shared memory for AI agents, bot teams and chats: layered memory, verified writes, a verbatim transcript tier, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation. A GEM is seated only when its released flag is true. Every error carries a stable code; the owner-only emet_error_report returns a report and an email draft the user sends. npm run verify drives the registered tools from a checkout, and docs/features is the map of every feature.`);
     assert.strictEqual(pkg.license, 'MIT');
     assert.strictEqual(pkg.homepage, 'https://dreamforgestudiollc.github.io/EMET/');
     assert.strictEqual(pkg.bugs.url, 'https://github.com/dreamforgestudiollc/EMET/issues');
@@ -131,7 +131,7 @@ testGroup('npm publish metadata', () => {
   test('npm pack --dry-run ships runtime files and docs, and leaves private paths out', () => {
     const packed = packDryRun();
     const paths = packed.files.map((f) => f.path);
-    for (const rel of ['package.json', 'src/index.js', 'src/host-reach.js', 'verification/load-gate/load-gate.mjs', 'verification/load-gate/corpus.json', 'src/http-remote.js', 'templates/BOARD.md', 'templates/AREA.md', 'templates/SESSIONDISPOSITION.md', 'areas/emet.md', 'areas/garden.md', 'areas/home.md', 'areas/health.md', 'areas/learning.md', 'areas/state.md', 'gems/neurendipity/gem.json', 'gems/neurendipity/floor.json', 'gems/neurendipity/guides/NEURODIVERGENT_SUPPORT.md', 'gems/lean-six-sigma/gem.json', 'gems/lean-six-sigma/runes/lss_capability.js', 'gems/lean-six-sigma/guides/FORMULAS.md', 'guides/README.md', 'CHARTER.md', 'CHANGELOG.md', 'RELEASE_NOTES-0.3.8.md', 'RELEASE_NOTES-0.3.7.md', 'RELEASE_NOTES-0.3.6.md', 'RELEASE_NOTES-0.2.6.md', 'SECURITY.md', 'CONTRIBUTING.md', 'server.json', 'docs/SETUP.md', 'docs/DEPLOY.md', '.env.example', 'README.md', 'LICENSE']) {
+    for (const rel of ['package.json', 'src/index.js', 'src/host-reach.js', 'verification/load-gate/load-gate.mjs', 'verification/load-gate/corpus.json', 'src/http-remote.js', 'templates/BOARD.md', 'templates/AREA.md', 'templates/SESSIONDISPOSITION.md', 'areas/emet.md', 'areas/garden.md', 'areas/home.md', 'areas/health.md', 'areas/learning.md', 'areas/state.md', 'gems/neurendipity/gem.json', 'gems/neurendipity/floor.json', 'gems/neurendipity/guides/NEURODIVERGENT_SUPPORT.md', 'gems/lean-six-sigma/gem.json', 'gems/lean-six-sigma/runes/lss_capability.js', 'gems/lean-six-sigma/guides/FORMULAS.md', 'guides/README.md', 'CHARTER.md', 'CHANGELOG.md', 'RELEASE_NOTES-0.3.9.md', 'RELEASE_NOTES-0.3.8.md', 'RELEASE_NOTES-0.3.7.md', 'RELEASE_NOTES-0.3.6.md', 'RELEASE_NOTES-0.2.6.md', 'SECURITY.md', 'CONTRIBUTING.md', 'server.json', 'docs/SETUP.md', 'docs/DEPLOY.md', 'docs/RELEASING.md', '.env.example', 'README.md', 'LICENSE']) {
       assert.ok(paths.includes(rel), rel);
     }
     for (const rel of [
