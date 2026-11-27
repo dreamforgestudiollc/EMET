@@ -98,7 +98,7 @@ testGroup('D: the layer charter dedupe removes importance_range and nothing else
       'character_doc_id', 'character_sha256', 'user', 'install_notes', 'install_notes_doc_id',
       'seeds', 'seeds_due', 'seeds_evaluated_on', 'threads', 'recent_context', 'layer_counts', 'layer_counts_last_30d',
       'layer_charter', 'layer_health', 'record_gaps', 'page_lint', 'named_items', 'lessons_pending', 'floor', 'floor_precedence', 'floor_reassertion', 'instructions',
-      'gems_available', 'gems_active'
+      'reload_after_compaction', 'gems_available', 'gems_active'
     ]);
   });
 });
@@ -250,7 +250,11 @@ testGroup('S: the server decides the mode, and today every load is full', () => 
       // tools.js also notes an open with pages missing, so a page fetched
       // later is recorded late (2026-10-03). setup.js wraps a startup served
       // whole with its load_id (wholeStartup, 2026-10-03).
-      'startup-pages.js': { 'setup.js': ['paginate', 'cacheLoad', 'cachedLoad', 'loadIdOf', 'restartPage', 'notePageServed', 'wholeStartup'], 'tools.js': ['pageCompletion', 'noteOpenMissing', 'cachedLoad'] }
+      'startup-pages.js': {
+        'setup.js': ['paginate', 'cacheLoad', 'cachedLoad', 'loadIdOf', 'restartPage', 'notePageServed', 'wholeStartup', 'pageCompletion', 'noteReloadBaseline'],
+        'tools.js': ['pageCompletion', 'noteOpenMissing', 'cachedLoad'],
+        'reload-after-compaction.js': ['reloadBaseline']
+      }
     }
   };
   const srcFiles = fs.readdirSync(SRC).filter((f) => f.endsWith('.js'));

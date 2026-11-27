@@ -1,0 +1,8 @@
+# KeyDoor
+
+TLC2 Version 2.18
+Model checking completed. No error has been found.
+63 states generated, 29 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 4.
+Deadlock checking was on.
+Finished with no error.

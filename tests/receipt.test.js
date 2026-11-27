@@ -126,20 +126,34 @@ testGroup('A3: source decided in one place', () => {
     assert.strictEqual(written.source, null);
     assert.strictEqual(written.source_missing, true);
   });
-  test('registry set and source not in it: source_unregistered', async () => {
-    const { receipt, written } = await save('working', { source: 'stranger' }, 'x', { EMET_SOURCE_TAGS: 'cli, mobile ,cowork-cloud' });
-    assert.strictEqual(receipt.source, 'stranger');
-    assert.strictEqual(receipt.source_unregistered, true);
-    assert.strictEqual(written.source_unregistered, true);
+  test('registry set and source not in it: source_unregistered, and a warning names the cutoff', async () => {
+    const { setServerNowForTests } = await import('../src/server-time.js');
+    setServerNowForTests(new Date('2026-11-22T15:00:00.000Z'));
+    try {
+      const { receipt, written } = await save('working', { source: 'stranger' }, 'x', { EMET_SOURCE_TAGS: 'cli, mobile ,cowork-cloud' });
+      assert.strictEqual(receipt.source, 'stranger');
+      assert.strictEqual(receipt.source_unregistered, true);
+      assert.strictEqual(written.source_unregistered, true);
+      assert.ok(receipt.warnings.some((w) => w.includes('2026-12-15') && w.includes('America/New_York')));
+    } finally {
+      setServerNowForTests(null);
+    }
   });
   test('registry set and source in it: no marker', async () => {
     const { receipt } = await save('working', { source: 'mobile' }, 'x', { EMET_SOURCE_TAGS: 'cli,mobile' });
     assert.strictEqual(receipt.source_unregistered, undefined);
   });
   test('registry checks the defaulted tag too', async () => {
-    const { receipt } = await save('working', {}, 'x', { EMET_SOURCE_TAG: 'odd', EMET_SOURCE_TAGS: 'cli,mobile' });
-    assert.strictEqual(receipt.source_defaulted, true);
-    assert.strictEqual(receipt.source_unregistered, true);
+    const { setServerNowForTests } = await import('../src/server-time.js');
+    setServerNowForTests(new Date('2026-11-22T15:00:00.000Z'));
+    try {
+      const { receipt } = await save('working', {}, 'x', { EMET_SOURCE_TAG: 'odd', EMET_SOURCE_TAGS: 'cli,mobile' });
+      assert.strictEqual(receipt.source_defaulted, true);
+      assert.strictEqual(receipt.source_unregistered, true);
+      assert.ok(receipt.warnings.some((w) => w.includes('2026-12-15')));
+    } finally {
+      setServerNowForTests(null);
+    }
   });
   test('no registry: the check is skipped', async () => {
     const { receipt } = await save('working', { source: 'anything' }, 'x', {});
@@ -349,7 +363,14 @@ testGroup('C3: the receipt as fixture', () => {
   });
   test('fully flagged write: every optional key present, full order matches the spec', async () => {
     // episodic since 2026-09-29: semantic now refuses a write with no source, and this test wants the provenance_missing marker.
-    const { receipt } = await save('episodic', { stray_field: 1 }, 'x', { EMET_SOURCE_TAG: 'odd', EMET_SOURCE_TAGS: 'cli' });
+    const { setServerNowForTests } = await import('../src/server-time.js');
+    setServerNowForTests(new Date('2026-11-22T15:00:00.000Z'));
+    let receipt;
+    try {
+      ({ receipt } = await save('episodic', { stray_field: 1 }, 'x', { EMET_SOURCE_TAG: 'odd', EMET_SOURCE_TAGS: 'cli' }));
+    } finally {
+      setServerNowForTests(null);
+    }
     const expected = RECEIPT_ORDER.filter((k) => !['source_missing', 'provenance_stamped'].includes(k));
     assert.deepStrictEqual(Object.keys(receipt), expected);
     assert.deepStrictEqual(receipt.relocated_to_custom, ['stray_field']);
@@ -384,7 +405,15 @@ testGroup('C3: the receipt as fixture', () => {
     assert.strictEqual(receipt.signed, true);
   });
   test('every marker in the receipt is also in the metadata that was written', async () => {
-    const { receipt, written } = await save('episodic', {}, 'x', { EMET_SOURCE_TAG: 'odd', EMET_SOURCE_TAGS: 'cli' });
+    const { setServerNowForTests } = await import('../src/server-time.js');
+    setServerNowForTests(new Date('2026-11-22T15:00:00.000Z'));
+    let receipt;
+    let written;
+    try {
+      ({ receipt, written } = await save('episodic', {}, 'x', { EMET_SOURCE_TAG: 'odd', EMET_SOURCE_TAGS: 'cli' }));
+    } finally {
+      setServerNowForTests(null);
+    }
     for (const k of ['provenance_missing', 'source_defaulted', 'source_unregistered', 'assertion_origin_missing', 'importance_defaulted']) {
       assert.strictEqual(receipt[k], true, `receipt.${k}`);
       assert.strictEqual(written[k], true, `written.${k}`);

@@ -40,7 +40,7 @@ import { EMET_VERSION } from './version.js';
 const db = await import('./database.js');
 const t = await import('./tools.js');
 const { dispatchTool } = await import('./dispatch.js');
-const { MongoOAuthProvider, withCimdMetadata } = await import('./oauth-provider.js');
+const { MongoOAuthProvider, withCimdMetadata, revokeTokensForKey } = await import('./oauth-provider.js');
 const { requestLogger } = await import('./request-log.js');
 const { securityHeaders } = await import('./security-headers.js');
 const { ApproveThrottle } = await import('./approve-throttle.js');
@@ -105,7 +105,11 @@ function buildServer() {
       const { resolveTokenSubject } = await import('./persons.js');
       actor.ownerId = await resolveTokenSubject(dbManager.db).catch(() => null);
       await actorStore.run(actor, () => att.preflight({
-        db: dbManager.db, prefix: provider.prefix, ownerId: actor.ownerId, deps: t.approvalsDeps,
+        db: dbManager.db, prefix: provider.prefix, ownerId: actor.ownerId,
+        deps: {
+          ...t.approvalsDeps,
+          endConsents: (keyId) => revokeTokensForKey(dbManager.db, provider.prefix, keyId)
+        },
         layerCollections: ['episodic', 'semantic', 'procedural', 'meta', 'identity', 'working'].map((l) => { try { return dbManager.collectionFor(l); } catch { return null; } }).filter(Boolean),
         registry: t.sourceRegistry()
       }, actor, args, name));
@@ -120,7 +124,7 @@ function buildServer() {
       }
       if (e && e.attributionRefusal) {
         const { ValidationError } = await import('./validation.js');
-        const mapped = code === 'EMET-AUTH-044' ? 'EMET-AUTH-044' : 'EMET-AUTH-039';
+        const mapped = e.emetCode === 'EMET-AUTH-044' || e.emetCode === 'EMET-AUTH-046' ? e.emetCode : 'EMET-AUTH-039';
         const err = new ValidationError('source', e.message, { code: mapped });
         if (e.chooser) err.chooser = e.chooser;
         return actorStore.run(actor, () => t.handleError(err, name, logger));
@@ -172,6 +176,14 @@ app.use(requestLogger({ enabled: process.env.EMET_REQUEST_LOG !== '0' }));
 
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'emet', tools: t.TOOLS.length, cimd: provider.cimdEnabled }));
 
+app.get('/statechart', async (_req, res) => {
+  const { statechartBody } = await import('./access-statechart.js');
+  res.status(200);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.end(`<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>EMET statechart</title></head><body>${statechartBody()}</body></html>`);
+});
+
 // Chooser, break-glass, and the retired owner-approvals pointer. The passphrase
 // and the per-address lockout are the same ones /oauth/approve uses. A member
 // or guest grant is not a session. Sub-key tools still follow EMET_SUBKEYS;
@@ -183,6 +195,9 @@ app.get('/health', (_req, res) => res.json({ ok: true, service: 'emet', tools: t
   const { mountChooser } = await import('./chooser.js');
   const { mountBreakGlass } = await import('./break-glass.js');
   const { mountOwnerApprovals } = await import('./owner-approvals.js');
+  const { mountAdminPassword } = await import('./admin-password-page.js');
+  const { setAdminPasswordRotatedHook } = await import('./admin-password.js');
+  const { deleteOwnerConsoleSessions } = await import('./oauth-provider.js');
   const { resolveTokenSubject } = await import('./persons.js');
   setChooserPublicUrl(PUBLIC_URL);
   const human = {
@@ -197,6 +212,8 @@ app.get('/health', (_req, res) => res.json({ ok: true, service: 'emet', tools: t
     logger
   };
   human.gate = createOwnerGate(human);
+  setAdminPasswordRotatedHook((db) => deleteOwnerConsoleSessions(db, provider.prefix));
+  mountAdminPassword(app, human);
   mountChooser(app, human);
   mountBreakGlass(app, human);
   mountOwnerApprovals(app, human);
@@ -211,7 +228,7 @@ const AUTH_OPTIONS = {
   provider,
   issuerUrl: new URL(PUBLIC_URL),
   resourceServerUrl: RESOURCE_URL,
-  scopesSupported: ['emet.read', 'emet.write'],
+  scopesSupported: ['emet.read', 'emet.write', 'emet.console'],
   resourceName: 'EMET Memory',
 };
 
@@ -242,7 +259,15 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
     let inviteScopes = null;
     let inviteDoor = null;
     let sourceTag = null;
-    if (invite_code && String(invite_code).trim()) {
+    const postedSource = String((req.body && req.body.source) || '').trim();
+    const postedKey = String((req.body && req.body.subkey) || '').trim();
+    const wantsInvite = Boolean(invite_code && String(invite_code).trim());
+    const { CONSOLE_SCOPE, consoleAudience, parseDeviceKey, deviceIdForKey } = await import('./console-session.js');
+    const scopeList = scopes ? String(scopes).split(' ').filter(Boolean) : [];
+    const consoleScope = scopeList.includes(CONSOLE_SCOPE);
+    const consoleOwner = consoleScope && !wantsInvite && !postedKey;
+    let keySignIn = null;
+    if (wantsInvite) {
       await dbManager.getConnection('working');
       const { redeemInvite } = await import('./invites.js');
       const redeemed = await redeemInvite(dbManager.db, invite_code);
@@ -264,16 +289,26 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
         res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8');
         return res.end('<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">That invite grants no access. Ask for a new one.</p>');
       }
-    } else if (!provider.checkPassphrase(passphrase || '')) {
+    } else if (postedKey && String(passphrase || '').trim()) {
+      if (!provider.checkPassphrase(passphrase || '')) {
+        approveThrottle.recordFailure(req.ip);
+        res.locals.reason = 'bad_passphrase';
+        res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.end('<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">The connect passphrase does not match. Nothing was granted.</p>');
+      }
+      keySignIn = 'secondary';
+    } else if (postedKey) {
+      keySignIn = 'key';
+    } else if (!consoleOwner && !provider.checkPassphrase(passphrase || '')) {
       approveThrottle.recordFailure(req.ip);
       res.locals.reason = 'bad_passphrase';
       res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8');
       return res.end('<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">Incorrect passphrase. Go back and try again.</p>');
-    } else {
-      const requested = String((req.body && req.body.source) || '').trim();
+    } else if (!consoleOwner) {
+      const requested = postedSource;
       const { registeredSourceTags } = await import('./setup.js');
       const registry = registeredSourceTags();
-      if (registry.length && !registry.includes(requested)) {
+      if (requested && registry.length && !registry.includes(requested)) {
         res.locals.reason = 'bad_source';
         return res.status(400).end('source tag is not registered');
       }
@@ -282,7 +317,7 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
         res.locals.reason = 'legacy_bound_tag';
         return res.status(400).end('use bound-host (EMET-AUTH-045)');
       }
-      sourceTag = requested || null;
+      sourceTag = requested || 'owner';
     }
     const { isOwlIdentity } = await import('./owl.js');
     if (isOwlIdentity(client_id) || isOwlIdentity(sourceTag)) {
@@ -303,6 +338,118 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
     if (!(client.redirect_uris || []).some((registered) => redirectUriMatches(redirect_uri, registered))) {
       res.locals.reason = 'redirect_uri_not_registered';
       return res.status(400).end('redirect_uri not registered');
+    }
+    if (consoleScope && (scopeList.length !== 1 || wantsInvite)) {
+      res.locals.reason = 'console_scope';
+      res.status(400).setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.end('<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">The console asks only for emet.console. Nothing was granted.</p>');
+    }
+    if (consoleOwner) {
+      const { verifyAdminPassword, adminPasswordIsSet, adminPasswordVersion, ADMIN_PASSWORD_URL } = await import('./admin-password.js');
+      const postedPassword = String((req.body && req.body.password) || '');
+      const postedPassphrase = String(passphrase || '');
+      if (!(await adminPasswordIsSet(dbManager.db))) {
+        res.locals.reason = 'admin_password_unset';
+        res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.end(`<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">The admin password is not set. Set it at <a href="${ADMIN_PASSWORD_URL}">${ADMIN_PASSWORD_URL}</a>. The connect passphrase does not open the console. Nothing was granted.</p>`);
+      }
+      if (postedPassphrase && !postedPassword) {
+        approveThrottle.recordFailure(req.ip);
+        res.locals.reason = 'console_passphrase';
+        res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.end('<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">The connect passphrase does not open the console. Use the admin password. Nothing was granted.</p>');
+      }
+      const passwordOk = await verifyAdminPassword(dbManager.db, postedPassword);
+      if (!passwordOk && provider.checkPassphrase(postedPassword)) {
+        approveThrottle.recordFailure(req.ip);
+        res.locals.reason = 'console_passphrase';
+        res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.end('<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">The connect passphrase does not open the console. Use the admin password. Nothing was granted.</p>');
+      }
+      if (!passwordOk) {
+        approveThrottle.recordFailure(req.ip);
+        res.locals.reason = 'bad_admin_password';
+        res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.end('<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">The admin password does not match. Nothing was granted.</p>');
+      }
+      const remember = String((req.body && req.body.remember) || '') === '1';
+      const deviceKey = remember ? parseDeviceKey(String((req.body && req.body.device_key) || '')) : null;
+      if (remember && !deviceKey) {
+        res.locals.reason = 'console_device_key';
+        res.status(400).setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.end('<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">Remember this phone needs the device key from the console. Nothing was granted.</p>');
+      }
+      approveThrottle.recordSuccess(req.ip);
+      res.locals.reason = 'approved_console';
+      const version = await adminPasswordVersion(dbManager.db);
+      const ownerCode = await provider.issueConsoleOwnerCode({
+        client_id, redirect_uri, code_challenge,
+        resource: consoleAudience(PUBLIC_URL),
+        admin_password_version: version,
+        remember,
+        device_public_key: deviceKey,
+        device_id: deviceKey ? deviceIdForKey(deviceKey) : null
+      });
+      const ownerUrl = new URL(redirect_uri);
+      ownerUrl.searchParams.set('code', ownerCode);
+      if (state) ownerUrl.searchParams.set('state', state);
+      return res.redirect(302, ownerUrl.href);
+    }
+    if (keySignIn) {
+      try {
+        const { verifyPresentedKey } = await import('./subkeys.js');
+        const { issueKeyLogin } = await import('./key-door.js');
+        const { registeredSourceTags } = await import('./setup.js');
+        const { approvalsDeps } = await import('./tools.js');
+        const verified = await verifyPresentedKey(approvalsDeps, {
+          token: postedKey,
+          tag: postedSource,
+          registry: registeredSourceTags()
+        });
+        if (isOwlIdentity(verified.tag)) {
+          res.locals.reason = 'owl_retired';
+          res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8');
+          return res.end('<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">This owl MCP clone account was retired by R6. the owner decides a new writer on /owner/chooser. Nothing was granted.</p>');
+        }
+        const remember = consoleScope && String((req.body && req.body.remember) || '') === '1';
+        const deviceKey = remember ? parseDeviceKey(String((req.body && req.body.device_key) || '')) : null;
+        if (consoleScope && remember && !deviceKey) {
+          res.locals.reason = 'console_device_key';
+          res.status(400).setHeader('Content-Type', 'text/html; charset=utf-8');
+          return res.end('<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">Remember this phone needs the device key from the console. Nothing was granted.</p>');
+        }
+        approveThrottle.recordSuccess(req.ip);
+        res.locals.reason = keySignIn === 'secondary' ? 'approved_secondary' : 'approved_key';
+        const keyCode = await issueKeyLogin(provider, {
+          client_id,
+          redirect_uri,
+          code_challenge,
+          resource: consoleScope ? consoleAudience(PUBLIC_URL) : (resource || null),
+          role: keySignIn === 'secondary' ? 'secondary' : 'key',
+          tag: verified.tag,
+          key_id: verified.key_id,
+          ...(consoleScope ? {
+            scopes: [CONSOLE_SCOPE],
+            console_grant: {
+              remember,
+              device_public_key: deviceKey,
+              device_id: deviceKey ? deviceIdForKey(deviceKey) : null,
+              admin_password_version: null
+            }
+          } : {})
+        });
+        const keyUrl = new URL(redirect_uri);
+        keyUrl.searchParams.set('code', keyCode);
+        if (state) keyUrl.searchParams.set('state', state);
+        return res.redirect(302, keyUrl.href);
+      } catch (err) {
+        approveThrottle.recordFailure(req.ip);
+        res.locals.reason = 'key_refused';
+        const message = err && err.message ? String(err.message) : 'This key was refused. Nothing was granted.';
+        const safe = message.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        res.status(401).setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.end(`<p style="font-family:system-ui;background:#12141a;color:#e8e6e0;padding:24px">${safe}</p>`);
+      }
     }
     approveThrottle.recordSuccess(req.ip);
     res.locals.reason = client.cimd ? 'approved_cimd' : 'approved_dcr';
@@ -343,9 +490,26 @@ app.post('/oauth/approve', express.urlencoded({ extended: false }), async (req, 
   }
 });
 
+const { mountConsole, consoleTokenOnMcp } = await import('./console-api.js');
+const { AuditOperation: consoleAudit } = await import('./logger.js');
+mountConsole(app, {
+  provider,
+  db: () => dbManager.db,
+  dbManager,
+  publicUrl: PUBLIC_URL,
+  dispatchTool,
+  AuditOperation: consoleAudit,
+  throttle: approveThrottle
+});
+
 // Protected MCP endpoint (bearer required -> body parse -> streamable HTTP)
 app.post('/mcp', requireBearerAuth({ verifier: provider, resourceMetadataUrl: PRM_URL }), express.json({ limit: '256kb' }), async (req, res) => {
   try {
+    if (consoleTokenOnMcp(req.auth)) {
+      res.locals.reason = 'console_token';
+      res.status(401).json({ error: 'invalid_token', emet_code: 'EMET-AUTH-024', message: 'A console token cannot call /mcp.' });
+      return;
+    }
     const server = buildServer();
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     res.on('close', () => { try { transport.close(); } catch {} try { server.close(); } catch {} });

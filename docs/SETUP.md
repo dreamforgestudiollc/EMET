@@ -38,6 +38,7 @@ when you want a second device to reach the same memory.
    |---|---|
    | your whole EMET database | find, insert, update, create collection, create index, list collections, list indexes, list search indexes, collection and database stats. Not `REMOVE`. |
    | `<prefix>oauth_tokens` | remove — revoking a sign-in token |
+   | `<prefix>console_refresh` | remove — ending a remembered console phone. The row is a credential hash, not the record. |
    | `_emet_verify` | remove — the status check deletes its probe document and does not drop the collection |
    | `error_log` | `REMOVE` — rotation deletes old rows (10,000 entries or 90 days) after a daily summary is kept in `error_log_summary`. The name is not prefixed. It is not the record. |
 
@@ -105,7 +106,7 @@ when you want a second device to reach the same memory.
 
 6. **One database per EMET instance.** These collections are not prefixed:
    `documents`, `documents_history`, `transcripts`, `exchanges`, `persons`, `invites`,
-   `close_attempts`, `error_log`, `error_log_summary`, and `_emet_verify`. Two instances
+   `close_attempts`, `error_log`, `error_log_summary`, `owner_credentials`, and `_emet_verify`. Two instances
    pointed at the same database share all of them, even when their memory collections use
    different prefixes. If you want two separate memories, give them separate databases -
    not just separate prefixes.

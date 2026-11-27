@@ -152,12 +152,39 @@ test('restore with no source is refused', async () => {
     await assert.rejects(() => restoreDoc('threads/x.md', 1, null, null, REASON), /needs a source/);
   });
 });
+test('the version already in force is not restored', async () => {
+  const { restoreDoc } = await import('../src/tools.js');
+  const db = makeStore();
+  await withStore(db, async () => {
+    process.env.EMET_SOURCE_TAG = 'grok-project';
+    await write('notes/in-force.md', 'alpha note\n');
+    const live = db.doc('notes/in-force.md');
+    assert.equal(live.version, 1);
+    const historyOf = () => JSON.parse(JSON.stringify(db.collection('documents_history').docs));
+    const historyBefore = historyOf();
+    await assert.rejects(
+      () => restoreDoc('notes/in-force.md', 1, 'grok-project', null, REASON),
+      (err) => {
+        assert.match(err.message, /already in force/);
+        assert.equal(err.emetCode, 'EMET-DOC-089');
+        return true;
+      }
+    );
+    assert.equal(db.doc('notes/in-force.md').version, 1);
+    assert.equal(db.doc('notes/in-force.md').content, 'alpha note\n');
+    assert.deepEqual(historyOf(), historyBefore);
+  });
+});
 test('a tampered hash is not restored', async () => {
   const { restoreDoc } = await import('../src/tools.js');
   const db = makeStore();
   await withStore(db, async () => {
     await write('threads/tamper.md', '# Tamper\n');
     const row = db.doc('threads/tamper.md');
+    // read_doc_history returns the live revision when the version matches.
+    // The tampered archive has to be a version that is not current, or the
+    // live body is what restore checks.
+    row.version = 2;
     db.collection('documents_history').docs.push({ ...row, version: 1, content: 'tampered\n', sha256: 'deadbeef', conformance: { verdict: 'conforms' } });
     process.env.EMET_SOURCE_TAG = 'bound-host';
     await assert.rejects(() => restoreDoc('threads/tamper.md', 1, 'bound-host', null, REASON), /digest/);
@@ -438,6 +465,7 @@ test('initialize with no source tag warns, and a write scope provisions as emet-
   const db = makeStore();
   await withStore(db, async () => {
     const prior = process.env.EMET_SOURCE_TAG;
+    const priorTags = process.env.EMET_SOURCE_TAGS;
     delete process.env.EMET_SOURCE_TAG;
     process.env.EMET_SOURCE_TAGS = 'bound-host';
     setStartupBuildForTests(async () => ({ state: 'ready' }));
@@ -451,6 +479,7 @@ test('initialize with no source tag warns, and a write scope provisions as emet-
     } finally {
       setStartupBuildForTests(null);
       if (prior === undefined) delete process.env.EMET_SOURCE_TAG; else process.env.EMET_SOURCE_TAG = prior;
+      if (priorTags === undefined) delete process.env.EMET_SOURCE_TAGS; else process.env.EMET_SOURCE_TAGS = priorTags;
     }
   });
 });
@@ -516,6 +545,7 @@ test('restore goes through dispatch, and a templated row with no verdict is refu
 
 
 test('an external caller claiming emet-server cannot accept a nonconformance on the handoff', async () => {
+  const priorTags = process.env.EMET_SOURCE_TAGS;
   const { acceptNonconformance } = await import('../src/tools.js');
   const { initialize, setStartupBuildForTests } = await import('../src/setup.js');
   const { actorStore } = await import('../src/persons.js');
@@ -532,6 +562,7 @@ test('an external caller claiming emet-server cannot accept a nonconformance on 
     } finally {
       setStartupBuildForTests(null);
       if (prior === undefined) delete process.env.EMET_SOURCE_TAG; else process.env.EMET_SOURCE_TAG = prior;
+      if (priorTags === undefined) delete process.env.EMET_SOURCE_TAGS; else process.env.EMET_SOURCE_TAGS = priorTags;
     }
   });
 });

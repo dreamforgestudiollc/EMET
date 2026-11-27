@@ -14,6 +14,11 @@ import express from 'express';
 
 export const SESSION_MS = 15 * 60 * 1000;
 export const COOKIE_NAME = 'emet_owner';
+
+/** End the owner session cookie. The password pages call this after a rotation. */
+export function clearOwnerCookie(res) {
+  res.clearCookie(COOKIE_NAME, { httpOnly: true, sameSite: 'strict', path: '/owner' });
+}
 const SESSION_MAX = 200;
 const NEXT_OK = new Set(['/owner/chooser', '/owner/break-glass']);
 

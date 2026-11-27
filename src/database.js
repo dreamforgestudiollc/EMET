@@ -23,7 +23,7 @@
  */
 
 import './env.js';
-import { connectMongo, bindSharedClient } from './mongo-connect.js';
+import { connectMongo, bindSharedClient, readySharedClient, testClientActive } from './mongo-connect.js';
 import path from 'path';
 
 import {
@@ -366,12 +366,18 @@ export class EmetDatabase {
    */
   async ensureClient() {
     if (this.db) return this.db;
+    const shared = readySharedClient();
+    if (shared) {
+      this.client = shared;
+      this.db = shared.db(MONGODB_DB);
+      return this.db;
+    }
     if (this.connectPromise) {
       await this.connectPromise;
       return this.db;
     }
 
-    if (!MONGODB_URI) {
+    if (!MONGODB_URI && !testClientActive()) {
       throw new ConfigurationError('MONGODB_URI is not set - EMET requires a MongoDB connection', { code: 'EMET-DB-001' });
     }
 
@@ -382,7 +388,7 @@ export class EmetDatabase {
       let client;
       let fellBack = false;
       try {
-        client = await connectMongo(MONGODB_URI, opts, {
+        client = await connectMongo(MONGODB_URI || 'mongodb://127.0.0.1:27017/emet', opts, {
           onFallback: (msg) => { fellBack = true; this.log('info', msg); }
         });
       } catch (error) {

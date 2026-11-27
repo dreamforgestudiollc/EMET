@@ -18,10 +18,11 @@ testGroup('the role never grants delete on the record', () => {
   test('no database-wide REMOVE or DROP', () => {
     for (const a of ['REMOVE', 'DROP_COLLECTION', 'DROP_DATABASE']) assert.ok(!DATABASE_ACTIONS.includes(a), a);
   });
-  test('delete is allowed only on the token, probe, and operational error log collections', () =>
-    assert.deepStrictEqual(Object.keys(DELETE_ALLOWED).sort(), ['_emet_verify', 'error_log', '{prefix}oauth_tokens']));
+  test('delete is allowed only on the token, console refresh, probe, and operational error log collections', () =>
+    assert.deepStrictEqual(Object.keys(DELETE_ALLOWED).sort(), ['_emet_verify', 'error_log', '{prefix}console_refresh', '{prefix}oauth_tokens']));
   test('the token collection follows the install prefix', () => {
     assert.ok(atlasPrivileges('mydb', 'abc_').includes('REMOVE@mydb.abc_oauth_tokens'));
+    assert.ok(atlasPrivileges('mydb', 'abc_').includes('REMOVE@mydb.abc_console_refresh'));
     assert.ok(atlasPrivileges('mydb', 'abc_').includes('REMOVE@mydb._emet_verify'));
   });
   test('no memory layer, document or transcript collection is in the delete list', () => {
@@ -43,7 +44,7 @@ testGroup('every delete in src/ is covered by the role', () => {
   // known collection variables. A new delete anywhere fails here until it is
   // named in DELETE_ALLOWED or removed.
   const KNOWN = [
-    { file: 'oauth-provider.js', collection: '{prefix}oauth_tokens', count: 6 },
+    { file: 'oauth-provider.js', collection: '{prefix}oauth_tokens', count: 21 }, // token revoke plus console refresh rows, which are credentials
     { file: 'setup.js', collection: '_emet_verify', count: 1 }, // the probe document only; the collection is not dropped
     { file: 'error-log.js', collection: 'error_log', count: 1 } // rotation only; the summary collection is never deleted
   ];

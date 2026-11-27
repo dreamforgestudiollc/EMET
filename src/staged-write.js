@@ -25,8 +25,9 @@ import { setting } from './env.js';
 import { writerStamp } from './persons.js';
 import { isDropDoc } from './conformance.js';
 import { isBotTag } from './session-graph.js';
+import { guardUnregisteredSourceSave } from './source-registration.js';
 import {
-  writeDoc, refuseBotMainRecord, sourceRegistry, rightsTags, isRecordDoc, isWorkingDoc
+  writeDoc, refuseBotMainRecord, sourceRegistry, rightsTags, isRecordDoc, isWorkingDoc, sourceStamp
 } from './tools.js';
 
 export const STAGED_LIMITS = Object.freeze({
@@ -183,7 +184,7 @@ function assertCallMatches(tool, row, source, sessionId) {
   }
 }
 
-function assertBeginAllowed(docId, source, prev, supersedes, reason) {
+function assertBeginAllowed(docId, source, prev, supersedes, reason, now) {
   if (!docId || typeof docId !== 'string') {
     throw new ValidationError('doc_id must be a non-empty string', { code: 'EMET-DOC-001' });
   }
@@ -229,6 +230,9 @@ function assertBeginAllowed(docId, source, prev, supersedes, reason) {
       `write_doc: ${docId} is a drop and already exists, retired drops included. A drop is never patched or restored. Use a new id. Nothing was written.`
     , { code: 'EMET-DOC-023' });
   }
+  const stamped = sourceStamp(source, source || (isDropDoc(docId) && !prev ? 'visitor' : (setting('SOURCE_TAG') || null)));
+  const sourceGate = guardUnregisteredSourceSave({ tag: stamped.tag, tool: 'write_doc_begin', now });
+  return sourceGate.warning;
 }
 
 function assemble(parts) {
@@ -256,7 +260,9 @@ function receiptOf(row) {
   };
 }
 
-export async function beginStagedDoc(input = {}, logger = null, now = new Date()) {
+export async function beginStagedDoc(input = {}, logger = null, now) {
+  const gateNow = now instanceof Date && !Number.isNaN(now.getTime()) ? now : undefined;
+  const stageNow = gateNow || new Date();
   let client;
   try {
     const opened = await stageDb();
@@ -267,14 +273,14 @@ export async function beginStagedDoc(input = {}, logger = null, now = new Date()
     const supersedes = namedVersion(input.supersedes);
     const reason = typeof input.reason === 'string' && input.reason.length ? input.reason : null;
     const prev = docId && typeof docId === 'string' ? await opened.docs.findOne({ doc_id: docId }) : null;
-    assertBeginAllowed(docId, source, prev, supersedes, reason);
+    const sourceGate = assertBeginAllowed(docId, source, prev, supersedes, reason, gateNow);
     const stamp = writerStamp();
-    const live = await expireOpenStages(opened.stages, stamp, now);
+    const live = await expireOpenStages(opened.stages, stamp, stageNow);
     if (live >= STAGED_LIMITS.maxOpenPerWriter) {
       throw new ValidationError(`write_doc_begin: this writer already has ${STAGED_LIMITS.maxOpenPerWriter} open stages. Commit or abort one, then begin again. Nothing was written.`, { code: 'EMET-DOC-074' });
     }
     const stageId = `stg_${randomBytes(16).toString('hex')}`;
-    const expiresAt = new Date(at(now) + STAGED_LIMITS.ttlMs);
+    const expiresAt = new Date(at(stageNow) + STAGED_LIMITS.ttlMs);
     await opened.stages.insertOne({
       _id: stageId,
       doc_id: docId,
@@ -290,8 +296,8 @@ export async function beginStagedDoc(input = {}, logger = null, now = new Date()
       next_part: 1,
       size: 0,
       status: 'open',
-      created_at: now,
-      updated_at: now,
+      created_at: stageNow,
+      updated_at: stageNow,
       expires_at: expiresAt
     });
     logger?.debug?.('staged write begun', { stage_id: stageId, doc_id: docId });
@@ -301,7 +307,8 @@ export async function beginStagedDoc(input = {}, logger = null, now = new Date()
       next_part: 1,
       expires_at: expiresAt,
       parts: 0,
-      limits: limitsView()
+      limits: limitsView(),
+      ...(sourceGate ? { warnings: [sourceGate] } : {})
     };
   } catch (error) {
     stageFailure(error, 'write_doc_begin');
@@ -389,13 +396,15 @@ export async function appendStagedChunk(input = {}, logger = null, now = new Dat
   }
 }
 
-export async function commitStagedDoc(input = {}, logger = null, now = new Date()) {
+export async function commitStagedDoc(input = {}, logger = null, now) {
+  const gateNow = now instanceof Date && !Number.isNaN(now.getTime()) ? now : undefined;
+  const stageNow = gateNow || new Date();
   let client;
   try {
     const opened = await stageDb();
     client = opened.client;
     const stamp = writerStamp();
-    const row = await readStage(opened.stages, input.stage_id, stamp, 'write_doc_commit', now);
+    const row = await readStage(opened.stages, input.stage_id, stamp, 'write_doc_commit', stageNow);
     const sha = normalizeSha(input.sha256);
     if (!sha) {
       throw new ValidationError('write_doc_commit: sha256 must be a 64-character hex digest of the assembled text. Nothing was written.', { code: 'EMET-DOC-073' });
@@ -437,7 +446,7 @@ export async function commitStagedDoc(input = {}, logger = null, now = new Date(
     }
     const claimed = await opened.stages.updateOne(
       { _id: row._id, status: 'open', person_id: stamp.person_id },
-      { $set: { status: 'committing', updated_at: now } }
+      { $set: { status: 'committing', updated_at: stageNow } }
     );
     if (claimed.matchedCount !== 1) {
       const again = await opened.stages.findOne({ _id: row._id });
@@ -451,7 +460,11 @@ export async function commitStagedDoc(input = {}, logger = null, now = new Date(
       written = await writeDoc(row.doc_id, content, row.source, null, logger, {
         supersedes: row.supersedes,
         reason: row.reason,
-        session_id: row.session_id
+        session_id: row.session_id,
+        now: gateNow,
+        condense_approved: input.condense_approved === true,
+        archive_doc: input.archive_doc,
+        writer_approval_id: input.writer_approval_id
       });
     } catch (error) {
       await opened.stages.updateOne(
@@ -475,7 +488,7 @@ export async function commitStagedDoc(input = {}, logger = null, now = new Date(
           status: 'committed',
           parts: [],
           size: 0,
-          updated_at: now,
+          updated_at: stageNow,
           assembled_sha256: assembled,
           part_count: partCount,
           receipt

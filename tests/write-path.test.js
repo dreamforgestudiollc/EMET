@@ -119,6 +119,10 @@ const SANCTIONED = {
   // able to read a pending writer request. Rows are inserted and updated.
   // Nothing in this file deletes a row.
   'writer-approval.js': '*',
+  // The admin password hash is owner_credentials. It is not a memory layer,
+  // a document, or a transcript. A read token must not read the hash, so
+  // this write cannot go through writeDoc.
+  'admin-password.js': new Set(['writeCredential']),
   // ADDED 2026-10-27 with R6 owl retirement. ensureOwlRetirementMarker inserts
   // one retained row in `<prefix>owl_retirement`. It is bookkeeping, not a
   // memory layer, a document, or a transcript. A later call does not delete

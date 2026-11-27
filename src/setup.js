@@ -46,8 +46,9 @@ import { pageLintDigest } from './pages.js';
 import { registerSecretsFromEnv } from './redact.js';
 import { payloadForLayerCharter } from './startup-payload.js';
 import { namedItemsFrom } from './named-items.js';
-import { paginate, cacheLoad, cachedLoad, loadIdOf, restartPage, notePageServed, wholeStartup } from './startup-pages.js';
+import { paginate, cacheLoad, cachedLoad, loadIdOf, restartPage, notePageServed, wholeStartup, pageCompletion, noteReloadBaseline } from './startup-pages.js';
 import { continuityCurrencyEnabled, loadContinuityCurrency, continuityCurrencyUnreadable } from './continuity-currency.js';
+import { initializeReloadReport } from './reload-after-compaction.js';
 import { tagHandoffMode, attachHandoffView, credentialForWrite } from './per-tag-handoff.js';
 
 const DOCS_COLLECTION = 'documents';
@@ -467,7 +468,9 @@ export function readyInstructions(hasCharacter, available) {
     'are already busy. When this session ends - the user says goodbye, asks to wrap up, ' +
     'mentions restarting or opening a new session, or you are running out of room - work ' +
     'through `session_close_protocol` and then call emet_session_close to confirm it ' +
-    'actually landed. An acknowledgement of the turn just completed - thanks, great, ' +
+    'actually landed. After any compaction or summary, and before multi-step work, ' +
+    're-run emet_initialize for every page and work from HANDOFF and STATE. Do not ' +
+    'continue from the chat summary. An acknowledgement of the turn just completed - thanks, great, ' +
     'perfect - is not a session end; if it is ambiguous, ask rather than close. Nothing you ' +
     'did this session survives unless it was written to the store, and the moment to do it ' +
     'arrives without warning.';
@@ -881,6 +884,17 @@ export async function initialize(options = {}, hooks = {}) {
     if (late && late.length && typeof hooks.onLate === 'function') { try { hooks.onLate(late); } catch { /* recording never fails a page */ } }
     return late;
   };
+  // The reload baseline is the versions this load served, and the time it was
+  // served. A whole startup, or the page that completes the load, is fresh.
+  // A single later page of an already complete load does not move that time.
+  const rememberReload = (loadId, full, fresh) => {
+    try {
+      const done = pageCompletion(loadId);
+      const report = full && full.reload_after_compaction;
+      const continuity = report && report.continuity ? report.continuity : null;
+      noteReloadBaseline(loadId, continuity, { complete: !!(done && done.complete), fresh: fresh === true });
+    } catch { /* a baseline miss does not fail the page */ }
+  };
   // Paged startup (2026-10-03, the owner approved paging; src/startup-pages.js).
   // The full payload is built exactly as before; only its delivery changes.
   const raw = options.page;
@@ -898,6 +912,7 @@ export async function initialize(options = {}, hooks = {}) {
   const whole = (full, index) => {
     const w = wholeStartup(full, index);
     notePage(w.startup_page.load_id, 'all');
+    rememberReload(w.startup_page.load_id, full, true);
     return w;
   };
   const serve = (full) => {
@@ -909,7 +924,11 @@ export async function initialize(options = {}, hooks = {}) {
     if (k > pages.length) {
       throw new ValidationError('page', `this startup has ${pages.length} pages; page ${k} does not exist.`, { code: 'EMET-CFG-008' });
     }
-    notePage(pages[k - 1].startup_page.load_id, k, pages.length);
+    const loadId = pages[k - 1].startup_page.load_id;
+    const before = pageCompletion(loadId);
+    notePage(loadId, k, pages.length);
+    const after = pageCompletion(loadId);
+    rememberReload(loadId, full, !!(after && after.complete) && !(before && before.complete));
     return pages[k - 1];
   };
   if (k > 1 && options.load_id) {
@@ -1165,6 +1184,14 @@ async function buildStartup(options = {}) {
         continuity_currency = continuityCurrencyUnreadable();
       }
     }
+    const handoffPin = await docs.findOne(
+      { doc_id: handoffDoc() },
+      { projection: { _id: 0, doc_id: 1, version: 1, sha256: 1 } }
+    );
+    const statePin = await docs.findOne(
+      { doc_id: stateDoc() },
+      { projection: { _id: 0, doc_id: 1, version: 1, sha256: 1 } }
+    );
     const handoffExtra = {};
     if (tagHandoffMode() !== 'off') {
       try {
@@ -1274,6 +1301,12 @@ async function buildStartup(options = {}) {
       floor_precedence: FLOOR_PRECEDENCE,
       floor_reassertion: FLOOR_REASSERTION,
       instructions: readyInstructions(Boolean(character), gems_available),
+      reload_after_compaction: initializeReloadReport({
+        handoff: handoffPin,
+        state: statePin,
+        handoffDocId: handoffDoc(),
+        stateDocId: stateDoc()
+      }),
       gems_available,
       gems_active
     };
@@ -1371,6 +1404,9 @@ function renderUserDoc(a) {
 }
 
 export async function setupComplete(answers = {}, logger = null, options = {}) {
+  const { currentActor } = await import('./persons.js');
+  const { refuseKeyOwnerTool } = await import('./key-door.js');
+  refuseKeyOwnerTool(currentActor(), 'emet_setup_complete');
   // First-time setup is the owner's (decision 2, procedural ref 407). Stage 1
   // guards (2026-10-02, Reviewer's stage 1 admission, conditions S1-S2):
   //  - refused under a configured bot tag. The tag is self-declared and

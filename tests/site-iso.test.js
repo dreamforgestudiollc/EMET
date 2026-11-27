@@ -80,8 +80,8 @@ const PAGE_JOINS = [
   ['<code>certified</code>', '<code>certified</code>'],
 ];
 const LEDE = 'An MCP memory server built for ISO 9001 / ISO 13485 document control: persistent, shared memory.';
-const SHARED = 'EMET 0.3.7 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
-const JSONLD = 'EMET 0.3.7 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
+const SHARED = 'EMET 0.3.8 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
+const JSONLD = 'EMET 0.3.8 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.';
 const CONFORMANCE_LINK = 'Conformance';
 const CONFORMANCE_HREF = 'https://github.com/dreamforgestudiollc/EMET/blob/main/gem-library/CONFORMANCE.md';
 

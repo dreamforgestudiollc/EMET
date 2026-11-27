@@ -925,7 +925,7 @@ testGroup('no doc grants REMOVE on any other collection', () => {
       assert.deepStrictEqual([...DELETE_ALLOWED[c]], ['REMOVE']);
     }
     const granted = atlasPrivileges('emet').filter((p) => p.startsWith('REMOVE@')).map((p) => p.slice(p.lastIndexOf('.') + 1));
-    assert.deepStrictEqual(granted.sort(), ['_emet_verify', 'emet_oauth_tokens', 'error_log']);
+    assert.deepStrictEqual(granted.sort(), ['_emet_verify', 'emet_console_refresh', 'emet_oauth_tokens', 'error_log']);
     for (const c of controlled) assert.ok(!granted.includes(c), c);
   });
 });

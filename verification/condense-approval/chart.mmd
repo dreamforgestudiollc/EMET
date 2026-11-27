@@ -1,0 +1,26 @@
+---
+title: "Condensing a document"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: start
+    lg1: refused
+    lg2: waiting
+    lg3: kept
+  }
+  class lg0 blue
+  class lg1 orange
+  class lg2 yellow
+  class lg3 teal
+  s0: Full document
+  s1: Approved and written
+  s2: Pending approval
+  s3: Refused
+  [*] --> s0
+  s0 --> s1: a named approval writes the short revision, no access code and no client door or the owner writes the short revision
+  s0 --> s2: the approval names another document or the reason is missing or the owner has not approved it
+  s0 --> s3: you send a shorter document or a bot asks, with no owner approval
+  class s0 blue
+  class s1 teal
+  class s2 yellow
+  class s3 orange

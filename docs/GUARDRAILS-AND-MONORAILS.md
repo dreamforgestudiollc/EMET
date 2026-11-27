@@ -24,7 +24,7 @@ The practice was first called Guardrails & Rails. It was renamed Guardrails & Mo
 
 A monorail car straddles its beam: it can't derail, and it can't leave the track.
 
-The board is a guardrail with no write door. The server provisions it. After that the only change is an edit with a reason, and a change that leaves any document under half the size it had when this session first touched it is refused. A monorail does have switches, but they belong to the track. A section of the beam moves, and the system throws it, not the car. The car runs from station to station, and its doors open only when it's stopped at a station.
+The board is a guardrail with no write door. The server provisions it. After that the only change is an edit with a reason, and a change that leaves any document under half the size it had when this session first touched it is refused. The owner door can write a shorter revision when the call passes `condense_approved` and a reason. A bot still cannot, unless the owner has already granted that writer. The prior revision stays. A monorail does have switches, but they belong to the track. A section of the beam moves, and the system throws it, not the car. The car runs from station to station, and its doors open only when it's stopped at a station.
 
 - **The stations** are the processing spaces: a workshop, a kitchen, a study. The AI steps out at each one and works freely inside the guardrails.
 - **The beam** is the protocol order: open, work, record, board, handoff, close.

@@ -50,7 +50,7 @@ export const PAGE_ORDER = Object.freeze([
   'identity', 'character', 'character_doc_id', 'character_sha256', 'user',
   'record_gaps', 'page_lint', 'named_items', 'lessons_pending', 'layer_health',
   'install_notes', 'instructions', 'layer_charter',
-  'seeds', 'threads', 'recent_context', 'layer_counts', 'layer_counts_last_30d'
+  'seeds', 'threads', 'recent_context', 'layer_counts', 'layer_counts_last_30d', 'reload_after_compaction'
 ]);
 
 /** Keys that bind the session (ref 358): never optional, never dropped. */
@@ -155,9 +155,16 @@ function nextCall(k, loadId, recentLimit) {
   return `emet_initialize ${JSON.stringify(args)}`;
 }
 
-/** The last page's line (2026-10-03): the open is tied to this startup, so it names the load_id to pass. */
+/**
+ * The last page's line (2026-10-03): the open is tied to this startup, so it
+ * names the load_id to pass. The reload sentence is the host rule for a
+ * compaction or a summary. It is on the notice the host is told to
+ * read first. It is not a check and it does not change the load id.
+ */
+export const RELOAD_PAGE_LINE = 'After any compaction or summary, call emet_initialize again for every page and work from HANDOFF and STATE, not from that summary.';
+
 export function sessionOpenLine(loadId) {
-  return `Pass "load_id": "${loadId}" to emet_session_open; the startup page check runs on that load.`;
+  return `Pass "load_id": "${loadId}" to emet_session_open; the startup page check runs on that load. ${RELOAD_PAGE_LINE}`;
 }
 
 /**
@@ -308,7 +315,7 @@ export function cachedLoad(id, now = Date.now()) {
   if (now - hit.at > CACHE_MS) { cache.delete(String(id)); return null; }
   return hit.full;
 }
-export function clearPageCache() { cache.clear(); served.clear(); }
+export function clearPageCache() { cache.clear(); served.clear(); baselines.clear(); }
 
 // Which pages of each load a host was given (2026-10-03): read by the
 // startup_pages gate, which refuses an open with any page never fetched.
@@ -370,6 +377,42 @@ export function pageCompletion(loadId = null, now = Date.now()) {
 }
 
 /** The reply to a page asked for after the startup changed (or the server restarted). */
+// What an initialize saw, keyed by load_id. Same lifetime as the fetched-page
+// record (SERVED_MS). A content-hash load_id does not by itself prove a
+// reload: the same payload hashes the same, so freshness is this timestamp.
+// Nothing here is a document. clearPageCache drops it with the page cache.
+const baselines = new Map();
+
+/**
+ * Record the continuity versions a load served. `fresh` is a whole startup
+ * (`page: "all"` or the one-page form) or the page that just completed the
+ * load. A later single page of an already complete load does not move `at`.
+ */
+export function noteReloadBaseline(loadId, continuity, { complete = false, fresh = false, now = Date.now() } = {}) {
+  if (!loadId) return null;
+  const id = String(loadId);
+  const prev = baselines.get(id);
+  const row = {
+    at: fresh ? now : (prev ? prev.at : now),
+    complete: complete || !!(prev && prev.complete),
+    continuity: continuity || (prev && prev.continuity) || null
+  };
+  baselines.delete(id);
+  baselines.set(id, row);
+  for (const [k, v] of baselines) if (now - v.at > SERVED_MS) baselines.delete(k);
+  while (baselines.size > SERVED_MAX) baselines.delete(baselines.keys().next().value);
+  return row;
+}
+
+/** The baseline for a load, or null when this process has none inside SERVED_MS. */
+export function reloadBaseline(loadId, now = Date.now()) {
+  if (!loadId) return null;
+  const row = baselines.get(String(loadId));
+  if (!row) return null;
+  if (now - row.at > SERVED_MS) { baselines.delete(String(loadId)); return null; }
+  return row;
+}
+
 export function restartPage(page, loadId) {
   return {
     state: 'ready',
@@ -380,4 +423,4 @@ export function restartPage(page, loadId) {
   };
 }
 
-export default { fetchAllLine, sessionOpenLine, wholeStartup, pageBudget, PAGE_ORDER, BINDING_KEYS, PAGE_FIELDS, paginate, assemblePages, loadIdOf, cacheLoad, cachedLoad, clearPageCache, restartPage, notePageServed, noteOpenMissing, pageCompletion };
+export default { fetchAllLine, sessionOpenLine, RELOAD_PAGE_LINE, wholeStartup, pageBudget, PAGE_ORDER, BINDING_KEYS, PAGE_FIELDS, paginate, assemblePages, loadIdOf, cacheLoad, cachedLoad, clearPageCache, restartPage, notePageServed, noteOpenMissing, pageCompletion, noteReloadBaseline, reloadBaseline };
