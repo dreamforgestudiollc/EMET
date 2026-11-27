@@ -196,7 +196,7 @@ app.get('/statechart', async (_req, res) => {
   const { mountBreakGlass } = await import('./break-glass.js');
   const { mountOwnerApprovals } = await import('./owner-approvals.js');
   const { mountAdminPassword } = await import('./admin-password-page.js');
-  const { setAdminPasswordRotatedHook } = await import('./admin-password.js');
+  const { verifyAdminPassword, adminPasswordIsSet, setAdminPasswordRotatedHook } = await import('./admin-password.js');
   const { deleteOwnerConsoleSessions } = await import('./oauth-provider.js');
   const { resolveTokenSubject } = await import('./persons.js');
   setChooserPublicUrl(PUBLIC_URL);
@@ -211,7 +211,27 @@ app.get('/statechart', async (_req, res) => {
     rateLimiter,
     logger
   };
+  human.checkAdminPassword = (input) => verifyAdminPassword(dbManager.db, input);
   human.gate = createOwnerGate(human);
+  app.use(async (req, res, next) => {
+    const pathName = req.path || '';
+    const settings = pathName === '/owner/chooser' || pathName.startsWith('/owner/chooser/')
+      || pathName === '/owner/break-glass' || pathName.startsWith('/owner/break-glass/')
+      || pathName === '/owner/approvals' || pathName.startsWith('/owner/approvals/');
+    if (!settings) return next();
+    if (req.query && typeof req.query.d === 'string' && req.query.d) return next();
+    if (human.gate.sessionOf(req)) return next();
+    try {
+      if (!await adminPasswordIsSet(dbManager.db)) {
+        res.redirect(303, '/owner/admin-password');
+        return;
+      }
+    } catch (err) {
+      next(err);
+      return;
+    }
+    next();
+  });
   setAdminPasswordRotatedHook((db) => deleteOwnerConsoleSessions(db, provider.prefix));
   mountAdminPassword(app, human);
   mountChooser(app, human);

@@ -17,7 +17,7 @@ process.env.LOG_LEVEL = process.env.LOG_LEVEL || 'error';
 const SECRET = 'owner-secret-value';
 const REDIRECT = 'https://example.com/cb';
 const PEPPER = 'pepper-pepper-pepper-pepper-pepper-32b';
-const TAGS = 'grok-project,hub-bot,note-bot';
+const TAGS = 'project-host,hub-bot,note-bot';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ENV = {
   EMET_SUBKEYS: '1',
@@ -49,7 +49,7 @@ function clientRow(clientId) {
 
 const ownerActor = () => ({
   personId: 'owner', ownerId: 'owner', clientId: 'owner-host', transport: 'http',
-  authenticated: true, sourceTag: 'grok-project', sourceBasis: 'login', door: 'owner', scopes: ['emet']
+  authenticated: true, sourceTag: 'project-host', sourceBasis: 'login', door: 'owner', scopes: ['emet']
 });
 
 async function issueMole(deps) {
@@ -224,7 +224,7 @@ testGroup('the door table', () => {
             assert.equal(patched.version, 2);
           }));
           await assert.rejects(
-            () => clientApprove({ readDoc: approvalsDeps.readDoc, writeDoc: approvalsDeps.writeDoc }, actor, 'owner', { tag: 'grok-project', decision: 'approve' }),
+            () => clientApprove({ readDoc: approvalsDeps.readDoc, writeDoc: approvalsDeps.writeDoc }, actor, 'owner', { tag: 'project-host', decision: 'approve' }),
             /only the owner/,
             'clientApprove'
           );
@@ -293,7 +293,7 @@ testGroup('the door table', () => {
 
         const quiet = createMemoryStore();
         approvalsDeps.subkeys = quiet;
-        await withEnv({ ...ENV, EMET_SOURCE_TAGS: 'grok-project' }, async () => {
+        await withEnv({ ...ENV, EMET_SOURCE_TAGS: 'project-host' }, async () => {
           const issued = await withEnv(ENV, () => issueMole({ subkeys: quiet, readDoc: approvalsDeps.readDoc, writeDoc: approvalsDeps.writeDoc }));
           const db = makeStore();
           const posted = await postApprove(db, {
@@ -329,13 +329,13 @@ testGroup('the door table', () => {
           const { actorIsOwner, preflight } = await import('../src/attribution.js');
           assert.equal(actorIsOwner(actor, 'owner'), false);
           await assert.rejects(
-            () => preflight({ db, prefix: 'emet_', ownerId: 'owner', deps: { subkeys: memory }, registry: TAGS.split(',') }, actor, { source: 'grok-project' }, 'write_doc'),
-            /may not write as "grok-project"/
+            () => preflight({ db, prefix: 'emet_', ownerId: 'owner', deps: { subkeys: memory }, registry: TAGS.split(',') }, actor, { source: 'project-host' }, 'write_doc'),
+            /may not write as "project-host"/
           );
           await withStore(db, () => actorStore.run(actor, async () => {
             const { writeDoc } = await import('../src/tools.js');
             const { sourceOf } = await import('../src/dispatch.js');
-            await writeDoc('notes/secondary.md', 'Secondary owner note.\n', sourceOf({ source: 'grok-project' }), null, null, {});
+            await writeDoc('notes/secondary.md', 'Secondary owner note.\n', sourceOf({ source: 'project-host' }), null, null, {});
             const stored = db.collection('documents').docs.find((doc) => doc.doc_id === 'notes/secondary.md');
             assert.equal(stored.updated_by, 'note-bot');
           }));

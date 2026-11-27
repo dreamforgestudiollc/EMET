@@ -79,7 +79,7 @@ async function save(layer, metadata, content = 'A durable fact about the system.
 }
 
 const RECEIPT_ORDER = [
-  'layer', 'id', 'timestamp', 'verified', 'sha256', 'digest_stored',
+  'layer', 'id', 'timestamp', 'server_time', 'verified', 'sha256', 'digest_stored',
   'metadata_sha256', 'metadata_digest_stored',   // C1 (2026-09-07)
   'signed', 'signature_stored',
   'redacted',

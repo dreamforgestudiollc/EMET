@@ -269,6 +269,8 @@ same page. The bot signs in with that key and its source tag (`door=key` on Auth
 not use the connect passphrase. See
 [docs/SUBKEYS.md](docs/SUBKEYS.md) and [docs/BOTS.md](docs/BOTS.md) §4.
 
+**The admin password opens settings.** Set it at `/owner/admin-password`. The chooser, grants, and break-glass ask for that admin password. The connect passphrase stays on the connect page. An unset connect passphrase does not mint recovery codes.
+
 **Pass `session_handle` on every write in a sub-key session.** `emet_session_open` returns
 `session_handle` once. Later writes in that session pass `session_handle`. A write that names
 the session and omits the handle, or sends a different one, is refused, and nothing is written.
@@ -664,7 +666,7 @@ Inside the door, in order:
   flagged, never dropped), or `'unattested'` for rows written before the column existed.
   Supersession and the correction mark are the only sanctioned mutations of stored metadata, and
   both re-attest the parent.
-- **One receipt shape on both transports:** `layer, id, timestamp, verified, sha256,
+- **One receipt shape on both transports:** `layer, id, timestamp, server_time, verified, sha256,
   digest_stored, metadata_sha256, metadata_digest_stored, redacted, provenance, source,
   assertion_origin, importance, routing, warnings[]` plus whichever markers apply.
 

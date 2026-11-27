@@ -13,7 +13,7 @@ import { layerDb, layerHonouringDb, makeStore, withStore, withEnv } from './mems
 const BEFORE = new Date('2026-12-15T04:59:59.999Z'); // 2026-12-14 23:59 EST
 const ON = new Date('2026-12-15T05:00:00.000Z'); // 2026-12-15 00:00 EST
 const REG = {
-  EMET_SOURCE_TAGS: 'grok-project,hub-bot,second-bot,third-bot,hubbot-speaks-of-memory,note-bot,fourth-bot',
+  EMET_SOURCE_TAGS: 'project-host,hub-bot,second-bot,third-bot,hubbot-speaks-of-memory,note-bot,fourth-bot',
   EMET_SOURCE_TAG: undefined,
   EMET_SOURCE_SAVE_CUTOFF: undefined,
   CASCADE_SOURCE_SAVE_CUTOFF: undefined
@@ -35,7 +35,7 @@ function refused(error) {
     && /Nothing was written/.test(error.message)
     && /2026-12-15/.test(error.message)
     && /America\/New_York/.test(error.message)
-    && !/grok-project/.test(error.message)
+    && !/project-host/.test(error.message)
     && !/note-bot/.test(error.message);
 }
 
@@ -43,13 +43,13 @@ testGroup('membership and the cutoff clock', () => {
   test('the transcript check and the save check share one membership', async () => {
     const { sourceMembership } = await import('../src/source-registration.js');
     const { requireRegisteredSource } = await import('../src/dispatch.js');
-    const registry = ['grok-project', 'hub-bot'];
-    assert.equal(sourceMembership('grok-project', registry), 'registered');
+    const registry = ['project-host', 'hub-bot'];
+    assert.equal(sourceMembership('project-host', registry), 'registered');
     assert.equal(sourceMembership('cursor-cloud-agent', registry), 'unregistered');
     assert.equal(sourceMembership('', registry), 'absent');
     assert.equal(sourceMembership('anything', []), 'open');
     await withEnv(REG, () => {
-      assert.equal(requireRegisteredSource('grok-project', 'emet_transcript_append'), 'grok-project');
+      assert.equal(requireRegisteredSource('project-host', 'emet_transcript_append'), 'project-host');
       assert.throws(() => requireRegisteredSource('stranger', 'emet_transcript_append'), /EMET-TOOL-004|is not registered/);
     });
   });
@@ -84,7 +84,7 @@ testGroup('membership and the cutoff clock', () => {
 
 testGroup('save_to_layer', () => {
   test('a registered tag is stored on and after the cutoff, with no warning', async () => {
-    for (const source of ['grok-project', 'hub-bot', 'note-bot', 'cursor-cloud-agent']) {
+    for (const source of ['project-host', 'hub-bot', 'note-bot', 'cursor-cloud-agent']) {
       const env = source === 'cursor-cloud-agent'
         ? { ...REG, EMET_SOURCE_TAGS: `${REG.EMET_SOURCE_TAGS},cursor-cloud-agent` }
         : REG;
@@ -134,7 +134,7 @@ testGroup('save_to_layer', () => {
     assert.equal(db.writes[0].doc.metadata.source_unregistered, true);
     const warning = receipt.warnings.find((w) => /not registered/.test(w));
     assert.ok(warning && warning.includes('2026-12-15') && warning.includes('America/New_York'), warning);
-    assert.ok(!/grok-project/.test(warning));
+    assert.ok(!/project-host/.test(warning));
   });
 
   test('on the cutoff an unregistered save is refused and nothing is written', async () => {
@@ -189,8 +189,8 @@ testGroup('save_to_layer', () => {
         refused
       );
       assert.equal(db.writes.length, 0);
-      const kept = await saveMemory(db, 'A durable fact about the cutoff.', 'working', { source: 'grok-project' });
-      assert.equal(kept.source, 'grok-project');
+      const kept = await saveMemory(db, 'A durable fact about the cutoff.', 'working', { source: 'project-host' });
+      assert.equal(kept.source, 'project-host');
       assert.equal(kept.source_unregistered, undefined);
     });
   });
@@ -238,11 +238,11 @@ testGroup('save_to_layer', () => {
     const { actorStore } = await import('../src/persons.js');
     const owner = {
       transport: 'http', authenticated: true, personId: 'owner', ownerId: 'owner',
-      clientId: 'owner-client', sourceTag: 'grok-project', sourceBasis: 'login',
+      clientId: 'owner-client', sourceTag: 'project-host', sourceBasis: 'login',
       door: 'owner', grantId: 'grant-owner', scopes: ['emet.write']
     };
     const owned = await actorStore.run(owner, () => save({ source: 'stranger' }, REG, ON));
-    assert.equal(owned.receipt.source, 'grok-project');
+    assert.equal(owned.receipt.source, 'project-host');
     assert.equal(owned.receipt.source_unregistered, undefined);
     assert.ok(!owned.receipt.warnings.some((w) => /not registered/.test(w)));
 
@@ -267,7 +267,7 @@ testGroup('save_to_layer', () => {
     await withEnv(REG, async () => {
       const { saveMemory, reviseMemory } = await import('../src/tools.js');
       const first = await saveMemory(db, 'The current semantic note.', 'semantic', {
-        source: 'grok-project',
+        source: 'project-host',
         derived_from: { session_id: '2026-11-22_cutoff', exchange_start: 1, exchange_end: 1 }
       }, null, null, { now: BEFORE });
       await assert.rejects(
@@ -280,10 +280,10 @@ testGroup('save_to_layer', () => {
       assert.equal(db.row('semantic', first.id).superseded_by ?? null, null);
       assert.equal(db.writes.length, 1);
       const kept = await reviseMemory(db, 'semantic', first.id, 'A revision from the owner tag.', {
-        source: 'grok-project',
+        source: 'project-host',
         derived_from: { session_id: '2026-11-22_cutoff', exchange_start: 1, exchange_end: 1 }
       }, null, { now: ON });
-      assert.equal(kept.source, 'grok-project');
+      assert.equal(kept.source, 'project-host');
       assert.equal(db.row('semantic', first.id).superseded_by, kept.id);
     });
   });
@@ -314,7 +314,7 @@ testGroup('dispatch', () => {
       const kept = await dispatchTool('write_doc', {
         doc_id: 'drops/dispatch-kept.md',
         content: 'a registered note\n',
-        source: 'grok-project'
+        source: 'project-host'
       }, { dbManager: store, logger: null });
       const keptBody = JSON.parse(kept.content[0].text);
       assert.equal(keptBody.success, true, JSON.stringify(keptBody).slice(0, 500));
@@ -341,7 +341,7 @@ testGroup('documents and legacy rows', () => {
       );
       assert.equal(store.doc('drops/late.md'), undefined);
       assert.equal(store.doc('threads/nope.md'), undefined);
-      const ownerDrop = await writeDoc('drops/owner.md', 'owner note\n', 'grok-project', null, null, { now: ON });
+      const ownerDrop = await writeDoc('drops/owner.md', 'owner note\n', 'project-host', null, null, { now: ON });
       assert.equal(ownerDrop.version, 1);
       assert.ok(!(ownerDrop.warnings || []).some((w) => /not registered/.test(w)));
     }));

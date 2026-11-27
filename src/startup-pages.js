@@ -64,7 +64,7 @@ export const BINDING_KEYS = Object.freeze([
 export const PAGE_FIELDS = Object.freeze(['startup_page', 'page_notice', 'page_plan']);
 
 /** Recomputed on every read. They ride on the payload and stay out of load_id. */
-const LOAD_ID_SKIP = new Set(['handoff_view', 'handoff_view_text', 'handoff_view_conflicts', 'own_handoff', 'stale_open']);
+const LOAD_ID_SKIP = new Set(['handoff_view', 'handoff_view_text', 'handoff_view_conflicts', 'own_handoff', 'stale_open', 'server_time']);
 
 export const loadIdOf = (full) => {
   const stable = {};

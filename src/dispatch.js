@@ -280,7 +280,15 @@ export async function dispatchTool(name, args, ctx) {
       return finish(data);
     };
     switch (name) {
-      case 'emet_initialize':        return ok(await initialize(args, { onLate: (late) => sg.recordLatePages(late, dbManager, logger) }));
+      case 'emet_initialize': {
+        const started = await initialize(args, { onLate: (late) => sg.recordLatePages(late, dbManager, logger) });
+        const whole = started && started.startup_page && started.startup_page.index === 'all';
+        if (whole && !started.server_time) {
+          const { serverNow, serverTime } = await import('./server-time.js');
+          started.server_time = serverTime(serverNow());
+        }
+        return ok(started);
+      }
       case 'emet_setup_complete':    return ok(await setupComplete(args.answers || {}, logger, { reissue: args.reissue === true, source: sourceOf(args) }));
       case 'emet_session_close': {
         const data = await sessionClose(args);
@@ -424,6 +432,10 @@ export async function dispatchTool(name, args, ctx) {
             const keys = sk.subkeysView(records, rawActor() || { transport: 'stdio' }, null);
             if (keys) status.subkeys = keys;
           }
+        }
+        {
+          const { serverNow, serverTime } = await import('./server-time.js');
+          status.server_time = serverTime(serverNow());
         }
         return ok(status);
       }

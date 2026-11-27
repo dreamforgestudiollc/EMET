@@ -26,7 +26,7 @@ export function headingSlice(text, heading) {
 }
 
 const LIVE_CLIENT = /\b8xm-[A-Za-z0-9_-]{10,}\b/;
-const PLANTED_CLIENT = '8xm-exampleclientid';
+const PLANTED_CLIENT = '8xm-' + 'exampleclientid';
 
 const LEAVE_PATHS = Object.freeze([
   'hosts/GROK.md',

@@ -13,6 +13,12 @@ scoped user, and Atlas Network Access set to `0.0.0.0/0` — a hosted platform's
 dynamic, so it cannot be allowlisted. Security rests on the scoped user plus the OAuth
 passphrase; both are required.
 
+## Upgrading to 0.3.8
+
+0.3.8 adds an admin password for the chooser, grants, and break-glass. The connect passphrase stays on the connect page. Set the admin password at `/owner/admin-password` with an owner session, the connect passphrase, or an owner Authorize token. An unset `EMET_OAUTH_PASSPHRASE` does not create the password and does not mint recovery codes. `EMET_ADMIN_PEPPER` is mixed into the hash when it is set and it is not the connect passphrase. `EMET_ADMIN_RECOVERY` is a one-time host token for `/owner/admin-password/recover`. `EMET_CONSOLE_ORIGINS` lists the browser origins allowed to call the console. Stored memory rows are not rewritten.
+
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
 ## Upgrading to 0.3.7
 
 0.3.7 adds per-tag handoffs, off unless the owner sets `EMET_TAG_HANDOFFS` to `warn` or `enforce`, and sub-key session renewal. Stored rows are not rewritten. No new setting is required. A bot on the shared owner login needs its own sub-key before that flag leaves off. With the flag at `warn` or `enforce`, a declared session tag that is not the credential is refused (`EMET-DOC-088`). A call that declares no tag is kept. With the flag off that check does not run. `EMET_SUBKEY_RENEWAL_MINUTES`, `EMET_SUBKEY_HANDLE_GRACE_MINUTES`, and `EMET_SUBKEY_SWEEP_MINUTES` default to 60, 60, and 15. The handle length stays 12 hours. Listings gain `emet_subkey_set_kind`. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.

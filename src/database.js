@@ -258,7 +258,8 @@ const FIELD_SET = new Set([
   // HMAC of the two digests. Key lives on the service, never in this row.
   'signature',
   'prev_sha256',
-  'chain_sha256'
+  'chain_sha256',
+  'server_written_local'
 ]);
 
 // ============================================

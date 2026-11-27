@@ -137,11 +137,11 @@ function bindingFields(binding) {
 <input type="hidden" name="bind_door" value="${esc(binding.door)}">`;
 }
 
-function pageBody({ session, stash, keys, writers, note }) {
+function pageBody({ session, stash, keys, writers, note, credential }) {
   const parts = [];
   if (note) parts.push(`<p class="note">${esc(note)}</p>`);
   if (!session) {
-    parts.push(loginForm('/owner/chooser'));
+    parts.push(loginForm('/owner/chooser', { credential: credential || 'passphrase' }));
     parts.push('<p>Break-glass recovery, with no AI client, is <a href="/owner/break-glass">/owner/break-glass</a>.</p>');
     return parts.join('\n');
   }
@@ -266,7 +266,7 @@ export function mountChooser(app, options = {}) {
         writers = null;
       }
     }
-    sendHtml(res, 200, pageBody({ session, stash: stashOf(req, now()), keys, writers, note }), 'EMET chooser');
+    sendHtml(res, 200, pageBody({ session, stash: stashOf(req, now()), keys, writers, note, credential: gate.credential }), 'EMET chooser');
   }
 
   app.get('/owner/chooser', (req, res) => {

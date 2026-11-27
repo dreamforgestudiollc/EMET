@@ -31,6 +31,15 @@ import { continuityCurrencyEnabled, loadContinuityCurrency, continuityCurrencyUn
 import { approvedTags, APPROVALS_DOC } from './attribution.js';
 import { refuseBoundHostDoor, boundHostActor, boundHostCredentialOverrides, boundHostClaimOnSharedLogin, isBoundHostTag, isLegacyBoundHostSpelling, CLAIM_TAG } from './bound-door.js';
 import { sealAttestation, frozenAttestation } from './rune-dispatch.js';
+import { serverNow, serverTime } from './server-time.js';
+
+function clockStamp(date = new Date()) {
+  const stamped = serverTime(serverNow(date));
+  return {
+    server_time: stamped,
+    server_written_local: stamped ? stamped.local : null
+  };
+}
 
 /** Approvals record io for attribution.js (server-kept doc, written as emet-server). */
 export const approvalsDeps = {
@@ -775,6 +784,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     const metadataSha256 = digestMetadata(validatedMetadata);
     const signingKey = setting('SIGNING_KEY') || null;
     const signature = signDigests(contentSha256, metadataSha256, signingKey);
+    const clock = clockStamp();
     // The row as a document (stage 1 of the write-path rewrite, 2026-09-27).
     // `event` (a mirror of content) was retired with the SQL read path,
     // 2026-09-28; older rows keep theirs, untouched.
@@ -806,7 +816,8 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       metadata_sha256: metadataSha256,
       signature,
       prev_sha256: prevSha256,
-      chain_sha256: chainSha256
+      chain_sha256: chainSha256,
+      server_written_local: clock.server_written_local
     };
 
     // Option A correction back-pointer (the owner, 2026-10-02, procedural ref 405 item 4): a new entry may name the
@@ -869,6 +880,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       layer: targetLayer,
       id: memoryId,
       timestamp,
+      server_time: clock.server_time,
       verified: true,
       sha256: receipt.sha256,
       // digest_stored: the read-back saw a sha256 COLUMN on the row and it agreed
@@ -1390,6 +1402,7 @@ function recalledRow(memory, layer, extra = {}) {
     ...(layer ? { layer } : {}),
     id: memory.id,
     timestamp: memory.timestamp,
+    server_written_local: memory.server_written_local ?? null,
     content: memory.content,
     context: memory.context,
     importance: memory.importance,
@@ -2358,12 +2371,14 @@ export async function transcriptAppend(args = {}, logger = null) {
     }
 
     const scrub = (s) => redactWithReport(s || '').text;
+    const appendClock = clockStamp();
     const row = stampExchange(storedExchange({
       exchange_index: idx,
       user_message,
       assistant_message,
       timestamp: Date.now() / 1000
     }, idx - 1, scrub), stampedChannel, appendStamp);
+    row.server_written_local = appendClock.server_written_local;
     const attr = declaredAttribution();
     if (attr && attr.basis === 'subkey' && attr.keyId) {
       row.key_id = attr.keyId;
@@ -2410,6 +2425,7 @@ export async function transcriptAppend(args = {}, logger = null) {
       });
       return {
         session_id: part, exchange_index: idx, exchange_count: 1, rolled: part !== session_id,
+        server_time: appendClock.server_time,
         grant_id: appendStamp.grant_id,
         ...(appendClaim.warning ? { claimed_tag_warning: appendClaim.warning } : {}),
         ...machineLineField()
@@ -2425,6 +2441,7 @@ export async function transcriptAppend(args = {}, logger = null) {
       session_id: part,
       exchange_index: idx,
       exchange_count: (live.exchange_count || exchanges.length) + 1,
+      server_time: appendClock.server_time,
       rolled: part !== session_id,
       next_part_after: EXCHANGES_PER_PART,
       grant_id: appendStamp.grant_id,
@@ -2731,6 +2748,7 @@ export async function readDoc(doc_id, logger = null, opts = {}) {
       if (doc.retired === true) notes.push(RETIRED_DOC_NOTE);
       if (integrity === false) notes.push(BODY_MISMATCH_NOTE);
       return { doc_id: doc.doc_id, content, sha256: doc.sha256, version: doc.version,
+               server_written_local: doc.server_written_local ?? null,
                updated_at: doc.updated_at, updated_by: doc.updated_by || null,
                client_id: doc.client_id || null, grant_id: doc.grant_id || null, door: doc.door || null, session_id: doc.session_id || null,
                ...(doc.key_id ? { key_id: doc.key_id } : {}),
@@ -2787,6 +2805,7 @@ export async function readDocHistory(doc_id, version = null, logger = null) {
       if (current && current.version === version) {
         const integrity = integrityOf(current);
         return { doc_id, version, is_current: true, content: current.content, sha256: current.sha256, size: current.content.length,
+                 server_written_local: current.server_written_local ?? null,
                  updated_at: current.updated_at, updated_by: current.updated_by || null,
                  client_id: current.client_id || null, grant_id: current.grant_id || null, door: current.door || null, session_id: current.session_id || null,
                  ...(current.key_id ? { key_id: current.key_id } : {}),
@@ -2801,6 +2820,7 @@ export async function readDocHistory(doc_id, version = null, logger = null) {
       if (!row) throw new ValidationError(`No retained revision ${version} of ${doc_id}`, { code: 'EMET-DOC-003' });
       const integrity = integrityOf(row);
       return { doc_id, version, is_current: false, content: row.content, sha256: row.sha256 || null, size: row.content.length,
+               server_written_local: row.server_written_local ?? null,
                updated_at: row.updated_at || null, updated_by: row.updated_by || null, archived_at: row.archived_at || null,
                client_id: row.client_id || null, grant_id: row.grant_id || null, door: row.door || null, session_id: row.session_id || null,
                ...(row.key_id ? { key_id: row.key_id } : {}),
@@ -3375,14 +3395,15 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
           episodic_id: null
         });
       }
-      const now = new Date();
+      const writeClock = clockStamp();
+      const now = writeClock.server_time ? serverNow(new Date()) : new Date();
       // Validation runs HERE: after redaction, on the exact text that will be
       // stored, with the previous revision already in hand for the
       // carry-forward comparison. It marks and never rejects (ref 304), so its
       // result is a field on the row rather than a branch in this function.
       // Writing the field whole also enforces L6 - the fresh object carries no
       // acceptance, so an acceptance covers the one revision it was given to.
-      const conformance = validateDocument(doc_id, content, prev ? prev.content : null);
+      const conformance = validateDocument(doc_id, content, prev ? prev.content : null, { at: writeClock.server_time });
       // L5, set only when renameDoc reaches this door. The destination passes
       // validation as "untemplated" when no template maps to it - which is the
       // evasion rather than the answer if the id it came FROM was governed.
@@ -3422,6 +3443,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         // is a trap; it is also the un-retire path, so retirement is not a
         // one-way door.
         retired: false,
+        server_written_local: writeClock.server_written_local,
         size_note: 'baseline is the size when this session first touched the document',
         ...(condenseMeta ? { condense: condenseMeta } : {})
       };
@@ -3510,7 +3532,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
           success: true
         });
       }
-      return { doc_id, sha256, version, size: content.length, updated_at: now, verified: true,
+      return { doc_id, sha256, version, size: content.length, updated_at: now, server_time: writeClock.server_time, verified: true,
                signed: signatureIntegrityOf(check, signingKey),
                signature_stored: typeof check?.signature === 'string' && check.signature.length > 0,
                redacted: redaction.hits, conformance,
@@ -4684,7 +4706,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "write_doc",
-    description: "Write or update a continuity document in the document store (versioned, prior copy archived to documents_history and marked obsolete, sha256 read-back verified). RECORDS - the handoff (HANDOFF.md) and any id in EMET_RECORD_DOCS - are superseded, never amended: patch_doc is refused on them, and a new revision is written here WHOLE with `supersedes` set to the version currently in force (ISO 9001 7.5.3 / 13485 4.2.5). When EMET_TAG_HANDOFFS is warn or enforce, a write tag's handoff is HANDOFF/<tag>.md and only that credential writes it. Only the hub tag writes HANDOFF.md. A claimed tag is refused on HANDOFF/ (EMET-DOC-087). A two-segment id and a tag equal to a person id are refused (EMET-DOC-086). Another tag's handoff is refused (EMET-DOC-084). In warn, those new-prefix refusals apply at once. A registered non-hub write of HANDOFF.md or another tag's bots/ folder warns and is kept; enforce refuses it.",
+    description: "Write or update a continuity document in the document store (versioned, prior copy archived to documents_history and marked obsolete, sha256 read-back verified). A clock that cannot be formatted stores server_written_local null and the write still succeeds. RECORDS - the handoff (HANDOFF.md) and any id in EMET_RECORD_DOCS - are superseded, never amended: patch_doc is refused on them, and a new revision is written here WHOLE with `supersedes` set to the version currently in force (ISO 9001 7.5.3 / 13485 4.2.5). When EMET_TAG_HANDOFFS is warn or enforce, a write tag's handoff is HANDOFF/<tag>.md and only that credential writes it. Only the hub tag writes HANDOFF.md. A claimed tag is refused on HANDOFF/ (EMET-DOC-087). A two-segment id and a tag equal to a person id are refused (EMET-DOC-086). Another tag's handoff is refused (EMET-DOC-084). In warn, those new-prefix refusals apply at once. A registered non-hub write of HANDOFF.md or another tag's bots/ folder warns and is kept; enforce refuses it.",
     inputSchema: { type: "object", properties: {
       doc_id: { type: "string" },
       content: { type: "string" },

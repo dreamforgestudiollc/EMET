@@ -186,11 +186,14 @@ export function mountAdminPassword(app, options = {}) {
       return;
     }
     res.locals.reason = 'admin_password_form';
-    sendHtml(res, 200, createForm(proofConfigured(provider)), 'EMET admin password');
+    sendHtml(res, 200, createForm(true), 'EMET admin password');
   }
 
   async function ownerProof(req, body) {
-    if (!proofConfigured(provider)) return true;
+    if (gate && typeof gate.sessionOf === 'function' && gate.sessionOf(req)) return true;
+    // An unset connect passphrase is not proof. No owner session and no
+    // presented secret refuses the create, and no recovery codes are minted.
+    if (!proofConfigured(provider)) return false;
     const presented = typeof body.connect_passphrase === 'string' ? body.connect_passphrase : '';
     try {
       if (presented && provider.checkPassphrase(presented) === true) return true;

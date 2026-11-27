@@ -54,7 +54,7 @@ const passwordHub = {
 
 const HUB_ENV = {
   EMET_HUB_TAG: 'hub-bot',
-  EMET_SOURCE_TAGS: 'hub-bot,owner,grok-project'
+  EMET_SOURCE_TAGS: 'hub-bot,owner,project-host'
 };
 
 function approvalRow(id, extra = {}) {
@@ -81,9 +81,9 @@ testGroup('the floor', () => {
     const { writeDoc } = await import('../src/tools.js');
     const db = makeStore();
     await withStore(db, async () => {
-      await writeDoc('HANDOFF.md', BIG, 'grok-project', null, null, { session_id: 's1' });
+      await writeDoc('HANDOFF.md', BIG, 'project-host', null, null, { session_id: 's1' });
       await assert.rejects(
-        () => writeDoc('HANDOFF.md', SHORT, 'grok-project', null, null, {
+        () => writeDoc('HANDOFF.md', SHORT, 'project-host', null, null, {
           supersedes: 1, reason: REASON, session_id: 's1'
         }),
         (err) => {
@@ -102,7 +102,7 @@ testGroup('the floor', () => {
     const { actorStore } = await import('../src/persons.js');
     const db = makeStore();
     await withStore(db, async () => {
-      await writeDoc('HANDOFF.md', BIG, 'grok-project', null, null, { session_id: 's1' });
+      await writeDoc('HANDOFF.md', BIG, 'project-host', null, null, { session_id: 's1' });
       await actorStore.run(bot, () => assert.rejects(
         () => writeDoc('HANDOFF.md', SHORT, 'second-bot', null, null, {
           supersedes: 1, reason: REASON, session_id: 's-bot', condense_approved: true
@@ -122,7 +122,7 @@ testGroup('the floor', () => {
     const { actorStore } = await import('../src/persons.js');
     const db = makeStore();
     await withEnv(HUB_ENV, () => withStore(db, async () => {
-      await writeDoc('HANDOFF.md', BIG, 'grok-project', null, null, { session_id: 's1' });
+      await writeDoc('HANDOFF.md', BIG, 'project-host', null, null, { session_id: 's1' });
       await actorStore.run(passwordHub, () => assert.rejects(
         () => writeDoc('HANDOFF.md', SHORT, 'hub-bot', null, null, {
           supersedes: 1, reason: REASON, session_id: 's-hub', condense_approved: true
@@ -145,7 +145,7 @@ testGroup('the floor', () => {
     const { actorStore } = await import('../src/persons.js');
     const db = makeStore();
     await withStore(db, async () => {
-      await writeDoc('HANDOFF.md', BIG, 'grok-project', null, null, { session_id: 's1' });
+      await writeDoc('HANDOFF.md', BIG, 'project-host', null, null, { session_id: 's1' });
       await actorStore.run(owner, () => assert.rejects(
         () => writeDoc('HANDOFF.md', SHORT, 'owner', null, null, {
           supersedes: 1, session_id: 's-owner', condense_approved: true
@@ -178,7 +178,7 @@ testGroup('an approved condense', () => {
       audit(op, details) { audits.push({ op, details }); }
     };
     await withStore(db, async () => {
-      await writeDoc('HANDOFF.md', BIG, 'grok-project', null, null, { session_id: 's1' });
+      await writeDoc('HANDOFF.md', BIG, 'project-host', null, null, { session_id: 's1' });
       const priorSha = db.doc('HANDOFF.md').sha256;
       const receipt = await actorStore.run(owner, () => writeDoc('HANDOFF.md', SHORT, 'owner', null, logger, {
         supersedes: 1,
@@ -228,7 +228,7 @@ testGroup('an approved condense', () => {
     const { actorStore } = await import('../src/persons.js');
     const db = makeStore();
     await withStore(db, async () => {
-      await writeDoc('HANDOFF.md', BIG, 'grok-project', null, null, { session_id: 's1' });
+      await writeDoc('HANDOFF.md', BIG, 'project-host', null, null, { session_id: 's1' });
       const docs = db.collection('documents');
       const orig = docs.updateOne.bind(docs);
       docs.updateOne = async (q, u, o) => {
@@ -256,7 +256,7 @@ testGroup('an approved condense', () => {
     const db = makeStore();
     await db.collection('emet_writer_approvals').insertOne(approvalRow(id));
     await withStore(db, async () => {
-      await writeDoc('HANDOFF.md', BIG, 'grok-project', null, null, { session_id: 's1' });
+      await writeDoc('HANDOFF.md', BIG, 'project-host', null, null, { session_id: 's1' });
       const receipt = await actorStore.run(bot, () => writeDoc('HANDOFF.md', SHORT, 'second-bot', null, null, {
         supersedes: 1,
         reason: REASON,
@@ -286,7 +286,7 @@ testGroup('an approved condense', () => {
       doc_id: 'HANDOFF.md'
     }));
     await withEnv(HUB_ENV, () => withStore(db, async () => {
-      await writeDoc('HANDOFF.md', BIG, 'grok-project', null, null, { session_id: 's1' });
+      await writeDoc('HANDOFF.md', BIG, 'project-host', null, null, { session_id: 's1' });
       const receipt = await actorStore.run(passwordHub, () => writeDoc('HANDOFF.md', SHORT, 'hub-bot', null, null, {
         supersedes: 1,
         reason: REASON,
@@ -310,7 +310,7 @@ testGroup('an approved condense', () => {
     const db = makeStore();
     await db.collection('emet_writer_approvals').insertOne(approvalRow(id, { doc_id: 'HANDOFF.md' }));
     await withEnv({ EMET_RECORD_DOCS: 'NOTES.md' }, () => withStore(db, async () => {
-      await writeDoc('NOTES.md', BIG, 'grok-project', null, null, { session_id: 's1' });
+      await writeDoc('NOTES.md', BIG, 'project-host', null, null, { session_id: 's1' });
       await actorStore.run(bot, () => assert.rejects(
         () => writeDoc('NOTES.md', SHORT, 'second-bot', null, null, {
           supersedes: 1, reason: REASON, session_id: 's-bot', condense_approved: true, writer_approval_id: id
@@ -322,7 +322,7 @@ testGroup('an approved condense', () => {
         }
       ));
       assert.strictEqual(db.doc('NOTES.md').content, BIG);
-      await writeDoc('HANDOFF.md', BIG, 'grok-project', null, null, { session_id: 's1' });
+      await writeDoc('HANDOFF.md', BIG, 'project-host', null, null, { session_id: 's1' });
       const bare = 'wr-fedcba9876543210';
       await db.collection('emet_writer_approvals').insertOne(approvalRow(bare, { doc_id: null }));
       await actorStore.run(bot, () => assert.rejects(
@@ -346,7 +346,7 @@ testGroup('an approved condense', () => {
     const db = makeStore();
     await db.collection('emet_writer_approvals').insertOne(approvalRow(id, { status: 'validated', issued: false }));
     await withStore(db, async () => {
-      await writeDoc('HANDOFF.md', BIG, 'grok-project', null, null, { session_id: 's1' });
+      await writeDoc('HANDOFF.md', BIG, 'project-host', null, null, { session_id: 's1' });
       await actorStore.run(bot, () => assert.rejects(
         () => writeDoc('HANDOFF.md', SHORT, 'second-bot', null, null, {
           supersedes: 1, reason: REASON, session_id: 's-bot', condense_approved: true, writer_approval_id: id
@@ -442,7 +442,7 @@ testGroup('the owner grants the named condense', () => {
       assert.equal(row.doc_id, 'HANDOFF.md');
       assert.equal(row.decider, 'owner');
       await withEnv(HUB_ENV, () => withStore(db, async () => {
-        await writeDoc('HANDOFF.md', BIG, 'grok-project', null, null, { session_id: 's1' });
+        await writeDoc('HANDOFF.md', BIG, 'project-host', null, null, { session_id: 's1' });
         const receipt = await actorStore.run(passwordHub, () => writeDoc('HANDOFF.md', SHORT, 'hub-bot', null, null, {
           supersedes: 1,
           reason: REASON,
@@ -463,7 +463,7 @@ testGroup('the owner grants the named condense', () => {
 });
 
 testGroup('a named grant does not widen a client door', () => {
-  test('approving a shorten grant for grok-project leaves CLIENT_APPROVALS unchanged', async () => {
+  test('approving a shorten grant for project-host leaves CLIENT_APPROVALS unchanged', async () => {
     const express = (await import('express')).default;
     const { ApproveThrottle } = await import('../src/approve-throttle.js');
     const { mountChooser } = await import('../src/chooser.js');
@@ -483,7 +483,7 @@ testGroup('a named grant does not widen a client door', () => {
       clientId: 'mb-client',
       grantId: 'mbgrant00000000000001'
     }, {
-      client: '8xm-7ILLKEDFc3-QRxqlgw',
+      client: 'client-host-example',
       claimed_tag: 'project-host',
       tag: 'project-host',
       door: 'member',

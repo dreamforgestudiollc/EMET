@@ -252,6 +252,12 @@ it should come back `ready` with your existing identity, not `setup_required`. I
 `setup_required`, one of the four variables above is wrong; **do not run the setup interview,
 which would write a new identity over your existing one.**
 
+## Upgrading to 0.3.8
+
+0.3.8 adds an admin password for the chooser, grants, and break-glass. The connect passphrase stays on the connect page. Set the admin password at `/owner/admin-password` with an owner session, the connect passphrase, or an owner Authorize token. An unset `EMET_OAUTH_PASSPHRASE` does not create the password and does not mint recovery codes. `EMET_ADMIN_PEPPER` is mixed into the hash when it is set and it is not the connect passphrase. `EMET_ADMIN_RECOVERY` is a one-time host token for `/owner/admin-password/recover`. `EMET_CONSOLE_ORIGINS` lists the browser origins allowed to call the console. Stored memory rows are not rewritten.
+
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
 ## Upgrading to 0.3.7
 
 0.3.7 adds per-tag handoffs, off unless the owner sets `EMET_TAG_HANDOFFS` to `warn` or `enforce`, and sub-key session renewal. Stored rows are not rewritten. No new setting is required. The handle length stays 12 hours. A stranded session is marked `auto_closed` by the sweep. The row and the transcript stay. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.

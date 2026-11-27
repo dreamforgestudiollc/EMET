@@ -156,14 +156,14 @@ test('the version already in force is not restored', async () => {
   const { restoreDoc } = await import('../src/tools.js');
   const db = makeStore();
   await withStore(db, async () => {
-    process.env.EMET_SOURCE_TAG = 'grok-project';
+    process.env.EMET_SOURCE_TAG = 'project-host';
     await write('notes/in-force.md', 'alpha note\n');
     const live = db.doc('notes/in-force.md');
     assert.equal(live.version, 1);
     const historyOf = () => JSON.parse(JSON.stringify(db.collection('documents_history').docs));
     const historyBefore = historyOf();
     await assert.rejects(
-      () => restoreDoc('notes/in-force.md', 1, 'grok-project', null, REASON),
+      () => restoreDoc('notes/in-force.md', 1, 'project-host', null, REASON),
       (err) => {
         assert.match(err.message, /already in force/);
         assert.equal(err.emetCode, 'EMET-DOC-089');

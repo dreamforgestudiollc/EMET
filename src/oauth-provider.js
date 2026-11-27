@@ -41,6 +41,7 @@ import net from 'node:net';
 import tls from 'node:tls';
 import { COLLECTION_PREFIX } from './database.js';
 import { setting } from './env.js';
+import { OWNER_GRAPHIC_PATH } from './owner-session.js';
 import { InvalidGrantError, InvalidScopeError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { scopesNotGranted } from './scopes.js';
 import { CodedError, assignCode } from './error-codes.js';
@@ -642,7 +643,7 @@ export class MongoOAuthProvider {
 <input type="password" name="password" autofocus autocomplete="current-password" placeholder="Admin password">
 <label style="display:flex;gap:8px;align-items:center;margin-top:14px;font-size:13px;color:#c8c4bb"><input type="checkbox" name="remember" value="1"> Remember this phone</label>
 <p><a href="${escapeHtml(keyHref)}">I have a key</a></p>`
-        : `<p>Authorize <b>${clientLabel}</b> to reach this EMET memory store. After approval you will be sent to <code>${escapeHtml(redirectHost)}</code>.${loopback ? ' <span class="warn">That is a local address on this device; only approve if you started this connection yourself.</span>' : ''} This approval grants: <b>${scopeLine}</b>. Owner: enter the passphrase and the host source tag. Guest: enter the invite code you were given.</p>
+        : `<p>Authorize <b>${clientLabel}</b> to reach this EMET memory store. After approval you will be sent to <code>${escapeHtml(redirectHost)}</code>.${loopback ? ' <span class="warn">That is a local address on this device; only approve if you started this connection yourself.</span>' : ''} This approval grants: <b>${scopeLine}</b>. Owner: enter the connect passphrase and the host source tag. Guest: enter the invite code you were given.</p>
 <input type="text" name="source" autocomplete="off" placeholder="Source tag (owner)" style="${textField}">
 <input type="password" name="passphrase" autofocus autocomplete="current-password" placeholder="Passphrase (owner)">
 <input type="text" name="invite_code" autocomplete="off" placeholder="Invite code (guest)" style="margin-top:10px;${textField}">
@@ -653,7 +654,7 @@ export class MongoOAuthProvider {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     res.setHeader('Cache-Control', 'no-store');
     res.end(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EMET &middot; EMET</title>
-<style>body{font-family:system-ui,-apple-system,sans-serif;background:#12141a;color:#e8e6e0;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}form{background:#1b1e26;padding:30px 26px;border-radius:14px;max-width:340px;width:88%;box-shadow:0 10px 44px #0009}h1{font-size:17px;margin:0 0 6px}p{font-size:13px;line-height:1.5;color:#9aa0ab;margin:0 0 18px}input[type=password]{width:100%;box-sizing:border-box;padding:12px;border-radius:9px;border:1px solid #333;background:#0e1014;color:#fff;font-size:15px}button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:9px;background:#3a6ea5;color:#fff;font-size:15px;font-weight:600;cursor:pointer}small{display:block;margin-top:14px;color:#5c626d;font-size:11px}.warn{color:#d9a441}</style></head>
+<style>body{font-family:system-ui,-apple-system,sans-serif;background-color:#12141a;background-image:url("${OWNER_GRAPHIC_PATH}");background-repeat:no-repeat;background-position:center;background-size:cover;background-attachment:fixed;color:#e8e6e0;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}form{background:rgba(18, 20, 26, 0.86);padding:30px 26px;border-radius:14px;max-width:340px;width:88%;box-shadow:0 10px 44px #0009}h1{font-size:17px;margin:0 0 6px}p{font-size:13px;line-height:1.5;color:#9aa0ab;margin:0 0 18px}input[type=password]{width:100%;box-sizing:border-box;padding:12px;border-radius:9px;border:1px solid #333;background:#0e1014;color:#fff;font-size:15px}button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:9px;background:#3a6ea5;color:#fff;font-size:15px;font-weight:600;cursor:pointer}small{display:block;margin-top:14px;color:#5c626d;font-size:11px}.warn{color:#d9a441}</style></head>
 <body><form method="POST" action="/oauth/approve">${hidden}
 <h1>Connect to EMET</h1>
 ${credential}

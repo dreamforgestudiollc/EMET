@@ -24,7 +24,7 @@ process.env.EMET_REQUEST_LOG = '0';
 process.env.LOG_LEVEL = 'error';
 process.env.PUBLIC_URL = PUBLIC;
 process.env.EMET_CONSOLE_ORIGINS = '';
-process.env.EMET_SOURCE_TAGS = 'emet-console,note-bot,grok-project,hub-bot';
+process.env.EMET_SOURCE_TAGS = 'emet-console,note-bot,project-host,hub-bot';
 process.env.EMET_SUBKEYS = '1';
 process.env.EMET_SUBKEY_PEPPER = PEPPER;
 delete process.env.EMET_ADMIN_PEPPER;
@@ -219,7 +219,7 @@ testGroup('3. a key-door token cannot open an owner route', () => {
     approvalsDeps.subkeys = memory;
     const owner = {
       personId: 'owner', ownerId: 'owner', clientId: 'owner-host', transport: 'http',
-      authenticated: true, sourceTag: 'grok-project', sourceBasis: 'login', door: 'owner', scopes: ['emet']
+      authenticated: true, sourceTag: 'project-host', sourceBasis: 'login', door: 'owner', scopes: ['emet']
     };
     const bot = { ...owner, clientId: 'note-client', sourceTag: 'hub-bot' };
     const now = new Date('2026-11-24T16:00:00.000Z');
@@ -425,7 +425,7 @@ testGroup('7. revoking a key deletes its console token and refresh row', () => {
     approvalsDeps.subkeys = memory;
     const owner = {
       personId: 'owner', ownerId: 'owner', clientId: 'owner-host', transport: 'http',
-      authenticated: true, sourceTag: 'grok-project', sourceBasis: 'login', door: 'owner', scopes: ['emet']
+      authenticated: true, sourceTag: 'project-host', sourceBasis: 'login', door: 'owner', scopes: ['emet']
     };
     const bot = { ...owner, clientId: 'note-client', sourceTag: 'hub-bot' };
     const now = new Date('2026-11-24T16:00:00.000Z');
@@ -464,7 +464,7 @@ testGroup('7. revoking a key deletes its console token and refresh row', () => {
     approvalsDeps.subkeys = memory;
     const owner = {
       personId: 'owner', ownerId: 'owner', clientId: 'owner-host', transport: 'http',
-      authenticated: true, sourceTag: 'grok-project', sourceBasis: 'login', door: 'owner', scopes: ['emet']
+      authenticated: true, sourceTag: 'project-host', sourceBasis: 'login', door: 'owner', scopes: ['emet']
     };
     const bot = { ...owner, clientId: 'note-client', sourceTag: 'hub-bot' };
     const now = new Date('2026-11-24T16:00:00.000Z');
@@ -840,7 +840,7 @@ testGroup('break-glass and device delete', () => {
       method: 'POST',
       redirect: 'manual',
       headers: { 'content-type': 'application/x-www-form-urlencoded', 'x-forwarded-for': nextIp() },
-      body: new URLSearchParams({ passphrase: CONNECT, next: '/owner/break-glass' }).toString()
+      body: new URLSearchParams({ password: ADMIN, next: '/owner/break-glass' }).toString()
     });
     assert.equal(login.status, 303, await login.text());
     const cookie = String(login.headers.get('set-cookie') || '').split(';')[0];

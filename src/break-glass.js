@@ -189,7 +189,7 @@ export function mountBreakGlass(app, options = {}) {
 
   function refuseGrant(res) {
     res.locals.reason = 'break_glass_owner_only';
-    sendHtml(res, 401, `${loginForm('/owner/break-glass')}<p>A member or guest grant cannot open this page.</p>`, 'EMET break-glass');
+    sendHtml(res, 401, `${loginForm('/owner/break-glass', { credential: gate.credential })}<p>A member or guest grant cannot open this page.</p>`, 'EMET break-glass');
   }
 
   async function render(req, res, note, count = true, extraHtml = '') {
