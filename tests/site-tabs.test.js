@@ -498,13 +498,13 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
     assert.ok(html.includes(`<dd>${ISO_DD}</dd>`));
   });
 
-  test('version marks stay 0.3.8', () => {
-    assert.ok(html.includes('EMET 0.3.8'));
+  test('version marks stay 0.3.9', () => {
+    assert.ok(html.includes('EMET 0.3.9'));
     assert.ok(html.includes('EMET 0.3.7'));
     assert.ok(!html.includes('EMET 0.3.5'));
     assert.ok(!html.includes('EMET 0.3.4'));
     assert.ok(!html.includes('EMET 0.3.0'));
-    assert.ok(html.includes('"version": "0.3.8"'));
+    assert.ok(html.includes('"version": "0.3.9"'));
     assert.ok(html.includes('<h3>What 0.3.6 changed</h3>'));
     assert.ok(html.includes('<h3>What 0.3.5 changed</h3>'));
     assert.ok(html.includes('<h3>What 0.3.4 changed</h3>'));
@@ -875,11 +875,11 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
 
     const pkg = JSON.parse(read('package.json'));
     const server = JSON.parse(read('server.json'));
-    assert.strictEqual(pkg.version, '0.3.8');
-    assert.strictEqual(server.version, '0.3.8');
-    assert.ok(project.includes('EMET 0.3.8'));
-    assert.ok(project.includes('The registry manifest for 0.3.8.'));
-    assert.ok(project.includes('0.3.8, then the earlier releases.'));
+    assert.strictEqual(pkg.version, '0.3.9');
+    assert.strictEqual(server.version, '0.3.9');
+    assert.ok(project.includes('EMET 0.3.9'));
+    assert.ok(project.includes('The registry manifest for 0.3.9.'));
+    assert.ok(project.includes('0.3.9, then the earlier releases.'));
 
     const claims = [
       ['Delegated client sub-keys', 'Delegated client sub-keys (EMET-0001'],
@@ -938,13 +938,13 @@ testGroup('the site keeps its words and degrades without JavaScript', () => {
     assert.deepStrictEqual(versionMarks(origin), ['0.2.5', '0.2.6']);
     assert.deepStrictEqual(versionMarks(project), ['0.2.6', '0.2.6']);
     for (const phrase of [
-      'EMET 0.3.8 is free and open source',
+      'EMET 0.3.9 is free and open source',
       '<h3>What 0.3.6 changed</h3>',
       '<h3>What 0.3.5 changed</h3>',
       '<h3>What 0.3.4 changed</h3>',
       '<h3>What 0.2.6 changed</h3>',
-      '0.3.8, then the earlier releases.',
-      'The registry manifest for 0.3.8.',
+      '0.3.9, then the earlier releases.',
+      'The registry manifest for 0.3.9.',
     ]) {
       assert.ok(project.includes(phrase), phrase);
     }

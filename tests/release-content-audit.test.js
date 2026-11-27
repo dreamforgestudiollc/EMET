@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { test, testGroup, summary } from './harness.js';
 import {
   BASELINE_REL,
+  DASH,
   loadBaseline,
   loadSurfaceFiles,
   reportDashes,
@@ -49,6 +50,7 @@ const SURFACES = [
   'site/sitemap.xml',
   'CHANGELOG.md',
   'RELEASE_NOTES-0.3.8.md',
+  'RELEASE_NOTES-0.3.9.md',
   'package.json',
   'server.json',
   '.env.example',
@@ -262,12 +264,24 @@ testGroup('published descriptions keep the ISO lead and stay dash-clean where re
     assert.equal(server.description, ISO_LEAD);
   });
 
-  test('package.json description starts with the ISO lead and stays in agreement with the published 0.3.8 listing', () => {
+  test('package.json description starts with the ISO lead, names this version, and has no em or en dash', () => {
     const pkg = JSON.parse(read('package.json'));
     assert.ok(pkg.description.startsWith(ISO_LEAD), 'package.json description must start with the ISO lead');
-    // The published 0.3.8 npm listing still has an em dash after "EMET 0.3.8".
-    // Keep this string in agreement until the next npm publish. Do not retitle it here.
-    assert.ok(pkg.description.includes('EMET 0.3.8'), 'package.json description must name 0.3.8');
+    assert.ok(pkg.description.includes(`EMET ${pkg.version}`), 'package.json description must name this version');
+    assert.equal(DASH.test(pkg.description), false, 'package.json description contains an em or en dash');
+  });
+
+  test('in-repo 0.3.9 release notes name the docs-only revision', () => {
+    const text = read('RELEASE_NOTES-0.3.9.md');
+    for (const needle of [
+      'ISO 9001 7.5.3 / ISO 13485 4.2.5',
+      'docs/RELEASING.md',
+      'EMET-AUTH-046',
+      'admin password',
+      'connect passphrase',
+    ]) {
+      assert.ok(text.includes(needle), `RELEASE_NOTES-0.3.9.md missing ${needle}`);
+    }
   });
 
   test('in-repo 0.3.8 release notes name the current 0.3.8 behavior', () => {
@@ -295,10 +309,18 @@ testGroup('published descriptions keep the ISO lead and stay dash-clean where re
 });
 
 testGroup('new or edited audit prose has no em or en dash', () => {
+  const DASH_BASELINE_CEILING = 224;
+
   test('the tree matches the checked-in dash baseline', () => {
     const report = currentReport();
     assert.deepEqual(report.newDashes, []);
     assert.deepEqual(report.staleBaseline, []);
+  });
+
+  test('the legacy dash baseline has at most 224 lines and only shrinks', () => {
+    const baseline = loadBaseline(ROOT);
+    const count = Object.values(baseline.lines).reduce((n, lines) => n + lines.length, 0);
+    assert.ok(count <= DASH_BASELINE_CEILING, `baseline has ${count} lines; the ceiling is ${DASH_BASELINE_CEILING} and the list only shrinks`);
   });
 
   test('a planted em dash in the 0.3.8 release notes fails the check', () => {
