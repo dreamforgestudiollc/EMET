@@ -42,6 +42,14 @@ The calling assistant may send this report only after showing the report to its 
 
 This is an owner decision added after the report was specified as a draft the person sends. The server stays free of SMTP and of any network call on this path.
 
+## Condense approval
+
+`EMET-DOC-025` is still the refusal when a write would leave a document under half the size this session first saw. `EMET-DOC-090` is that same write when `condense_approved` is true and the approval is missing, not granted yet, names another document, or has no reason. The owner door does not need `writer_approval_id`. A bot tag, including the hub and any `hubbot-*` tag, stays on `EMET-DOC-025` when it uses the owner password, and nothing is written. A condense grant must name the document (`doc_id` on `emet_client_approve` when `decision` is `prepare`). the owner approves it on `/owner/chooser` and no access code is minted. A writer approval condenses only the document it names. The registry table is [ERROR-CODES.md](ERROR-CODES.md).
+
+## Unregistered saves
+
+`EMET-MEM-035` is an unregistered source on `save_to_layer`, `revise_memory`, or a document write that still stored such a tag, on or after `EMET_SOURCE_SAVE_CUTOFF` (`America/New_York`, default `2026-12-15`). Nothing is written. Before that date the save is kept and the receipt names the cutoff. Transcript appends stay `EMET-TOOL-004`. The registry table is [ERROR-CODES.md](ERROR-CODES.md).
+
 ## Handoff refusals
 
 `EMET-DOC-084` is another tag's handoff, or the hub handoff written by a tag that is not the hub, or the draft id `handoffs/<tag>.md`, or an unregistered credential, or a file in another tag's `bots/<tag>/` folder. `EMET-DOC-085` is a board row the credential did not open, including a deleted row, a restore, a row already on the board with no opener, and a hub write that is not resolving a marked conflict. A hub resolve whose stamp is no longer the view in force is the same code: the message says the stamp is not the view in force and to re-read the handoff view. That includes a stamp whose open sessions, aging, stale-open hours, or registry no longer match, so a hub whose own session becomes tagged after initialize re-reads before the resolve. `EMET-DOC-086` is a reserved two-segment handoff id, a tag equal to a person id, a malformed id, or a tag whose characters the id does not allow. `EMET-DOC-087` is a claimed tag writing under `HANDOFF/`. `EMET-DOC-088` is a declared session tag that is not the HTTP credential, including a claimed tag naming a session. It applies only while `EMET_TAG_HANDOFFS` is `warn` or `enforce`, and only when the call declares a tag. A call that declares no tag is kept. With the flag off the check does not run, and the declared tag is kept. `EMET-CFG-015` is the per-tag flag on with `EMET_HUB_TAG` unset. The registry table is [ERROR-CODES.md](ERROR-CODES.md).

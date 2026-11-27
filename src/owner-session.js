@@ -14,12 +14,17 @@ import express from 'express';
 
 export const SESSION_MS = 15 * 60 * 1000;
 export const COOKIE_NAME = 'emet_owner';
+
+/** End the owner session cookie. The password pages call this after a rotation. */
+export function clearOwnerCookie(res) {
+  res.clearCookie(COOKIE_NAME, { httpOnly: true, sameSite: 'strict', path: '/owner' });
+}
 const SESSION_MAX = 200;
 const NEXT_OK = new Set(['/owner/chooser', '/owner/break-glass']);
 
-/** Full-resolution README hero. The README tag uses the 560px derivative of this file. */
-export const OWNER_GRAPHIC_PATH = '/owner/assets/portrait.webp';
-const OWNER_GRAPHIC_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'site', 'assets', 'portrait.webp');
+/** Full-size scene. The README hero uses the cropped derivative of the same picture. */
+export const OWNER_GRAPHIC_PATH = '/owner/assets/scene.webp';
+const OWNER_GRAPHIC_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'site', 'assets', 'scene.webp');
 
 /**
  * The deploy image copies this file. The npm package does not.
@@ -61,7 +66,7 @@ export function readCookie(req, name) {
  */
 function bodyBackground() {
   if (!OWNER_GRAPHIC_BYTES) return 'background-color: #12141a;';
-  return `background-color: #12141a; background-image: url("${OWNER_GRAPHIC_PATH}"); background-repeat: no-repeat; background-position: center; background-size: cover;`;
+  return `background-color: #12141a; background-image: url("${OWNER_GRAPHIC_PATH}"); background-repeat: no-repeat; background-position: center; background-size: cover; background-attachment: fixed;`;
 }
 
 export function htmlPage(title, body) {
@@ -123,7 +128,9 @@ export function ownerMayGrant(session, decision) {
   return decision === 'owner' || decision === 'member' || decision === 'guest';
 }
 
-export function createOwnerGate({ checkPassphrase, throttle, now = Date.now } = {}) {
+export function createOwnerGate({ checkPassphrase, checkAdminPassword, throttle, now = Date.now } = {}) {
+  const admin = typeof checkAdminPassword === 'function';
+  const check = admin ? checkAdminPassword : checkPassphrase;
   const sessions = new Map();
 
   function sweep() {
@@ -141,8 +148,9 @@ export function createOwnerGate({ checkPassphrase, throttle, now = Date.now } = 
     return { csrf: row.csrf, expires: row.expires, id: raw };
   }
 
-  function login(req, res) {
-    const next = NEXT_OK.has(req.body && req.body.next) ? req.body.next : '/owner/break-glass';
+  async function login(req, res) {
+    const fallback = admin ? '/owner/chooser' : '/owner/break-glass';
+    const next = NEXT_OK.has(req.body && req.body.next) ? req.body.next : fallback;
     const limit = throttle.check(req.ip);
     if (!limit.allowed) {
       res.locals.reason = 'throttled';
@@ -150,19 +158,24 @@ export function createOwnerGate({ checkPassphrase, throttle, now = Date.now } = 
       sendHtml(res, 429, '<p>Too many attempts. Try again later.</p>', 'EMET owner');
       return;
     }
-    const passphrase = (req.body && req.body.passphrase) || '';
+    const presented = admin
+      ? ((req.body && req.body.password) || '')
+      : ((req.body && req.body.passphrase) || '');
     let ok = false;
-    try { ok = checkPassphrase(passphrase) === true; }
+    try { ok = (await Promise.resolve(check(presented))) === true; }
     catch (e) {
-      console.error('[emet] owner passphrase check', e && e.message ? e.message : e);
-      res.locals.reason = 'passphrase_check_error';
+      console.error('[emet] settings sign-in', e && e.message ? e.message : e);
+      res.locals.reason = admin ? 'admin_password_check_error' : 'passphrase_check_error';
       sendHtml(res, 500, '<p>Something went wrong.</p>', 'EMET owner');
       return;
     }
     if (!ok) {
       throttle.recordFailure(req.ip);
-      res.locals.reason = 'bad_passphrase';
-      sendHtml(res, 401, '<p>Incorrect passphrase.</p>', 'EMET owner');
+      res.locals.reason = admin ? 'bad_admin_password' : 'bad_passphrase';
+      const message = admin
+        ? '<p>Incorrect admin password.</p><p>Settings use the admin password. The connect passphrase stays on the connect page.</p>'
+        : '<p>Incorrect passphrase.</p>';
+      sendHtml(res, 401, message, 'EMET owner');
       return;
     }
     throttle.recordSuccess(req.ip);
@@ -192,7 +205,13 @@ export function createOwnerGate({ checkPassphrase, throttle, now = Date.now } = 
     return ended;
   }
 
-  return { sessionOf, login, now, endOtherSessions };
+  function endAllSessions() {
+    const ended = sessions.size;
+    sessions.clear();
+    return ended;
+  }
+
+  return { sessionOf, login, now, endOtherSessions, endAllSessions, credential: admin ? 'admin' : 'passphrase' };
 }
 
 export function mountOwnerGraphic(app) {
@@ -220,13 +239,27 @@ export function mountOwnerLogin(app, gate) {
   mountOwnerGraphic(app);
   if (app.get('emetOwnerLogin')) return;
   app.set('emetOwnerLogin', true);
-  app.post('/owner/login', express.urlencoded({ extended: false }), (req, res) => gate.login(req, res));
+  app.post('/owner/login', express.urlencoded({ extended: false }), (req, res, next) => {
+    Promise.resolve(gate.login(req, res)).catch(next);
+  });
 }
 
-export function loginForm(nextPath) {
-  const next = NEXT_OK.has(nextPath) ? nextPath : '/owner/break-glass';
+export function loginForm(nextPath, { credential = 'passphrase' } = {}) {
+  const admin = credential === 'admin';
+  const fallback = admin ? '/owner/chooser' : '/owner/break-glass';
+  const next = NEXT_OK.has(nextPath) ? nextPath : fallback;
+  if (admin) {
+    return `<h1>Settings</h1>
+<p>Enter the admin password. The connect passphrase stays on the connect page. A member or guest grant does not sign this page in.</p>
+<p>Set the admin password at <a href="/owner/admin-password">/owner/admin-password</a>.</p>
+<form method="post" action="/owner/login">
+<input type="hidden" name="next" value="${esc(next)}">
+<label>Admin password <input type="password" name="password" autocomplete="current-password"></label>
+<button type="submit">Continue</button>
+</form>`;
+  }
   return `<h1>Owner</h1>
-<p>Enter the owner passphrase. A member or guest grant does not sign this page in.</p>
+<p>Enter the owner passphrase. A member or guest grant does not sign this page in. This passphrase is not a username.</p>
 <form method="post" action="/owner/login">
 <input type="hidden" name="next" value="${esc(next)}">
 <label>Passphrase <input type="password" name="passphrase" autocomplete="current-password"></label>

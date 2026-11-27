@@ -189,7 +189,7 @@ export function mountBreakGlass(app, options = {}) {
 
   function refuseGrant(res) {
     res.locals.reason = 'break_glass_owner_only';
-    sendHtml(res, 401, `${loginForm('/owner/break-glass')}<p>A member or guest grant cannot open this page.</p>`, 'EMET break-glass');
+    sendHtml(res, 401, `${loginForm('/owner/break-glass', { credential: gate.credential })}<p>A member or guest grant cannot open this page.</p>`, 'EMET break-glass');
   }
 
   async function render(req, res, note, count = true, extraHtml = '') {
@@ -199,6 +199,12 @@ export function mountBreakGlass(app, options = {}) {
       return;
     }
     if (count) {
+      try {
+        const { deleteAllConsoleSessions } = await import('./oauth-provider.js');
+        await deleteAllConsoleSessions(dbOf(), prefix);
+      } catch (err) {
+        console.error('[emet] console sessions were not cleared', err && err.message ? err.message : err);
+      }
       const limit = allowAction(session.id, now, max);
       if (!limit.allowed) {
         noteBreakGlassUse('rate_limited', { decider: 'owner', grant_id: 'none' });
@@ -224,7 +230,7 @@ export function mountBreakGlass(app, options = {}) {
     sendHtml(res, 200, panel(session, grants, retainedRevocations(), note, extraHtml), 'EMET break-glass');
   }
 
-  function requireSession(req, res) {
+  async function requireSession(req, res) {
     const session = gate.sessionOf(req);
     if (!breakGlassAuthorized(session)) {
       refuseGrant(res);
@@ -243,6 +249,12 @@ export function mountBreakGlass(app, options = {}) {
       res.setHeader('Retry-After', String(limit.retryAfterS));
       sendHtml(res, 429, '<p>Too many break-glass actions. Try again later.</p>', 'EMET break-glass');
       return null;
+    }
+    try {
+      const { deleteAllConsoleSessions } = await import('./oauth-provider.js');
+      await deleteAllConsoleSessions(dbOf(), prefix);
+    } catch (err) {
+      console.error('[emet] console sessions were not cleared', err && err.message ? err.message : err);
     }
     return session;
   }
@@ -293,7 +305,7 @@ export function mountBreakGlass(app, options = {}) {
   });
 
   async function revoke(req, res) {
-    const session = requireSession(req, res);
+    const session = await requireSession(req, res);
     if (!session) return;
     const grantId = typeof (req.body && req.body.grant_id) === 'string' ? req.body.grant_id.trim() : '';
     if (grantId === '*' || grantId === 'all' || grantId === '') {
@@ -341,7 +353,7 @@ export function mountBreakGlass(app, options = {}) {
   }
 
   async function rotate(req, res, kind) {
-    const session = requireSession(req, res);
+    const session = await requireSession(req, res);
     if (!session) return;
     const authorization = (req.headers && (req.headers.authorization || req.headers.Authorization)) || '';
     if (!rotationTriggerAllowed({ session, authorization })) {
@@ -437,7 +449,7 @@ export function mountBreakGlass(app, options = {}) {
   }
 
   async function reissue(req, res) {
-    const session = requireSession(req, res);
+    const session = await requireSession(req, res);
     if (!session) return;
     const rawDoor = req.body && req.body.door;
     const door = rawDoor === 'owner' || rawDoor === 'member' ? rawDoor : 'guest';
@@ -500,7 +512,7 @@ export function mountBreakGlass(app, options = {}) {
   }
 
   async function clearLockout(req, res) {
-    const session = requireSession(req, res);
+    const session = await requireSession(req, res);
     if (!session) return;
     const scope = req.body && req.body.scope;
     const personId = await resolveOwner();

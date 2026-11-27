@@ -60,7 +60,7 @@ export function keySizes(payload) {
 /** The keys every abridged load embeds exactly as the full load has them (review note 4b; never dropped). */
 export const ABRIDGED_KEEP = Object.freeze([
   'state', 'database', 'source_tag', 'grant_id', 'door', 'person_id', 'unhandled_drops', 'unhandled_drops_more', 'retired_drops',
-  'emet_line', 'emet_line_if_unanswered',
+  'emet_line', 'emet_line_if_unanswered', 'reload_after_compaction',
   'tools_in_force', 'instructions_short', 'session_close_protocol', 'operating_discipline', 'charter',
   'identity', 'character', 'character_doc_id', 'character_sha256', 'user',
   'install_notes_doc_id',

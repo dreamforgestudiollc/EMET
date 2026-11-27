@@ -146,6 +146,12 @@ export function validateWriterDraft(fields, actor) {
   if (!reason || reason.length > REASON_MAX || /[\r\n]/.test(reason)) failures.push('reason');
   const correlation = typeof fields.correlation_id === 'string' ? fields.correlation_id.trim() : '';
   if (!CORR_RE.test(correlation)) failures.push('correlation_id');
+  let doc_id = null;
+  if (fields.doc_id != null && fields.doc_id !== '') {
+    const named = typeof fields.doc_id === 'string' ? fields.doc_id.trim() : '';
+    if (!named || named.length > 200 || /[\r\n]/.test(named)) failures.push('doc_id');
+    else doc_id = named;
+  }
   const grant = logGrantId(actor && actor.grantId);
   if (grant === 'none') failures.push('grant_id');
   if (!mbCredential(actor)) failures.push('preparer');
@@ -157,7 +163,8 @@ export function validateWriterDraft(fields, actor) {
     door,
     reason: reason || null,
     correlation_id: CORR_RE.test(correlation) ? correlation : 'none',
-    grant_id: grant
+    grant_id: grant,
+    doc_id
   };
 }
 
@@ -197,6 +204,7 @@ export async function prepareWriterRequest(db, prefix = COLLECTION_PREFIX, actor
     claimed_tag: checked.claimed_tag,
     door: checked.door,
     reason: checked.reason,
+    doc_id: checked.doc_id || null,
     correlation_id: checked.correlation_id,
     grant_id: checked.grant_id,
     preparer: MB_TAG,

@@ -13,6 +13,12 @@ scoped user, and Atlas Network Access set to `0.0.0.0/0` — a hosted platform's
 dynamic, so it cannot be allowlisted. Security rests on the scoped user plus the OAuth
 passphrase; both are required.
 
+## Upgrading to 0.3.8
+
+0.3.8 adds an admin password for the chooser, grants, and break-glass. The connect passphrase stays on the connect page. Set the admin password at `/owner/admin-password` with an owner session, the connect passphrase, or an owner Authorize token. An unset `EMET_OAUTH_PASSPHRASE` does not create the password and does not mint recovery codes. `EMET_ADMIN_PEPPER` is mixed into the hash when it is set and it is not the connect passphrase. `EMET_ADMIN_RECOVERY` is a one-time host token for `/owner/admin-password/recover`. `EMET_CONSOLE_ORIGINS` lists the browser origins allowed to call the console. Stored memory rows are not rewritten.
+
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
+
 ## Upgrading to 0.3.7
 
 0.3.7 adds per-tag handoffs, off unless the owner sets `EMET_TAG_HANDOFFS` to `warn` or `enforce`, and sub-key session renewal. Stored rows are not rewritten. No new setting is required. A bot on the shared owner login needs its own sub-key before that flag leaves off. With the flag at `warn` or `enforce`, a declared session tag that is not the credential is refused (`EMET-DOC-088`). A call that declares no tag is kept. With the flag off that check does not run. `EMET_SUBKEY_RENEWAL_MINUTES`, `EMET_SUBKEY_HANDLE_GRACE_MINUTES`, and `EMET_SUBKEY_SWEEP_MINUTES` default to 60, 60, and 15. The handle length stays 12 hours. Listings gain `emet_subkey_set_kind`. ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
@@ -112,6 +118,12 @@ Atlas UI for the new privilege: Database Access → Custom Roles → edit the ro
 | `EMET_SUBKEY_HANDLE_GRACE_MINUTES` | optional | Minutes after handle expiry during which the key and the current handle still renew. Default 60. After that, the sweep may mark the session `auto_closed`. The row and the transcript stay. |
 | `EMET_SUBKEY_SWEEP_MINUTES` | optional | How often the server looks for stranded sub-key sessions. Default 15. |
 | `EMET_CONTINUITY_CURRENCY` | optional | `1` adds a warn-only continuity reading on initialize and session open. Unset is off. A lag does not block, and the server does not rewrite HANDOFF or STATE. |
+| `EMET_SOURCE_SAVE_CUTOFF` | optional | `YYYY-MM-DD` in America/New_York. Unset uses `2026-12-15`. On that day and after, an unregistered source save is refused (`EMET-MEM-035`). |
+| `EMET_ADMIN_PEPPER` | optional | Pepper for the admin password hash. A value equal to the connect passphrase is ignored. |
+| `EMET_ADMIN_RECOVERY` | optional | One-time host recovery token for the admin password. A value equal to the connect passphrase is ignored. |
+| `EMET_HOST_TIME_SKEW_MIN` | optional | Minutes a host-written clock may differ from the server before a warning. Default 90. The write is not refused. |
+| `EMET_RELOAD_FRESH_MINUTES` | optional | Minutes after initialize during which a reload counts as fresh. Default 15. Used when continuity currency is on. A lag warns and does not block. |
+| `EMET_RELOAD_GAP_HOURS` | optional | Hours without a transcript append before a reload warning. Default 6. |
 | `EMET_CONTINUITY_CURRENCY_BLOCK` | optional | Reserved. It is not applied. The reading stays warn-only. |
 | `EMET_TAG_HANDOFFS` | optional | Off unless the value is `warn` or `enforce`. Off is the default. A bot on the shared owner login needs its own sub-key before the flag leaves off. With the flag at `warn` or `enforce`, a declared session tag that is not the credential is refused (`EMET-DOC-088`). A call that declares no tag is kept. With the flag off that check does not run. |
 | `EMET_HUB_TAG` | optional | The only tag that writes `HANDOFF.md` when per-tag handoffs are on. Unset while the flag is `warn` or `enforce` refuses every write (`EMET-CFG-015`). |
@@ -140,7 +152,7 @@ Read this before you deploy the release that follows 0.2.2. It does not change a
   - A transcript field: 32,000 characters. The whole transcript request: 256,000 characters.
   - Tool calls: 300 per minute for that person and client, and a per-tool cap (120 for `recall` and `semantic_recall`, 100 for `query_layer`, 30 for `emet_status`, 60 for `save_to_layer`, 60 for every other tool).
   - Client-metadata fetches: 60 per host per minute, 120 in total, 64 KB, 5 second timeout. The connection uses the public address already checked. A redirect is refused.
-  - A document edit may not leave it under half the size this session first saw, and not under half of its largest size in the last 24 hours.
+  - A document edit may not leave it under half the size this session first saw, and not under half of its largest size in the last 24 hours. The owner door, or a writer approval the owner has already granted, may pass `condense_approved` true and a reason. A bot or a sub-key without that approval is still refused. The prior revision stays in `documents_history`.
   - Recall ranks in the store before it keeps a window of at least 200 rows, or 20 times the page.
   - The window for one closing exchange after a complete close is at most 60 minutes.
 
@@ -255,9 +267,9 @@ variables in one change. **With `EMET_SOURCE_TAGS` unset, both guards are opt-in
 caller can write the main records and every bot folder, so set the registry on any shared install.
 
 **Legacy `CASCADE_` names.** A setting read through `setting()` also accepts the legacy `CASCADE_` name. The `EMET_` name wins when both are set. The complete list is:
-`EMET_ACTIVE_GEMS`, `EMET_AUDIT_LOG`, `EMET_CHARACTER_DOC`, `EMET_CIMD`, `EMET_CLAIMED_TAG_KILL_DATE`, `EMET_CLOSE_GRACE_MINUTES`, `EMET_CONTINUITY_CURRENCY`, `EMET_CONTINUITY_CURRENCY_BLOCK`, `EMET_COS_TAG`, `EMET_DEEP_LINK_TTL_MINUTES`, `EMET_GAP_BASELINE`, `EMET_HANDOFF_AGING_DAYS`, `EMET_HANDOFF_DOC`, `EMET_HUB_TAG`, `EMET_INSTALL_DOC`, `EMET_INVITES`, `EMET_MEMBER_ACCESS`, `EMET_OAUTH_PASSPHRASE`, `EMET_READ_DOC_PAGE`, `EMET_RECORD_DOCS`, `EMET_RESTORE_TAGS`, `EMET_SIGNING_KEY`, `EMET_SOURCE_TAG`, `EMET_SOURCE_TAGS`, `EMET_STALE_OPEN_HOURS`, `EMET_STATE_DOC`, `EMET_STRICT_LOGIN_TAG`, `EMET_SUBKEY_FAIL_MAX`, `EMET_SUBKEY_FAIL_WINDOW_MS`, `EMET_SUBKEY_GRACE_MINUTES`, `EMET_SUBKEY_HANDLE_GRACE_MINUTES`, `EMET_SUBKEY_PEPPER`, `EMET_SUBKEY_PEPPER_PREV`, `EMET_SUBKEY_PEPPER_PREV_VERSION`, `EMET_SUBKEY_PEPPER_VERSION`, `EMET_SUBKEY_RENEWAL_MINUTES`, `EMET_SUBKEY_SWEEP_MINUTES`, `EMET_SUBKEY_TTL_DAYS`, `EMET_SUBKEYS`, `EMET_TAG_HANDOFFS`, `EMET_TEMPLATE_MAP`, `EMET_TIMEZONE`.
+`EMET_ACTIVE_GEMS`, `EMET_AUDIT_LOG`, `EMET_CHARACTER_DOC`, `EMET_CIMD`, `EMET_CLAIMED_TAG_KILL_DATE`, `EMET_CLOSE_GRACE_MINUTES`, `EMET_CONTINUITY_CURRENCY`, `EMET_CONTINUITY_CURRENCY_BLOCK`, `EMET_COS_TAG`, `EMET_DEEP_LINK_TTL_MINUTES`, `EMET_GAP_BASELINE`, `EMET_HANDOFF_AGING_DAYS`, `EMET_HANDOFF_DOC`, `EMET_HUB_TAG`, `EMET_INSTALL_DOC`, `EMET_INVITES`, `EMET_MEMBER_ACCESS`, `EMET_OAUTH_PASSPHRASE`, `EMET_READ_DOC_PAGE`, `EMET_RECORD_DOCS`, `EMET_RESTORE_TAGS`, `EMET_SIGNING_KEY`, `EMET_SOURCE_TAG`, `EMET_SOURCE_TAGS`, `EMET_STALE_OPEN_HOURS`, `EMET_STATE_DOC`, `EMET_STRICT_LOGIN_TAG`, `EMET_SUBKEY_FAIL_MAX`, `EMET_SUBKEY_FAIL_WINDOW_MS`, `EMET_SUBKEY_GRACE_MINUTES`, `EMET_SUBKEY_HANDLE_GRACE_MINUTES`, `EMET_SUBKEY_PEPPER`, `EMET_SUBKEY_PEPPER_PREV`, `EMET_SUBKEY_PEPPER_PREV_VERSION`, `EMET_SUBKEY_PEPPER_VERSION`, `EMET_SUBKEY_RENEWAL_MINUTES`, `EMET_SUBKEY_SWEEP_MINUTES`, `EMET_SUBKEY_TTL_DAYS`, `EMET_SUBKEYS`, `EMET_TAG_HANDOFFS`, `EMET_TEMPLATE_MAP`, `EMET_TIMEZONE`, `EMET_ADMIN_PEPPER`, `EMET_ADMIN_RECOVERY`, `EMET_HOST_TIME_SKEW_MIN`, `EMET_RELOAD_FRESH_MINUTES`, `EMET_RELOAD_GAP_HOURS`, `EMET_SOURCE_SAVE_CUTOFF`.
 These read `process.env` directly, so a `CASCADE_` name is ignored. The complete list is:
-`EMET_COLLECTION_PREFIX`, `EMET_CORPORA`, `EMET_CORPUS_COLLECTION`, `EMET_CORPUS_INDEX`, `EMET_CRASH_LOG`, `EMET_DROP_LIST_TIMEOUT_MS`, `EMET_HTTP_LISTEN`, `EMET_INIT_PAGE_BYTES`, `EMET_REPORT_EMAIL`, `EMET_REQUEST_LOG`, `EMET_VECTOR_INDEX`.
+`EMET_COLLECTION_PREFIX`, `EMET_CORPORA`, `EMET_CORPUS_COLLECTION`, `EMET_CORPUS_INDEX`, `EMET_CRASH_LOG`, `EMET_DROP_LIST_TIMEOUT_MS`, `EMET_HTTP_LISTEN`, `EMET_INIT_PAGE_BYTES`, `EMET_REPORT_EMAIL`, `EMET_REQUEST_LOG`, `EMET_TEST_CLOCK`, `EMET_UNDER_TEST`, `EMET_VECTOR_INDEX`.
 (`MONGODB_URI`, `MONGODB_DB`, `PUBLIC_URL`, `PORT`, `HOST`, `LOG_LEVEL`, `LOG_FORMAT` and `DEBUG` have no prefix. `TRUST_PROXY` is not read: the server trusts exactly one proxy hop (Railway's edge).) Use the `EMET_` names.
 
 **The two-pass deploy is not optional.** `PUBLIC_URL` is the OAuth issuer; until it matches

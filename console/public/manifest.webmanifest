@@ -1,0 +1,12 @@
+{
+  "name": "EMET Console",
+  "short_name": "EMET",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#12141a",
+  "theme_color": "#1c2430",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

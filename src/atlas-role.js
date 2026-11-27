@@ -17,6 +17,8 @@ import { CodedError } from './error-codes.js';
  * Deletes EMET performs, read from src/ on 2026-09-29, and why each is allowed:
  *   - emet_oauth_tokens: revoking a sign-in token (oauth-provider.js). Tokens
  *     are credentials, not the record.
+ *   - emet_console_refresh: ending a remembered console phone (oauth-provider.js).
+ *     The row is a credential hash and a device public key, not the record.
  *   - _emet_verify: the status probe writes one document, reads it back, and
  *     deletes that document (setup.js verifyConnection). The collection stays.
  *   - error_log: rotation removes old operational rows after a daily summary
@@ -44,6 +46,7 @@ export const DATABASE_ACTIONS = Object.freeze([
  */
 export const DELETE_ALLOWED = Object.freeze({
   '{prefix}oauth_tokens': Object.freeze(['REMOVE']),
+  '{prefix}console_refresh': Object.freeze(['REMOVE']),
   _emet_verify: Object.freeze(['REMOVE']),
   // Unprefixed, like the probe. Operational error log, not the record.
   error_log: Object.freeze(['REMOVE'])

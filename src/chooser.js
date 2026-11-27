@@ -82,6 +82,14 @@ function historyLine(row) {
   }).filter(Boolean).join('<br>');
 }
 
+function writerAsk(row) {
+  if (!row || typeof row.doc_id !== 'string' || !row.doc_id.trim()) return '';
+  const tag = typeof row.claimed_tag === 'string' ? row.claimed_tag.trim() : '';
+  const who = tag || 'this writer';
+  const why = typeof row.reason === 'string' && row.reason.trim() ? `: ${row.reason.trim()}` : '';
+  return `Allow ${who} to shorten ${row.doc_id.trim()}${why}`;
+}
+
 function writerSection(session, writers) {
   if (!session) return '';
   if (writers == null) return '<h2>Writer requests</h2><p>Writer requests could not be listed. Nothing was changed.</p>';
@@ -95,7 +103,10 @@ function writerSection(session, writers) {
 <button type="submit" name="decision" value="deny">Deny</button>
 </form>`
       : '';
-    return `<tr><td>${esc(row.claimed_tag)}</td><td>${esc(row.door)}</td><td>${esc(row.status)}</td><td>${esc(row.preparer)}</td><td>${esc(row.validator)}</td><td>${esc(row.correlation_id)}</td><td>${buttons}</td></tr>`;
+    const ask = writerAsk(row);
+    const tagCell = ask || row.claimed_tag;
+    const doorCell = ask ? 'shorten this document' : row.door;
+    return `<tr><td>${esc(tagCell)}</td><td>${esc(doorCell)}</td><td>${esc(row.status)}</td><td>${esc(row.preparer)}</td><td>${esc(row.validator)}</td><td>${esc(row.correlation_id)}</td><td>${buttons}</td></tr>`;
   }).join('\n');
   return `<h2>Writer requests</h2>
 <p>The hub login prepares. The server validates. Only this owner session decides.</p>
@@ -126,11 +137,11 @@ function bindingFields(binding) {
 <input type="hidden" name="bind_door" value="${esc(binding.door)}">`;
 }
 
-function pageBody({ session, stash, keys, writers, note }) {
+function pageBody({ session, stash, keys, writers, note, credential }) {
   const parts = [];
   if (note) parts.push(`<p class="note">${esc(note)}</p>`);
   if (!session) {
-    parts.push(loginForm('/owner/chooser'));
+    parts.push(loginForm('/owner/chooser', { credential: credential || 'passphrase' }));
     parts.push('<p>Break-glass recovery, with no AI client, is <a href="/owner/break-glass">/owner/break-glass</a>.</p>');
     return parts.join('\n');
   }
@@ -255,7 +266,7 @@ export function mountChooser(app, options = {}) {
         writers = null;
       }
     }
-    sendHtml(res, 200, pageBody({ session, stash: stashOf(req, now()), keys, writers, note }), 'EMET chooser');
+    sendHtml(res, 200, pageBody({ session, stash: stashOf(req, now()), keys, writers, note, credential: gate.credential }), 'EMET chooser');
   }
 
   app.get('/owner/chooser', (req, res) => {
@@ -572,7 +583,18 @@ export function mountChooser(app, options = {}) {
       return;
     }
     let issued = { issued: false };
-    if (decision === 'approve') {
+    if (decision === 'approve' && recorded.doc_id) {
+      try {
+        recorded = await stampWriterIssued(db, prefixOf(), { requestId });
+        issued = { issued: true, note: writerAsk(recorded) };
+      } catch (e) {
+        res.locals.reason = 'writer_refused';
+        sendHtml(res, 400, `<p>${esc(e && e.message ? e.message : 'Nothing was changed.')}</p>`, 'EMET chooser');
+        return;
+      } finally {
+        if (!issued.issued) await releaseWriterClaim(db, prefixOf(), { requestId }, new Date(now()));
+      }
+    } else if (decision === 'approve') {
       try {
         issued = await issueDoor(db, recorded.door, recorded.claimed_tag, personId);
         if (!issued.issued) {

@@ -45,9 +45,10 @@ test('an unregistered source may write a new drop and nothing else', async () =>
     process.env.EMET_SOURCE_TAGS = 'bound-host';
     try {
       await withStore(db, async () => {
-        await assert.rejects(() => writeDoc('threads/nope.md', '# No\n', 'stranger'), /new drop only/);
-        const drop = await writeDoc('drops/visitor.md', 'a visitor note\n', 'stranger');
+        await assert.rejects(() => writeDoc('threads/nope.md', '# No\n', 'stranger', null, null, { now: new Date('2026-11-22T15:00:00.000Z') }), /new drop only/);
+        const drop = await writeDoc('drops/visitor.md', 'a visitor note\n', 'stranger', null, null, { now: new Date('2026-11-22T15:00:00.000Z') });
         assert.strictEqual(drop.version, 1);
+        assert.ok(drop.warnings.some((w) => w.includes('2026-12-15') && w.includes('America/New_York')));
       });
     } finally {
       if (prev === undefined) delete process.env.EMET_SOURCE_TAGS; else process.env.EMET_SOURCE_TAGS = prev;

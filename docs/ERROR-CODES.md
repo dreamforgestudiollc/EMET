@@ -51,6 +51,7 @@ Internal codes are raised inside a check that catches them before a caller sees 
 | EMET-AUTH-043 | A writer approval step was refused | active |
 | EMET-AUTH-044 | A bound login cannot stamp another tag | active |
 | EMET-AUTH-045 | The previous bound-door spelling is refused for a new choice | active |
+| EMET-AUTH-046 | A key sign-in was refused | active |
 | EMET-CFG-001 | Database name must be a plain name | active, internal |
 | EMET-CFG-002 | Collection prefix must be a plain name | active, internal |
 | EMET-CFG-004 | Hosted setup cannot turn sub-keys on from here | active |
@@ -184,6 +185,8 @@ Internal codes are raised inside a check that catches them before a caller sees 
 | EMET-DOC-086 | A reserved, malformed, or person-equal handoff id | active |
 | EMET-DOC-087 | A claimed tag cannot write a handoff | active |
 | EMET-DOC-088 | A declared session tag is not the credential | active |
+| EMET-DOC-089 | Requested revision is already in force | active |
+| EMET-DOC-090 | A condense grant must name this document | active |
 | EMET-GEM-001 | Read-back found no document | active |
 | EMET-GEM-002 | Read-back content digest differs | active |
 | EMET-GEM-003 | Read-back version differs | active |
@@ -259,6 +262,7 @@ Internal codes are raised inside a check that catches them before a caller sees 
 | EMET-MEM-030 | Query must be a non-empty string | active |
 | EMET-MEM-032 | Corpus name is not recognised | active |
 | EMET-MEM-034 | Only a ready payload can be abridged | active |
+| EMET-MEM-035 | An unregistered source cannot save after the cutoff | active |
 | EMET-PAGE-001 | as_of must be an ISO date or unix seconds | active |
 | EMET-PAGE-002 | Only the owner can create or edit an area document | active |
 | EMET-PAGE-003 | Only the owner can read topic pages | active |

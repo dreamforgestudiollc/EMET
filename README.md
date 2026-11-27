@@ -26,7 +26,7 @@ See also: [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md) · [SECUR
 - **Per-client attribution and approvals.** Every write is attributed to the client that made it. A new client is read-limited until it is approved. The approval is recorded.
 - **Error codes and problem reports.** Every error carries a stable `EMET-<AREA>-<NNN>` code. An operational error log keeps 10,000 entries or 90 days, plus daily summaries. The owner-only `emet_error_report` returns the report and an email draft that you send yourself. See [Reporting a problem](#reporting-a-problem).
 - **verify-emet and the feature map.** `npm run verify` runs `scripts/verify-emet.mjs` from a checkout. It starts EMET in a temporary directory on the in-memory test database, with no `.env`, and drives every registered tool. A tool that needs a service a plain install does not have is reported as a gap. A run whose only problems are gaps exits 3. A failed tool exits 1. The map is [docs/features/README.md](docs/features/README.md).
-- **MIT.** Version 0.3.7. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
+- **MIT.** Version 0.3.8. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them.
 - **Roadmap.** What is proposed, planned, or a later phase is [docs/ROADMAP.md](docs/ROADMAP.md). An item there is not built unless it says so. Upcoming work is labeled Proposed, Planned, or Later phase. Discussion is in [GitHub issues](https://github.com/dreamforgestudiollc/EMET/issues).
 
 The store has one owner, and other people can join only through the optional Guest
@@ -227,7 +227,11 @@ and [docs/BOTS.md](docs/BOTS.md).
 an unregistered tag are off unless `EMET_SOURCE_TAGS` is set; with it unset, a stdio caller can
 write under any tag. Over HTTP the tag is the one bound when that host was approved. Add each
 host's tag to the list before that host's setup interview. With several hosts writing one store,
-the tag is what lets you trust who wrote what. See [docs/SETUP.md](docs/SETUP.md).
+the tag is what lets you trust who wrote what. A transcript append with a tag that is not on
+that list is refused. A layer or document save with such a tag is kept until `2026-12-15`
+(`America/New_York`) and the receipt names that date; on that date it is refused and nothing
+is written (`EMET_SOURCE_SAVE_CUTOFF`). See [docs/SETUP.md](docs/SETUP.md) and
+[docs/PERMISSIONS.md](docs/PERMISSIONS.md).
 
 **Put the instruction block in the project's instructions.** Connecting the server gives the
 assistant the ability to remember; it does not make it use that ability. A host with an
@@ -258,11 +262,14 @@ deployment. Setting either variable redeploys the server; afterwards, check `/he
 The hub's tag is registered as a host and is never listed as a bot. That standing rule is
 [docs/BOTS.md](docs/BOTS.md) §4.
 
-**Approve a writer yourself, and give a bot that shares your login its own key.** The owner
+**Approve a writer yourself, and give each bot its own key.** The owner
 decides a new writer on `/owner/chooser`. An AI does not grant a writer. When `EMET_SUBKEYS=1`,
 each bot that can keep a key file holds its own `emk_` key. The owner approves that key on the
-same page. The bot presents the key once at `emet_session_open`. See
+same page. The bot signs in with that key and its source tag (`door=key` on Authorize). It does
+not use the connect passphrase. See
 [docs/SUBKEYS.md](docs/SUBKEYS.md) and [docs/BOTS.md](docs/BOTS.md) §4.
+
+**The admin password opens settings.** Set it at `/owner/admin-password`. The chooser, grants, and break-glass ask for that admin password. The connect passphrase stays on the connect page. An unset connect passphrase does not mint recovery codes.
 
 **Pass `session_handle` on every write in a sub-key session.** `emet_session_open` returns
 `session_handle` once. Later writes in that session pass `session_handle`. A write that names
@@ -414,6 +421,10 @@ still passes an exact registered tag as `source`. `EMET_SOURCE_TAGS` registers t
 host look the same; set it only where one host uses the server (a local stdio entry, for
 example). Every write records the host that produced it; a shared default tag is ambiguity
 rather than attribution.
+
+### EMET Console
+
+EMET Console is a separate app in this repo (`console/`). It is off on the server until `EMET_CONSOLE_ORIGINS` lists the app's exact origin. Setup, the remember-this-phone limits, and a second server are in [docs/CONSOLE.md](docs/CONSOLE.md).
 
 ### First run
 
@@ -655,7 +666,7 @@ Inside the door, in order:
   flagged, never dropped), or `'unattested'` for rows written before the column existed.
   Supersession and the correction mark are the only sanctioned mutations of stored metadata, and
   both re-attest the parent.
-- **One receipt shape on both transports:** `layer, id, timestamp, verified, sha256,
+- **One receipt shape on both transports:** `layer, id, timestamp, server_time, verified, sha256,
   digest_stored, metadata_sha256, metadata_digest_stored, redacted, provenance, source,
   assertion_origin, importance, routing, warnings[]` plus whichever markers apply.
 
@@ -785,6 +796,8 @@ allowed but must keep exactly the same exchange numbers.
 
 **Continuity currency** — `EMET_CONTINUITY_CURRENCY` is off unless it is `1`. With it on, initialize and session open add `continuity_currency`. A lag warns and does not block. The server does not rewrite HANDOFF or STATE. When `EMET_TAG_HANDOFFS` is `warn` or `enforce`, that reading also carries `handoff_view`, `own_handoff`, and `stale_open`. An open session with material work is an in-progress line. It is not a lag. `EMET_HANDOFF_AGING_DAYS` defaults to 7. `EMET_STALE_OPEN_HOURS` defaults to 24. Material episodic rows written before `2026-09-27T00:00:00.000Z` with no registered source are `legacy_pre_attribution` and do not make the overall check warn. A newer untagged row still warns. A stamp that is not the view in force says to re-read the handoff view. `EMET-CFG-015` is the per-tag flag on with `EMET_HUB_TAG` unset. Nothing is refused because a handoff is stale.
 
+**Reload after compaction** — a chat summary is not the continuity record. After any compaction or summary, and before multi-step work, re-run `emet_initialize` for every page and work from HANDOFF and STATE. The rule is on every initialize. With `EMET_CONTINUITY_CURRENCY` set to `1`, a compaction without a fresh initialize, a session that resumes after `EMET_RELOAD_GAP_HOURS` (default 6) without one, a write against a stale HANDOFF or STATE version, and a close with no transcript append each add `reload_after_compaction`. `does_not_block` is true. `EMET_CONTINUITY_CURRENCY_BLOCK` is not applied. The server does not rewrite HANDOFF or STATE. The diagram is [docs/reload-after-compaction-statechart.md](docs/reload-after-compaction-statechart.md).
+
 **During the session** — `emet_transcript_append` after every reply, one exchange at a time.
 Every write tool also takes `session_id` and `exchange`, and returns `session_graph.next`, the
 next stop on the monorail ([Guardrails & Monorails](docs/GUARDRAILS-AND-MONORAILS.md)).
@@ -909,9 +922,10 @@ Honest list, because the point of this project is that it behaves predictably:
 - `save_transcript`'s description does not state that it stores content verbatim; the
   implementation does.
 - No export / import / restore-and-compare yet.
+- `EMET_COLLECTION_PREFIX` prefixes `oauth_tokens` and `console_refresh`. The search index name is `EMET_VECTOR_INDEX`.
 - These collections are not prefixed: `documents`, `documents_history`, `transcripts`,
   `exchanges`, `persons`, `invites`, `close_attempts`, `error_log`, `error_log_summary`,
-  and `_emet_verify`. One database holds one instance. Run separate databases rather than
+  `owner_credentials`, and `_emet_verify`. One database holds one instance. Run separate databases rather than
   separate prefixes if you want separate memories. One collaborative project is one
   instance (one database, one deploy, one passphrase). See
   [docs/SECURITY-AT-SCALE.md](docs/SECURITY-AT-SCALE.md).

@@ -957,6 +957,7 @@ export async function revokeSubkey(deps, actor, ownerId, { tag, key_id, reason }
   const t = typeof tag === 'string' ? tag.trim() : '';
   if (!id && !t) throw refusal('emet_subkey_revoke: pass "tag" or "key_id". Nothing was changed.');
   let result = null;
+  const ended = [];
   await edit(deps, (data) => {
     ensureMaps(data);
     const rows = id
@@ -978,9 +979,11 @@ export async function revokeSubkey(deps, actor, ownerId, { tag, key_id, reason }
       endLive(data, row, 'revoked', now, reason || 'revoked');
       pushHistory(row, 'revoked', { at: row.revoked_at, by: row.revoked_by, reason: reason || null, client_id: actor.clientId || null });
       result = { key_id: row.key_id, tag: row.tag, status: 'revoked', at: row.revoked_at };
+      ended.push(row.key_id);
     }
     return true;
   });
+  for (const id of ended) await endKeyConsents(deps, id);
   return result;
 }
 
@@ -1115,6 +1118,96 @@ function presentFailure(found) {
   if (found.reason === 'expired') return 'this sub-key is expired. Ask the owner to reissue it. Nothing was opened.';
   if (found.reason === 'grace' || (found.row && found.row.status === 'revoked')) return 'sub-key revoked; open a new session with a current key. Nothing was opened.';
   return 'emet_session_open: this sub-key does not match an active key. Nothing was opened.';
+}
+
+function keyRefusal(msg) {
+  const error = refusal(msg);
+  error.emetCode = 'EMET-AUTH-046';
+  return error;
+}
+
+/**
+ * Check a sub-key presented at sign-in. No owner login is required.
+ * The posted tag must be the tag on the key, and that tag must be registered.
+ * A miss does not name a tag. A matched key that then fails names its tag.
+ */
+export async function verifyPresentedKey(deps, { token, tag, registry, now = new Date() } = {}) {
+  if (!subkeysEnabled()) throw keyRefusal('sub-keys are off (EMET_SUBKEYS is not 1). Nothing was granted.');
+  const peppers = requirePepper();
+  const parts = splitKeyToken(typeof token === 'string' ? token.trim() : '');
+  if (!parts) throw keyRefusal('this sub-key does not match an active key. Nothing was granted.');
+  const posted = typeof tag === 'string' ? tag.trim() : '';
+  if (!posted) throw keyRefusal('pass source, the tag on this key. Nothing was granted.');
+  let found = null;
+  await edit(deps, (data) => {
+    ensureMaps(data);
+    found = lookupUsable(data, parts.key_id, parts.secret, peppers, now);
+    return found.changed === true;
+  });
+  if (!found || !found.ok) {
+    const named = found && found.row && typeof found.row.tag === 'string' ? found.row.tag : '';
+    if (found && found.reason === 'expired') {
+      throw keyRefusal(`the key for "${named || posted}" is expired. Ask the owner to reissue it. Nothing was granted.`);
+    }
+    if (found && (found.reason === 'revoked' || found.reason === 'grace' || (found.row && found.row.status === 'revoked'))) {
+      throw keyRefusal(`the key for "${named || posted}" is revoked. Nothing was granted.`);
+    }
+    throw keyRefusal('this sub-key does not match an active key. Nothing was granted.');
+  }
+  const bound = found.row.tag;
+  if (posted !== bound) {
+    throw keyRefusal(`source tag "${posted}" is not the tag on this key ("${bound}"). Nothing was granted.`);
+  }
+  if (!tagAllowed(bound, registry)) {
+    throw keyRefusal(`source tag "${bound}" is not registered. Nothing was granted.`);
+  }
+  return { tag: bound, key_id: found.row.key_id, client_kind: clientKindOf(found.row) };
+}
+
+/**
+ * A key consent stays live only while that key is active and its tag is
+ * registered. A revoked or expired key ends the consent. The message names the tag.
+ */
+export async function assertKeyConsentLive(deps, { keyId, tag, registry, now = new Date() } = {}) {
+  const id = typeof keyId === 'string' ? keyId.trim() : '';
+  const posted = typeof tag === 'string' ? tag.trim() : '';
+  if (!id) throw keyRefusal(`this login for "${posted || 'this tag'}" is not bound to a key. Nothing was written.`);
+  let row = null;
+  await edit(deps, (data) => {
+    ensureMaps(data);
+    row = keyById(data, id);
+    if (!row) return false;
+    if ((row.status === 'active' || row.status === 'grace') && past(row.expires_at, now)) {
+      row.status = 'expired';
+      endLive(data, row, 'expired', now, 'key expired');
+      pushHistory(row, 'expired', { at: now.toISOString() });
+      return true;
+    }
+    return false;
+  });
+  const named = (row && row.tag) || posted || id;
+  if (!row || row.status === 'revoked' || row.status === 'denied') {
+    await endKeyConsents(deps, id);
+    throw keyRefusal(`the key for "${named}" is revoked. Nothing was written.`);
+  }
+  if (row.status === 'expired' || !usableKey(row, now)) {
+    await endKeyConsents(deps, id);
+    const why = row.status === 'expired' || past(row.expires_at, now) ? 'expired' : 'revoked';
+    throw keyRefusal(`the key for "${named}" is ${why}. Nothing was written.`);
+  }
+  if (posted && posted !== row.tag) {
+    throw keyRefusal(`source tag "${posted}" is not the tag on this key ("${row.tag}"). Nothing was written.`);
+  }
+  if (!tagAllowed(row.tag, registry)) {
+    await endKeyConsents(deps, id);
+    throw keyRefusal(`source tag "${row.tag}" is not registered. Nothing was written.`);
+  }
+  return { tag: row.tag, key_id: row.key_id };
+}
+
+async function endKeyConsents(deps, keyId) {
+  if (!deps || typeof deps.endConsents !== 'function' || !keyId) return 0;
+  return deps.endConsents(keyId);
 }
 
 /**

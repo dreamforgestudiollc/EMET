@@ -399,7 +399,25 @@ export function recordStep(tool, args = {}, data = {}, now = new Date()) {
     // A suffixed id records what it is the suffix of, so a real slug ending in
     // -N is never handed the same id (and vice versa).
     const of = data && data.suffix_applied && data.suffix_applied.requested;
-    return { opened: true, opened_at: now, ...(of ? { suffix_of: of } : {}) };
+    const reload = data && data.reload_after_compaction;
+    const pins = reload && reload.status !== 'off' && reload.continuity;
+    const loadId = data && data.startup_pages && typeof data.startup_pages.load_id === 'string'
+      ? data.startup_pages.load_id : null;
+    const seen = pins && pins.handoff && pins.state ? {
+      handoff_doc: pins.handoff.doc_id,
+      handoff_version: pins.handoff.seen_version,
+      handoff_sha256: pins.handoff.seen_sha256,
+      state_doc: pins.state.doc_id,
+      state_version: pins.state.seen_version,
+      state_sha256: pins.state.seen_sha256
+    } : null;
+    return {
+      opened: true,
+      opened_at: now,
+      ...(of ? { suffix_of: of } : {}),
+      ...(loadId && seen ? { reload_load_id: loadId } : {}),
+      ...(seen ? { continuity_seen: seen } : {})
+    };
   }
   // An append never opens a board-editing session. The first append is still
   // allowed by evaluate(); the board path requires a verified drops_seen array

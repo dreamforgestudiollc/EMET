@@ -26,7 +26,7 @@ const failed = [];
 function run(file) {
   return new Promise((resolve) => {
     console.log(`\n${'='.repeat(70)}\nRunning: ${file}\n${'='.repeat(70)}`);
-    const proc = spawn(process.execPath, [path.join(__dirname, file)], { cwd: __dirname, stdio: 'inherit', env: { ...process.env, EMET_DROP_LIST_TIMEOUT_MS: process.env.EMET_DROP_LIST_TIMEOUT_MS || '50' } });
+    const proc = spawn(process.execPath, [path.join(__dirname, file)], { cwd: __dirname, stdio: 'inherit', env: { ...process.env, EMET_DROP_LIST_TIMEOUT_MS: process.env.EMET_DROP_LIST_TIMEOUT_MS || '50', EMET_UNDER_TEST: '1' } });
     proc.on('close', (code) => { if (code !== 0) failed.push(file); resolve(code); });
     proc.on('error', (err) => { console.error(`Failed to run ${file}:`, err.message); failed.push(file); resolve(1); });
   });

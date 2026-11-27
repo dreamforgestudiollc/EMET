@@ -38,6 +38,7 @@ when you want a second device to reach the same memory.
    |---|---|
    | your whole EMET database | find, insert, update, create collection, create index, list collections, list indexes, list search indexes, collection and database stats. Not `REMOVE`. |
    | `<prefix>oauth_tokens` | remove — revoking a sign-in token |
+   | `<prefix>console_refresh` | remove — ending a remembered console phone. The row is a credential hash, not the record. |
    | `_emet_verify` | remove — the status check deletes its probe document and does not drop the collection |
    | `error_log` | `REMOVE` — rotation deletes old rows (10,000 entries or 90 days) after a daily summary is kept in `error_log_summary`. The name is not prefixed. It is not the record. |
 
@@ -105,7 +106,7 @@ when you want a second device to reach the same memory.
 
 6. **One database per EMET instance.** These collections are not prefixed:
    `documents`, `documents_history`, `transcripts`, `exchanges`, `persons`, `invites`,
-   `close_attempts`, `error_log`, `error_log_summary`, and `_emet_verify`. Two instances
+   `close_attempts`, `error_log`, `error_log_summary`, `owner_credentials`, and `_emet_verify`. Two instances
    pointed at the same database share all of them, even when their memory collections use
    different prefixes. If you want two separate memories, give them separate databases -
    not just separate prefixes.
@@ -250,6 +251,12 @@ what you had, and that `vector_index` reports the index you expect. Then `emet_i
 it should come back `ready` with your existing identity, not `setup_required`. If it says
 `setup_required`, one of the four variables above is wrong; **do not run the setup interview,
 which would write a new identity over your existing one.**
+
+## Upgrading to 0.3.8
+
+0.3.8 adds an admin password for the chooser, grants, and break-glass. The connect passphrase stays on the connect page. Set the admin password at `/owner/admin-password` with an owner session, the connect passphrase, or an owner Authorize token. An unset `EMET_OAUTH_PASSPHRASE` does not create the password and does not mint recovery codes. `EMET_ADMIN_PEPPER` is mixed into the hash when it is set and it is not the connect passphrase. `EMET_ADMIN_RECOVERY` is a one-time host token for `/owner/admin-password/recover`. `EMET_CONSOLE_ORIGINS` lists the browser origins allowed to call the console. Stored memory rows are not rewritten.
+
+ISO 9001 7.5.3 / ISO 13485 4.2.5 document-control wording is unchanged.
 
 ## Upgrading to 0.3.7
 

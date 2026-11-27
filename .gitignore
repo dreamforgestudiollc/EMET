@@ -22,6 +22,7 @@ _*canary*.mjs
 *.log
 logs/
 tmp/
+.tlc/
 
 # python artefacts
 __pycache__/

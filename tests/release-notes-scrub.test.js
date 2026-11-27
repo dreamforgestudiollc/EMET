@@ -26,7 +26,7 @@ export function headingSlice(text, heading) {
 }
 
 const LIVE_CLIENT = /\b8xm-[A-Za-z0-9_-]{10,}\b/;
-const PLANTED_CLIENT = '8xm-exampleclientid';
+const PLANTED_CLIENT = '8xm-' + 'exampleclientid';
 
 const LEAVE_PATHS = Object.freeze([
   'hosts/GROK.md',
@@ -71,7 +71,7 @@ testGroup('0.3.2 release notes reject private leaks', () => {
     assert.ok(change.includes('## Unreleased'));
     assert.ok(change.includes('## 0.3.6'), '## 0.3.6 is missing');
     assert.ok(headingSlice(change, '## 0.3.6').includes('Upcoming work'));
-    assert.ok(headingSlice(change, '## Unreleased').includes('Nothing is waiting above 0.3.7.'));
+    assert.ok(headingSlice(change, '## Unreleased').includes('Nothing is waiting above 0.3.8.'));
     assert.ok(change.includes('## 0.3.7'), '## 0.3.7 is missing');
   });
 

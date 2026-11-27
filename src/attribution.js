@@ -208,11 +208,13 @@ export function personIsOwner(actor, ownerId) {
 /**
  * The owner acting as the owner (Tester A2 re-review). Over HTTP the person must be
  * the owner AND the call must carry the login's own tag (no declared or
- * generated tag) AND that tag must not be a bot tag. Every bot on the owner's
+ * generated tag) AND that tag must not be a bot tag. A key door and a
+ * secondary door are tag writers, never this owner. Every bot on the owner's
  * shared login is therefore not the owner. Stdio is the local owner.
  */
 export function actorIsOwner(actor, ownerId) {
   if (!actor || actor.transport !== 'http') return true;
+  if (actor.door === 'key' || actor.door === 'secondary') return false;
   if (!personIsOwner(actor, ownerId)) return false;
   const login = typeof actor.sourceTag === 'string' && actor.sourceTag.trim() ? actor.sourceTag.trim() : null;
   if (actor.sourceBasis && actor.sourceBasis !== 'login') return false;
@@ -224,6 +226,7 @@ export function actorIsOwner(actor, ownerId) {
 export function actorIsCos(actor) {
   const cos = cosTag();
   if (!cos || !actor || actor.transport !== 'http') return false;
+  if (actor.door === 'key' || actor.door === 'secondary') return false;
   const login = typeof actor.sourceTag === 'string' ? actor.sourceTag.trim() : '';
   return login === cos && (!actor.sourceBasis || actor.sourceBasis === 'login') && !actor.declaredTag;
 }
@@ -312,15 +315,24 @@ export async function preflight(ctx, actor, args, toolName) {
   const bound = typeof actor.sourceTag === 'string' && actor.sourceTag.trim() ? actor.sourceTag.trim() : null;
   const declared = declaredTagOf(args);
   const isWrite = WRITE_TOOLS.has(toolName);
+  const keyDoor = actor.door === 'key' || actor.door === 'secondary';
+  if (keyDoor && declared && bound && declared !== bound) {
+    throw refusal(`this login is bound to "${bound}"; it may not write as "${declared}". Nothing was written.`);
+  }
+  if (keyDoor) {
+    const { assertKeyConsentLive } = await import('./subkeys.js');
+    await assertKeyConsentLive(deps, { keyId: actor.keyId, tag: bound, registry, now });
+  }
 
   // Sub-keys (EMET_SUBKEYS=1, off by default). The handle check runs here,
   // before the strict login check, and only when the flag is on. With the
   // flag off the check is the handle shape and the sessions this process has
   // already seen. It does not open the sub-key store.
-  if (setting('SUBKEYS') === '1') {
+  // A key door already signed in with the key. It does not present that key again.
+  if (!keyDoor && setting('SUBKEYS') === '1') {
     const { prepareSubkeyCall } = await import('./subkeys.js');
     await prepareSubkeyCall({ ...ctx, now }, actor, args, toolName);
-  } else if (isWrite) {
+  } else if (!keyDoor && isWrite) {
     const handle = args && typeof args.session_handle === 'string' ? args.session_handle.trim() : '';
     if (handle.startsWith('emh_')) throw refusal('a sub-key session handle was presented and EMET_SUBKEYS is off. Nothing was written.');
     const base = sessionBaseOf(args);

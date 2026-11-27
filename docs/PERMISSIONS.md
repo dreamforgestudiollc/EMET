@@ -110,6 +110,18 @@ EMET to, and grant standing approval to the tools you have decided on.
 
 ---
 
+## Who a save is attributed to
+
+Every write is stamped with the source tag of the client that made it. Transcript appends already refuse a tag that is not an exact member of `EMET_SOURCE_TAGS` (and of the approved tags in `emet/CLIENT_APPROVALS.md`, once that record is loaded). `save_to_layer`, `revise_memory`, and the document writes that still stored an unregistered tag use that same membership test.
+
+Until `2026-12-15` in `America/New_York`, an unregistered save is kept. The receipt names that cutoff. On that date, and after it, the save is refused with `EMET-MEM-035` and nothing is written. `EMET_SOURCE_SAVE_CUTOFF` moves the date. Unset, blank, or a value that is not `YYYY-MM-DD` stays `2026-12-15`. The shape check does not test that the month and day are a real date. `CASCADE_SOURCE_SAVE_CUTOFF` is the fallback.
+
+A sub-key write stamps the tag bound to that key. An owner-door write stamps the tag bound when the owner signed in. Those tags are registered when they are on the list above, so those writes stay. A save with no source tag is not this refusal: it stays `source_missing`, or takes `EMET_SOURCE_TAG` when a single-host default is set. A default that is not on the list is unregistered.
+
+With no `EMET_SOURCE_TAGS` configured, any tag is still accepted. A document write that already refuses an unregistered source (`EMET-DOC-020`) still refuses it. The cutoff does not open that door. Transcript appends stay an immediate refusal (`EMET-TOOL-004`).
+
+Rows already stored stay readable, including a legacy row written before source tags were required. A refusal does not delete or rewrite them. The picture is [source-save-statechart.md](source-save-statechart.md) and `GET /statechart`.
+
 ## When the prompting suddenly increases
 
 **A host's remembered approvals are tied to the tool list it has cached.** When a server adds or

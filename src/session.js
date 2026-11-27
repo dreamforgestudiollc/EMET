@@ -667,8 +667,9 @@ export function isRegisteredSource(tag, registry = []) {
 const SESSION_TAGS_NAMED = 4; // the session's tags named in a warning at most
 
 /**
- * The close's attribution warning. The close warns and never refuses (as a
- * layer write marks source_unregistered and is still saved). The tag it judges
+ * The close's attribution warning. The close warns and never refuses. A layer
+ * save with an unregistered tag warns until the source-save cutoff and is
+ * refused on that date. This close check does not. The tag it judges
  * is the `source` passed on the close, else the server's default tag. Only a
  * registered tag that is one of the tags that wrote this session's transcript
  * is attributed; anything else gets a warning that says why. A tag is echoed
@@ -789,6 +790,9 @@ export async function sessionClose(options = {}) {
     const bot = sessionTag && isBotTag(sessionTag)
       ? { tag: sessionTag, handoff_doc: botHandoffDoc(sessionTag), dir: botRecordDir(sessionTag), main_records: mainRecordIds() }
       : null;
+    // A console note is not a host session. It does not revise STATE or HANDOFF.
+    const consoleNote = sessionTag === 'emet-console';
+    const continuityDoc = (id) => id === stateDoc() || id === handoffDoc();
     const choices = handoffIdsFor(sessionTag);
     const namedHandoff = receipts && typeof receipts.handoff_doc === 'string' ? receipts.handoff_doc : null;
     const sessionHandoff = choices
@@ -964,6 +968,7 @@ export async function sessionClose(options = {}) {
       }
     }
     for (const d of documents) {
+      if (consoleNote && continuityDoc(d.doc_id)) continue;
       if (!d.exists) missing.push(`${d.doc_id} does not exist`);
       else if (bot && !d.updated_this_session && d.updated_in_window) {
         missing.push(`${d.doc_id} was not updated this session by ${bot.tag} - its revision in the window is by ${d.updated_by || '(no tag)'}`);
@@ -1021,7 +1026,11 @@ export async function sessionClose(options = {}) {
       ...(bot ? { bot } : {}),
       ...(tagHandoffMode() !== 'off' ? { tag_handoffs: true, board_updated: boardUpdated } : {})
     });
-    for (const p of receiptCheck.problems) missing.push(p);
+    for (const p of receiptCheck.problems) {
+      if (consoleNote && /^receipt missing: (board_|handoff_)/.test(p)) continue;
+      if (consoleNote && /^(STATE\.md|HANDOFF\.md) /.test(p)) continue;
+      missing.push(p);
+    }
     const foreign = foreignContinuityProblems({
       receipts,
       writers: continuityWriters,

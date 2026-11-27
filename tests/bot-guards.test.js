@@ -159,8 +159,9 @@ testGroup('1. registered hosts only on the main records (EMET_SOURCE_TAGS set)',
     const db = seeded();
     const r = await go(db, 'write_doc', { doc_id: 'threads/x.md', content: '# Thread\nx\n', source: 'stranger' });
     assert.ok(r.isError && /new drop only/.test(text(r)), text(r).slice(0, 300));
-    const drop = await go(db, 'write_doc', { doc_id: 'drops/stranger.md', content: 'a note\n', source: 'stranger' });
+    const drop = await go(db, 'write_doc', { doc_id: 'drops/stranger.md', content: 'a note\n', source: 'stranger' }, new Date('2026-11-22T15:00:00.000Z'));
     assert.ok(!drop.isError, text(drop).slice(0, 300));
+    assert.ok(dataOf(drop).warnings.some((w) => w.includes('2026-12-15') && w.includes('America/New_York')));
   }));
   test('with no registry configured, nothing changes: an unregistered tag writes STATE.md as before', () => withEnv({ EMET_SOURCE_TAGS: undefined }, async () => {
     const db = seeded();

@@ -47,9 +47,9 @@ testGroup('owner page portrait', () => {
   test('the deploy image copies the portrait and the npm package does not', () => {
     const docker = fs.readFileSync(path.join(ROOT, 'Dockerfile'), 'utf8');
     const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-    assert.ok(docker.includes('COPY site/assets/portrait.webp ./site/assets/portrait.webp'));
+    assert.ok(docker.includes('COPY site/assets/scene.webp ./site/assets/scene.webp'));
     assert.ok(!pkg.files.some((rel) => rel === 'site/' || rel.startsWith('site/')));
-    assert.ok(fs.existsSync(path.join(ROOT, 'site/assets/portrait.webp')));
+    assert.ok(fs.existsSync(path.join(ROOT, 'site/assets/scene.webp')));
   });
 
   test('the owner route serves the portrait', async () => {

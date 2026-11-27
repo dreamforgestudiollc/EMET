@@ -35,6 +35,7 @@ import { resolveModulePath } from './module-path.js';
 import { setting } from './env.js';
 import { tagHandoffMode, isTagHandoffDoc } from './per-tag-handoff.js';
 import { CodedError } from './error-codes.js';
+import { hostTimeSkewWarning, serverNow, serverTime } from './server-time.js';
 
 const HERE = resolveModulePath(import.meta.url);
 
@@ -812,7 +813,7 @@ export function checkRecord(content, template, { previous = null, doc_id = null 
  * @returns {object} the conformance record stored on the row and returned in
  *                   the receipt.
  */
-export function validateDocument(doc_id, content, previous = null, { dir } = {}) {
+export function validateDocument(doc_id, content, previous = null, { dir, at } = {}) {
   const checked_at = new Date().toISOString();
   try {
     const failures = [], warnings = [];
@@ -887,6 +888,12 @@ export function validateDocument(doc_id, content, previous = null, { dir } = {})
         for (const f of second.failures) if (!failures.includes(f)) failures.push(`against ${declared}: ${f}`);
       }
     }
+
+    try {
+      const stamped = at && typeof at.local === 'string' ? at : serverTime(serverNow());
+      const skew = hostTimeSkewWarning(content, stamped);
+      if (skew) warnings.push(skew);
+    } catch { /* a clock fault is not a failure and does not change the verdict */ }
 
     return {
       template: mapped_id, template_status: template.status,

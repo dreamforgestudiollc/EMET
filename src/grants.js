@@ -13,13 +13,15 @@ import crypto from 'node:crypto';
  * is open; this file does not pick it.
  */
 
-export const DOORS = Object.freeze(['owner', 'member', 'guest']);
+export const DOORS = Object.freeze(['owner', 'member', 'guest', 'key', 'secondary']);
 
 /** Stored `issued_via` values. Guest keeps the historical marker `invite`. */
 export const ISSUED_VIA = Object.freeze({
   owner: 'owner',
   member: 'member',
-  guest: 'invite'
+  guest: 'invite',
+  key: 'key',
+  secondary: 'owner_key'
 });
 
 /**
@@ -30,6 +32,8 @@ export function doorFromIssuedVia(issuedVia) {
   if (issuedVia === ISSUED_VIA.member) return 'member';
   if (issuedVia === ISSUED_VIA.guest) return 'guest';
   if (issuedVia === ISSUED_VIA.owner) return 'owner';
+  if (issuedVia === ISSUED_VIA.key) return 'key';
+  if (issuedVia === ISSUED_VIA.secondary) return 'secondary';
   return null;
 }
 
@@ -42,7 +46,7 @@ export function grantIdFromFamily(family) {
 
 /** Door copied onto an HTTP actor. Stdio is not an HTTP door. */
 export function httpDoor(door) {
-  if (door === 'owner' || door === 'member' || door === 'guest') return door;
+  if (door === 'owner' || door === 'member' || door === 'guest' || door === 'key' || door === 'secondary') return door;
   return null;
 }
 
@@ -64,7 +68,7 @@ export function logClientId(id) {
 
 /** Log-safe door. Null and anything off the list are `unknown`. */
 export function logDoor(door) {
-  if (door === 'owner' || door === 'member' || door === 'guest' || door === 'stdio') return door;
+  if (door === 'owner' || door === 'member' || door === 'guest' || door === 'stdio' || door === 'key' || door === 'secondary') return door;
   return 'unknown';
 }
 

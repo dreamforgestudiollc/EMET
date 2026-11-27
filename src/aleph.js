@@ -260,6 +260,10 @@ export function metadataIntegrityOf(row) {
  *
  * The content column is `content`; older rows exposed it as `event` as well
  * (both were written with the same value). Either is accepted, `content` first.
+ *
+ * A document row has the same shape (`content` and `sha256`). read_doc and
+ * read_doc_history call this on the stored body before a page is cut.
+ * signatureIntegrityOf stays a check of the stored digests, not of the body.
  */
 export function integrityOf(row) {
   if (!row || typeof row !== 'object') return 'unattested';

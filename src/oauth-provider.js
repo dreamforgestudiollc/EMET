@@ -41,10 +41,15 @@ import net from 'node:net';
 import tls from 'node:tls';
 import { COLLECTION_PREFIX } from './database.js';
 import { setting } from './env.js';
+import { OWNER_GRAPHIC_PATH } from './owner-session.js';
 import { InvalidGrantError, InvalidScopeError, InvalidTokenError } from '@modelcontextprotocol/sdk/server/auth/errors.js';
 import { scopesNotGranted } from './scopes.js';
 import { CodedError, assignCode } from './error-codes.js';
-import { doorFromIssuedVia, grantIdFromFamily, logGrantId } from './grants.js';
+import { doorFromIssuedVia, grantIdFromFamily, logGrantId, ISSUED_VIA } from './grants.js';
+import {
+  CONSOLE_SCOPE, CONSOLE_ACCESS_TTL_S, consoleNow, refreshLimits, refreshCollection,
+  isDevicePublicJwk, deviceIdForKey, verifyDeviceSignature
+} from './console-session.js';
 import { credentialBlocked, currentHouseholdGeneration, refuseRotatedCredential } from './rotate.js';
 import { owlCredentialBlocked, refuseOwlCredential } from './owl.js';
 
@@ -53,12 +58,12 @@ const ACCESS_TTL_S = 60 * 60;                   // access tokens: 1 hour
 const REFRESH_TTL_S = 60 * 60 * 24 * 60;        // refresh tokens: 60 days
 const REFRESH_ROTATION_GRACE_S = 60;            // a rotated refresh token stays usable this long
 /** The marker on codes and tokens minted from an invite (guest door). */
-export const INVITE_GRANT = 'invite';
+export const INVITE_GRANT = ISSUED_VIA.guest;
 // EMET Member Access tokens carry their own marker, so refresh can check the member flag, not the guest one.
-export const MEMBER_GRANT = 'member';
+export const MEMBER_GRANT = ISSUED_VIA.member;
 /** Passphrase consents. Stored explicitly so a new owner token is not a legacy row. */
-export const OWNER_GRANT = 'owner';
-const STORED_DOORS = new Set([INVITE_GRANT, MEMBER_GRANT, OWNER_GRANT]);
+export const OWNER_GRANT = ISSUED_VIA.owner;
+const STORED_DOORS = new Set([INVITE_GRANT, MEMBER_GRANT, OWNER_GRANT, ISSUED_VIA.key, ISSUED_VIA.secondary]);
 
 /** How long a fetched Client ID Metadata Document is trusted before refetching. */
 export const CIMD_TTL_MS = 60 * 60 * 1000;      // 1 hour
@@ -87,6 +92,19 @@ export const tokenDigest = (token) => crypto.createHash('sha256').update(String(
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function consentDoorHref(res, door) {
+  const req = res && res.req;
+  if (!req || typeof req.originalUrl !== 'string' || !req.originalUrl.startsWith('/')) return '';
+  let url;
+  try { url = new URL(req.originalUrl, 'http://emet.local'); }
+  catch { return ''; }
+  url.searchParams.delete('code');
+  url.searchParams.delete('access_code');
+  if (door) url.searchParams.set('door', door);
+  else url.searchParams.delete('door');
+  return `${url.pathname}${url.search}`;
 }
 
 export function timingSafeEqualStr(a, b) {
@@ -607,39 +625,90 @@ export class MongoOAuthProvider {
     const clientLabel = client.client_name ? `${escapeHtml(client.client_name)}` : escapeHtml(client.client_id);
     const scopeList = (params.scopes || []).map((s) => escapeHtml(s)).filter(Boolean);
     const scopeLine = scopeList.length ? scopeList.join(', ') : '(none requested)';
+    const req = res && res.req;
+    const original = req && typeof req.originalUrl === 'string' ? req.originalUrl : '';
+    const doorKey = (req && req.query && req.query.door === 'key') || /(?:\?|&)door=key(?:&|$)/.test(original);
+    const consoleScope = (params.scopes || []).includes('emet.console');
+    const keyHref = original
+      ? `${original}${original.includes('?') ? '&' : '?'}door=key`
+      : '/authorize?door=key';
+    const textField = 'margin-bottom:10px;width:100%;box-sizing:border-box;padding:12px;border-radius:9px;border:1px solid #333;background:#0e1014;color:#fff;font-size:15px';
+    const credential = doorKey
+      ? `<p>Key sign-in. Enter the sub-key and the source tag on that key. A secondary owner also enters the connect passphrase. This consent is not the primary owner login.</p>
+<input type="password" name="subkey" autocomplete="off" placeholder="Sub-key" style="${textField}">
+<input type="text" name="source" autocomplete="off" placeholder="Source tag" style="${textField}">
+<input type="password" name="passphrase" autocomplete="current-password" placeholder="Connect passphrase, secondary owner only">`
+      : consoleScope
+        ? `<p>EMET Console. Enter the admin password. This is the settings password, not the connect passphrase.</p>
+<input type="password" name="password" autofocus autocomplete="current-password" placeholder="Admin password">
+<label style="display:flex;gap:8px;align-items:center;margin-top:14px;font-size:13px;color:#c8c4bb"><input type="checkbox" name="remember" value="1"> Remember this phone</label>
+<p><a href="${escapeHtml(keyHref)}">I have a key</a></p>`
+        : `<p>Authorize <b>${clientLabel}</b> to reach this EMET memory store. After approval you will be sent to <code>${escapeHtml(redirectHost)}</code>.${loopback ? ' <span class="warn">That is a local address on this device; only approve if you started this connection yourself.</span>' : ''} This approval grants: <b>${scopeLine}</b>. Owner: enter the connect passphrase and the host source tag. Guest: enter the invite code you were given.</p>
+<input type="text" name="source" autocomplete="off" placeholder="Source tag (owner)" style="${textField}">
+<input type="password" name="passphrase" autofocus autocomplete="current-password" placeholder="Passphrase (owner)">
+<input type="text" name="invite_code" autocomplete="off" placeholder="Invite code (guest)" style="margin-top:10px;${textField}">
+<p><a href="${escapeHtml(keyHref)}">I have a key</a></p>`;
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'");
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     res.setHeader('Cache-Control', 'no-store');
     res.end(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EMET &middot; EMET</title>
-<style>body{font-family:system-ui,-apple-system,sans-serif;background:#12141a;color:#e8e6e0;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}form{background:#1b1e26;padding:30px 26px;border-radius:14px;max-width:340px;width:88%;box-shadow:0 10px 44px #0009}h1{font-size:17px;margin:0 0 6px}p{font-size:13px;line-height:1.5;color:#9aa0ab;margin:0 0 18px}input[type=password]{width:100%;box-sizing:border-box;padding:12px;border-radius:9px;border:1px solid #333;background:#0e1014;color:#fff;font-size:15px}button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:9px;background:#3a6ea5;color:#fff;font-size:15px;font-weight:600;cursor:pointer}small{display:block;margin-top:14px;color:#5c626d;font-size:11px}.warn{color:#d9a441}</style></head>
+<style>body{font-family:system-ui,-apple-system,sans-serif;background-color:#12141a;background-image:url("${OWNER_GRAPHIC_PATH}");background-repeat:no-repeat;background-position:center;background-size:cover;background-attachment:fixed;color:#e8e6e0;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0}form{background:rgba(18, 20, 26, 0.86);padding:30px 26px;border-radius:14px;max-width:340px;width:88%;box-shadow:0 10px 44px #0009}h1{font-size:17px;margin:0 0 6px}p{font-size:13px;line-height:1.5;color:#9aa0ab;margin:0 0 18px}input[type=password]{width:100%;box-sizing:border-box;padding:12px;border-radius:9px;border:1px solid #333;background:#0e1014;color:#fff;font-size:15px}button{margin-top:14px;width:100%;padding:12px;border:0;border-radius:9px;background:#3a6ea5;color:#fff;font-size:15px;font-weight:600;cursor:pointer}small{display:block;margin-top:14px;color:#5c626d;font-size:11px}.warn{color:#d9a441}</style></head>
 <body><form method="POST" action="/oauth/approve">${hidden}
 <h1>Connect to EMET</h1>
-<p>Authorize <b>${clientLabel}</b> to reach this EMET memory store. After approval you will be sent to <code>${escapeHtml(redirectHost)}</code>.${loopback ? ' <span class="warn">That is a local address on this device; only approve if you started this connection yourself.</span>' : ''} This approval grants: <b>${scopeLine}</b>. Owner: enter the passphrase and the host source tag. Guest: enter the invite code you were given.</p>
-<input type="text" name="source" autocomplete="off" placeholder="Source tag (owner)" style="margin-bottom:10px;width:100%;box-sizing:border-box;padding:12px;border-radius:9px;border:1px solid #333;background:#0e1014;color:#fff;font-size:15px">
-<input type="password" name="passphrase" autofocus autocomplete="current-password" placeholder="Passphrase (owner)">
-<input type="text" name="invite_code" autocomplete="off" placeholder="Invite code (guest)" style="margin-top:10px;width:100%;box-sizing:border-box;padding:12px;border-radius:9px;border:1px solid #333;background:#0e1014;color:#fff;font-size:15px">
+${credential}
 <button type="submit">Authorize this device</button>
 <small>The well is deep. Only you hold the passphrase.</small>
 </form></body></html>`);
   }
 
   /** Called by /oauth/approve AFTER a successful passphrase check. */
-  async createAuthorizationCode({ client_id, redirect_uri, code_challenge, scopes, resource, subject, issued_via, source_tag }) {
+  async createAuthorizationCode({ client_id, redirect_uri, code_challenge, scopes, resource, subject, issued_via, source_tag, key_id, console_grant }) {
     const draft = { client_id, clientId: client_id, source_tag };
     if (await owlCredentialBlocked(this._getDb(), this.prefix, draft)) await refuseOwlCredential(draft, 'code');
     const code = randTok(24);
+    const grant = console_grant && typeof console_grant === 'object' ? console_grant : null;
     await this.col('codes').insertOne({
       code: tokenDigest(code), hashed: true, client_id, redirect_uri, code_challenge,
       scopes: scopes || [], resource: resource || null,
       subject: subject || null,
       source_tag: source_tag || null,
+      ...(typeof key_id === 'string' && key_id ? { key_id } : {}),
       ...(STORED_DOORS.has(issued_via) ? { issued_via } : {}),
+      ...(grant ? {
+        console: true,
+        door: grant.door || null,
+        admin_password_version: grant.admin_password_version ?? null,
+        console_remember: grant.remember === true,
+        device_public_key: grant.remember === true ? grant.device_public_key : null,
+        device_id: grant.remember === true ? grant.device_id : null
+      } : {}),
       expiresAtMs: Date.now() + CODE_TTL_MS, used: false, createdAt: new Date(),
       rotation_generation: await currentHouseholdGeneration(this._getDb(), this.prefix)
     });
     return code;
+  }
+
+  /** Owner console consent. Scope, audience, and tag are fixed here. */
+  async issueConsoleOwnerCode({ client_id, redirect_uri, code_challenge, resource, admin_password_version, remember, device_public_key, device_id }) {
+    return this.createAuthorizationCode({
+      client_id,
+      redirect_uri,
+      code_challenge,
+      scopes: [CONSOLE_SCOPE],
+      resource,
+      subject: null,
+      issued_via: 'owner',
+      source_tag: 'emet-console',
+      console_grant: {
+        door: 'owner',
+        admin_password_version,
+        remember,
+        device_public_key,
+        device_id
+      }
+    });
   }
 
   async challengeForAuthorizationCode(client, authorizationCode) {
@@ -663,7 +732,39 @@ export class MongoOAuthProvider {
     );
     const doc = claimed && Object.prototype.hasOwnProperty.call(claimed, 'value') ? claimed.value : claimed;
     if (!doc) throw assignCode(new InvalidGrantError('this authorization code has already been used - start the connection again'), 'EMET-AUTH-016');
-    return this._issueTokens(client.client_id, doc.scopes || [], doc.resource || (resource ? resource.href : null), doc.subject || null, doc.issued_via || null, null, doc.source_tag || null);
+    const issued = await this._issueTokens(client.client_id, doc.scopes || [], doc.resource || (resource ? resource.href : null), doc.subject || null, doc.issued_via || null, null, doc.source_tag || null, doc.key_id || null, doc.console === true ? {
+      door: doc.door || doorFromIssuedVia(doc.issued_via),
+      admin_password_version: doc.admin_password_version ?? null,
+      device_id: doc.device_id || null
+    } : null);
+    if (doc.console === true && doc.console_remember === true && doc.device_public_key) {
+      const row = await createRefreshRow(this._getDb(), this.prefix, {
+        door: doc.door || doorFromIssuedVia(doc.issued_via),
+        admin_password_version: doc.admin_password_version ?? null,
+        key_id: doc.key_id || null,
+        device_public_key: doc.device_public_key,
+        device_id: doc.device_id || null,
+        subject: doc.subject || null,
+        client_id: client.client_id,
+        source_tag: doc.source_tag || null,
+        family: issued.family
+      });
+      if (row) {
+        return {
+          access_token: issued.access_token,
+          token_type: issued.token_type,
+          expires_in: issued.expires_in,
+          scope: issued.scope,
+          refresh_token: row.refresh_token,
+          nonce: row.nonce,
+          device_id: row.device_id,
+          step_up: null
+        };
+      }
+    }
+    const { family, ...publicTokens } = issued;
+    void family;
+    return publicTokens;
   }
 
   /**
@@ -680,6 +781,10 @@ export class MongoOAuthProvider {
     // (RFC 6749 section 5.2). A plain Error became a 500 server_error, which
     // told the client the server was broken instead of "sign in again".
     if (!rt) throw assignCode(new InvalidGrantError('this refresh token is not recognised (it may have been revoked, or issued to another client) - reconnect to sign in again'), 'EMET-AUTH-017');
+    if (rt.console === true || (Array.isArray(rt.scopes) && rt.scopes.includes(CONSOLE_SCOPE))) {
+      await this._revokeFamily(rt);
+      throw assignCode(new InvalidGrantError('a console login is not refreshed here. Use the console session refresh.'), 'EMET-AUTH-017');
+    }
     if (await owlCredentialBlocked(this._getDb(), this.prefix, rt)) await refuseOwlCredential(rt, 'refresh');
     // Household rotation refuses before the 60-second lost-response grace.
     // That grace is one client retry. It is not time left on a revoked grant.
@@ -723,7 +828,25 @@ export class MongoOAuthProvider {
     }
     const useScopes = requested.length ? requested : granted;
     const family = rt.family || randTok(16);
-    const out = await this._issueTokens(client.client_id, useScopes, rt.resource || (resource ? resource.href : null), rt.subject || null, rt.issued_via || null, family, rt.source_tag || null);
+    if (rt.key_id && (rt.issued_via === ISSUED_VIA.key || rt.issued_via === ISSUED_VIA.secondary)) {
+      const { assertKeyConsentLive } = await import('./subkeys.js');
+      const { registeredSourceTags } = await import('./setup.js');
+      const { approvalsDeps } = await import('./tools.js');
+      try {
+        await assertKeyConsentLive({
+          ...approvalsDeps,
+          endConsents: (keyId) => revokeTokensForKey(this._getDb(), this.prefix, keyId)
+        }, {
+          keyId: rt.key_id, tag: rt.source_tag, registry: registeredSourceTags(), now: new Date()
+        });
+      } catch (err) {
+        await this._revokeFamily(rt);
+        const message = err && err.message ? String(err.message) : 'this key is no longer active. Sign in again.';
+        throw assignCode(new InvalidGrantError(message), 'EMET-AUTH-046');
+      }
+    }
+    const out = await this._issueTokens(client.client_id, useScopes, rt.resource || (resource ? resource.href : null), rt.subject || null, rt.issued_via || null, family, rt.source_tag || null, rt.key_id || null);
+    delete out.family;
     const claim = await tokens.findOneAndUpdate(
       { _id: rt._id, rotated_at: { $exists: false } },
       { $set: { rotated_at: nowS, replaced_by: tokenDigest(out.refresh_token), grace_replacement: out, family } }
@@ -759,6 +882,16 @@ export class MongoOAuthProvider {
     const door = doorFromIssuedVia(row.issued_via);
     await this._revokeFamily(row);
     return { ok: true, grant_id: family, door };
+  }
+
+  /** One live consent per key. A new consent ends every other grant for that key. */
+  async _replaceOtherKeyConsents(keyId, keepFamily) {
+    const rows = await this.col('tokens').find({ key_id: keyId }).toArray();
+    const drop = new Set();
+    for (const row of rows) {
+      if (row && row.family && row.family !== keepFamily) drop.add(row.family);
+    }
+    for (const family of drop) await this.col('tokens').deleteMany({ family });
   }
 
   /** A reused refresh token outside the grace window ends every token in its family. */
@@ -799,6 +932,9 @@ export class MongoOAuthProvider {
     // stay on member and guest. A missing marker still falls through to the
     // legacy person-role lookup below.
     if (rt.issued_via === OWNER_GRANT) return null;
+    // A key consent is not EMET Member Access and not an invite. Those freeze
+    // flags do not end it. A missing marker still falls through below.
+    if (rt.issued_via === ISSUED_VIA.key || rt.issued_via === ISSUED_VIA.secondary) return null;
     if (rt.issued_via !== undefined && rt.issued_via !== null) return null;
     if (!rt.subject || rt.subject === 'owner') return null;
     const person = await this._getDb().collection('persons').findOne({ person_id: rt.subject });
@@ -831,30 +967,63 @@ export class MongoOAuthProvider {
     }
   }
 
-  async _issueTokens(clientId, scopes, resource, subjectOverride = null, issuedVia = null, family = null, sourceTag = null) {
+  async _issueTokens(clientId, scopes, resource, subjectOverride = null, issuedVia = null, family = null, sourceTag = null, keyId = null, consoleGrant = null) {
     const now = Math.floor(Date.now() / 1000);
     const subject = subjectOverride || await this._subject();
     const fam = family || randTok(16);
     const minted = { client_id: clientId, clientId, source_tag: sourceTag, family: fam };
     if (await owlCredentialBlocked(this._getDb(), this.prefix, minted)) await refuseOwlCredential(minted, 'issue');
     const rotation_generation = await currentHouseholdGeneration(this._getDb(), this.prefix);
+    const boundKey = typeof keyId === 'string' && keyId ? keyId : null;
+    if (boundKey) await this._replaceOtherKeyConsents(boundKey, fam);
     // Only a door grant (guest 'invite' or 'member') is marked; passphrase rows keep today's shape.
     const via = STORED_DOORS.has(issuedVia) ? { issued_via: issuedVia } : {};
+    const keyStamp = boundKey ? { key_id: boundKey } : {};
+    const consoleToken = Boolean(consoleGrant) || (Array.isArray(scopes) && scopes.includes(CONSOLE_SCOPE));
+    const ttl = consoleToken ? CONSOLE_ACCESS_TTL_S : ACCESS_TTL_S;
+    const door = consoleGrant && consoleGrant.door ? consoleGrant.door : null;
     const access = randTok(32);
     await this.col('tokens').insertOne({
       token: tokenDigest(access), hashed: true, kind: 'access', client_id: clientId, scopes, resource: resource || null,
-      subject, ...via, family: fam, source_tag: sourceTag || null, expiresAt: now + ACCESS_TTL_S, createdAt: new Date(),
-      rotation_generation
+      subject, ...via, ...keyStamp, family: fam, source_tag: sourceTag || null, expiresAt: now + ttl, createdAt: new Date(),
+      rotation_generation,
+      ...(consoleToken ? {
+        console: true,
+        door,
+        admin_password_version: consoleGrant ? (consoleGrant.admin_password_version ?? null) : null,
+        device_id: consoleGrant && consoleGrant.device_id ? consoleGrant.device_id : null,
+        step_up: null
+      } : {})
     });
-    const refresh = randTok(32);
-    await this.col('tokens').insertOne({
-      token: tokenDigest(refresh), hashed: true, kind: 'refresh', client_id: clientId, scopes, resource: resource || null,
-      subject, ...via, family: fam, source_tag: sourceTag || null, expiresAt: now + REFRESH_TTL_S, createdAt: new Date(),
-      rotation_generation
-    });
-    const out = { access_token: access, token_type: 'bearer', expires_in: ACCESS_TTL_S, refresh_token: refresh };
+    const out = { access_token: access, token_type: 'bearer', expires_in: ttl, family: fam };
+    if (consoleToken) out.step_up = null;
+    if (!consoleToken) {
+      const refresh = randTok(32);
+      await this.col('tokens').insertOne({
+        token: tokenDigest(refresh), hashed: true, kind: 'refresh', client_id: clientId, scopes, resource: resource || null,
+        subject, ...via, ...keyStamp, family: fam, source_tag: sourceTag || null, expiresAt: now + REFRESH_TTL_S, createdAt: new Date(),
+        rotation_generation
+      });
+      out.refresh_token = refresh;
+    }
     if (scopes && scopes.length) out.scope = scopes.join(' ');
     return out;
+  }
+
+  /** A 15-minute console access token. step_up stays null. No OAuth refresh token. */
+  async issueConsoleAccess({ clientId, subject, door, sourceTag, keyId, adminPasswordVersion, deviceId, family, resource }) {
+    const issuedVia = door === 'key' ? ISSUED_VIA.key : (door === 'secondary' ? ISSUED_VIA.secondary : ISSUED_VIA.owner);
+    const issued = await this._issueTokens(
+      clientId, [CONSOLE_SCOPE], resource, subject, issuedVia, family || null, sourceTag || null, keyId || null,
+      { door, admin_password_version: adminPasswordVersion ?? null, device_id: deviceId || null }
+    );
+    return {
+      access_token: issued.access_token,
+      token_type: issued.token_type,
+      expires_in: issued.expires_in,
+      scope: issued.scope,
+      step_up: null
+    };
   }
 
   async verifyAccessToken(token) {
@@ -876,7 +1045,15 @@ export class MongoOAuthProvider {
         subject: doc.subject || 'owner',
         sourceTag: doc.source_tag || null,
         grantId: grantIdFromFamily(doc.family),
-        door: doorFromIssuedVia(doc.issued_via)
+        door: doc.console === true && doc.door ? doc.door : doorFromIssuedVia(doc.issued_via),
+        keyId: doc.key_id || null,
+        ...(doc.console === true ? {
+          console: true,
+          adminPasswordVersion: doc.admin_password_version ?? null,
+          deviceId: doc.device_id || null,
+          stepUp: doc.step_up ?? null,
+          resource: doc.resource || null
+        } : {})
       },
     };
   }
@@ -895,6 +1072,212 @@ export class MongoOAuthProvider {
  * emet_rotations. They are not a memory layer, a document, or a transcript.
  * A rotated grant is stamped and kept. Nothing here is deleted.
  */
+/** End every OAuth grant bound to this key. The key row stays. */
+export async function revokeTokensForKey(db, prefix, keyId) {
+  if (!db || typeof keyId !== 'string' || !keyId) return 0;
+  const tokens = db.collection(`${prefix}oauth_tokens`);
+  const rows = await tokens.find({ key_id: keyId }).toArray();
+  const families = new Set(rows.map((row) => row && row.family).filter(Boolean));
+  let removed = 0;
+  for (const family of families) {
+    const result = await tokens.deleteMany({ family });
+    removed += result && result.deletedCount ? result.deletedCount : 0;
+  }
+  try {
+    removed += await deleteConsoleForKey(db, prefix, keyId);
+  } catch (err) {
+    console.error('[emet] console key sessions were not cleared', err && err.message ? err.message : err);
+  }
+  return removed;
+}
+
+function safeEqualText(a, b) {
+  const ab = Buffer.from(String(a));
+  const bb = Buffer.from(String(b));
+  if (ab.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ab, bb);
+}
+
+/**
+ * Console refresh rows and console access tokens. They are credentials,
+ * not memory, documents, or transcripts. One row per remembered phone.
+ */
+export async function createRefreshRow(db, prefix, fields) {
+  const col = refreshCollection(db, prefix);
+  if (!col) return null;
+  const jwk = fields && fields.device_public_key;
+  if (!isDevicePublicJwk(jwk)) return null;
+  const door = fields.door === 'key' || fields.door === 'secondary' || fields.door === 'owner' ? fields.door : null;
+  if (!door) return null;
+  const keyId = typeof fields.key_id === 'string' && fields.key_id ? fields.key_id : null;
+  if ((door === 'key' || door === 'secondary') && !keyId) return null;
+  const deviceId = fields.device_id || deviceIdForKey(jwk);
+  if (!deviceId) return null;
+  const now = consoleNow();
+  const limits = refreshLimits();
+  const refresh = randTok(32);
+  const nonce = randTok(32);
+  const row = {
+    device_id: deviceId,
+    door,
+    admin_password_version: door === 'owner' ? Number(fields.admin_password_version) || 0 : null,
+    key_id: keyId,
+    device_public_key: { kty: jwk.kty, crv: jwk.crv, x: jwk.x, y: jwk.y },
+    token_hash: tokenDigest(refresh),
+    previous_hash: null,
+    nonce,
+    subject: fields.subject || null,
+    client_id: fields.client_id || null,
+    source_tag: fields.source_tag || null,
+    family: fields.family || null,
+    step_up: null,
+    created_at: now,
+    last_used_at: now,
+    idle_expires_at: now + limits.idleMs,
+    absolute_expires_at: now + limits.absoluteMs
+  };
+  await col.deleteMany({ device_id: deviceId });
+  await col.insertOne(row);
+  return { refresh_token: refresh, nonce, device_id: deviceId, step_up: null };
+}
+
+async function deleteRefreshRow(col, row) {
+  if (!col || !row) return;
+  if (row.device_id) await col.deleteMany({ device_id: row.device_id });
+  else if (row._id) await col.deleteOne({ _id: row._id });
+}
+
+export async function refreshConsoleSession(db, prefix, presented, check) {
+  const col = refreshCollection(db, prefix);
+  if (!col) return { ok: false };
+  const token = presented && typeof presented.refresh_token === 'string' ? presented.refresh_token : '';
+  if (!token) return { ok: false };
+  const hash = tokenDigest(token);
+  const current = await col.findOne({ token_hash: hash });
+  const previous = current ? null : await col.findOne({ previous_hash: hash });
+  const row = current || previous;
+  if (!row) return { ok: false };
+  if (previous || !current) {
+    await deleteRefreshRow(col, row);
+    return { ok: false };
+  }
+  const nonce = typeof presented.nonce === 'string' ? presented.nonce : '';
+  if (!nonce || !safeEqualText(nonce, row.nonce)) {
+    await deleteRefreshRow(col, row);
+    return { ok: false };
+  }
+  if (!verifyDeviceSignature(row.device_public_key, nonce, presented.timestamp, presented.signature)) {
+    await deleteRefreshRow(col, row);
+    return { ok: false };
+  }
+  const now = consoleNow();
+  if (row.absolute_expires_at <= now || row.idle_expires_at <= now) {
+    await deleteRefreshRow(col, row);
+    return { ok: false };
+  }
+  const door = row.door;
+  if ((door === 'key' || door === 'secondary') && !row.key_id) {
+    await deleteRefreshRow(col, row);
+    return { ok: false };
+  }
+  try {
+    if (typeof check === 'function') await check(row);
+  } catch {
+    await deleteRefreshRow(col, row);
+    return { ok: false };
+  }
+  const limits = refreshLimits();
+  const next = randTok(32);
+  const nextNonce = randTok(32);
+  const updated = await col.updateOne(
+    { device_id: row.device_id, token_hash: hash },
+    {
+      $set: {
+        token_hash: tokenDigest(next),
+        previous_hash: hash,
+        nonce: nextNonce,
+        last_used_at: now,
+        idle_expires_at: now + limits.idleMs,
+        step_up: null
+      }
+    }
+  );
+  if (!updated || updated.matchedCount === 0) {
+    await deleteRefreshRow(col, row);
+    return { ok: false };
+  }
+  return {
+    ok: true,
+    refresh_token: next,
+    nonce: nextNonce,
+    device_id: row.device_id,
+    door: row.door,
+    subject: row.subject,
+    client_id: row.client_id,
+    source_tag: row.source_tag,
+    family: row.family,
+    key_id: row.key_id || null,
+    admin_password_version: row.admin_password_version ?? null,
+    step_up: null
+  };
+}
+
+export async function endConsoleFamily(db, prefix, { family, deviceId } = {}) {
+  if (!db) return 0;
+  let n = 0;
+  if (family) {
+    const tokens = await db.collection(`${prefix}oauth_tokens`).deleteMany({ family, console: true });
+    n += tokens && tokens.deletedCount ? tokens.deletedCount : 0;
+  }
+  const col = refreshCollection(db, prefix);
+  if (col && deviceId) {
+    const rows = await col.deleteMany({ device_id: deviceId });
+    n += rows && rows.deletedCount ? rows.deletedCount : 0;
+  }
+  return n;
+}
+
+export async function deleteOwnerConsoleSessions(db, prefix) {
+  if (!db) return 0;
+  const mark = prefix || 'emet_';
+  const tokens = await db.collection(`${mark}oauth_tokens`).deleteMany({ console: true, door: 'owner' });
+  const col = refreshCollection(db, mark);
+  const rows = col ? await col.deleteMany({ door: 'owner' }) : { deletedCount: 0 };
+  return (tokens && tokens.deletedCount ? tokens.deletedCount : 0) + (rows && rows.deletedCount ? rows.deletedCount : 0);
+}
+
+export async function deleteConsoleForKey(db, prefix, keyId) {
+  if (!db || typeof keyId !== 'string' || !keyId) return 0;
+  const tokens = await db.collection(`${prefix}oauth_tokens`).deleteMany({ console: true, key_id: keyId });
+  const col = refreshCollection(db, prefix);
+  const rows = col ? await col.deleteMany({ key_id: keyId }) : { deletedCount: 0 };
+  return (tokens && tokens.deletedCount ? tokens.deletedCount : 0) + (rows && rows.deletedCount ? rows.deletedCount : 0);
+}
+
+export async function deleteConsoleDevice(db, deviceId, prefix = 'emet_') {
+  if (!db || typeof deviceId !== 'string' || !deviceId) return 0;
+  const col = refreshCollection(db, prefix);
+  const row = col ? await col.findOne({ device_id: deviceId }) : null;
+  let n = 0;
+  if (row && row.family) {
+    const tokens = await db.collection(`${prefix}oauth_tokens`).deleteMany({ family: row.family, console: true });
+    n += tokens && tokens.deletedCount ? tokens.deletedCount : 0;
+  }
+  if (col) {
+    const rows = await col.deleteMany({ device_id: deviceId });
+    n += rows && rows.deletedCount ? rows.deletedCount : 0;
+  }
+  return n;
+}
+
+export async function deleteAllConsoleSessions(db, prefix = 'emet_') {
+  if (!db) return 0;
+  const tokens = await db.collection(`${prefix}oauth_tokens`).deleteMany({ console: true });
+  const col = refreshCollection(db, prefix);
+  const rows = col ? await col.deleteMany({}) : { deletedCount: 0 };
+  return (tokens && tokens.deletedCount ? tokens.deletedCount : 0) + (rows && rows.deletedCount ? rows.deletedCount : 0);
+}
+
 async function stampCredentialIds(col, ids, eventId, at) {
   if (!ids.length || !col || typeof col.updateMany !== 'function') return 0;
   const result = await col.updateMany(

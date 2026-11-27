@@ -20,6 +20,7 @@
 import { EmetError, ErrorCodes, StatusCodes } from './database.js';
 import { ValidationError } from './validation.js';
 import { registeredSourceTags } from './setup.js';
+import { sourceMembership } from './source-registration.js';
 import { echoId, sessionOf } from './session-graph.js';
 import { currentActor } from './persons.js';
 import { recordError } from './error-log.js';
@@ -35,6 +36,7 @@ import {
 } from './tools.js';
 import { refuseBoundHostDoor, boundHostActor } from './bound-door.js';
 import { beginStagedDoc, appendStagedChunk, commitStagedDoc, abortStagedDoc } from './staged-write.js';
+import { condenseToolFields } from './condense-approval.js';
 import { reserveToolNames } from './rune-registry.js';
 import { applyCheckpoint, checkpointOnError, checkpointStatus } from './checkpoint.js';
 
@@ -100,8 +102,9 @@ export function requireRegisteredSource(tag, tool, allowNull = false) {
     }
     throw new ValidationError('source', `${tool}: pass "source" set to the tag of the host this write comes from. No tags are registered on this server, so any non-empty tag passes: use the one bootstrap/INSTALL.md gives this host. No source tag was given and one is required, so nothing was written.`, { code: 'EMET-TOOL-003' });
   }
-  const registry = registeredSourceTags();
-  if (registry.length && !registry.includes(tag)) {
+  // Same membership as a layer or document save (sourceMembership). A transcript
+  // write refuses immediately. A save warns until the cutoff, then refuses.
+  if (sourceMembership(tag) === 'unregistered') {
     throw new ValidationError('source', `${tool}: pass "source" set to a registered tag. A new host adopts one in bootstrap/INSTALL.md first. Source tag "${echoId(tag)}" is not registered, so nothing was written.`, { code: 'EMET-TOOL-004' });
   }
   return tag;
@@ -119,8 +122,11 @@ export async function dispatchTool(name, args, ctx) {
   const { dbManager, logger, AuditOperation } = ctx;
   args = args || {};
   // The clock for the date-dependent rules (session ids, the closing-exchange
-  // window). Transports never set it; the suites pin it.
-  const now = ctx.now instanceof Date ? ctx.now : new Date();
+  // window). Transports never set it; the suites pin it. The source-save gate
+  // receives only an explicit ctx.now. A synthesized wall-clock Date would hide
+  // EMET_TEST_CLOCK, so a dispatch save with no pin follows that test clock.
+  const gateNow = ctx.now instanceof Date && !Number.isNaN(ctx.now.getTime()) ? ctx.now : undefined;
+  const now = gateNow || new Date();
   let grace = null; // a claimed closing exchange, released if the write then fails
   try {
     const actor = currentActor();
@@ -220,6 +226,10 @@ export async function dispatchTool(name, args, ctx) {
       });
     }
     const ok = async (data) => {
+      try {
+        const { attachReloadReport } = await import('./reload-after-compaction.js');
+        await attachReloadReport(name, args, data, now, dbManager);
+      } catch { /* a reload report never fails the call and never rewrites a record */ }
       // A sub-key, claim nonce, or session handle is delivered once by the tool
       // that minted it. Later receipts do not repeat it.
       if (data && typeof data === 'object' && !Array.isArray(data)) {
@@ -270,7 +280,15 @@ export async function dispatchTool(name, args, ctx) {
       return finish(data);
     };
     switch (name) {
-      case 'emet_initialize':        return ok(await initialize(args, { onLate: (late) => sg.recordLatePages(late, dbManager, logger) }));
+      case 'emet_initialize': {
+        const started = await initialize(args, { onLate: (late) => sg.recordLatePages(late, dbManager, logger) });
+        const whole = started && started.startup_page && started.startup_page.index === 'all';
+        if (whole && !started.server_time) {
+          const { serverNow, serverTime } = await import('./server-time.js');
+          started.server_time = serverTime(serverNow());
+        }
+        return ok(started);
+      }
       case 'emet_setup_complete':    return ok(await setupComplete(args.answers || {}, logger, { reissue: args.reissue === true, source: sourceOf(args) }));
       case 'emet_session_close': {
         const data = await sessionClose(args);
@@ -415,6 +433,10 @@ export async function dispatchTool(name, args, ctx) {
             if (keys) status.subkeys = keys;
           }
         }
+        {
+          const { serverNow, serverTime } = await import('./server-time.js');
+          status.server_time = serverTime(serverNow());
+        }
         return ok(status);
       }
       case 'save_to_layer':          return ok(await saveMemory(dbManager, args.content, args.layer, args.metadata || {}, logger, AuditOperation, { session_id: args.session_id }));
@@ -455,7 +477,12 @@ export async function dispatchTool(name, args, ctx) {
             const { approvalsDeps, sourceRegistry } = await import('./tools.js');
             const ownerId = dbManager && dbManager.db ? await resolveTokenSubject(dbManager.db).catch(() => null) : null;
             try {
-              return ok(await sk.dispatchSubkey(name, approvalsDeps, rawActor(), ownerId, args, sourceRegistry(), now));
+              const { revokeTokensForKey } = await import('./oauth-provider.js');
+              const prefix = process.env.EMET_COLLECTION_PREFIX || 'emet_';
+              return ok(await sk.dispatchSubkey(name, {
+                ...approvalsDeps,
+                endConsents: (keyId) => revokeTokensForKey(dbManager && dbManager.db, prefix, keyId)
+              }, rawActor(), ownerId, args, sourceRegistry(), now));
             } catch (e) {
               if (e && e.attributionRefusal) throw new ValidationError('subkey', e.message, { code: 'EMET-AUTH-028' });
               throw e;

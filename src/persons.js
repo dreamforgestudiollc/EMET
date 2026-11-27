@@ -176,6 +176,7 @@ export function httpToolActor(extra) {
     sourceTag: (auth && auth.extra && auth.extra.sourceTag) || null,
     grantId: (auth && auth.extra && auth.extra.grantId) || null,
     door: (auth && auth.extra && auth.extra.door) || null,
+    keyId: (auth && auth.extra && auth.extra.keyId) || null,
     authenticated: Boolean(auth)
   };
 }

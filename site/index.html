@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>EMET — MCP memory server</title>
-  <meta name="description" content="EMET 0.3.7 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
+  <meta name="description" content="EMET 0.3.8 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
   <link rel="canonical" href="https://dreamforgestudiollc.github.io/EMET/">
   <meta name="robots" content="index, follow">
   <meta name="color-scheme" content="light dark">
@@ -14,7 +14,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="EMET">
   <meta property="og:title" content="EMET — MCP memory server">
-  <meta property="og:description" content="EMET 0.3.7 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
+  <meta property="og:description" content="EMET 0.3.8 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
   <meta property="og:url" content="https://dreamforgestudiollc.github.io/EMET/">
   <meta property="og:image" content="https://dreamforgestudiollc.github.io/EMET/assets/og.jpg">
   <meta property="og:image:width" content="1200">
@@ -25,7 +25,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:url" content="https://dreamforgestudiollc.github.io/EMET/">
   <meta name="twitter:title" content="EMET — MCP memory server">
-  <meta name="twitter:description" content="EMET 0.3.7 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
+  <meta name="twitter:description" content="EMET 0.3.8 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client approvals, and client-side GEM execution. EMET verifies the record, not the computation.">
   <meta name="twitter:image" content="https://dreamforgestudiollc.github.io/EMET/assets/og.jpg">
   <meta name="twitter:image:alt" content="Close view of the EMET sculpture’s face and shoulders, with the Hebrew word אמת on her headband, beside the words EMET, MCP memory server.">
 
@@ -56,11 +56,11 @@
     "@type": "SoftwareSourceCode",
     "name": "EMET",
     "alternateName": "Enduring Memory & Epistemic Tiers",
-    "description": "EMET 0.3.7 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.",
+    "description": "EMET 0.3.8 is an MCP memory server built for ISO 9001 / ISO 13485 document control: persistent shared memory, verified writes, per-client attribution and approvals, and client-side GEM execution. EMET verifies the record, not the computation.",
     "url": "https://dreamforgestudiollc.github.io/EMET/",
     "codeRepository": "https://github.com/dreamforgestudiollc/EMET",
     "license": "https://github.com/dreamforgestudiollc/EMET/blob/main/LICENSE",
-    "version": "0.3.7",
+    "version": "0.3.8",
     "programmingLanguage": "JavaScript",
     "runtimePlatform": "Node.js",
     "image": "https://dreamforgestudiollc.github.io/EMET/assets/og.jpg",
@@ -200,7 +200,7 @@
           </div>
           <div>
             <dt>MIT license</dt>
-            <dd>Version 0.3.7. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them. <a href="#project">The project</a>.</dd>
+            <dd>Version 0.3.8. EMET is still 0.x: stored document shapes may change before 1.0. Pin a version if you depend on them. <a href="#project">The project</a>.</dd>
           </div>
         </dl>
 
@@ -523,7 +523,7 @@ emet_status
           <li>Rows written before 2026-09-05 carry no content digest, and rows written before 2026-09-07 carry no metadata digest. Reads report them as <code>unattested</code>. They are not backfilled.</li>
           <li><code>save_transcript</code>’s description does not state that it stores content verbatim. The implementation does.</li>
           <li>There is no export, import, or restore-and-compare.</li>
-          <li>These collections are not prefixed: <code>documents</code>, <code>documents_history</code>, <code>transcripts</code>, <code>exchanges</code>, <code>persons</code>, <code>invites</code>, <code>close_attempts</code>, <code>error_log</code>, <code>error_log_summary</code>, and <code>_emet_verify</code>. Two instances in one database share all of them. Run separate databases if you want separate memories.</li>
+          <li>These collections are not prefixed: <code>documents</code>, <code>documents_history</code>, <code>transcripts</code>, <code>exchanges</code>, <code>persons</code>, <code>invites</code>, <code>close_attempts</code>, <code>error_log</code>, <code>error_log_summary</code>, <code>owner_credentials</code>, and <code>_emet_verify</code>. Two instances in one database share all of them. Run separate databases if you want separate memories.</li>
           <li>EMET supports document-control work. It holds no certification and claims no conformity. An organization that uses it stays responsible for its own quality system, including validating EMET for its intended use.</li>
         </ul>
 
@@ -824,7 +824,7 @@ EMET_ACTIVE_GEMS=neurendipity,lean-six-sigma</code></pre>
     <section class="block" id="project" aria-labelledby="project-title">
       <div class="wrap">
         <h2 id="project-title">The project</h2>
-        <p class="prose">EMET 0.3.7 is free and open source under the MIT License. No account, key, or payment is required to run it. You run it on infrastructure you control: your host, your MongoDB, your passphrase. The npm package is <code>@dreamforgestudiollc/emet</code>. The command it installs is <code>emet</code>, and <code>bin</code> and <code>main</code> are <code>src/index.js</code>. Node.js 22 or newer.</p>
+        <p class="prose">EMET 0.3.8 is free and open source under the MIT License. No account, key, or payment is required to run it. You run it on infrastructure you control: your host, your MongoDB, your passphrase. The npm package is <code>@dreamforgestudiollc/emet</code>. The command it installs is <code>emet</code>, and <code>bin</code> and <code>main</code> are <code>src/index.js</code>. Node.js 22 or newer.</p>
         <p class="prose">The Official MCP Registry manifest is <code>server.json</code>. Its name is <code>io.github.dreamforgestudiollc/emet</code>, the same value as <code>mcpName</code> in <code>package.json</code>. The package it names is the stdio server. <code>MONGODB_URI</code> is the required secret. This site is the homepage.</p>
         <ul class="project-links">
           <li><a href="https://github.com/dreamforgestudiollc/EMET">Repository</a></li>
@@ -833,6 +833,8 @@ EMET_ACTIVE_GEMS=neurendipity,lean-six-sigma</code></pre>
           <li><a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CHANGELOG.md">Changelog</a></li>
         </ul>
 
+        <h3>What 0.3.8 changed</h3>
+        <p class="prose">EMET 0.3.8 is an MCP server for document control (ISO 9001 7.5.3 / ISO 13485 4.2.5). The admin password opens the chooser, grants, and break-glass. The connect passphrase stays on the connect page. An unset connect passphrase does not mint recovery codes. Key sign-in, EMET Console, the unregistered-source cutoff, a reload warning, read integrity, and an owner-approved shorter revision are in this release. <code>EMET_ADMIN_PEPPER</code> and <code>EMET_ADMIN_RECOVERY</code> are optional. <code>EMET_CONSOLE_ORIGINS</code> names the browser origins allowed to call the console. Stored memory rows are not rewritten.</p>
         <h3>What 0.3.7 changed</h3>
         <p class="prose">EMET 0.3.7 is an MCP server for document control (ISO 9001 7.5.3 / ISO 13485 4.2.5). Per-tag handoffs ship off unless the owner sets <code>EMET_TAG_HANDOFFS</code> to <code>warn</code> or <code>enforce</code>. Sub-key sessions renew in the last hour of a 12-hour handle and for one hour after it expires. A later sweep marks a stranded session <code>auto_closed</code>. The row and the transcript stay. <code>emet_subkey_set_kind</code> sets a key to bot or chat. <code>emet_status</code> does not write. Continuity currency (<code>EMET_CONTINUITY_CURRENCY</code>) compares the served handoff with the live material episodic tip on initialize and session open. It defaults off. Set it to <code>1</code> to turn it on. A lag warns only, and the call is not refused. The npm package includes <code>docs/features/</code>. Stored rows are not rewritten. No new setting is required.</p>
 
@@ -928,7 +930,7 @@ npm run start:http</code></pre>
         <ul class="limits">
           <li>Still 0.x. Breaking changes to stored document shapes may land before 1.0.</li>
           <li>No export, import, or restore-and-compare yet.</li>
-          <li>These collections are not prefixed: <code>documents</code>, <code>documents_history</code>, <code>transcripts</code>, <code>exchanges</code>, <code>persons</code>, <code>invites</code>, <code>close_attempts</code>, <code>error_log</code>, <code>error_log_summary</code>, and <code>_emet_verify</code>. One database holds one instance. Use separate databases for separate memories.</li>
+          <li>These collections are not prefixed: <code>documents</code>, <code>documents_history</code>, <code>transcripts</code>, <code>exchanges</code>, <code>persons</code>, <code>invites</code>, <code>close_attempts</code>, <code>error_log</code>, <code>error_log_summary</code>, <code>owner_credentials</code>, and <code>_emet_verify</code>. One database holds one instance. Use separate databases for separate memories.</li>
           <li>Dynamic Client Registration is still served beside Client ID Metadata Documents. It is scheduled to come off on 2027-06-01. The MCP specification’s deprecation window closes around 2027-07.</li>
           <li>Delegated client sub-keys stay off unless setup is told that more than one bot or AI will use the memory. A hosted server does not write a pepper into its container. A stamp shows that an approved key was presented, not which program held it.</li>
           <li><code>save_transcript</code>’s description does not say that it stores content verbatim. The implementation does.</li>
@@ -940,7 +942,7 @@ npm run start:http</code></pre>
         <ul class="guides">
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CHANGELOG.md">Changelog</a>
-            <span>0.3.7, then the earlier releases. The format is Keep a Changelog.</span>
+            <span>0.3.8, then the earlier releases. The format is Keep a Changelog.</span>
           </li>
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/CONTRIBUTING.md">Contributing</a>
@@ -960,7 +962,7 @@ npm run start:http</code></pre>
           </li>
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/server.json">server.json</a>
-            <span>The registry manifest for 0.3.7.</span>
+            <span>The registry manifest for 0.3.8.</span>
           </li>
           <li>
             <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/README.md#known-gaps">Known gaps</a>
@@ -975,7 +977,7 @@ npm run start:http</code></pre>
 
   <footer class="site-footer">
     <div class="wrap">
-      <p>EMET 0.3.7 · <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/LICENSE">MIT License</a></p>
+      <p>EMET 0.3.8 · <a href="https://github.com/dreamforgestudiollc/EMET/blob/main/LICENSE">MIT License</a></p>
       <p>Copyright Dreamforge Studio LLC and C.I.P.S. LLC.</p>
       <ul class="project-links">
         <li><a href="https://github.com/dreamforgestudiollc/EMET">Repository</a></li>

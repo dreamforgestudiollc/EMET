@@ -1,0 +1,7 @@
+# CondenseApproval
+
+TLC2 Version 2.19
+Model checking completed. No error has been found.
+235 states generated, 115 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 2.
+Finished with no error.

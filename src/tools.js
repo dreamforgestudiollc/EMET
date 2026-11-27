@@ -16,8 +16,13 @@ import { newCorrelationId, EMET_INT_001, EMET_CODE_RE, lookupEmetCode } from './
 import { attachChooserLink } from './deep-links.js';
 import { recordError } from './error-log.js';
 import { resolveModulePath } from './module-path.js';
-import { replacedByOf } from './setup.js';
+import { replacedByOf, registeredSourceTags } from './setup.js';
+import { guardUnregisteredSourceSave } from './source-registration.js';
 import { currentActor, rawActor, writerStamp, boundSourceTag, declaredAttribution, LOCAL_SUBJECT } from './persons.js';
+import { AuditOperation } from './logger.js';
+import {
+  condenseActor, condenseGate, assertRetainedPrior, condenseEpisodePayload, condenseRecordOf
+} from './condense-approval.js';
 import { guardClaimedTag } from './claimed-tag.js';
 import {
   tagHandoffMode, guardTagHandoff, isTagHandoffDoc, boardWritePlan, hubTag, credentialForWrite, authorizeHandoffWrite, attachHandoffView, requireHubTag
@@ -26,6 +31,15 @@ import { continuityCurrencyEnabled, loadContinuityCurrency, continuityCurrencyUn
 import { approvedTags, APPROVALS_DOC } from './attribution.js';
 import { refuseBoundHostDoor, boundHostActor, boundHostCredentialOverrides, boundHostClaimOnSharedLogin, isBoundHostTag, isLegacyBoundHostSpelling, CLAIM_TAG } from './bound-door.js';
 import { sealAttestation, frozenAttestation } from './rune-dispatch.js';
+import { serverNow, serverTime } from './server-time.js';
+
+function clockStamp(date = new Date()) {
+  const stamped = serverTime(serverNow(date));
+  return {
+    server_time: stamped,
+    server_written_local: stamped ? stamped.local : null
+  };
+}
 
 /** Approvals record io for attribution.js (server-kept doc, written as emet-server). */
 export const approvalsDeps = {
@@ -585,14 +599,16 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       if (sourceDecision.tag) delete validatedMetadata.source_missing;
       else validatedMetadata.source_missing = true;
     }
-    // Registry check: only when a registry is configured (a fresh install has
-    // none yet), and only for a tag that exists - a missing tag is already marked.
-    const registry = String(setting('SOURCE_TAGS') ?? '')
-      .split(',').map((s) => s.trim()).filter((s) => s !== '');
-    if (registry.length > 0 && typeof validatedMetadata.source === 'string' &&
-        !registry.includes(validatedMetadata.source)) {
-      validatedMetadata.source_unregistered = true;
-    }
+    // Same membership as emet_transcript_append (registeredSourceTags). A
+    // missing tag stays source_missing. An unregistered tag is kept and warned
+    // until the cutoff, then refused here, before anything is written.
+    const sourceGate = guardUnregisteredSourceSave({
+      tag: validatedMetadata.source,
+      tool: 'save_to_layer',
+      now: options && options.now
+    });
+    if (sourceGate.unregistered) validatedMetadata.source_unregistered = true;
+    if (sourceGate.warning) warnings.push(sourceGate.warning);
     // Person comes from the login, never from the caller's claim. Stdio is
     // one fixed local subject. A caller client_id never survives in custom.
     {
@@ -768,6 +784,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
     const metadataSha256 = digestMetadata(validatedMetadata);
     const signingKey = setting('SIGNING_KEY') || null;
     const signature = signDigests(contentSha256, metadataSha256, signingKey);
+    const clock = clockStamp();
     // The row as a document (stage 1 of the write-path rewrite, 2026-09-27).
     // `event` (a mirror of content) was retired with the SQL read path,
     // 2026-09-28; older rows keep theirs, untouched.
@@ -799,7 +816,8 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       metadata_sha256: metadataSha256,
       signature,
       prev_sha256: prevSha256,
-      chain_sha256: chainSha256
+      chain_sha256: chainSha256,
+      server_written_local: clock.server_written_local
     };
 
     // Option A correction back-pointer (the owner, 2026-10-02, procedural ref 405 item 4): a new entry may name the
@@ -862,6 +880,7 @@ export async function saveMemory(dbManager, content, layer = null, metadata = {}
       layer: targetLayer,
       id: memoryId,
       timestamp,
+      server_time: clock.server_time,
       verified: true,
       sha256: receipt.sha256,
       // digest_stored: the read-back saw a sha256 COLUMN on the row and it agreed
@@ -1106,7 +1125,7 @@ const correctedByOf = (row) => {
   return Array.isArray(v) && v.length ? v.map(Number) : [];
 };
 
-export async function reviseMemory(dbManager, layer, target_id, content, metadata = {}, logger = null) {
+export async function reviseMemory(dbManager, layer, target_id, content, metadata = {}, logger = null, options = {}) {
   try {
     const validatedLayer = validateLayer(layer, true);
     // Which layers may be revised is the charter's call (layers.js), not a
@@ -1150,7 +1169,8 @@ export async function reviseMemory(dbManager, layer, target_id, content, metadat
     };
 
     const saved = await saveMemory(dbManager, validatedContent, validatedLayer, revisionMetadata, logger, null, {
-      inheritedAttestation: Boolean(priorAttestation)
+      inheritedAttestation: Boolean(priorAttestation),
+      now: options && options.now
     });
 
     targetMd.superseded_by = saved.id;
@@ -1382,6 +1402,7 @@ function recalledRow(memory, layer, extra = {}) {
     ...(layer ? { layer } : {}),
     id: memory.id,
     timestamp: memory.timestamp,
+    server_written_local: memory.server_written_local ?? null,
     content: memory.content,
     context: memory.context,
     importance: memory.importance,
@@ -2203,6 +2224,7 @@ export async function sessionOpen({ slug, load_id } = {}, logger = null, dbManag
       (subkeyNotice && subkeyNotice.wrap_up_notice ? `Tell the user: ${subkeyNotice.wrap_up_notice} ` : '') +
       (suffixed ? `Tell the user, in one line: ${notice} ` : '') +
       (pages && pages.notice ? `${pages.notice} ` : '') +
+      'After any compaction or summary, re-run emet_initialize for every page and work from HANDOFF and STATE, not from the summary. ' +
       'After EVERY reply, call emet_transcript_append with this session_id, the user message, and your reply. One exchange per call. Do not wait until the session ends. Do not reconstruct earlier turns.'
   };
   if (continuityCurrencyEnabled() || tagHandoffMode() !== 'off') {
@@ -2349,12 +2371,14 @@ export async function transcriptAppend(args = {}, logger = null) {
     }
 
     const scrub = (s) => redactWithReport(s || '').text;
+    const appendClock = clockStamp();
     const row = stampExchange(storedExchange({
       exchange_index: idx,
       user_message,
       assistant_message,
       timestamp: Date.now() / 1000
     }, idx - 1, scrub), stampedChannel, appendStamp);
+    row.server_written_local = appendClock.server_written_local;
     const attr = declaredAttribution();
     if (attr && attr.basis === 'subkey' && attr.keyId) {
       row.key_id = attr.keyId;
@@ -2401,6 +2425,7 @@ export async function transcriptAppend(args = {}, logger = null) {
       });
       return {
         session_id: part, exchange_index: idx, exchange_count: 1, rolled: part !== session_id,
+        server_time: appendClock.server_time,
         grant_id: appendStamp.grant_id,
         ...(appendClaim.warning ? { claimed_tag_warning: appendClaim.warning } : {}),
         ...machineLineField()
@@ -2416,6 +2441,7 @@ export async function transcriptAppend(args = {}, logger = null) {
       session_id: part,
       exchange_index: idx,
       exchange_count: (live.exchange_count || exchanges.length) + 1,
+      server_time: appendClock.server_time,
       rolled: part !== session_id,
       next_part_after: EXCHANGES_PER_PART,
       grant_id: appendStamp.grant_id,
@@ -2684,6 +2710,19 @@ export function checkReadPin(doc_id, current, opts = {}) {
     'discard the pages you already have, and read every page of the new version.', { code: 'EMET-DOC-005' });
 }
 
+/** On integrity false. The body stays in the result. */
+const BODY_MISMATCH_NOTE = 'The stored sha256 does not match the document body. The body is returned and flagged.';
+
+const RETIRED_DOC_NOTE = 'This document is marked OBSOLETE. It is retained in full and readable, but it is not current - do not act on it as live state.';
+
+/** Page note for a stored document. integrity is of the whole body, not the page. Shipped guides keep pageContent's note. */
+function stampReadDocIntegrityPage(page) {
+  if (!page) return null;
+  const clause = 'integrity is the whole body checked against that digest.';
+  if (String(page.note || '').includes(clause)) return page;
+  return { ...page, note: `${page.note} ${clause}` };
+}
+
 export async function readDoc(doc_id, logger = null, opts = {}) {
   try {
     if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string', { code: 'EMET-DOC-001' });
@@ -2698,30 +2737,38 @@ export async function readDoc(doc_id, logger = null, opts = {}) {
       const doc = await col.findOne({ doc_id });
       if (!doc) throw new ValidationError(`Document not found: ${doc_id}`, { code: 'EMET-DOC-002' });
       checkReadPin(doc_id, doc, opts);
+      // Whole stored body, before the page is cut. integrityOf is the layer
+      // check: true, false, or 'unattested'. A mismatch is returned and marked.
+      const integrity = integrityOf(doc);
       const { content, page } = pageContent(doc.content, opts.offset ?? 0, opts.limit ?? null);
-      // A retired document is still returned in full - retain and mark, never
-      // withhold. The caller is TOLD it is obsolete so it is not used as
-      // current, which is the whole of "prevent unintended use".
+      const stamped = stampReadDocIntegrityPage(page);
+      // A retired document is still returned in full. A body that does not
+      // match its digest is marked the same way, and still returned.
+      const notes = [];
+      if (doc.retired === true) notes.push(RETIRED_DOC_NOTE);
+      if (integrity === false) notes.push(BODY_MISMATCH_NOTE);
       return { doc_id: doc.doc_id, content, sha256: doc.sha256, version: doc.version,
+               server_written_local: doc.server_written_local ?? null,
                updated_at: doc.updated_at, updated_by: doc.updated_by || null,
                client_id: doc.client_id || null, grant_id: doc.grant_id || null, door: doc.door || null, session_id: doc.session_id || null,
                ...(doc.key_id ? { key_id: doc.key_id } : {}),
                ...(doc.source_basis ? { source_basis: doc.source_basis } : {}),
                path_hint: doc.path_hint || null, size: doc.content.length,
                size_unit: 'characters', size_bytes: Buffer.byteLength(doc.content, 'utf8'),
-               ...(page ? { page } : {}),
+               ...(stamped ? { page: stamped } : {}),
                // The conformance verdict travels with the document the same way
                // `integrity` travels with a layer row: a reader is told what the
                // record knows about itself rather than having to ask separately.
                // null on documents written before validation existed - a dated
                // boundary, not a defect.
                conformance: doc.conformance || null,
+               integrity,
                signed: signatureIntegrityOf(doc, setting('SIGNING_KEY') || null),
+               ...(notes.length ? { note: notes.join(' ') } : {}),
                ...(doc.retired === true ? {
                  retired: true, retired_at: doc.retired_at || null,
                  retired_by: doc.retired_by || null,
-                 retired_reason: doc.retired_reason || null,
-                 note: 'This document is marked OBSOLETE. It is retained in full and readable, but it is not current - do not act on it as live state.'
+                 retired_reason: doc.retired_reason || null
                } : {}) };
     } finally { await client.close(); }
   } catch (error) {
@@ -2756,27 +2803,31 @@ export async function readDocHistory(doc_id, version = null, logger = null) {
                  note: current ? null : 'No current document by this id; only retained revisions, if any.' };
       }
       if (current && current.version === version) {
+        const integrity = integrityOf(current);
         return { doc_id, version, is_current: true, content: current.content, sha256: current.sha256, size: current.content.length,
+                 server_written_local: current.server_written_local ?? null,
                  updated_at: current.updated_at, updated_by: current.updated_by || null,
                  client_id: current.client_id || null, grant_id: current.grant_id || null, door: current.door || null, session_id: current.session_id || null,
                  ...(current.key_id ? { key_id: current.key_id } : {}),
                  ...(current.source_basis ? { source_basis: current.source_basis } : {}),
-                 conformance: current.conformance || null };
+                 conformance: current.conformance || null,
+                 integrity,
+                 ...(integrity === false ? { note: BODY_MISMATCH_NOTE } : {}) };
       }
       // More than one archived row can carry a version when a write was retried;
       // the most recently archived is the one the store last held at that number.
       const row = await hist.find({ doc_id, version }).sort({ archived_at: -1 }).limit(1).next();
       if (!row) throw new ValidationError(`No retained revision ${version} of ${doc_id}`, { code: 'EMET-DOC-003' });
-      const integrity = row.sha256 ? (digest(row.content) === row.sha256) : 'unattested';
+      const integrity = integrityOf(row);
       return { doc_id, version, is_current: false, content: row.content, sha256: row.sha256 || null, size: row.content.length,
+               server_written_local: row.server_written_local ?? null,
                updated_at: row.updated_at || null, updated_by: row.updated_by || null, archived_at: row.archived_at || null,
                client_id: row.client_id || null, grant_id: row.grant_id || null, door: row.door || null, session_id: row.session_id || null,
                ...(row.key_id ? { key_id: row.key_id } : {}),
                ...(row.source_basis ? { source_basis: row.source_basis } : {}),
                conformance: row.conformance || null,
-               // Re-hashed on read, as a layer row is: a retained revision that
-               // does not match its own digest is returned and flagged, never hidden.
-               integrity };
+               integrity,
+               ...(integrity === false ? { note: BODY_MISMATCH_NOTE } : {}) };
     } finally { await client.close(); }
   } catch (error) {
     if (error instanceof ValidationError || error instanceof EmetError) throw error;
@@ -2847,10 +2898,9 @@ function _refuseRecordAmendment(doc_id, tool) {
  *     Hosts (the hub) keep writing anywhere under bots/.
  */
 export function sourceRegistry() {
-  const env = String(setting('SOURCE_TAGS') ?? '').split(',').map((s) => s.trim()).filter((s) => s !== '');
-  // Attribution v2: tags approved in emet/CLIENT_APPROVALS.md count as
-  // registered once a registry exists (a fresh install with no registry stays open).
-  return env.length ? [...new Set([...env, ...approvedTags()])] : env;
+  // The list requireRegisteredSource reads. Approved tags count once a
+  // registry exists. A fresh install with no registry stays open.
+  return registeredSourceTags();
 }
 
 /**
@@ -2905,6 +2955,20 @@ function stampedSource(decision, fallback) {
   if (decision && decision.from === 'bound-door') refuseBoundHostDoor(boundHostActor());
   if (decision && (decision.from === 'credential' || (decision.from === 'subkey' && isBoundHostTag(decision.tag)))) return decision.tag;
   return fallback;
+}
+
+/** The tag a write will store, and the basis that chose it. */
+export function sourceStamp(caller, fallback) {
+  const decision = resolvedSourceTag(caller);
+  return { tag: stampedSource(decision, fallback), from: decision.from };
+}
+
+async function condenseMemoryDoor(options) {
+  if (options && options.dbManager && typeof options.dbManager.insertMemory === 'function') return options.dbManager;
+  const { EmetDatabase } = await import('./database.js');
+  const manager = new EmetDatabase();
+  await manager.ensureClient();
+  return manager;
 }
 
 // Look-alike doc ids (Tester's recheck d1-d5, 2026-10-02): a `.` or `..` segment,
@@ -3030,7 +3094,7 @@ function refuseBotMainRecordOne(doc_id, updated_by, tool, options = {}) {
   }
   if (bot && doc_id === stateDoc() && tagHandoffMode() !== 'off') {
     // A write tag patches the board rows it opened. The hub handoff stays refused below.
-  } else if (bot) {
+  } else if (bot && !(options && options.condenseApproved === true)) {
     throw new ValidationError(
       `${tool}: ${doc_id} is a main record and ${tag} is a bot tag - a bot session closes against ` +
       `${botRecordDir(tag)} records; the main handoff and board are the hub's. Write the bot's own ` +
@@ -3085,7 +3149,11 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
   try {
     if (!doc_id || typeof doc_id !== 'string') throw new ValidationError('doc_id must be a non-empty string', { code: 'EMET-DOC-001' });
     // write_doc, patch_doc (which lands here) and rename_doc's copy (reissued_from).
-    refuseBotMainRecord(doc_id, updated_by, options && options.reissued_from ? 'rename_doc' : 'write_doc', options && options.serverProvision === true ? { serverProvision: true, ...(options.approvalsRecord === true ? { approvalsRecord: true } : {}) } : {});
+    refuseBotMainRecord(doc_id, updated_by, options && options.reissued_from ? 'rename_doc' : 'write_doc', {
+      ...(options && options.serverProvision === true ? { serverProvision: true } : {}),
+      ...(options && options.approvalsRecord === true ? { approvalsRecord: true } : {}),
+      ...(options && options.condense_approved === true ? { condenseApproved: true } : {})
+    });
     if (typeof rawContent !== 'string' || rawContent.length === 0) throw new ValidationError('content must be a non-empty string', { code: 'EMET-DOC-015' });
     if (rawContent.length > 2000000) throw new ValidationError('content exceeds 2MB limit', { code: 'EMET-DOC-016' });
     // patch_doc lands here too, so one
@@ -3108,6 +3176,23 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       const casOn = options && options.approvalsRecord === true && Object.prototype.hasOwnProperty.call(options, 'expectedVersion');
       const casConflict = () => { const e = new ValidationError(`${doc_id} changed under this write (compare-and-set). Nothing was written.`); e.versionConflict = true; return e; };
       if (casOn && ((prev ? prev.version : null) ?? null) !== (options.expectedVersion ?? null)) throw casConflict();
+      const floorExempt = options && options.provision;
+      const sid = (options && options.session_id) || null;
+      const base = String(sid || '').replace(/_verbatim_part\d+$/, '').trim() || null;
+      const baselines = prev && prev.size_baselines && typeof prev.size_baselines === 'object' ? { ...prev.size_baselines } : {};
+      let baseline;
+      if (base && Number.isInteger(baselines[base])) baseline = baselines[base];
+      else {
+        baseline = prev ? String(prev.content || '').length : content.length;
+        if (base) baselines[base] = baseline;
+      }
+      const condense = await condenseGate(client.db(MONGODB_DB), {
+        doc_id, prev, content, baseline, floorExempt, options, actor: condenseActor(rawActor(), currentActor())
+      });
+      if (condense.decision && condense.decision.code === 'EMET-DOC-090') {
+        throw new ValidationError(condense.decision.message, { code: 'EMET-DOC-090' });
+      }
+      const condenseOk = condense.decision && condense.decision.state === 'approved' ? condense.decision : null;
       // A record in force is superseded only by a revision that names it.
       // Checked before anything is archived, so a refused write leaves no trace.
       const tagHandoffRecord = tagHandoffMode() !== 'off' && isTagHandoffDoc(doc_id);
@@ -3151,7 +3236,6 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         if (same.length >= 20) throw new ValidationError(`write_doc: this connected app already wrote 20 drops today. Nothing was written.`, { code: 'EMET-DOC-021' });
         options = { ...options, drop_bucket: bucket };
       }
-      const floorExempt = options && options.provision;
       const internal = options && (options.provision || options.edited || options.setupReissue || options.restore_of || (options.approvalsRecord === true && options.serverProvision === true && doc_id === APPROVALS_DOC));
       if (options && options.provision && prev && doc_id === stateDoc()) {
         throw new ValidationError('The board already exists. Provision does not replace it. Nothing was written.', { code: 'EMET-MEM-021' });
@@ -3181,16 +3265,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
           throw new ValidationError(`write_doc: ${doc_id} is governed by the copy shipped with this release. Only that text may be stored. Nothing was written.`, { code: 'EMET-DOC-024' });
         }
       }
-      const sid = (options && options.session_id) || null;
-      const base = String(sid || '').replace(/_verbatim_part\d+$/, '').trim() || null;
-      const baselines = prev && prev.size_baselines && typeof prev.size_baselines === 'object' ? { ...prev.size_baselines } : {};
-      let baseline;
-      if (base && Number.isInteger(baselines[base])) baseline = baselines[base];
-      else {
-        baseline = prev ? String(prev.content || '').length : content.length;
-        if (base) baselines[base] = baseline;
-      }
-      if (prev && !floorExempt && baseline > 0 && content.length * 2 < baseline) {
+      if (prev && !floorExempt && !condenseOk && baseline > 0 && content.length * 2 < baseline) {
         const pct = Math.floor((content.length / baseline) * 100);
         throw new ValidationError(
           `This change would leave ${doc_id} at ${pct}% of its size when this session first touched it. Condensing below half is not done on the EMET server. Nothing was written. Write the full revision: the whole content in one write_doc, or write_doc_begin, write_doc_append, and write_doc_commit. A condensed or header-only substitute is refused.`
@@ -3209,7 +3284,7 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       if (prev && prev.updated_at && (nowMs - new Date(prev.updated_at).getTime()) <= CROSS_SESSION_FLOOR_MS) {
         peak = Math.max(peak, String(prev.content || '').length);
       }
-      if (prev && !floorExempt && peak > 0 && content.length * 2 < peak) {
+      if (prev && !floorExempt && !condenseOk && peak > 0 && content.length * 2 < peak) {
         const pct = Math.floor((content.length / peak) * 100);
         throw new ValidationError(
           `This change would leave ${doc_id} at ${pct}% of its largest size in the last 24 hours. A write may not fall below half of that peak. Nothing was written.`
@@ -3272,20 +3347,63 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         caller: docDecision.tag || updated_by,
         tool: options && options.edited ? 'patch_doc' : 'write_doc'
       });
+      let sourceSaveWarning = null;
+      if (!(options && options.serverProvision === true)) {
+        const sourceGate = guardUnregisteredSourceSave({
+          tag: stampedUpdatedBy,
+          tool: options && options.edited ? 'patch_doc' : 'write_doc',
+          now: options && options.now
+        });
+        sourceSaveWarning = sourceGate.warning;
+      }
       if (prev) {
         const { _id, size_baselines: _liveBaselines, ...rest } = prev;
         // Retained and marked obsolete (ISO 7.5.3 / 4.2.5): the archived copy
         // says which revision replaced it. Baselines stay on the live row only.
         await hist.insertOne({ ...rest, archived_at: new Date(), superseded_by_version: version });
       }
-      const now = new Date();
+      let episodeFields = null;
+      let condenseMeta = null;
+      if (condenseOk) {
+        const kept = await hist.findOne({ doc_id, version: prev.version, superseded_by_version: version });
+        assertRetainedPrior(kept, prev, doc_id);
+        const priorText = String(prev.content || '');
+        episodeFields = {
+          doc_id,
+          reason: condenseOk.reason,
+          approver: condenseOk.basis === 'writer-approval' ? condenseOk.approver : (docStamp.person_id || 'owner'),
+          basis: condenseOk.basis,
+          writer_approval_id: condenseOk.writer_approval_id,
+          prior_size: priorText.length,
+          prior_sha256: prev.sha256 || digest(priorText),
+          new_size: content.length,
+          new_sha256: sha256,
+          archive_doc: condenseOk.archive_doc,
+          prior_version: prev.version,
+          version,
+          source: stampedUpdatedBy,
+          session_id: sid
+        };
+        condenseMeta = condenseRecordOf(condenseOk, {
+          person_id: docStamp.person_id,
+          prior_size: priorText.length,
+          prior_sha256: prev.sha256 || digest(priorText),
+          new_size: content.length,
+          new_sha256: sha256,
+          prior_version: prev.version,
+          version,
+          episodic_id: null
+        });
+      }
+      const writeClock = clockStamp();
+      const now = writeClock.server_time ? serverNow(new Date()) : new Date();
       // Validation runs HERE: after redaction, on the exact text that will be
       // stored, with the previous revision already in hand for the
       // carry-forward comparison. It marks and never rejects (ref 304), so its
       // result is a field on the row rather than a branch in this function.
       // Writing the field whole also enforces L6 - the fresh object carries no
       // acceptance, so an acceptance covers the one revision it was given to.
-      const conformance = validateDocument(doc_id, content, prev ? prev.content : null);
+      const conformance = validateDocument(doc_id, content, prev ? prev.content : null, { at: writeClock.server_time });
       // L5, set only when renameDoc reaches this door. The destination passes
       // validation as "untemplated" when no template maps to it - which is the
       // evasion rather than the answer if the id it came FROM was governed.
@@ -3325,7 +3443,9 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
         // is a trap; it is also the un-retire path, so retirement is not a
         // one-way door.
         retired: false,
-        size_note: 'baseline is the size when this session first touched the document'
+        server_written_local: writeClock.server_written_local,
+        size_note: 'baseline is the size when this session first touched the document',
+        ...(condenseMeta ? { condense: condenseMeta } : {})
       };
       const attr = declaredAttribution();
       if (attr && attr.basis === 'subkey' && attr.keyId) {
@@ -3359,16 +3479,72 @@ export async function writeDoc(doc_id, rawContent, updated_by = null, path_hint 
       // aleph: the write is not done because the call returned.
       const check = await col.findOne({ doc_id });
       verifyDocument(check, { doc_id, sha256, version });
+      if (condenseOk && prev) {
+        const priorText = String(prev.content || '');
+        const episode = condenseEpisodePayload({
+          doc_id,
+          reason: condenseOk.reason,
+          approver: condenseOk.basis === 'writer-approval' ? condenseOk.approver : (docStamp.person_id || 'owner'),
+          basis: condenseOk.basis,
+          writer_approval_id: condenseOk.writer_approval_id,
+          prior_size: priorText.length,
+          prior_sha256: prev.sha256 || digest(priorText),
+          new_size: content.length,
+          new_sha256: sha256,
+          archive_doc: condenseOk.archive_doc,
+          prior_version: prev.version,
+          version,
+          source: stampedUpdatedBy,
+          session_id: sid
+        });
+        condenseMeta = condenseRecordOf(condenseOk, {
+          person_id: docStamp.person_id,
+          prior_size: priorText.length,
+          prior_sha256: prev.sha256 || digest(priorText),
+          new_size: content.length,
+          new_sha256: sha256,
+          prior_version: prev.version,
+          version,
+          episodic_id: null
+        });
+        const saved = await saveMemory(await condenseMemoryDoor(options), episode.content, 'episodic', episode.metadata, logger, AuditOperation, { session_id: sid });
+        condenseMeta = { ...condenseMeta, episodic_id: saved && saved.id };
+      }
+      const warnings = [
+        ...(sourceSaveWarning ? [sourceSaveWarning] : []),
+        ...tagHandoffWarnings
+      ];
       if (tagHandoffWarnings.length) {
         try { logger?.warn?.(tagHandoffWarnings.join(' ')); } catch { /* a failing logger never fails the write */ }
       }
-      return { doc_id, sha256, version, size: content.length, updated_at: now, verified: true,
+      if (condenseMeta && logger && typeof logger.audit === 'function') {
+        logger.audit(AuditOperation.DOCUMENT_CONDENSE, {
+          doc_id,
+          approver: condenseMeta.approver,
+          basis: condenseMeta.basis,
+          reason: condenseMeta.reason,
+          prior_size: condenseMeta.prior_size,
+          prior_sha256: condenseMeta.prior_sha256,
+          new_size: condenseMeta.new_size,
+          new_sha256: condenseMeta.new_sha256,
+          archive_doc: condenseMeta.archive_doc,
+          episodic_id: condenseMeta.episodic_id,
+          success: true
+        });
+      }
+      return { doc_id, sha256, version, size: content.length, updated_at: now, server_time: writeClock.server_time, verified: true,
                signed: signatureIntegrityOf(check, signingKey),
                signature_stored: typeof check?.signature === 'string' && check.signature.length > 0,
                redacted: redaction.hits, conformance,
                grant_id: docStamp.grant_id,
                ...(docClaim.warning ? { claimed_tag_warning: docClaim.warning } : {}),
-               ...(tagHandoffWarnings.length ? { warnings: tagHandoffWarnings } : {}) };
+               ...(warnings.length ? { warnings } : {}),
+               ...(condenseMeta ? {
+                 condensed: true,
+                 condense: condenseMeta,
+                 episodic_id: condenseMeta.episodic_id,
+                 condense_note: `${doc_id} is now ${content.length} characters, down from ${condenseMeta.prior_size}. The prior revision stays in documents_history.`
+               } : {}) };
     } finally { await client.close(); }
   } catch (error) {
     if (error && error.versionConflict) throw error;
@@ -3479,7 +3655,7 @@ export async function retireDoc(doc_id, reason = null, retired_by = null, logger
 
       const now = new Date();
       const retireStamp = writerStamp();
-      const retireDecision = resolvedSourceTag(retired_by);
+      const retireDecision = sourceStamp(retired_by, retired_by || setting('SOURCE_TAG') || null);
       const retireClaim = guardClaimedTag({
         transport: currentActor().transport,
         grant_id: retireStamp.grant_id,
@@ -3487,6 +3663,12 @@ export async function retireDoc(doc_id, reason = null, retired_by = null, logger
         caller: retireDecision.tag || retired_by,
         tool: 'retire_doc'
       });
+      const retireGate = guardUnregisteredSourceSave({
+        tag: retireDecision.tag,
+        tool: 'retire_doc',
+        now: options && options.now
+      });
+      if (retireGate.warning) gapWarnings.push(retireGate.warning);
       await col.updateOne({ doc_id }, { $set: {
         retired: true,
         retired_at: now,
@@ -3579,13 +3761,13 @@ export async function renameDoc(old_id, new_id, updated_by = null, logger = null
     // write rather than getting a second, parallel implementation.
     // `reissued_from` carries the L5 question to the door, so the mark is set
     // by the same write that creates the document rather than by a second one.
-    const written = await writeDoc(new_id, content, updated_by, path_hint, logger, { reissued_from: old_id, reason, session_id: options && options.session_id });
+    const written = await writeDoc(new_id, content, updated_by, path_hint, logger, { reissued_from: old_id, reason, session_id: options && options.session_id, now: options && options.now });
 
     // Ordering is deliberate: the copy exists and is verified BEFORE the old id
     // is marked obsolete. Nothing is removed at any point - a "rename" here is a
     // reissue plus an obsolescence mark, which is what document control actually
     // asks for. The old id keeps its content and stays readable at its own id.
-    const retired = await retireDoc(old_id, `Reissued as ${new_id}`, updated_by, logger, { fromRename: true });
+    const retired = await retireDoc(old_id, `Reissued as ${new_id}`, updated_by, logger, { fromRename: true, now: options && options.now });
 
     const warnings = [sourceGap && sourceGap.warning, destGap && destGap.warning, ...(written.warnings || []), ...(retired.warnings || [])].filter(Boolean);
     if (warnings.length) logger?.warn?.(warnings.join(' '));
@@ -3640,6 +3822,7 @@ export async function restoreDoc(doc_id, version, updated_by = null, logger = nu
   if (!allowed.includes(updated_by)) throw new ValidationError(`restore_doc: ${updated_by} is not in EMET_RESTORE_TAGS. Nothing was written.`, { code: 'EMET-DOC-042' });
   const prior = await readDocHistory(doc_id, version, logger);
   if (!prior || typeof prior.content !== 'string') throw new ValidationError(`No retained revision ${version} of ${doc_id}`, { code: 'EMET-DOC-003' });
+  if (prior.is_current === true) throw new ValidationError(`restore_doc: version ${version} of ${doc_id} is already in force. Nothing was written.`, { code: 'EMET-DOC-089' });
   if (prior.integrity !== true) throw new ValidationError(`restore_doc: retained revision ${version} of ${doc_id} does not match its digest. Nothing was written.`, { code: 'EMET-DOC-043' });
   const verdict = prior.conformance && prior.conformance.verdict;
   const accepted = prior.conformance && prior.conformance.accepted;
@@ -3654,7 +3837,7 @@ export async function restoreDoc(doc_id, version, updated_by = null, logger = nu
   if (doc_id === stateDoc() && (await unretiredBootDrops(options && options.session_id)).length) {
     throw new ValidationError('restore_doc: unhandled drops were listed at this session boot and must be retired with retire_doc before the board is restored. Nothing was written.', { code: 'EMET-MEM-026' });
   }
-  const written = await writeDoc(doc_id, prior.content, updated_by, null, logger, { restore_of: version, reason, session_id: options && options.session_id, supersedes: current && current.version });
+  const written = await writeDoc(doc_id, prior.content, updated_by, null, logger, { restore_of: version, reason, session_id: options && options.session_id, supersedes: current && current.version, now: options && options.now });
   return { ...written, rows_lost: lost, restored_from_version: version };
 }
 
@@ -3748,7 +3931,7 @@ export async function acceptNonconformance(doc_id, reason, accepted_by = null, l
           `Its verdict is "${current ? current.verdict : 'not yet checked'}".`
         , { code: 'EMET-DOC-050' });
       }
-      const acceptDecision = resolvedSourceTag(accepted_by);
+      const acceptDecision = sourceStamp(accepted_by, accepted_by || setting('SOURCE_TAG') || null);
       const acceptClaim = guardClaimedTag({
         transport: currentActor().transport,
         grant_id: writerStamp().grant_id,
@@ -3756,6 +3939,12 @@ export async function acceptNonconformance(doc_id, reason, accepted_by = null, l
         caller: acceptDecision.tag || accepted_by,
         tool: 'accept_nonconformance'
       });
+      const acceptGate = guardUnregisteredSourceSave({
+        tag: acceptDecision.tag,
+        tool: 'accept_nonconformance',
+        now: options && options.now
+      });
+      if (acceptGate.warning) gapWarnings.push(acceptGate.warning);
       const stamp = writerStamp();
       const accepted = buildAcceptance({
         reason, by: accepted_by || setting('SOURCE_TAG') || null, version: doc.version,
@@ -4074,6 +4263,9 @@ async function codeCreator(dbManager) {
 }
 
 export async function inviteCreate(dbManager, { display_name, scopes, days, source } = {}, logger = null) {
+  const { currentActor: actorNow } = await import('./persons.js');
+  const { refuseKeyOwnerTool } = await import('./key-door.js');
+  refuseKeyOwnerTool(actorNow(), 'emet_invite_create');
   if (!display_name || !String(display_name).trim()) {
     throw new ValidationError('display_name is required — the name the guest will be known by', { code: 'EMET-AUTH-029' });
   }
@@ -4110,13 +4302,15 @@ export async function inviteCreate(dbManager, { display_name, scopes, days, sour
 }
 
 export async function memberAccessCreate(dbManager, { display_name, days, source } = {}, logger = null) {
+  const { currentActor } = await import('./persons.js');
+  const { refuseKeyOwnerTool } = await import('./key-door.js');
+  refuseKeyOwnerTool(currentActor(), 'emet_member_access_create');
   if (!display_name || !String(display_name).trim()) {
     throw new ValidationError('display_name is required \u2014 the name the member will be known by', { code: 'EMET-AUTH-033' });
   }
   await dbManager.getConnection('working');
   const { createMemberAccess, MEMBER_ACCESS_FROZEN, MEMBER_ACCESS_FROZEN_REASON } = await import('./invites.js');
   if (MEMBER_ACCESS_FROZEN) throw new ValidationError(MEMBER_ACCESS_FROZEN_REASON, { code: 'EMET-AUTH-034' });
-  const { currentActor } = await import('./persons.js');
   const { actorIsCos } = await import('./attribution.js');
   const { isOwlIdentity } = await import('./owl.js');
   const { isMasterBlasterActor } = await import('./writer-approval.js');
@@ -4493,7 +4687,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "read_doc",
-    description: "Read a continuity document from the versioned document store. A document longer than one page (18,000 UTF-8 bytes by default) comes back in pages: the result then carries `page` with `next_offset` - call again with that offset (and `expected_version` set to the first page's `version`) until `next_offset` is null, and do not act on a document you have only part of. If the document changes between pages the read is refused: restart from offset 0. `sha256` and `size` (characters; `size_bytes` in UTF-8 bytes) always describe the WHOLE document.",
+    description: "Read a continuity document from the versioned document store. A document longer than one page (18,000 UTF-8 bytes by default) comes back in pages: the result then carries `page` with `next_offset` - call again with that offset (and `expected_version` set to the first page's `version`) until `next_offset` is null, and do not act on a document you have only part of. If the document changes between pages the read is refused: restart from offset 0. `sha256`, `size` (characters; `size_bytes` in UTF-8 bytes), and `integrity` always describe the WHOLE document, including on a page. `integrity` is true when the stored body matches `sha256`, false when it does not (the body is still returned, with a note), and `unattested` when the document has no `sha256`. A shipped guide is not re-hashed and has no `integrity` field.",
     inputSchema: { type: "object", properties: {
       doc_id: { type: "string", description: "Document id, e.g. 'STATE.md', 'HANDOFF.md', 'threads/pcb-laser-board.md', 'bootstrap/IDENTITY.md'" },
       offset: { type: "number", description: "Optional: UTF-8 byte offset to start from (default 0). Use the previous page's `page.next_offset`." },
@@ -4504,7 +4698,7 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "read_doc_history",
-    description: "Read a RETAINED revision of a document, or list the revisions retained for it. Every write archives the prior copy (nothing is deleted); this is the reader for that archive. Without a version: the list of retained revisions with their digests and dates. With a version: that revision's full content, re-hashed against its stored digest. Read-only. Use it for an audit question - what did this document say at version N - or to compare a document with what it replaced.",
+    description: "Read a RETAINED revision of a document, or list the revisions retained for it. Every write archives the prior copy (nothing is deleted); this is the reader for that archive. Without a version: the list of retained revisions with their digests and dates. With a version: that revision, re-hashed against its stored digest, including the revision now in force. A body that does not match its stored sha256 is returned with integrity false and a note. Read-only. Use it for an audit question - what did this document say at version N - or to compare a document with what it replaced.",
     inputSchema: { type: "object", properties: {
       doc_id: { type: "string", description: "Document id, e.g. 'CHARTER.md', 'STATE.md'" },
       version: { type: "number", description: "Optional: the revision to read. Omit to list what is retained." }
@@ -4512,13 +4706,16 @@ const TOOL_DEFINITIONS = [
   },
   {
     name: "write_doc",
-    description: "Write or update a continuity document in the document store (versioned, prior copy archived to documents_history and marked obsolete, sha256 read-back verified). RECORDS - the handoff (HANDOFF.md) and any id in EMET_RECORD_DOCS - are superseded, never amended: patch_doc is refused on them, and a new revision is written here WHOLE with `supersedes` set to the version currently in force (ISO 9001 7.5.3 / 13485 4.2.5). When EMET_TAG_HANDOFFS is warn or enforce, a write tag's handoff is HANDOFF/<tag>.md and only that credential writes it. Only the hub tag writes HANDOFF.md. A claimed tag is refused on HANDOFF/ (EMET-DOC-087). A two-segment id and a tag equal to a person id are refused (EMET-DOC-086). Another tag's handoff is refused (EMET-DOC-084). In warn, those new-prefix refusals apply at once. A registered non-hub write of HANDOFF.md or another tag's bots/ folder warns and is kept; enforce refuses it.",
+    description: "Write or update a continuity document in the document store (versioned, prior copy archived to documents_history and marked obsolete, sha256 read-back verified). A clock that cannot be formatted stores server_written_local null and the write still succeeds. RECORDS - the handoff (HANDOFF.md) and any id in EMET_RECORD_DOCS - are superseded, never amended: patch_doc is refused on them, and a new revision is written here WHOLE with `supersedes` set to the version currently in force (ISO 9001 7.5.3 / 13485 4.2.5). When EMET_TAG_HANDOFFS is warn or enforce, a write tag's handoff is HANDOFF/<tag>.md and only that credential writes it. Only the hub tag writes HANDOFF.md. A claimed tag is refused on HANDOFF/ (EMET-DOC-087). A two-segment id and a tag equal to a person id are refused (EMET-DOC-086). Another tag's handoff is refused (EMET-DOC-084). In warn, those new-prefix refusals apply at once. A registered non-hub write of HANDOFF.md or another tag's bots/ folder warns and is kept; enforce refuses it.",
     inputSchema: { type: "object", properties: {
       doc_id: { type: "string" },
       content: { type: "string" },
       supersedes: { type: "number", description: "Required when writing a new revision of a RECORD (the handoff): the version currently in force, which this revision supersedes. Ignored for ordinary documents." },
       reason: { type: "string", description: "Required on a record revision (at least 10 characters). Stored as edit_reason." },
       session_id: { type: "string", description: "Transcript session id. The floor is measured from the size when this session first touched the document." },
+      condense_approved: { type: "boolean", description: "Pass true when this edit leaves the document under half the size this session first saw. Same rule as write_doc." },
+      writer_approval_id: { type: "string", description: "Optional. The writer approval the owner granted, when the caller is not the owner door." },
+      archive_doc: { type: "string", description: "Optional. Recorded on the new revision." },
       source: { type: "string", description: "Source tag - which host produced this write. One name on every write since 2026-09-27. With EMET_TAG_HANDOFFS at warn or enforce, HTTP refuses a declared tag that is not the credential when session_id is set (EMET-DOC-088). A call that declares no tag is kept. With the flag off that check does not run." },
       updated_by: { type: "string", description: "Alias of `source` (the older name, kept one release). Prefer `source`." }
     }, required: ["doc_id", "content"] }
@@ -4725,7 +4922,8 @@ const TOOL_DEFINITIONS = [
         client: { type: "string", description: "For decision prepare: the client id the writer request names." },
         claimed_tag: { type: "string", description: "For decision prepare: the tag the writer would be known by." },
         door: { type: "string", enum: ["member", "guest"], description: "For decision prepare: member is a writer. Guest is not a writer." },
-        correlation_id: { type: "string", description: "For decision prepare: 16 lowercase hex characters. The same id again returns the retained request." }
+        correlation_id: { type: "string", description: "For decision prepare: 16 lowercase hex characters. The same id again returns the retained request." },
+        doc_id: { type: "string", description: "For decision prepare, when this request is a condense grant: the document the owner is allowing this writer to shorten, such as HANDOFF.md. Required for a condense grant. A grant with no doc_id does not permit a condense. A grant for one document does not permit another." }
       },
       required: ["tag", "decision"]
     }
@@ -4868,7 +5066,9 @@ const SUBKEY_TOOL_DEFINITIONS = [
  */
 const GRAPH_INPUTS = {
   session_id: { type: 'string', description: 'Your transcript session id from emet_session_open. The session graph reads this session\'s state before the write and returns `session_graph.next` - the next step. A governed write with no session is refused (open one with emet_session_open and load_id).' },
-  exchange: { type: 'number', description: 'The exchange (turn) this write belongs to, counting from 1. A write for exchange n while exchange n-1 was never appended is refused by the session graph until n-1 is appended.' }
+  exchange: { type: 'number', description: 'The exchange (turn) this write belongs to, counting from 1. A write for exchange n while exchange n-1 was never appended is refused by the session graph until n-1 is appended.' },
+  load_id: { type: 'string', description: 'Optional. The load_id from the emet_initialize you ran after a compaction or a long gap. With EMET_CONTINUITY_CURRENCY=1 a write against a HANDOFF or STATE version older than that initialize warns and does not block.' },
+  compacted: { type: 'boolean', description: 'Optional. Pass true when this write follows a chat compaction or summary. after_compaction is the same flag. A warning does not block. Omit it on an ordinary write.' }
 };
 for (const t of TOOL_DEFINITIONS) {
   // One list of governed tools: session-graph.js. The append already carries

@@ -224,6 +224,11 @@
     "status": "active",
     "internal": false
   },
+  "EMET-AUTH-046": {
+    "summary": "A key sign-in was refused",
+    "status": "active",
+    "internal": false
+  },
   "EMET-CFG-001": {
     "summary": "Database name must be a plain name",
     "status": "active",
@@ -889,6 +894,16 @@
     "status": "active",
     "internal": false
   },
+  "EMET-DOC-089": {
+    "summary": "Requested revision is already in force",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-DOC-090": {
+    "summary": "A condense grant must name this document",
+    "status": "active",
+    "internal": false
+  },
   "EMET-GEM-001": {
     "summary": "Read-back found no document",
     "status": "active",
@@ -1261,6 +1276,11 @@
   },
   "EMET-MEM-034": {
     "summary": "Only a ready payload can be abridged",
+    "status": "active",
+    "internal": false
+  },
+  "EMET-MEM-035": {
+    "summary": "An unregistered source cannot save after the cutoff",
     "status": "active",
     "internal": false
   },

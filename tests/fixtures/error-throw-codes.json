@@ -60,6 +60,11 @@
     "code": "EMET-AUTH-040"
   },
   {
+    "file": "condense-approval.js",
+    "message": "throw new ValidationError( `The prior revision of ${doc_id} is not in documents_history byte for byte. Nothing further was written.` )",
+    "code": "EMET-DOC-003"
+  },
+  {
     "file": "conformance.js",
     "message": "throw new Error( `An acceptance needs a written reason of at least ${MIN_ACCEPTANCE_REASON} characters. ` + `It is the disposition of record for a nonconformance and is read by whoever audits it later.` )",
     "code": "EMET-DOC-049"
@@ -441,6 +446,11 @@
   },
   {
     "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError('a console login is not refreshed here. Use the console session refresh.')",
+    "code": "EMET-AUTH-017"
+  },
+  {
+    "file": "oauth-provider.js",
     "message": "throw new InvalidGrantError('redirect_uri does not match the one this code was issued for')",
     "code": "EMET-AUTH-015"
   },
@@ -498,6 +508,11 @@
     "file": "oauth-provider.js",
     "message": "throw new InvalidGrantError('this refresh token is not recognised (it may have been revoked, or issued to another client) - reconnect to sign in again')",
     "code": "EMET-AUTH-017"
+  },
+  {
+    "file": "oauth-provider.js",
+    "message": "throw new InvalidGrantError(message)",
+    "code": "EMET-AUTH-046"
   },
   {
     "file": "oauth-provider.js",
@@ -763,6 +778,11 @@
     "file": "setup.js",
     "message": "throw new ValidationError(field, 'use bound-host. Nothing was written.')",
     "code": "EMET-AUTH-045"
+  },
+  {
+    "file": "source-registration.js",
+    "message": "throw new ValidationError('source', refusalMessage(tool, tag, cutoff))",
+    "code": "EMET-MEM-035"
   },
   {
     "file": "staged-write.js",
@@ -1691,6 +1711,11 @@
   },
   {
     "file": "tools.js",
+    "message": "throw new ValidationError(`restore_doc: version ${version} of ${doc_id} is already in force. Nothing was written.`)",
+    "code": "EMET-DOC-089"
+  },
+  {
+    "file": "tools.js",
     "message": "throw new ValidationError(`retire_doc: ${doc_id} is not a drop. Working documents are edited, not retired. Nothing was changed.`)",
     "code": "EMET-DOC-028"
   },
@@ -1713,6 +1738,11 @@
     "file": "tools.js",
     "message": "throw new ValidationError(`write_doc: this connected app already wrote 20 drops today. Nothing was written.`)",
     "code": "EMET-DOC-021"
+  },
+  {
+    "file": "tools.js",
+    "message": "throw new ValidationError(condense.decision.message)",
+    "code": "EMET-DOC-090"
   },
   {
     "file": "tools.js",
